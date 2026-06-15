@@ -1,0 +1,16 @@
+Cube Run is a minimalist one-thumb 3D runner. The world rushes toward you down a neon three-lane track, and your cube has to dodge, jump and slam its way through everything in the way.
+
+Swipe left or right to snap between lanes, swipe up to leap low walls, and swipe down in mid-air to slam back to the ground in a hurry. Pillars and wide bars leave just one survivable lane, and once you get going some obstacles slide sideways into the open lane as they approach — so read the track and commit at the last moment.
+
+Score a point for every row you clear, with a bonus for shaving past an obstacle by a hair. The track speeds up the longer you survive, the colours drift across the spectrum, and a single mistimed move ends the run in a burst of shards.
+
+Features:
+
+* One-thumb controls: swipe to switch lanes, jump and slam.
+* An endless, procedurally generated track — no two runs are alike.
+* A relentless difficulty ramp that rewards nerve and near-misses.
+* Tight, tactile feedback with synchronised sound and haptics.
+* A local high score. No accounts, no ads, no tracking, no network access.
+* Tiny download and fully playable offline.
+
+Cube Run is built with libGDX and is free and open-source software, licensed under the GNU General Public License v3.0.

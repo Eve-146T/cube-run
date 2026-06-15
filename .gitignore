@@ -1,0 +1,24 @@
+# Gradle / build
+.gradle/
+build/
+captures/
+.cxx/
+.externalNativeBuild/
+
+# Generated libGDX native libraries (re-extracted by copyAndroidNatives)
+app/libs/
+
+# Local config
+local.properties
+keystore.properties
+
+# IDE
+.idea/
+*.iml
+.kotlin/
+
+# Artifacts
+*.apk
+*.aab
+*.keystore
+*.jks
