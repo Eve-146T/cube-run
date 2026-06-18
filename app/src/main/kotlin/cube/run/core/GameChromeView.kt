@@ -3,6 +3,7 @@ package cube.run.core
 import android.animation.ValueAnimator
 import android.annotation.SuppressLint
 import android.app.Activity
+import android.content.res.ColorStateList
 import android.graphics.Color
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
@@ -12,6 +13,7 @@ import android.view.View
 import android.view.WindowInsets
 import android.view.animation.DecelerateInterpolator
 import android.view.animation.OvershootInterpolator
+import android.widget.CheckBox
 import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.TextView
@@ -60,6 +62,35 @@ class GameChromeView(private val activity: Activity, private val accent: Int) : 
     private var bestPulse: ValueAnimator? = null
     private val topBox = LinearLayout(activity)
 
+    // Pre-run option: experimental "smooth control" toggle. Hidden once the run begins.
+    private val smoothCheck = CheckBox(activity).apply {
+        isChecked = Settings.smoothControl
+        buttonTintList = ColorStateList.valueOf(accent)
+        setOnCheckedChangeListener { _, c ->
+            SoundFx.play("tap"); Haptics.tick()
+            Settings.setSmoothControl(c)
+        }
+    }
+    private val optionsBox = LinearLayout(activity).apply {
+        orientation = LinearLayout.HORIZONTAL
+        gravity = Gravity.CENTER_VERTICAL
+        setPadding(dp(14f), dp(8f), dp(18f), dp(8f))
+        isClickable = true
+        background = GradientDrawable().apply {
+            cornerRadius = dp(22f).toFloat()
+            setColor(Palette.withAlpha(Color.BLACK, 115))
+            setStroke(dp(1f), Palette.withAlpha(accent, 150))
+        }
+        addView(smoothCheck)
+        addView(TextView(activity).apply {
+            text = "Smooth control (beta)"
+            setTextColor(Color.WHITE)
+            textSize = 15f
+            typeface = Typeface.DEFAULT_BOLD
+        })
+        setOnClickListener { smoothCheck.toggle() } // tapping the label toggles too
+    }
+
     init {
         isClickable = false
         isFocusable = false
@@ -75,6 +106,10 @@ class GameChromeView(private val activity: Activity, private val accent: Int) : 
         })
         addView(bannerText, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT).apply {
             gravity = Gravity.CENTER
+        })
+        addView(optionsBox, LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT).apply {
+            gravity = Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL
+            bottomMargin = dp(168f) // sit above the bottom edge / debug slider
         })
 
         // Keep the HUD clear of the display cutout.
@@ -98,6 +133,13 @@ class GameChromeView(private val activity: Activity, private val accent: Int) : 
 
     fun setBest(best: Int) {
         bestText.text = if (best > 0) "BEST $best" else ""
+    }
+
+    /** Hide the pre-run options once a run has begun. */
+    fun hideOptions() {
+        if (optionsBox.visibility != VISIBLE) return
+        optionsBox.animate().alpha(0f).setDuration(160)
+            .withEndAction { optionsBox.visibility = GONE }.start()
     }
 
     fun setScore(v: Int) {

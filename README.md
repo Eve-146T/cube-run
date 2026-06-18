@@ -11,11 +11,16 @@ Latest APK: [GitHub releases](https://github.com/Eve-146T/cube-run/releases/late
 ## Gameplay
 
 - Swipe **left / right** to snap between the three lanes.
-- Swipe **up** to jump low walls; swipe **down** in mid-air to slam back down fast.
+- Swipe **up** to jump low walls. Swipe **down** to roll under overhead bars
+  on the ground, or to slam back down fast when you're mid-air.
 - Pillars and wide bars leave exactly one safe lane, and some obstacles slide
   into the open lane as they approach — read the track and commit late.
+- The track is stitched from hand-made sections (weaves, hurdles, limbo runs,
+  slaloms, skill-checks) that recur and recombine between runs, with a rest
+  beat woven in. Tougher sections unlock the longer you survive.
 - Score one point per row cleared, plus a bonus for shaving past an obstacle.
-  The pace keeps climbing the longer you last. Your best score is saved locally.
+  The pace eases up to a steady cruising speed and then holds there — runs end
+  on focus, not on impossible reflexes. Your best score is saved locally.
 
 No accounts, no ads, no tracking, no network access.
 

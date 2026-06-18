@@ -8,10 +8,12 @@ import com.badlogic.gdx.graphics.g3d.ModelBatch
 import com.badlogic.gdx.graphics.g3d.ModelInstance
 import com.badlogic.gdx.graphics.g3d.attributes.BlendingAttribute
 import com.badlogic.gdx.graphics.g3d.attributes.ColorAttribute
+import com.badlogic.gdx.graphics.glutils.ShapeRenderer
 import com.badlogic.gdx.math.Vector3
 import cube.run.core.Gdx3DGame
 import cube.run.core.GameSession
 import cube.run.core.Haptics
+import cube.run.core.Settings
 import cube.run.core.SoundFx
 import kotlin.math.abs
 import kotlin.math.max
@@ -21,15 +23,30 @@ import kotlin.random.Random
 
 /**
  * Cube Run — 3-lane endless runner. The world rushes toward the camera;
- * swipe LEFT/RIGHT to snap lanes, UP to jump, DOWN to slam mid-air.
- * Low walls = jump, pillars/wide bars = dodge, sliders drift into the open
- * lane as they approach. +1 per row passed, +2 for shaving it close.
+ * swipe LEFT/RIGHT to snap lanes, UP to jump, DOWN to roll (on the ground)
+ * or slam (mid-air).
+ *
+ * The track is a single continuous "lane-walk": every row leaves a known safe
+ * lane, and that safe lane only ever moves by at most one between consecutive
+ * rows, so the run is dense but always physically solvable. Recognisable
+ * [Sect] patterns (slalom, tunnel, gauntlet…) are authored over that stream
+ * and stitched together by the [pickSection] director, with tier-gating and
+ * mirroring for variety. Difficulty is a single axis: speed.
+ *
+ * Obstacles: bars/twin pillars = dodge, low walls = JUMP, overhead bars =
+ * ROLL under, sliders drift into a lane. +1 per row, +2 for a near-miss.
  */
 class CubeRun(session: GameSession) : Gdx3DGame(session) {
 
+    // obstacle collision behaviour
+    private val DODGE = 0   // solid — get out of its lane
+    private val JUMP = 1    // low wall — be airborne / high enough
+    private val DUCK = 2    // overhead bar — be rolling / low enough
+
     private class Ob(
-        val inst: ModelInstance, var x: Float, val halfW: Float, val h: Float,
-        val low: Boolean, val sx: Float, val sy: Float, val sz: Float,
+        val inst: ModelInstance, var x: Float, val cy: Float, val halfW: Float,
+        val type: Int, val clear: Float,
+        val sx: Float, val sy: Float, val sz: Float,
         val sliding: Boolean = false, val slideTo: Float = 0f,
     )
 
@@ -40,6 +57,49 @@ class CubeRun(session: GameSession) : Gdx3DGame(session) {
 
     private class Tile(val inst: ModelInstance, val col: Color, var z: Float, val x: Float, val dim: Boolean)
     private class Post(val inst: ModelInstance, val col: Color, var z: Float, val x: Float)
+
+    // ---- section model ---------------------------------------------------
+    // A section is a sequence of step codes. Decoded by [spawnStep]:
+    //   0,1,2   dodge: make `that lane` the only safe one (block the other two)
+    //   10..12  feint: a lone pillar (two lanes stay safe) for visual density
+    //   20..22  slide: a pillar drifts into that lane (a "closing gate")
+    //   JP      jump a low wall   DK  roll under an overhead bar   EM  open row
+    private fun dg(l: Int) = l
+    private fun ft(l: Int) = 10 + l
+    private fun sld(l: Int) = 20 + l
+    private val JP = 30
+    private val DK = 31
+    private val EM = 40
+
+    private class Sect(val id: Int, val tier: Int, val weight: Float, val steps: IntArray, val mirrorable: Boolean = true)
+
+    /**
+     * The library. Each section is a fixed, hand-tuned pattern (recognisable
+     * between runs); the director randomises which appear, their order and
+     * mirroring (procedural). Spacing/reachability is handled by the lane-walk,
+     * so these are pure shapes.
+     */
+    private val sectLib = listOf(
+        // --- tier 0: teach, continuous but forgiving ---
+        Sect(0, 0, 1.3f, intArrayOf(dg(1), dg(0), dg(1), dg(2), dg(1), dg(0))),                 // FIRST STEPS
+        Sect(1, 0, 1.1f, intArrayOf(ft(0), ft(2), ft(1), ft(0), ft(2), ft(1))),                 // WEAVE
+        Sect(2, 0, 1.0f, intArrayOf(JP, dg(1), JP, dg(1), JP)),                                  // HOP
+        // --- tier 1: precise lane-walks + simple combos ---
+        Sect(3, 1, 1.3f, intArrayOf(dg(0), dg(1), dg(2), dg(1), dg(0), dg(1), dg(2))),           // SLALOM
+        Sect(4, 1, 1.1f, intArrayOf(dg(1), dg(2), dg(1), dg(0), dg(1), dg(2), dg(1), dg(0))),    // ZIGZAG
+        Sect(5, 1, 1.1f, intArrayOf(JP, dg(0), dg(2), JP, dg(1), dg(0))),                        // LEAP & WEAVE
+        Sect(6, 1, 0.9f, intArrayOf(sld(1), sld(0), sld(2), sld(1))),                            // CLOSING GATES
+        Sect(7, 1, 0.7f, intArrayOf(dg(0), DK, dg(2), dg(1), DK)),                               // DUCK & DODGE (ducks sparse)
+        // --- tier 2: dense, verb-switching ---
+        Sect(8, 2, 1.2f, intArrayOf(dg(0), JP, dg(2), dg(1), DK, dg(0), JP, dg(2))),             // GAUNTLET (one duck)
+        Sect(9, 2, 1.2f, intArrayOf(dg(0), dg(1), dg(2), dg(1), dg(0), dg(1), dg(2), dg(1))),    // RAPID FIRE
+        Sect(10, 2, 0.9f, intArrayOf(JP, dg(0), dg(2), DK, dg(1), JP, dg(0))),                   // STORM (one duck)
+        Sect(11, 2, 0.9f, intArrayOf(sld(2), sld(1), sld(0), dg(1), dg(2))),                     // TRAPS
+    )
+    // teaches the controls: lone side pillars, centre always safe
+    private val introSect = Sect(-2, 0, 0f, intArrayOf(ft(0), ft(2), ft(0), ft(2)), mirrorable = false)
+    // an occasional short breather: a single open row
+    private val breatherSect = Sect(-1, 0, 0f, intArrayOf(EM), mirrorable = false)
 
     private lateinit var unit: Model
     private lateinit var playerInst: ModelInstance
@@ -63,6 +123,23 @@ class CubeRun(session: GameSession) : Gdx3DGame(session) {
     private val postGap = 6.6f
     private val postPairs = 12
 
+    // ---- difficulty: one normalised level `diff` (0..1) drives speed + tier ----
+    // diff auto-advances as you play; the temporary on-screen slider can also set it.
+    private val exploreMinSpd = 10f  // speed at diff = 0
+    private val exploreMaxSpd = 30f  // speed at diff = 1 (slider can push here for tuning)
+    private val autoDiffCap = 0.85f  // auto-progression PLATEAUS here — speed 27, i.e. 90% of the slider max
+    private val rampSeconds = 700f   // real seconds for diff to auto-climb the full 0..1 range (~8 min to the cap)
+    private var diff = 0.12f         // current difficulty level
+
+    // row spacing (world units). Tight by default = dense; wider after a jump so you can land.
+    private val dodgeGap = 6.5f
+    private val jumpRecoverGap = 9.5f
+    private val breatherGap = 12f
+
+    // TEMPORARY debug tuning slider — set false (or delete the slider block) to remove.
+    private val DEBUG_DIFF_SLIDER = true
+    private var draggingSlider = false
+
     private var baseHue = 0f
     private var started = false
     private var dead = false
@@ -73,19 +150,29 @@ class CubeRun(session: GameSession) : Gdx3DGame(session) {
     private var air = false
     private var roll = 0f           // forward tumble angle
     private var squash = 0f         // landing squash timer
+    private var duckT = 0f          // remaining roll/duck window (seconds)
+    private var duck = 0f           // eased 0..1 roll amount (visual + collision)
+    private var slamming = false    // a mid-air slam is in progress (auto-crouches on landing)
     private var nudge = 0f          // edge-bonk offset
     private var trailT = 0f
     private var spd = 4.5f
-    private var speedBonus = 0f
     private var dist = 0f
-    private var runT = 0f
     private var spawnAcc = 0f
     private var rowsSpawned = 0
     private var rowsPassed = 0
-    private var freeLane = 1        // guaranteed-survivable lane of the last spawned row
     private var deathT = 0f
 
+    // ---- director / lane-walk state ----
+    private val pendingSteps = ArrayDeque<Int>()
+    private var curSafe = 1         // the lane currently guaranteed safe (the walk position)
+    private var prevKind = -1       // last spawned step code (drives recovery spacing)
+    private var mirror = false
+    private var introServed = false
+    private var lastSectId = -99
+    private var sectsSinceBreather = 0
+
     private fun laneX(l: Int) = (l - 1) * laneW
+    private fun ml(l: Int) = if (mirror) 2 - l else l
 
     private fun diffuse(inst: ModelInstance): Color =
         (inst.materials.first().get(ColorAttribute.Diffuse) as ColorAttribute).color
@@ -145,10 +232,10 @@ class CubeRun(session: GameSession) : Gdx3DGame(session) {
         cam.position.set(0f, 3.7f, 6.4f)
         cam.lookAt(0f, 1.0f, -8f)
         cam.update()
-        session.banner("SWIPE · JUMP")
+        session.banner("SWIPE · JUMP · ROLL")
     }
 
-    // ------------------------------------------------------------- spawning
+    // ------------------------------------------------------------- obstacles
 
     private fun colored(c: Color): ModelInstance {
         val inst = ModelInstance(unit)
@@ -156,51 +243,110 @@ class CubeRun(session: GameSession) : Gdx3DGame(session) {
         return inst
     }
 
-    private fun pillar(x: Float, hue: Float, sliding: Boolean = false, slideTo: Float = 0f): Ob {
+    private fun makePillar(x: Float, hue: Float, sliding: Boolean = false, slideTo: Float = 0f): Ob {
         val h = 2.0f + rnd.nextFloat() * 0.6f
         val c = if (sliding) gdxHsv(hue + 230f, 0.95f, 1f) else gdxHsv(hue + 185f, 0.85f, 1f)
-        return Ob(colored(c), x, 0.75f, h, false, 1.5f, h, 0.9f, sliding, slideTo)
+        return Ob(colored(c), x, h / 2f, 0.75f, DODGE, 0f, 1.5f, h, 0.9f, sliding, slideTo)
     }
 
-    private fun spawnRowAt(z: Float) {
-        val obs = ArrayList<Ob>(3)
-        val hue = baseHue + dist * 1.6f // obstacles pop against current floor hue
-        val r = rnd.nextFloat()
+    private fun makeWall(hue: Float): Ob {
+        // a solid block sitting ON the ground — clearly "jump over"
+        val w = laneW * 3f + 0.6f; val h = 0.62f // cube must clear this height
+        return Ob(colored(gdxHsv(hue + 140f, 0.9f, 1f)), 0f, h / 2f, laneW * 1.5f + 0.3f, JUMP, h, w, h, 0.7f)
+    }
+
+    private fun makeOver(hue: Float): Ob {
+        // a chunky beam floating well above the ground with a clear gap beneath it,
+        // in a hue far from the low wall — unmistakably "roll under", not "jump over"
+        val w = laneW * 3f + 0.6f; val bottom = 0.78f; val top = 1.5f
+        return Ob(colored(gdxHsv(hue + 300f, 0.9f, 1f)), 0f, (bottom + top) / 2f, laneW * 1.5f + 0.3f, DUCK, bottom, w, top - bottom, 0.7f)
+    }
+
+    private fun makeSlider(from: Int, to: Int, hue: Float): Ob =
+        makePillar(laneX(from), hue, sliding = true, slideTo = laneX(to))
+
+    /** Wide bar leaving exactly one lane open (twin pillars when the centre is open). */
+    private fun addOneOpen(open: Int, hue: Float, into: ArrayList<Ob>) {
+        if (open == 1) {
+            into.add(makePillar(laneX(0), hue)); into.add(makePillar(laneX(2), hue))
+        } else {
+            val a = if (open == 0) 1 else 0 // blocked adjacent lane pair
+            val cx = (laneX(a) + laneX(a + 1)) / 2f
+            val w = laneW + 1.5f
+            into.add(Ob(colored(gdxHsv(hue + 185f, 0.85f, 1f)), cx, 2.3f / 2f, w / 2f, DODGE, 0f, w, 2.3f, 0.9f))
+        }
+    }
+
+    // ------------------------------------------------------------- spawning
+
+    /** Distance to leave before the row that's about to spawn. */
+    private fun gapFor(code: Int): Float {
+        val recover = when (prevKind) {
+            JP -> jumpRecoverGap // we were airborne — give room to land
+            -1 -> 0f             // very first row
+            else -> dodgeGap
+        }
+        return if (code == EM) max(recover, breatherGap) else recover
+    }
+
+    private fun spawnStep(code: Int, z: Float) {
+        val obs = ArrayList<Ob>(2)
+        val hue = baseHue + dist * 1.6f // obstacles pop against the current floor hue
         when {
-            rowsSpawned < 3 -> { // warmup: single side pillar, center always free
-                freeLane = 1
-                obs.add(pillar(laneX(if (rnd.nextBoolean()) 0 else 2), hue))
-            }
-            r < 0.24f -> { // low wall across all lanes: JUMP
-                obs.add(Ob(colored(gdxHsv(hue + 140f, 0.9f, 1f)),
-                    0f, laneW * 1.5f + 0.3f, 0.62f, true, laneW * 3f + 0.6f, 0.62f, 0.7f))
-            }
-            rowsPassed >= 12 && r < 0.42f -> { // slider drifts INTO the open lane — fake-out
-                val t = freeLane
-                val s = if (t == 1) (if (rnd.nextBoolean()) 0 else 2) else 1
-                obs.add(pillar(laneX(s), hue, sliding = true, slideTo = laneX(t)))
-                freeLane = s // its start lane opens up as it leaves
-            }
-            r < 0.72f -> { // wide bar / twin pillars: exactly one survivable lane
-                freeLane = (freeLane + rnd.nextInt(3) - 1).coerceIn(0, 2)
-                if (freeLane == 1) {
-                    obs.add(pillar(laneX(0), hue)); obs.add(pillar(laneX(2), hue))
-                } else {
-                    val a = if (freeLane == 0) 1 else 0 // blocked adjacent lane pair
-                    val cx = (laneX(a) + laneX(a + 1)) / 2f
-                    val w = laneW + 1.5f
-                    obs.add(Ob(colored(gdxHsv(hue + 185f, 0.85f, 1f)),
-                        cx, w / 2f, 2.3f, false, w, 2.3f, 0.9f))
+            code == EM -> { /* open row — a beat of rest */ }
+            code == JP -> obs.add(makeWall(hue))
+            code == DK -> obs.add(makeOver(hue))
+            code in 20..22 -> { // slide: a pillar drifts into a lane (closing gate)
+                val target = ml(code - 20)
+                if (curSafe == target) curSafe = if (target == 1) (if (rnd.nextBoolean()) 0 else 2) else 1
+                val from = when {
+                    target == 1 -> if (curSafe == 0) 2 else 0
+                    else -> 1
                 }
+                obs.add(makeSlider(from, target, hue))
             }
-            else -> { // single pillar in a random non-free lane
-                var b = rnd.nextInt(3)
-                if (b == freeLane) b = (b + 1 + rnd.nextInt(2)) % 3
-                obs.add(pillar(laneX(b), hue))
+            code in 10..12 -> { // feint: a lone pillar, two lanes stay safe
+                var block = ml(code - 10)
+                if (block == curSafe) block = if (curSafe == 0) 1 else curSafe - 1 // never block where we stand
+                obs.add(makePillar(laneX(block), hue))
+            }
+            else -> { // dodge: clamp the requested safe lane to within one of the walk, then block the rest
+                val safe = ml(code).coerceIn(curSafe - 1, curSafe + 1).coerceIn(0, 2)
+                curSafe = safe
+                addOneOpen(safe, hue, obs)
             }
         }
         rows.add(Row(z, obs))
         rowsSpawned++
+        prevKind = code
+    }
+
+    private fun unlockedTier(): Int = when {
+        diff < 0.18f -> 0
+        diff < 0.38f -> 1
+        else -> 2
+    }
+
+    /** Director: intro first, an occasional breather, else a weighted pick from the unlocked tiers. */
+    private fun pickSection(): Sect {
+        if (!introServed) { introServed = true; return introSect }
+        sectsSinceBreather++
+        if (sectsSinceBreather >= 5) { sectsSinceBreather = 0; return breatherSect }
+        val tier = unlockedTier()
+        var pool = sectLib.filter { it.tier <= tier && it.id != lastSectId }
+        if (pool.isEmpty()) pool = sectLib.filter { it.tier <= tier }
+        var total = 0f; for (s in pool) total += s.weight
+        var r = rnd.nextFloat() * total
+        var chosen = pool[pool.size - 1]
+        for (s in pool) { r -= s.weight; if (r <= 0f) { chosen = s; break } }
+        lastSectId = chosen.id
+        return chosen
+    }
+
+    private fun loadNextSection() {
+        val s = pickSection()
+        mirror = s.mirrorable && rnd.nextBoolean()
+        for (c in s.steps) pendingSteps.add(c)
     }
 
     // --------------------------------------------------------------- events
@@ -208,10 +354,16 @@ class CubeRun(session: GameSession) : Gdx3DGame(session) {
     private fun start() {
         if (started || session.isOver) return
         started = true
-        runT = 0f
-        // prefill so the action arrives within seconds
-        spawnRowAt(-28f); spawnRowAt(-40f); spawnRowAt(-52f); spawnRowAt(spawnZ)
-        spawnAcc = 0f
+        pendingSteps.clear(); introServed = false; sectsSinceBreather = 0; lastSectId = -99
+        curSafe = 1; prevKind = -1; spawnAcc = 0f
+        // prefill so the first obstacles arrive within a couple of seconds
+        var z = -30f
+        repeat(5) {
+            if (pendingSteps.isEmpty()) loadNextSection()
+            spawnStep(pendingSteps.removeFirst(), z)
+            z -= 7f
+        }
+        session.runStarted()
         session.banner("GO!")
         SoundFx.play("rise")
         Haptics.click()
@@ -235,20 +387,12 @@ class CubeRun(session: GameSession) : Gdx3DGame(session) {
         session.addScore(1)
         SoundFx.play("tick", rate = 1f + (rowsPassed % 15) * 0.025f, vol = 0.8f)
         Haptics.tick()
-        if (row.minClear < 0.34f) { // shaved it
+        if (row.minClear < 0.34f) { // shaved it — reward a close dodge with an air-rush, not a coin
             session.addScore(2)
-            SoundFx.play("coin", rate = 1.1f + rnd.nextFloat() * 0.1f)
+            SoundFx.play("whoosh", rate = 1.55f + rnd.nextFloat() * 0.2f, vol = 0.7f)
             Haptics.click()
             flash(Color.WHITE, 0.07f)
             burst3d(tmp.set(px, py + 0.4f, 0.2f), Color.WHITE, n = 10, speed = 4f, size = 0.1f, life = 0.5f)
-        }
-        if (rowsPassed % 15 == 0) {
-            speedBonus += 0.9f
-            session.banner("SPEED UP")
-            SoundFx.play("rise")
-            Haptics.buzz(40, 160)
-            flash(gdxHsv(baseHue + dist * 1.6f + 180f, 0.5f, 1f), 0.12f)
-            shake(0.18f)
         }
         // sky drifts as you survive
         bgTop = gdxHsv(baseHue + 30f + rowsPassed * 2f, 0.6f, 0.4f)
@@ -258,10 +402,22 @@ class CubeRun(session: GameSession) : Gdx3DGame(session) {
     // ---------------------------------------------------------------- input
 
     override fun onDown(x: Float, y: Float) {
+        if (DEBUG_DIFF_SLIDER && inSliderZone(x, y)) { draggingSlider = true; setDiffFromX(x); return }
         start()
     }
 
+    override fun onDrag(x: Float, y: Float, dx: Float, dy: Float) {
+        if (draggingSlider) setDiffFromX(x)
+    }
+
+    override fun onUp(x: Float, y: Float) {
+        draggingSlider = false
+    }
+
+    override fun smoothSwipeEnabled(): Boolean = Settings.smoothControl
+
     override fun onSwipe(dir: Int) {
+        if (draggingSlider) return // touch belongs to the tuning slider, not gameplay
         if (session.isOver || dead) return
         if (!started) start()
         when (dir) {
@@ -281,14 +437,24 @@ class CubeRun(session: GameSession) : Gdx3DGame(session) {
             }
             Gdx3DGame.UP -> if (!air) {
                 air = true; vy = 8.4f
+                duckT = 0f // jumping cancels a roll
                 SoundFx.play("whoosh", rate = 1.3f)
                 Haptics.click()
                 burst3d(tmp.set(px, 0.1f, 0.3f), playerCol, n = 6, speed = 2.5f, size = 0.08f, life = 0.35f)
             }
-            Gdx3DGame.DOWN -> if (air && vy > -12f) { // slam back down
-                vy = -19f
-                SoundFx.play("slide", rate = 1.3f)
+            // context-sensitive DOWN: slam when airborne, roll under when grounded
+            Gdx3DGame.DOWN -> if (air) {
+                if (vy > -12f) { // slam back down fast
+                    vy = -19f
+                    slamming = true // auto-crouch the instant we land
+                    SoundFx.play("slide", rate = 1.3f)
+                    Haptics.tick()
+                }
+            } else {
+                duckT = 0.5f // duck/roll window
+                SoundFx.play("slide", rate = 1.05f)
                 Haptics.tick()
+                burst3d(tmp.set(px, 0.06f, 0.4f), playerCol, n = 5, speed = 2.8f, size = 0.08f, life = 0.3f)
             }
         }
     }
@@ -297,9 +463,8 @@ class CubeRun(session: GameSession) : Gdx3DGame(session) {
 
     override fun tick(dt: Float) {
         if (started && !dead) {
-            runT += dt
-            // relentless ramp: per-row + per-second + milestone bonuses
-            spd = min(26f, 9.6f + rowsPassed * 0.28f + runT * 0.10f + speedBonus)
+            // speed is a straight read of the difficulty level — no second axis
+            spd = exploreMinSpd + (exploreMaxSpd - exploreMinSpd) * diff
         } else if (!started) {
             spd = 4.5f // ambient pre-start scroll
         } else {
@@ -308,6 +473,9 @@ class CubeRun(session: GameSession) : Gdx3DGame(session) {
         }
         val mv = spd * dt
         dist += mv
+        // difficulty auto-climbs over real time (so a run takes ~8 min to peak regardless of
+        // speed), but only up to the plateau cap. The slider may still push past the cap to test.
+        if (started && !dead && !draggingSlider && diff < autoDiffCap) diff = min(autoDiffCap, diff + dt / rampSeconds)
 
         // floor tiles + neon side posts scroll and wrap, recoloring on wrap
         for (t in tiles) {
@@ -321,10 +489,19 @@ class CubeRun(session: GameSession) : Gdx3DGame(session) {
             p.inst.transform.setToTranslation(p.x, 0.7f, p.z).scale(0.26f, 1.4f, 0.26f)
         }
 
+        // ---- spawn the continuous lane-walk from the section queue
         if (started && !dead && !session.isOver) {
             spawnAcc += mv
-            val gap = max(5.4f, 8.8f - rowsPassed * 0.07f)
-            if (spawnAcc >= gap) { spawnAcc -= gap; spawnRowAt(spawnZ) }
+            while (true) {
+                if (pendingSteps.isEmpty()) loadNextSection()
+                val code = pendingSteps.first()
+                val gap = gapFor(code)
+                if (spawnAcc >= gap) {
+                    spawnAcc -= gap
+                    spawnStep(code, spawnZ)
+                    pendingSteps.removeFirst()
+                } else break
+            }
         }
 
         // ---- player physics + transforms
@@ -340,21 +517,26 @@ class CubeRun(session: GameSession) : Gdx3DGame(session) {
                     Haptics.click()
                     burst3d(tmp.set(px, 0.06f, 0.4f), playerCol, n = 8, speed = 3.2f, size = 0.09f, life = 0.4f)
                     squash = 1f
-                    shake(0.06f)
+                    if (slamming) { slamming = false; duckT = 0.5f } // slam → auto-crouch on landing
                 }
             }
             squash = max(0f, squash - dt * 5f)
-            roll += mv * 90f + (if (air) 160f * dt else 0f) // tumble, extra flip mid-air
+            // roll/duck window decays; eased `duck` drives the rolling pose + low collision profile
+            if (duckT > 0f) duckT = max(0f, duckT - dt)
+            val duckTarget = if (duckT > 0f && !air) 1f else 0f
+            duck += (duckTarget - duck) * min(1f, dt * 18f)
+            roll += mv * 90f + (if (air) 160f * dt else 0f) + duck * 260f * dt // tumble; flip in air, fast roll while ducking
             if (roll > 360f) roll -= 360f
             val tilt = ((laneX(lane) - px) * -22f).coerceIn(-32f, 32f)
             val sq = squash * 0.3f
-            playerInst.transform.setToTranslation(px + nudge, py - squash * 0.08f, 0f)
+            val duY = duck * 0.20f // hug the ground while rolling
+            playerInst.transform.setToTranslation(px + nudge, py - squash * 0.08f - duY, 0f)
                 .rotate(Vector3.Z, tilt)
                 .rotate(Vector3.X, -roll)
-                .scale(0.9f * (1f + sq), 0.9f * (1f - sq), 0.9f * (1f + sq))
+                .scale(0.9f * (1f + sq + duck * 0.35f), 0.9f * (1f - sq) * (1f - duck * 0.5f), 0.9f * (1f + sq + duck * 0.1f))
             val pulse = 0.9f * (1.18f + 0.06f * sin(time * 8f))
             shellBlend.opacity = 0.22f + 0.08f * sin(time * 6f)
-            shellInst.transform.setToTranslation(px + nudge, py, 0f)
+            shellInst.transform.setToTranslation(px + nudge, py - duY, 0f)
                 .rotate(Vector3.Z, tilt).rotate(Vector3.X, -roll)
                 .scale(pulse, pulse, pulse)
             shadowBlend.opacity = (0.36f * (1f - (py - ground) / 1.6f)).coerceIn(0.06f, 0.36f)
@@ -370,20 +552,26 @@ class CubeRun(session: GameSession) : Gdx3DGame(session) {
         }
 
         // ---- obstacle rows: move, slide, collide, score
+        val cubeBottom = py - 0.45f
+        val headY = py + 0.45f - duck * 0.72f // rolling tucks the head below the bars
         var i = rows.size - 1
         while (i >= 0) {
             val row = rows[i]
             row.z += mv
             for (ob in row.obs) {
                 if (ob.sliding && row.z > -26f) ob.x += (ob.slideTo - ob.x) * min(1f, dt * 2.0f)
-                ob.inst.transform.setToTranslation(ob.x, ob.h / 2f, row.z).scale(ob.sx, ob.sy, ob.sz)
+                ob.inst.transform.setToTranslation(ob.x, ob.cy, row.z).scale(ob.sx, ob.sy, ob.sz)
             }
             if (started && !dead && abs(row.z) < 0.95f) {
                 for (ob in row.obs) {
                     val lat = abs(px - ob.x) - (ob.halfW + 0.36f)
-                    val clear = if (ob.low) (py - 0.45f) - ob.h else lat
+                    val clear = when (ob.type) {
+                        JUMP -> cubeBottom - ob.clear      // >0 = sailing over the wall
+                        DUCK -> ob.clear - headY           // >0 = tucked under the bar
+                        else -> lat                        // dodge: lateral gap
+                    }
                     row.minClear = min(row.minClear, clear)
-                    if (abs(row.z) < 0.82f && lat < 0f && (!ob.low || clear < -0.02f)) {
+                    if (abs(row.z) < 0.82f && lat < 0f && (ob.type == DODGE || clear < -0.02f)) {
                         crash()
                         break
                     }
@@ -402,6 +590,45 @@ class CubeRun(session: GameSession) : Gdx3DGame(session) {
         cam.position.set(px * 0.45f, cy, 6.4f + deathT * 2.2f)
         cam.lookAt(px * 0.55f, 1.0f, -8f)
         cam.up.set(0f, 1f, 0f)
+    }
+
+    // --------------------------------------------- TEMPORARY difficulty slider
+    // A debug bar pinned to the bottom of the screen. Drag it to jump straight
+    // to any difficulty level; it also creeps up on its own as you play. Tier
+    // boundaries are marked, and the thumb is green/yellow/red by tier.
+    private fun sliderX0() = sw * 0.08f
+    private fun sliderX1() = sw * 0.92f
+
+    private fun inSliderZone(x: Float, y: Float): Boolean =
+        y > sh * 0.85f && x > sw * 0.03f && x < sw * 0.97f // bottom strip (screen y is top-down)
+
+    private fun setDiffFromX(x: Float) {
+        diff = ((x - sliderX0()) / (sliderX1() - sliderX0())).coerceIn(0f, 1f)
+    }
+
+    override fun renderHud(shapes: ShapeRenderer, w: Float, h: Float) {
+        if (!DEBUG_DIFF_SLIDER) return
+        val x0 = w * 0.08f; val x1 = w * 0.92f; val tw = x1 - x0
+        val cy = h * 0.07f // track centre, measured from the bottom (y is up here)
+        val th = (h * 0.012f).coerceAtLeast(10f)
+        val thumbX = x0 + tw * diff
+        shapes.setColor(0f, 0f, 0f, 0.45f) // backing plate
+        shapes.rect(x0 - th, cy - th * 2f, tw + th * 2f, th * 4f)
+        shapes.setColor(1f, 1f, 1f, 0.18f) // track
+        shapes.rect(x0, cy - th * 0.5f, tw, th)
+        shapes.setColor(0.36f, 0.98f, 0.27f, 0.85f) // filled portion
+        shapes.rect(x0, cy - th * 0.5f, tw * diff, th)
+        shapes.setColor(1f, 1f, 1f, 0.55f) // tier-boundary ticks
+        shapes.rect(x0 + tw * 0.18f - 1.5f, cy - th * 1.2f, 3f, th * 2.4f)
+        shapes.rect(x0 + tw * 0.38f - 1.5f, cy - th * 1.2f, 3f, th * 2.4f)
+        shapes.setColor(0.3f, 0.8f, 1f, 0.9f) // cyan marker: where auto-progression plateaus
+        shapes.rect(x0 + tw * autoDiffCap - 2f, cy - th * 2f, 4f, th * 4f)
+        when (unlockedTier()) { // thumb coloured by unlocked tier
+            0 -> shapes.setColor(0.45f, 1f, 0.4f, 1f)
+            1 -> shapes.setColor(1f, 0.85f, 0.25f, 1f)
+            else -> shapes.setColor(1f, 0.35f, 0.3f, 1f)
+        }
+        shapes.rect(thumbX - th * 0.9f, cy - th * 1.7f, th * 1.8f, th * 3.4f)
     }
 
     override fun renderWorld(batch: ModelBatch, env: Environment) {

@@ -68,6 +68,21 @@ abstract class Gdx3DGame(val session: GameSession) : ApplicationAdapter() {
     open fun onUp(x: Float, y: Float) {}
     open fun onSwipe(dir: Int) {}
 
+    /**
+     * When true, swipes fire continuously within a single touch: every time the
+     * finger travels far enough from the last fired point, another [onSwipe] is
+     * emitted (so you can steer left/right/left without lifting). When false, a
+     * touch yields at most one swipe (the classic flick).
+     */
+    open fun smoothSwipeEnabled(): Boolean = false
+
+    /**
+     * Optional screen-space overlay drawn after the world (filled shapes).
+     * Coordinates are pixels with origin bottom-left, y up. The [ShapeRenderer]
+     * is already in [ShapeRenderer.ShapeType.Filled] begin/end with blending on.
+     */
+    open fun renderHud(shapes: ShapeRenderer, w: Float, h: Float) {}
+
     companion object {
         const val LEFT = 0
         const val RIGHT = 1
@@ -98,15 +113,19 @@ abstract class Gdx3DGame(val session: GameSession) : ApplicationAdapter() {
             private var downY = 0f
             private var lastX = 0f
             private var lastY = 0f
+            private var refX = 0f       // origin for the next smooth-mode swipe
+            private var refY = 0f
             private var downAt = 0L
             private var swiped = false
             private val swipeDist = sw * 0.085f
+            private val smoothDist = sw * 0.055f // shorter step for continuous steering
             private val tapSlop = sw * 0.03f
 
             override fun touchDown(x: Int, y: Int, pointer: Int, button: Int): Boolean {
                 if (pointer != 0 || session.isOver) return false
                 downX = x.toFloat(); downY = y.toFloat()
                 lastX = downX; lastY = downY
+                refX = downX; refY = downY
                 downAt = System.currentTimeMillis()
                 swiped = false
                 onDown(downX, downY)
@@ -118,7 +137,18 @@ abstract class Gdx3DGame(val session: GameSession) : ApplicationAdapter() {
                 val fx = x.toFloat(); val fy = y.toFloat()
                 onDrag(fx, fy, fx - lastX, fy - lastY)
                 lastX = fx; lastY = fy
-                if (!swiped) {
+                if (smoothSwipeEnabled()) {
+                    // continuous: fire whenever the finger leaves a smoothDist box, then re-anchor
+                    val dx = fx - refX
+                    val dy = fy - refY
+                    if (abs(dx) > smoothDist || abs(dy) > smoothDist) {
+                        onSwipe(
+                            if (abs(dx) > abs(dy)) { if (dx > 0) RIGHT else LEFT }
+                            else { if (dy > 0) DOWN else UP }
+                        )
+                        refX = fx; refY = fy
+                    }
+                } else if (!swiped) {
                     val dx = fx - downX
                     val dy = fy - downY
                     if (abs(dx) > swipeDist || abs(dy) > swipeDist) {
@@ -200,6 +230,16 @@ abstract class Gdx3DGame(val session: GameSession) : ApplicationAdapter() {
             Gdx.gl.glEnable(GL20.GL_DEPTH_TEST)
             flashColor.a = (flashColor.a - 2.6f * dt).coerceAtLeast(0f)
         }
+
+        // Screen-space HUD overlay (debug widgets, etc.).
+        Gdx.gl.glEnable(GL20.GL_BLEND)
+        Gdx.gl.glBlendFunc(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA)
+        Gdx.gl.glDisable(GL20.GL_DEPTH_TEST)
+        shapes.projectionMatrix = uiMatrix.setToOrtho2D(0f, 0f, sw.toFloat(), sh.toFloat())
+        shapes.begin(ShapeRenderer.ShapeType.Filled)
+        renderHud(shapes, sw.toFloat(), sh.toFloat())
+        shapes.end()
+        Gdx.gl.glEnable(GL20.GL_DEPTH_TEST)
     }
 
     private val uiMatrix = Matrix4()
