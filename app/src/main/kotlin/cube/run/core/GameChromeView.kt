@@ -16,6 +16,7 @@ import android.view.animation.OvershootInterpolator
 import android.widget.CheckBox
 import android.widget.FrameLayout
 import android.widget.LinearLayout
+import android.widget.SeekBar
 import android.widget.TextView
 
 /**
@@ -62,33 +63,67 @@ class GameChromeView(private val activity: Activity, private val accent: Int) : 
     private var bestPulse: ValueAnimator? = null
     private val topBox = LinearLayout(activity)
 
-    // Pre-run option: experimental "smooth control" toggle. Hidden once the run begins.
+    // Pre-run options: experimental "smooth control" toggle + its sensitivity. Hidden once a run begins.
+    private val sensBar = SeekBar(activity).apply {
+        max = 100
+        progress = (Settings.smoothSensitivity * 100f).toInt()
+        progressTintList = ColorStateList.valueOf(accent)
+        thumbTintList = ColorStateList.valueOf(accent)
+        setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(sb: SeekBar?, p: Int, fromUser: Boolean) {
+                if (fromUser) Settings.setSmoothSensitivity(p / 100f)
+            }
+            override fun onStartTrackingTouch(sb: SeekBar?) {}
+            override fun onStopTrackingTouch(sb: SeekBar?) { Haptics.tick() }
+        })
+    }
+    private val sensRow = LinearLayout(activity).apply {
+        orientation = LinearLayout.HORIZONTAL
+        gravity = Gravity.CENTER_VERTICAL
+        visibility = if (Settings.smoothControl) VISIBLE else GONE
+        addView(TextView(activity).apply {
+            text = "Sensitivity"
+            setTextColor(Palette.withAlpha(Color.WHITE, 200))
+            textSize = 13f
+            typeface = Typeface.DEFAULT_BOLD
+        })
+        addView(sensBar, LinearLayout.LayoutParams(dp(150f), LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+            leftMargin = dp(10f)
+        })
+    }
     private val smoothCheck = CheckBox(activity).apply {
         isChecked = Settings.smoothControl
         buttonTintList = ColorStateList.valueOf(accent)
         setOnCheckedChangeListener { _, c ->
             SoundFx.play("tap"); Haptics.tick()
             Settings.setSmoothControl(c)
+            sensRow.visibility = if (c) VISIBLE else GONE
         }
     }
     private val optionsBox = LinearLayout(activity).apply {
-        orientation = LinearLayout.HORIZONTAL
-        gravity = Gravity.CENTER_VERTICAL
-        setPadding(dp(14f), dp(8f), dp(18f), dp(8f))
-        isClickable = true
+        orientation = LinearLayout.VERTICAL
+        setPadding(dp(16f), dp(8f), dp(18f), dp(10f))
         background = GradientDrawable().apply {
             cornerRadius = dp(22f).toFloat()
             setColor(Palette.withAlpha(Color.BLACK, 115))
             setStroke(dp(1f), Palette.withAlpha(accent, 150))
         }
-        addView(smoothCheck)
-        addView(TextView(activity).apply {
-            text = "Smooth control (beta)"
-            setTextColor(Color.WHITE)
-            textSize = 15f
-            typeface = Typeface.DEFAULT_BOLD
+        addView(LinearLayout(activity).apply { // toggle row (tapping the label toggles too)
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            isClickable = true
+            addView(smoothCheck)
+            addView(TextView(activity).apply {
+                text = "Smooth control (beta)"
+                setTextColor(Color.WHITE)
+                textSize = 15f
+                typeface = Typeface.DEFAULT_BOLD
+            })
+            setOnClickListener { smoothCheck.toggle() }
         })
-        setOnClickListener { smoothCheck.toggle() } // tapping the label toggles too
+        addView(sensRow, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+            topMargin = dp(2f)
+        })
     }
 
     init {
@@ -280,10 +315,8 @@ class GameChromeView(private val activity: Activity, private val accent: Int) : 
         scrim.addView(card, LayoutParams(dp(290f), LayoutParams.WRAP_CONTENT).apply {
             gravity = Gravity.CENTER
         })
-        card.translationY = dp(60f).toFloat()
-        card.scaleX = 0.85f; card.scaleY = 0.85f
-        card.animate().translationY(0f).scaleX(1f).scaleY(1f)
-            .setInterpolator(OvershootInterpolator(1.4f)).setDuration(320).start()
+        // No slide-up: the card just fades in with the scrim, so the death
+        // animation that now plays beforehand isn't cut off by a moving panel.
 
         overCard = scrim
         addView(scrim, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))

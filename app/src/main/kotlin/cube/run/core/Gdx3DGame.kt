@@ -113,19 +113,15 @@ abstract class Gdx3DGame(val session: GameSession) : ApplicationAdapter() {
             private var downY = 0f
             private var lastX = 0f
             private var lastY = 0f
-            private var refX = 0f       // origin for the next smooth-mode swipe
-            private var refY = 0f
             private var downAt = 0L
             private var swiped = false
             private val swipeDist = sw * 0.085f
-            private val smoothDist = sw * 0.055f // shorter step for continuous steering
             private val tapSlop = sw * 0.03f
 
             override fun touchDown(x: Int, y: Int, pointer: Int, button: Int): Boolean {
                 if (pointer != 0 || session.isOver) return false
                 downX = x.toFloat(); downY = y.toFloat()
                 lastX = downX; lastY = downY
-                refX = downX; refY = downY
                 downAt = System.currentTimeMillis()
                 swiped = false
                 onDown(downX, downY)
@@ -137,18 +133,9 @@ abstract class Gdx3DGame(val session: GameSession) : ApplicationAdapter() {
                 val fx = x.toFloat(); val fy = y.toFloat()
                 onDrag(fx, fy, fx - lastX, fy - lastY)
                 lastX = fx; lastY = fy
-                if (smoothSwipeEnabled()) {
-                    // continuous: fire whenever the finger leaves a smoothDist box, then re-anchor
-                    val dx = fx - refX
-                    val dy = fy - refY
-                    if (abs(dx) > smoothDist || abs(dy) > smoothDist) {
-                        onSwipe(
-                            if (abs(dx) > abs(dy)) { if (dx > 0) RIGHT else LEFT }
-                            else { if (dy > 0) DOWN else UP }
-                        )
-                        refX = fx; refY = fy
-                    }
-                } else if (!swiped) {
+                // smooth mode: the game interprets the drag positionally (in onDrag).
+                // classic mode: a single flick per touch.
+                if (!smoothSwipeEnabled() && !swiped) {
                     val dx = fx - downX
                     val dy = fy - downY
                     if (abs(dx) > swipeDist || abs(dy) > swipeDist) {

@@ -18,7 +18,9 @@ import cube.run.core.SoundFx
 import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
+import kotlin.math.roundToInt
 import kotlin.math.sin
+import kotlin.math.sqrt
 import kotlin.random.Random
 
 /**
@@ -124,21 +126,41 @@ class CubeRun(session: GameSession) : Gdx3DGame(session) {
     private val postPairs = 12
 
     // ---- difficulty: one normalised level `diff` (0..1) drives speed + tier ----
-    // diff auto-advances as you play; the temporary on-screen slider can also set it.
+    // diff auto-advances as you play. Speed is linear up to the "blue line" (the
+    // cruising max) and then gives diminishing returns toward the absolute ceiling.
     private val exploreMinSpd = 10f  // speed at diff = 0
-    private val exploreMaxSpd = 30f  // speed at diff = 1 (slider can push here for tuning)
-    private val autoDiffCap = 0.85f  // auto-progression PLATEAUS here — speed 27, i.e. 90% of the slider max
-    private val rampSeconds = 700f   // real seconds for diff to auto-climb the full 0..1 range (~8 min to the cap)
-    private var diff = 0.12f         // current difficulty level
+    private val exploreMaxSpd = 30f  // absolute ceiling (diff = 1); only ever approached, never the cruise speed
+    private val blueLine = 0.85f     // the blue line: the cruising max speed; past here speed barely climbs
+    private val cruiseSpd = exploreMinSpd + (exploreMaxSpd - exploreMinSpd) * blueLine // speed at the blue line (27)
+    private val rampSeconds = 700f   // real seconds for diff to auto-climb the full 0..1 range
+    private val startDiff = 0.12f    // difficulty a run begins at with no fire boost
+    private var diff = startDiff     // current difficulty level
+
+    // ---- fire boost: an opening-seconds button that front-loads your speed ----
+    private val fireWindow = 15f                // seconds the button stays available from the run's start
+    private val fireMaxTaps = 5                 // taps before it maxes out
+    private val fireMaxSpd = cruiseSpd * 0.8f   // 5 taps launches you at 80% of the blue-line speed
+    private val fireMaxDiff = (fireMaxSpd - exploreMinSpd) / (exploreMaxSpd - exploreMinSpd)
+    private var fireTaps = 0
+    private var runTime = 0f                    // seconds since the current run began
+    private var touchIsFire = false             // current touch began on the fire button (don't steer with it)
+
+    // ---- death: let the crash animation play before the game-over card ----
+    private val deathAnimTime = 1.5f            // seconds of death animation shown before the restart screen
+    private var gameOverShown = false
 
     // row spacing (world units). Tight by default = dense; wider after a jump so you can land.
     private val dodgeGap = 6.5f
     private val jumpRecoverGap = 9.5f
     private val breatherGap = 12f
 
-    // TEMPORARY debug tuning slider — set false (or delete the slider block) to remove.
-    private val DEBUG_DIFF_SLIDER = true
-    private var draggingSlider = false
+    // ---- style points: tap mid-air for an ascending combo (purely for flair) ----
+    private var styleCombo = 0   // consecutive air taps; resets on landing. Never stored or shown as a total.
+
+    // smooth-control gesture state (positional steering within one continuous touch)
+    private var smoothAnchorX = 0f      // finger x where the touch began
+    private var smoothAnchorLane = 1    // lane the cube was in when the touch began
+    private var smoothVAccum = 0f       // accumulated vertical motion, for jump/duck flicks
 
     private var baseHue = 0f
     private var started = false
@@ -354,6 +376,7 @@ class CubeRun(session: GameSession) : Gdx3DGame(session) {
     private fun start() {
         if (started || session.isOver) return
         started = true
+        fireTaps = 0; runTime = 0f; styleCombo = 0
         pendingSteps.clear(); introServed = false; sectsSinceBreather = 0; lastSectId = -99
         curSafe = 1; prevKind = -1; spawnAcc = 0f
         // prefill so the first obstacles arrive within a couple of seconds
@@ -379,7 +402,7 @@ class CubeRun(session: GameSession) : Gdx3DGame(session) {
         Haptics.heavy()
         shake(1.0f)
         flash(Color.RED, 0.45f)
-        session.gameOver()
+        // NB: the game-over card is deferred (see tick) so the crash animation is visible.
     }
 
     private fun scoreRow(row: Row) {
@@ -402,60 +425,85 @@ class CubeRun(session: GameSession) : Gdx3DGame(session) {
     // ---------------------------------------------------------------- input
 
     override fun onDown(x: Float, y: Float) {
-        if (DEBUG_DIFF_SLIDER && inSliderZone(x, y)) { draggingSlider = true; setDiffFromX(x); return }
+        touchIsFire = fireAvailable() && inFireZone(x, y)
+        if (touchIsFire) { tapFire(); return }
         start()
+        smoothAnchorX = x; smoothAnchorLane = lane; smoothVAccum = 0f
     }
 
     override fun onDrag(x: Float, y: Float, dx: Float, dy: Float) {
-        if (draggingSlider) setDiffFromX(x)
+        if (touchIsFire) return // this touch is operating the fire button
+        if (!Settings.smoothControl || !started || dead || session.isOver) return
+        // horizontal: finger position maps directly to a lane — no lag, no overshoot
+        val laneTravel = sw * (0.32f - 0.20f * Settings.smoothSensitivity) // finger px per lane
+        val target = (smoothAnchorLane + ((x - smoothAnchorX) / laneTravel).roundToInt()).coerceIn(0, 2)
+        if (target != lane) moveToLane(target)
+        // vertical: a clearly-vertical movement is a jump (up) or slam/roll (down) flick
+        val vStep = sw * (0.16f - 0.08f * Settings.smoothSensitivity)
+        if (abs(dy) > abs(dx)) smoothVAccum += dy else smoothVAccum *= 0.6f // bleed off while steering
+        if (smoothVAccum <= -vStep) { smoothVAccum = 0f; jump() }
+        else if (smoothVAccum >= vStep) { smoothVAccum = 0f; downAction() }
     }
 
-    override fun onUp(x: Float, y: Float) {
-        draggingSlider = false
+    override fun onTap(x: Float, y: Float) {
+        // tapping while airborne racks up a style combo (flair only — never scored)
+        if (!started || dead || session.isOver || touchIsFire || !air) return
+        styleTap()
     }
 
     override fun smoothSwipeEnabled(): Boolean = Settings.smoothControl
 
     override fun onSwipe(dir: Int) {
-        if (draggingSlider) return // touch belongs to the tuning slider, not gameplay
+        if (touchIsFire) return // this touch is operating the fire button
         if (session.isOver || dead) return
         if (!started) start()
         when (dir) {
             Gdx3DGame.LEFT, Gdx3DGame.RIGHT -> {
                 val d = if (dir == Gdx3DGame.LEFT) -1 else 1
-                val nl = lane + d
-                if (nl in 0..2) {
-                    lane = nl
-                    SoundFx.play("whoosh", rate = 0.95f + rnd.nextFloat() * 0.15f)
-                    SoundFx.play("tick", rate = 1.4f, vol = 0.5f)
-                    Haptics.tick()
-                } else { // bonk the invisible wall
+                if (lane + d in 0..2) moveToLane(lane + d)
+                else { // bonk the invisible wall
                     nudge = d * 0.4f
                     SoundFx.play("tap", rate = 0.7f)
                     Haptics.tick()
                 }
             }
-            Gdx3DGame.UP -> if (!air) {
-                air = true; vy = 8.4f
-                duckT = 0f // jumping cancels a roll
-                SoundFx.play("whoosh", rate = 1.3f)
-                Haptics.click()
-                burst3d(tmp.set(px, 0.1f, 0.3f), playerCol, n = 6, speed = 2.5f, size = 0.08f, life = 0.35f)
-            }
-            // context-sensitive DOWN: slam when airborne, roll under when grounded
-            Gdx3DGame.DOWN -> if (air) {
-                if (vy > -12f) { // slam back down fast
-                    vy = -19f
-                    slamming = true // auto-crouch the instant we land
-                    SoundFx.play("slide", rate = 1.3f)
-                    Haptics.tick()
-                }
-            } else {
-                duckT = 0.5f // duck/roll window
-                SoundFx.play("slide", rate = 1.05f)
+            Gdx3DGame.UP -> jump()
+            Gdx3DGame.DOWN -> downAction()
+        }
+    }
+
+    private fun moveToLane(target: Int) {
+        val t = target.coerceIn(0, 2)
+        if (t == lane) return
+        lane = t
+        SoundFx.play("whoosh", rate = 0.95f + rnd.nextFloat() * 0.15f)
+        SoundFx.play("tick", rate = 1.4f, vol = 0.5f)
+        Haptics.tick()
+    }
+
+    private fun jump() {
+        if (air) return
+        air = true; vy = 8.4f
+        duckT = 0f // jumping cancels a roll
+        SoundFx.play("whoosh", rate = 1.3f)
+        Haptics.click()
+        burst3d(tmp.set(px, 0.1f, 0.3f), playerCol, n = 6, speed = 2.5f, size = 0.08f, life = 0.35f)
+    }
+
+    /** Context-sensitive DOWN: slam when airborne, roll under when grounded. */
+    private fun downAction() {
+        if (air) {
+            if (vy > -12f) { // slam back down fast
+                vy = -19f
+                slamming = true // auto-crouch the instant we land
+                SoundFx.play("slide", rate = 1.3f)
                 Haptics.tick()
-                burst3d(tmp.set(px, 0.06f, 0.4f), playerCol, n = 5, speed = 2.8f, size = 0.08f, life = 0.3f)
             }
+        } else {
+            duckT = 0.5f // duck/roll window
+            SoundFx.play("slide", rate = 1.05f)
+            Haptics.tick()
+            burst3d(tmp.set(px, 0.06f, 0.4f), playerCol, n = 5, speed = 2.8f, size = 0.08f, life = 0.3f)
         }
     }
 
@@ -463,19 +511,21 @@ class CubeRun(session: GameSession) : Gdx3DGame(session) {
 
     override fun tick(dt: Float) {
         if (started && !dead) {
-            // speed is a straight read of the difficulty level — no second axis
-            spd = exploreMinSpd + (exploreMaxSpd - exploreMinSpd) * diff
+            spd = speedFor(diff) // blue line is the cruising max; diminishing returns past it
+            runTime += dt
         } else if (!started) {
             spd = 4.5f // ambient pre-start scroll
         } else {
             spd = max(0f, spd - spd * 2.4f * dt) // death: world glides to a stop
             deathT = min(deathT + dt, 2.5f)
+            // hold on the crash animation, then reveal the restart screen
+            if (!gameOverShown && deathT >= deathAnimTime) { gameOverShown = true; session.gameOver() }
         }
         val mv = spd * dt
         dist += mv
-        // difficulty auto-climbs over real time (so a run takes ~8 min to peak regardless of
-        // speed), but only up to the plateau cap. The slider may still push past the cap to test.
-        if (started && !dead && !draggingSlider && diff < autoDiffCap) diff = min(autoDiffCap, diff + dt / rampSeconds)
+        // difficulty auto-climbs over real time toward the ceiling; the speed curve
+        // (speedFor) keeps the blue line as the effective cruising max.
+        if (started && !dead && diff < 1f) diff = min(1f, diff + dt / rampSeconds)
 
         // floor tiles + neon side posts scroll and wrap, recoloring on wrap
         for (t in tiles) {
@@ -518,6 +568,7 @@ class CubeRun(session: GameSession) : Gdx3DGame(session) {
                     burst3d(tmp.set(px, 0.06f, 0.4f), playerCol, n = 8, speed = 3.2f, size = 0.09f, life = 0.4f)
                     squash = 1f
                     if (slamming) { slamming = false; duckT = 0.5f } // slam → auto-crouch on landing
+                    if (styleCombo > 0) styleLand() // the air-tap combo "lands"
                 }
             }
             squash = max(0f, squash - dt * 5f)
@@ -592,43 +643,122 @@ class CubeRun(session: GameSession) : Gdx3DGame(session) {
         cam.up.set(0f, 1f, 0f)
     }
 
-    // --------------------------------------------- TEMPORARY difficulty slider
-    // A debug bar pinned to the bottom of the screen. Drag it to jump straight
-    // to any difficulty level; it also creeps up on its own as you play. Tier
-    // boundaries are marked, and the thumb is green/yellow/red by tier.
-    private fun sliderX0() = sw * 0.08f
-    private fun sliderX1() = sw * 0.92f
+    // ------------------------------------------------------------- fire button
+    // A boost button shown for the first [fireWindow] seconds of a run. Each tap
+    // front-loads your speed; [fireMaxTaps] taps launch you at 80% of the blue-line
+    // (cruise) speed. It flickers in its final seconds, then disappears.
 
-    private fun inSliderZone(x: Float, y: Float): Boolean =
-        y > sh * 0.85f && x > sw * 0.03f && x < sw * 0.97f // bottom strip (screen y is top-down)
+    /** Speed for a difficulty level: linear up to the blue line, diminishing returns beyond it. */
+    private fun speedFor(d: Float): Float =
+        if (d <= blueLine) {
+            exploreMinSpd + (exploreMaxSpd - exploreMinSpd) * d
+        } else {
+            val o = (d - blueLine) / (1f - blueLine)
+            cruiseSpd + (exploreMaxSpd - cruiseSpd) * (1f - (1f - o) * (1f - o))
+        }
 
-    private fun setDiffFromX(x: Float) {
-        diff = ((x - sliderX0()) / (sliderX1() - sliderX0())).coerceIn(0f, 1f)
+    private fun fireVisible(): Boolean =
+        started && !dead && !session.isOver && runTime < fireWindow
+    private fun fireAvailable(): Boolean = fireVisible() && fireTaps < fireMaxTaps
+
+    // button geometry (touch coords: origin top-left, y down) — top-right, a bit down
+    private fun fireCx() = sw * 0.85f
+    private fun fireCy() = sh * 0.20f
+    private fun fireR() = sw * 0.14f
+
+    private fun inFireZone(x: Float, y: Float): Boolean {
+        val dx = x - fireCx(); val dy = y - fireCy()
+        return dx * dx + dy * dy < fireR() * fireR()
+    }
+
+    private fun tapFire() {
+        if (!fireAvailable()) return
+        fireTaps++
+        val boost = startDiff + (fireMaxDiff - startDiff) * (fireTaps / fireMaxTaps.toFloat())
+        if (boost > diff) diff = boost
+        SoundFx.play("rise", rate = 0.85f + fireTaps * 0.12f)
+        Haptics.click()
+        flash(gdxHsv(22f, 0.85f, 1f), 0.12f)
+        burst3d(tmp.set(px, py + 0.3f, 0.3f), gdxHsv(26f, 0.9f, 1f), n = 12, speed = 6f, size = 0.12f, life = 0.55f)
+    }
+
+    // ------------------------------------------------------------- style points
+    /** A mid-air tap: bump the combo with an ascending pitch + a spark burst (no text). */
+    private fun styleTap() {
+        styleCombo++
+        val rate = (0.85f + 0.16f * styleCombo).coerceAtMost(2f) // pitch climbs each consecutive tap
+        // a soft sine "bloop" that ascends — pleasant, not the harsh square blip/coin
+        SoundFx.play("pop", rate = rate)
+        SoundFx.play("tick", rate = (1f + 0.1f * styleCombo).coerceAtMost(1.6f), vol = 0.3f)
+        Haptics.tick()
+        // hot, non-green sparks that get richer the higher the combo
+        val hue = 290f + styleCombo * 16f // purple → magenta → red, never green
+        flash(gdxHsv(hue, 0.5f, 1f), 0.05f)
+        burst3d(tmp.set(px, py + 0.3f, 0.2f), gdxHsv(hue, 0.9f, 1f),
+            n = 10 + styleCombo * 3, speed = 5f + styleCombo, size = 0.11f, life = 0.55f)
+        burst3d(tmp.set(px, py + 0.3f, 0.2f), Color.WHITE, n = 4, speed = 6f, size = 0.07f, life = 0.3f)
+    }
+
+    /** Touchdown after an air combo: a burst of flair (no text); only a 5+ combo shakes. */
+    private fun styleLand() {
+        SoundFx.play("perfect", rate = (1f + 0.06f * styleCombo).coerceAtMost(1.7f))
+        Haptics.success()
+        val hue = 300f + styleCombo * 10f // warm, non-green
+        flash(gdxHsv(hue, 0.4f, 1f), 0.12f)
+        burst3d(tmp.set(px, py + 0.2f, 0.2f), gdxHsv(hue, 0.85f, 1f),
+            n = 14 + styleCombo * 3, speed = 7f, size = 0.13f, life = 0.7f)
+        burst3d(tmp.set(px, py + 0.2f, 0.2f), Color.WHITE, n = 6, speed = 5f, size = 0.09f, life = 0.4f)
+        if (styleCombo >= 5) shake(0.3f) // only a big combo earns a screen shake
+        styleCombo = 0
+    }
+
+    /**
+     * One constant-width "^" drawn as a single mitered band (4 triangles that abut
+     * exactly — no overlap), so the whole chevron is one consistent opaque outline.
+     */
+    private fun chevron(shapes: ShapeRenderer, cx: Float, yBase: Float, chevW: Float, chevH: Float, lineW: Float) {
+        val l = sqrt(chevW * chevW + chevH * chevH)
+        val hw = lineW * 0.5f
+        val ox = -chevH / l * hw   // outer-perpendicular offset
+        val oy = chevW / l * hw
+        val axO = cx - chevW + ox; val ayO = yBase + oy   // left tip, outer (top) edge
+        val axI = cx - chevW - ox; val ayI = yBase - oy   // left tip, inner (under) edge
+        val cxO = cx + chevW - ox                         // right tip, outer
+        val cxI = cx + chevW + ox                         // right tip, inner
+        val oTopY = ayO + (chevW - ox) / chevW * chevH    // apex, outer corner (on x = cx)
+        val oBotY = ayI + (chevW + ox) / chevW * chevH    // apex, inner corner
+        shapes.triangle(axO, ayO, cx, oTopY, cx, oBotY)   // left arm band
+        shapes.triangle(axO, ayO, cx, oBotY, axI, ayI)
+        shapes.triangle(cx, oTopY, cxO, ayO, cxI, ayI)    // right arm band
+        shapes.triangle(cx, oTopY, cxI, ayI, cx, oBotY)
     }
 
     override fun renderHud(shapes: ShapeRenderer, w: Float, h: Float) {
-        if (!DEBUG_DIFF_SLIDER) return
-        val x0 = w * 0.08f; val x1 = w * 0.92f; val tw = x1 - x0
-        val cy = h * 0.07f // track centre, measured from the bottom (y is up here)
-        val th = (h * 0.012f).coerceAtLeast(10f)
-        val thumbX = x0 + tw * diff
-        shapes.setColor(0f, 0f, 0f, 0.45f) // backing plate
-        shapes.rect(x0 - th, cy - th * 2f, tw + th * 2f, th * 4f)
-        shapes.setColor(1f, 1f, 1f, 0.18f) // track
-        shapes.rect(x0, cy - th * 0.5f, tw, th)
-        shapes.setColor(0.36f, 0.98f, 0.27f, 0.85f) // filled portion
-        shapes.rect(x0, cy - th * 0.5f, tw * diff, th)
-        shapes.setColor(1f, 1f, 1f, 0.55f) // tier-boundary ticks
-        shapes.rect(x0 + tw * 0.18f - 1.5f, cy - th * 1.2f, 3f, th * 2.4f)
-        shapes.rect(x0 + tw * 0.38f - 1.5f, cy - th * 1.2f, 3f, th * 2.4f)
-        shapes.setColor(0.3f, 0.8f, 1f, 0.9f) // cyan marker: where auto-progression plateaus
-        shapes.rect(x0 + tw * autoDiffCap - 2f, cy - th * 2f, 4f, th * 4f)
-        when (unlockedTier()) { // thumb coloured by unlocked tier
-            0 -> shapes.setColor(0.45f, 1f, 0.4f, 1f)
-            1 -> shapes.setColor(1f, 0.85f, 0.25f, 1f)
-            else -> shapes.setColor(1f, 0.35f, 0.3f, 1f)
+        if (!fireVisible()) return
+        // 5 stacked "^" chevrons, top-right. Minimalist: one clean opaque orange
+        // outline each (no glow/overlap). Each tap lights one; lit chevrons carry a
+        // gentle fluid shimmer. The stack flickers in the window's final seconds.
+        val cx = fireCx()
+        val cyDraw = h - fireCy()           // touch-space centre → draw space (y is up here)
+        val gap = h * 0.024f
+        val chevW = w * 0.055f
+        val chevH = h * 0.020f
+        val lineW = w * 0.014f
+        val expiring = runTime > fireWindow - 4f
+        val flick = if (expiring && sin(time * 26f) < -0.1f) 0.3f else 1f
+        val y0 = cyDraw - 2f * gap          // bottom chevron; stack centred on cyDraw
+        for (i in 0 until fireMaxTaps) {
+            val yBase = y0 + i * gap
+            val lit = i < fireTaps
+            if (lit) {                      // bright orange with a subtle fluid shimmer
+                val wave = 0.5f + 0.5f * sin(time * 5f - i * 0.8f)
+                val v = 0.9f + 0.1f * wave
+                shapes.setColor(v, 0.5f * v, 0.05f * v, flick)
+            } else {                        // waiting: dim
+                shapes.setColor(0.5f, 0.28f, 0.1f, 0.5f * flick)
+            }
+            chevron(shapes, cx, yBase, chevW, chevH, if (lit) lineW else lineW * 0.85f)
         }
-        shapes.rect(thumbX - th * 0.9f, cy - th * 1.7f, th * 1.8f, th * 3.4f)
     }
 
     override fun renderWorld(batch: ModelBatch, env: Environment) {
