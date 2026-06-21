@@ -7,9 +7,19 @@ import android.content.SharedPreferences
 object Settings {
     private lateinit var prefs: SharedPreferences
 
+    /**
+     * Master flag for the experimental "smooth control" feature *and* its UI.
+     * While false the feature is fully off and its toggle/sensitivity controls are
+     * hidden. To bring it back, flip this to true — the in-game toggle then drives
+     * the feature (we re-enable the UI, not the feature itself).
+     */
+    const val SMOOTH_CONTROL_UI = false
+
     /** "Smooth control": steer continuously without lifting your finger between moves. */
-    @Volatile var smoothControl: Boolean = false
-        private set
+    @Volatile private var smoothControlPref: Boolean = false
+
+    /** Effective smooth-control state — always false while [SMOOTH_CONTROL_UI] is off. */
+    val smoothControl: Boolean get() = SMOOTH_CONTROL_UI && smoothControlPref
 
     /** Smooth-control sensitivity, 0..1 (higher = smaller finger movement per move). */
     @Volatile var smoothSensitivity: Float = 0.5f
@@ -17,12 +27,12 @@ object Settings {
 
     fun init(ctx: Context) {
         prefs = ctx.applicationContext.getSharedPreferences("settings", Context.MODE_PRIVATE)
-        smoothControl = prefs.getBoolean("smooth_control", false)
+        smoothControlPref = prefs.getBoolean("smooth_control", false)
         smoothSensitivity = prefs.getFloat("smooth_sensitivity", 0.5f)
     }
 
     fun setSmoothControl(v: Boolean) {
-        smoothControl = v
+        smoothControlPref = v
         prefs.edit().putBoolean("smooth_control", v).apply()
     }
 

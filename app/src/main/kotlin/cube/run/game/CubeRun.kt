@@ -259,7 +259,7 @@ class CubeRun(session: GameSession) : Gdx3DGame(session) {
         cam.position.set(0f, 3.7f, 6.4f)
         cam.lookAt(0f, 1.0f, -8f)
         cam.update()
-        session.banner("SWIPE · JUMP · ROLL")
+        // "Tap to start" is shown by the HUD (GameChromeView) until the first input.
     }
 
     // ------------------------------------------------------------- obstacles

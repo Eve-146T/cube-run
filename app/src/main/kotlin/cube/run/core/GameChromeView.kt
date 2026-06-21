@@ -59,8 +59,19 @@ class GameChromeView(private val activity: Activity, private val accent: Int) : 
         alpha = 0f
     }
 
+    // Low-key prompt shown (softly pulsing) until the first touch starts a run.
+    private val startHint = TextView(activity).apply {
+        text = "Tap to start"
+        textSize = 22f
+        setTextColor(Palette.withAlpha(Color.WHITE, 160))
+        typeface = Typeface.DEFAULT_BOLD
+        gravity = Gravity.CENTER
+        setShadowLayer(dp(6f).toFloat(), 0f, dp(1f).toFloat(), 0x80000000.toInt())
+    }
+
     private var overCard: View? = null
     private var bestPulse: ValueAnimator? = null
+    private var startPulse: ValueAnimator? = null
     private val topBox = LinearLayout(activity)
 
     // Pre-run options: experimental "smooth control" toggle + its sensitivity. Hidden once a run begins.
@@ -142,10 +153,21 @@ class GameChromeView(private val activity: Activity, private val accent: Int) : 
         addView(bannerText, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT).apply {
             gravity = Gravity.CENTER
         })
-        addView(optionsBox, LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT).apply {
-            gravity = Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL
-            bottomMargin = dp(168f) // sit above the bottom edge / debug slider
+        addView(startHint, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT).apply {
+            gravity = Gravity.CENTER
         })
+        startPulse = ValueAnimator.ofFloat(0.45f, 0.8f).apply {
+            duration = 1000; repeatCount = ValueAnimator.INFINITE; repeatMode = ValueAnimator.REVERSE
+            addUpdateListener { a -> startHint.alpha = a.animatedValue as Float }
+            start()
+        }
+        // The smooth-control toggle + sensitivity only exist when the feature flag is on.
+        if (Settings.SMOOTH_CONTROL_UI) {
+            addView(optionsBox, LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT).apply {
+                gravity = Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL
+                bottomMargin = dp(168f) // sit above the bottom edge / debug slider
+            })
+        }
 
         // Keep the HUD clear of the display cutout.
         setOnApplyWindowInsetsListener { _, insets ->
@@ -163,6 +185,8 @@ class GameChromeView(private val activity: Activity, private val accent: Int) : 
     override fun onDetachedFromWindow() {
         bestPulse?.cancel()
         bestPulse = null
+        startPulse?.cancel()
+        startPulse = null
         super.onDetachedFromWindow()
     }
 
@@ -170,11 +194,17 @@ class GameChromeView(private val activity: Activity, private val accent: Int) : 
         bestText.text = if (best > 0) "BEST $best" else ""
     }
 
-    /** Hide the pre-run options once a run has begun. */
+    /** Hide the "Tap to start" prompt and the pre-run options once a run has begun. */
     fun hideOptions() {
-        if (optionsBox.visibility != VISIBLE) return
-        optionsBox.animate().alpha(0f).setDuration(160)
-            .withEndAction { optionsBox.visibility = GONE }.start()
+        startPulse?.cancel(); startPulse = null
+        if (startHint.visibility == VISIBLE) {
+            startHint.animate().alpha(0f).setDuration(160)
+                .withEndAction { startHint.visibility = GONE }.start()
+        }
+        if (optionsBox.parent != null && optionsBox.visibility == VISIBLE) {
+            optionsBox.animate().alpha(0f).setDuration(160)
+                .withEndAction { optionsBox.visibility = GONE }.start()
+        }
     }
 
     fun setScore(v: Int) {
@@ -185,9 +215,15 @@ class GameChromeView(private val activity: Activity, private val accent: Int) : 
         scoreText.animate().scaleX(1f).scaleY(1f).setDuration(140).start()
     }
 
+    /** A vivid random hue for the center banner — fresh each time; the drop shadow
+     *  (not an outline) keeps it legible on whatever colour the world is. */
+    private fun randomBannerColor(): Int =
+        Color.HSVToColor(floatArrayOf((Math.random() * 360.0).toFloat(), 0.75f, 1f))
+
     fun banner(text: String) {
         bannerText.animate().cancel()
         bannerText.text = text
+        bannerText.setTextColor(randomBannerColor())
         bannerText.alpha = 1f
         bannerText.scaleX = 0.5f
         bannerText.scaleY = 0.5f
