@@ -61,8 +61,8 @@ abstract class Gdx3DGame(val session: GameSession) : ApplicationAdapter() {
     private val camSave = Vector3()
 
     // --------------------------------------------------------------- perf HUD
-    /** Draw the on-screen FPS counter (top-left). Cheap; safe to ship enabled. */
-    var showFps = true
+    /** Draw the on-screen FPS counter (top-left). Cheap; flip true to show it. */
+    var showFps = false
     /** Emit detailed frame-time / draw-call stats to logcat once per second (tag PERF).
      *  Enables [GLProfiler] (adds per-GL-call overhead) — flip true to benchmark. */
     var perfLog = false
