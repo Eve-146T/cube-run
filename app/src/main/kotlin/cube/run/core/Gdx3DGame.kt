@@ -565,7 +565,13 @@ abstract class Gdx3DGame(val session: GameSession) : ApplicationAdapter() {
         shader.bind()
         shader.setUniformMatrix("u_projViewTrans", cam.combined)
         mesh.render(shader, GL20.GL_TRIANGLES, 0, n * tplIdxCount)
+        // Restore the state ModelBatch's RenderContext.end() used to leave behind,
+        // so the following ShapeRenderer passes (flash, HUD fire-boost chevrons, FPS
+        // counter) aren't affected by our cull-face / depth / blend settings.
         Gdx.gl.glDepthMask(true)
+        Gdx.gl.glDisable(GL20.GL_CULL_FACE)
+        Gdx.gl.glDisable(GL20.GL_DEPTH_TEST)
+        Gdx.gl.glDisable(GL20.GL_BLEND)
     }
 
     // ----------------------------------------------------------- model utils
