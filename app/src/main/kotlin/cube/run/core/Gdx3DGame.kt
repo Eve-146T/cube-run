@@ -5,17 +5,18 @@ import com.badlogic.gdx.Gdx
 import com.badlogic.gdx.InputAdapter
 import com.badlogic.gdx.graphics.Color
 import com.badlogic.gdx.graphics.GL20
+import com.badlogic.gdx.graphics.Mesh
 import com.badlogic.gdx.graphics.PerspectiveCamera
+import com.badlogic.gdx.graphics.VertexAttribute
 import com.badlogic.gdx.graphics.VertexAttributes.Usage
 import com.badlogic.gdx.graphics.g3d.Environment
 import com.badlogic.gdx.graphics.g3d.Material
 import com.badlogic.gdx.graphics.g3d.Model
 import com.badlogic.gdx.graphics.g3d.ModelBatch
-import com.badlogic.gdx.graphics.g3d.ModelInstance
-import com.badlogic.gdx.graphics.g3d.attributes.BlendingAttribute
 import com.badlogic.gdx.graphics.g3d.attributes.ColorAttribute
 import com.badlogic.gdx.graphics.g3d.environment.DirectionalLight
 import com.badlogic.gdx.graphics.g3d.utils.ModelBuilder
+import com.badlogic.gdx.graphics.glutils.ShaderProgram
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer
 import com.badlogic.gdx.graphics.profiling.GLProfiler
 import com.badlogic.gdx.math.Matrix4
@@ -133,6 +134,7 @@ abstract class Gdx3DGame(val session: GameSession) : ApplicationAdapter() {
         shapes = ShapeRenderer()
         if (perfLog) glProfiler = GLProfiler(Gdx.graphics).also { it.enable() }
         prewarmShardPool()
+        setupShardBatch()
 
         Gdx.input.inputProcessor = object : InputAdapter() {
             private var downX = 0f
@@ -235,8 +237,8 @@ abstract class Gdx3DGame(val session: GameSession) : ApplicationAdapter() {
         val draw0 = System.nanoTime()
         batch.begin(cam)
         renderWorld(batch, env)
-        renderShards(batch)
         batch.end()
+        renderShardsBatched()       // own pass: 1 draw call for all live shards
         drawAccNs += System.nanoTime() - draw0
 
         if (shaken) cam.position.set(camSave)
@@ -345,11 +347,13 @@ abstract class Gdx3DGame(val session: GameSession) : ApplicationAdapter() {
     }
 
     /**
-     * A pooled cube shard. Each owns one [ModelInstance] plus its own (mutable)
-     * colour + blend attributes, so colour/opacity are per-shard. Allocated once,
-     * then reused — [burst3d] only re-seeds the value fields (zero allocation).
+     * A pooled cube shard: just a transform + colour + alpha (no ModelInstance —
+     * shards are drawn as one batched mesh, see [renderShardsBatched]). Allocated
+     * once, then reused — [burst3d] only re-seeds the value fields (zero allocation).
      */
-    private class Shard(val inst: ModelInstance, val color: ColorAttribute, val blend: BlendingAttribute) {
+    private class Shard {
+        val transform = Matrix4()     // translate * rotate * uniform-scale
+        val color = Color(1f, 1f, 1f, 1f)
         val vel = Vector3()
         val rotAxis = Vector3()
         val pos = Vector3()
@@ -357,32 +361,23 @@ abstract class Gdx3DGame(val session: GameSession) : ApplicationAdapter() {
         var life = 0f
         var maxLife = 0f
         var size = 0f
+        var alpha = 1f
     }
 
     private val maxShards = 240
     private val shards = ArrayList<Shard>(maxShards)      // active (updated + rendered)
     private val shardPool = ArrayList<Shard>(maxShards)   // free list — reused across bursts
-    private var shardModel: Model? = null
-
-    private fun newShard(): Shard {
-        val model = shardModel ?: box(1f, 1f, 1f, Color.WHITE).also { shardModel = it }
-        val inst = ModelInstance(model)
-        val color = ColorAttribute.createDiffuse(Color.WHITE)
-        val blend = BlendingAttribute(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA, 1f)
-        inst.materials.first().set(color, blend)
-        return Shard(inst, color, blend)
-    }
 
     /** Build the whole pool up front (load time) so no burst ever allocates mid-run. */
     private fun prewarmShardPool() {
         if (shardPool.isNotEmpty()) return
-        repeat(maxShards) { shardPool.add(newShard()) }
+        repeat(maxShards) { shardPool.add(Shard()) }
     }
 
-    /** Take a free shard: from the pool, or freshly built until the cap, else recycle oldest. */
+    /** Take a free shard: from the pool, or a fresh one until the cap, else recycle oldest. */
     private fun obtainShard(): Shard = when {
         shardPool.isNotEmpty() -> shardPool.removeAt(shardPool.size - 1)
-        shards.size < maxShards -> newShard()
+        shards.size < maxShards -> Shard()
         else -> shards.removeAt(0) // at cap: retire the oldest, re-seed it below
     }
 
@@ -390,8 +385,8 @@ abstract class Gdx3DGame(val session: GameSession) : ApplicationAdapter() {
     fun burst3d(at: Vector3, color: Color, n: Int = 14, speed: Float = 6f, size: Float = 0.16f, life: Float = 0.8f) {
         repeat(n) {
             val s = obtainShard()
-            s.color.color.set(color)
-            s.blend.opacity = 1f
+            s.color.set(color)
+            s.alpha = 1f
             s.vel.set(
                 rnd.nextFloat() * 2f - 1f,
                 rnd.nextFloat() * 1.6f - 0.3f,
@@ -421,9 +416,9 @@ abstract class Gdx3DGame(val session: GameSession) : ApplicationAdapter() {
                 s.vel.y -= 14f * dt
                 s.pos.mulAdd(s.vel, dt)
                 val k = (s.life / s.maxLife).coerceIn(0f, 1f)
-                s.blend.opacity = k
+                s.alpha = k
                 val sc = s.size * (0.4f + 0.6f * k)
-                s.inst.transform.idt()
+                s.transform.idt()
                     .translate(s.pos)
                     .rotate(s.rotAxis, s.rotSpeed * (s.maxLife - s.life))
                     .scale(sc, sc, sc)
@@ -432,8 +427,145 @@ abstract class Gdx3DGame(val session: GameSession) : ApplicationAdapter() {
         }
     }
 
-    private fun renderShards(batch: ModelBatch) {
-        for (i in shards.indices) batch.render(shards[i].inst, env)
+    // ----- batched shard renderer: all live shards in ONE dynamic mesh / draw call.
+    // GPU has huge headroom; the cost was CPU-side ModelBatch submission of ~240
+    // renderables/frame. We bake the exact Environment lighting + per-shard alpha
+    // into vertex colours so the look is identical to the old per-instance render.
+    private var shardMesh: Mesh? = null
+    private var shardShader: ShaderProgram? = null
+    private lateinit var shardVerts: FloatArray   // (pos3 + packedColor1) * 24 verts * maxShards
+    private lateinit var tplPos: FloatArray        // unit-cube template: 24 vertex positions (xyz)
+    private var tplVerts = 0                        // template vertex count (24)
+    private var tplIdxCount = 0                     // template index count (36)
+    // per-cube structure precomputed once: each of the 24 verts maps to one of 8
+    // shared corners and one of 6 faces, so a frame transforms 8 corners + lights
+    // 6 faces (not 24 of each).
+    private val cornerLocal = floatArrayOf(        // 8 corners of a unit cube (±0.5)
+        -.5f, -.5f, -.5f, .5f, -.5f, -.5f, -.5f, .5f, -.5f, .5f, .5f, -.5f,
+        -.5f, -.5f, .5f, .5f, -.5f, .5f, -.5f, .5f, .5f, .5f, .5f, .5f,
+    )
+    private val faceNrm = floatArrayOf(            // +X -X +Y -Y +Z -Z
+        1f, 0f, 0f, -1f, 0f, 0f, 0f, 1f, 0f, 0f, -1f, 0f, 0f, 0f, 1f, 0f, 0f, -1f,
+    )
+    private lateinit var cornerOf: IntArray        // vert -> corner index (0..7)
+    private lateinit var faceOf: IntArray          // vert -> face index (0..5)
+    private val wc = FloatArray(24)                 // scratch: 8 transformed corners (xyz)
+    private val packed = FloatArray(6)              // scratch: per-face packed colour
+    private val sN = Vector3()                      // scratch: world normal
+    private val sV = Vector3()                      // scratch: world position
+    // light rig — MUST mirror the Environment built in create()
+    private val ambR = 0.55f; private val ambG = 0.55f; private val ambB = 0.6f
+    private val toL1 = Vector3(-0.45f, -0.85f, -0.35f).scl(-1f).nor()
+    private val l1R = 0.85f; private val l1G = 0.85f; private val l1B = 0.8f
+    private val toL2 = Vector3(0.6f, -0.2f, 0.5f).scl(-1f).nor()
+    private val l2R = 0.25f; private val l2G = 0.22f; private val l2B = 0.3f
+
+    private fun setupShardBatch() {
+        // Extract a unit-cube template (positions + normals + winding) from libGDX's
+        // own box builder so culling/normals match the old ModelBatch shards exactly.
+        val tpl = box(1f, 1f, 1f, Color.WHITE)
+        val m0 = tpl.meshes.first()
+        val vCount = m0.numVertices                 // 24
+        val fpv = m0.vertexSize / 4                 // floats per vertex
+        val raw = FloatArray(vCount * fpv)
+        m0.getVertices(raw)
+        val pOff = m0.getVertexAttribute(Usage.Position).offset / 4
+        val nOff = m0.getVertexAttribute(Usage.Normal).offset / 4
+        tplPos = FloatArray(vCount * 3)
+        cornerOf = IntArray(vCount)
+        faceOf = IntArray(vCount)
+        for (v in 0 until vCount) {
+            val px = raw[v * fpv + pOff]; val py = raw[v * fpv + pOff + 1]; val pz = raw[v * fpv + pOff + 2]
+            tplPos[v * 3] = px; tplPos[v * 3 + 1] = py; tplPos[v * 3 + 2] = pz
+            cornerOf[v] = (if (px > 0) 1 else 0) or (if (py > 0) 2 else 0) or (if (pz > 0) 4 else 0)
+            val nx = raw[v * fpv + nOff]; val ny = raw[v * fpv + nOff + 1]; val nz = raw[v * fpv + nOff + 2]
+            faceOf[v] = when {
+                abs(nx) > 0.5f -> if (nx > 0) 0 else 1
+                abs(ny) > 0.5f -> if (ny > 0) 2 else 3
+                else -> if (nz > 0) 4 else 5
+            }
+        }
+        val tplIdx = ShortArray(m0.numIndices)      // 36
+        m0.getIndices(tplIdx)
+        tplVerts = vCount
+        tplIdxCount = tplIdx.size
+
+        shardVerts = FloatArray(maxShards * vCount * 4)
+        val mesh = Mesh(
+            false, maxShards * vCount, maxShards * tplIdx.size,
+            VertexAttribute(Usage.Position, 3, "a_position"),
+            VertexAttribute(Usage.ColorPacked, 4, "a_color"),
+        )
+        val idx = ShortArray(maxShards * tplIdx.size)
+        for (c in 0 until maxShards) {
+            val ib = c * tplIdx.size; val vb = c * vCount
+            for (k in tplIdx.indices) idx[ib + k] = (tplIdx[k] + vb).toShort()
+        }
+        mesh.setIndices(idx)
+        shardMesh = mesh
+
+        ShaderProgram.pedantic = false
+        shardShader = ShaderProgram(
+            """
+            attribute vec3 a_position;
+            attribute vec4 a_color;
+            uniform mat4 u_projViewTrans;
+            varying vec4 v_color;
+            void main() { v_color = a_color; gl_Position = u_projViewTrans * vec4(a_position, 1.0); }
+            """.trimIndent(),
+            """
+            #ifdef GL_ES
+            precision mediump float;
+            #endif
+            varying vec4 v_color;
+            void main() { gl_FragColor = v_color; }
+            """.trimIndent(),
+        ).also { require(it.isCompiled) { "shard shader: ${it.log}" } }
+    }
+
+    /** One draw call for every live shard. Run after the world (depth already written). */
+    private fun renderShardsBatched() {
+        val n = shards.size
+        if (n == 0) return
+        val mesh = shardMesh ?: return
+        val shader = shardShader ?: return
+        var w = 0
+        for (i in 0 until n) {
+            val s = shards[i]; val m = s.transform
+            val cr = s.color.r; val cg = s.color.g; val cb = s.color.b; val a = s.alpha
+            // 8 shared cube corners -> world space (not 24 verts)
+            for (c in 0 until 8) {
+                val ci = c * 3
+                sV.set(cornerLocal[ci], cornerLocal[ci + 1], cornerLocal[ci + 2]).mul(m)
+                wc[ci] = sV.x; wc[ci + 1] = sV.y; wc[ci + 2] = sV.z
+            }
+            // 6 faces -> baked lit colour (mirrors the Environment's Lambert lighting)
+            for (f in 0 until 6) {
+                val fi = f * 3
+                sN.set(faceNrm[fi], faceNrm[fi + 1], faceNrm[fi + 2]).rot(m).nor()
+                val d1 = max(0f, sN.dot(toL1)); val d2 = max(0f, sN.dot(toL2))
+                val r = min(1f, cr * (ambR + d1 * l1R + d2 * l2R))
+                val g = min(1f, cg * (ambG + d1 * l1G + d2 * l2G))
+                val b = min(1f, cb * (ambB + d1 * l1B + d2 * l2B))
+                packed[f] = Color.toFloatBits(r, g, b, a)
+            }
+            // assemble the 24 cube verts from precomputed corner+face lookups (cheap copies)
+            for (v in 0 until tplVerts) {
+                val ci = cornerOf[v] * 3
+                shardVerts[w++] = wc[ci]; shardVerts[w++] = wc[ci + 1]; shardVerts[w++] = wc[ci + 2]
+                shardVerts[w++] = packed[faceOf[v]]
+            }
+        }
+        mesh.setVertices(shardVerts, 0, w)
+        Gdx.gl.glEnable(GL20.GL_DEPTH_TEST)
+        Gdx.gl.glDepthMask(false)                 // blended: test against scene, don't occlude each other
+        Gdx.gl.glEnable(GL20.GL_CULL_FACE)
+        Gdx.gl.glEnable(GL20.GL_BLEND)
+        Gdx.gl.glBlendFunc(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA)
+        shader.bind()
+        shader.setUniformMatrix("u_projViewTrans", cam.combined)
+        mesh.render(shader, GL20.GL_TRIANGLES, 0, n * tplIdxCount)
+        Gdx.gl.glDepthMask(true)
     }
 
     // ----------------------------------------------------------- model utils
@@ -475,6 +607,8 @@ abstract class Gdx3DGame(val session: GameSession) : ApplicationAdapter() {
     override fun dispose() {
         batch.dispose()
         shapes.dispose()
+        shardMesh?.dispose()
+        shardShader?.dispose()
         owned.forEach { it.dispose() }
         owned.clear()
     }
