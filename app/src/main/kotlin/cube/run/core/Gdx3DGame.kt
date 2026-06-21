@@ -17,6 +17,7 @@ import com.badlogic.gdx.graphics.g3d.attributes.ColorAttribute
 import com.badlogic.gdx.graphics.g3d.environment.DirectionalLight
 import com.badlogic.gdx.graphics.g3d.utils.ModelBuilder
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer
+import com.badlogic.gdx.graphics.profiling.GLProfiler
 import com.badlogic.gdx.math.Matrix4
 import com.badlogic.gdx.math.Vector3
 import kotlin.math.abs
@@ -57,6 +58,28 @@ abstract class Gdx3DGame(val session: GameSession) : ApplicationAdapter() {
     private var shakeMag = 0f
     private var flashColor = Color(1f, 1f, 1f, 0f)
     private val camSave = Vector3()
+
+    // --------------------------------------------------------------- perf HUD
+    /** Draw the on-screen FPS counter (top-left). Cheap; safe to ship enabled. */
+    var showFps = true
+    /** Emit detailed frame-time / draw-call stats to logcat once per second (tag PERF).
+     *  Enables [GLProfiler] (adds per-GL-call overhead) — flip true to benchmark. */
+    var perfLog = false
+
+    private var glProfiler: GLProfiler? = null
+    private val frameMs = FloatArray(512)       // ring buffer of wall-clock frame times (ms, vsync-capped)
+    private val cpuMs = FloatArray(512)          // ring buffer of render() CPU-build times (ms, NOT vsync-capped)
+    private var frameMsIdx = 0
+    private var frameMsCount = 0
+    private val sortBuf = FloatArray(512)        // reused for percentile sort (no per-log alloc)
+    private var renderStartNs = 0L
+    private var curSlot = 0
+    private var logAccum = 0f
+    private var logFrames = 0
+    private var winMaxDraws = 0
+    private var winMaxVerts = 0f
+    // 7-segment masks for 0..9 (bit a=0x01 b=0x02 c=0x04 d=0x08 e=0x10 f=0x20 g=0x40)
+    private val segMasks = intArrayOf(0x3F, 0x06, 0x5B, 0x4F, 0x66, 0x6D, 0x7D, 0x07, 0x7F, 0x6F)
 
     abstract fun init()
     abstract fun tick(dt: Float)
@@ -107,6 +130,8 @@ abstract class Gdx3DGame(val session: GameSession) : ApplicationAdapter() {
         }
         batch = ModelBatch()
         shapes = ShapeRenderer()
+        if (perfLog) glProfiler = GLProfiler(Gdx.graphics).also { it.enable() }
+        prewarmShardPool()
 
         Gdx.input.inputProcessor = object : InputAdapter() {
             private var downX = 0f
@@ -167,6 +192,14 @@ abstract class Gdx3DGame(val session: GameSession) : ApplicationAdapter() {
     // ----------------------------------------------------------------- frame
 
     override fun render() {
+        renderStartNs = System.nanoTime()
+        glProfiler?.reset()
+        val rawMs = Gdx.graphics.rawDeltaTime * 1000f   // unclamped: real (wall-clock) frame time
+        frameMs[frameMsIdx] = rawMs
+        curSlot = frameMsIdx                             // cpuMs[curSlot] filled at end of render()
+        frameMsIdx = (frameMsIdx + 1) % frameMs.size
+        if (frameMsCount < frameMs.size) frameMsCount++
+
         val dt = min(Gdx.graphics.deltaTime, 0.035f)
         time += dt
         tick(dt)
@@ -225,8 +258,77 @@ abstract class Gdx3DGame(val session: GameSession) : ApplicationAdapter() {
         shapes.projectionMatrix = uiMatrix.setToOrtho2D(0f, 0f, sw.toFloat(), sh.toFloat())
         shapes.begin(ShapeRenderer.ShapeType.Filled)
         renderHud(shapes, sw.toFloat(), sh.toFloat())
+        if (showFps) drawFps(shapes, sw.toFloat(), sh.toFloat())
         shapes.end()
         Gdx.gl.glEnable(GL20.GL_DEPTH_TEST)
+
+        perfTick()
+    }
+
+    // ------------------------------------------------------------ perf report
+
+    /** Aggregate frame stats once per second to logcat (tag PERF). */
+    private fun perfTick() {
+        cpuMs[curSlot] = (System.nanoTime() - renderStartNs) / 1_000_000f
+        glProfiler?.let { p ->
+            if (p.drawCalls > winMaxDraws) winMaxDraws = p.drawCalls
+            if (p.vertexCount.total > winMaxVerts) winMaxVerts = p.vertexCount.total
+        }
+        logAccum += Gdx.graphics.rawDeltaTime
+        logFrames++
+        if (logAccum < 1f) return
+        if (perfLog) {
+            val n = frameMsCount
+            // wall-clock (vsync-capped) percentiles
+            System.arraycopy(frameMs, 0, sortBuf, 0, n)
+            java.util.Arrays.sort(sortBuf, 0, n)
+            val wp50 = sortBuf[n / 2]; val wp95 = sortBuf[(n * 95 / 100).coerceIn(0, n - 1)]
+            val wMax = sortBuf[n - 1]
+            // CPU frame-build (NOT vsync-capped — the real headroom signal) percentiles
+            System.arraycopy(cpuMs, 0, sortBuf, 0, n)
+            java.util.Arrays.sort(sortBuf, 0, n)
+            val cp50 = sortBuf[n / 2]; val cp95 = sortBuf[(n * 95 / 100).coerceIn(0, n - 1)]
+            val cMax = sortBuf[n - 1]
+            Gdx.app.log(
+                "PERF",
+                "fps=%.1f  wall[p50/p95/max]=%.1f/%.1f/%.1f  cpu[p50/p95/max]=%.1f/%.1f/%.1f  draws=%d verts=%.0f shards=%d".format(
+                    logFrames / logAccum, wp50, wp95, wMax, cp50, cp95, cMax,
+                    winMaxDraws, winMaxVerts, shards.size,
+                ),
+            )
+        }
+        logAccum = 0f; logFrames = 0; winMaxDraws = 0; winMaxVerts = 0f
+    }
+
+    /** Minimalist 7-segment FPS readout, top-left. Green ≥55, amber ≥40, red below. */
+    private fun drawFps(shapes: ShapeRenderer, w: Float, h: Float) {
+        val fps = Gdx.graphics.framesPerSecond.coerceIn(0, 999)
+        when {
+            fps >= 55 -> shapes.setColor(0.30f, 1f, 0.45f, 0.9f)
+            fps >= 40 -> shapes.setColor(1f, 0.80f, 0.20f, 0.9f)
+            else -> shapes.setColor(1f, 0.30f, 0.25f, 0.95f)
+        }
+        val dh = h * 0.030f
+        val dw = dh * 0.62f
+        val t = dh * 0.16f
+        val gap = dw * 0.40f
+        val pad = w * 0.035f
+        var x = pad
+        val y = h - pad - dh
+        val s = fps.toString()
+        for (ch in s) { drawDigit(shapes, ch - '0', x, y, dw, dh, t); x += dw + gap }
+    }
+
+    private fun drawDigit(shapes: ShapeRenderer, d: Int, x: Float, y: Float, dw: Float, dh: Float, t: Float) {
+        val seg = segMasks[d]
+        val half = (dh - t) * 0.5f
+        if (seg and 0x01 != 0) shapes.rect(x, y + dh - t, dw, t)              // a  top
+        if (seg and 0x02 != 0) shapes.rect(x + dw - t, y + half, t, half + t) // b  top-right
+        if (seg and 0x04 != 0) shapes.rect(x + dw - t, y, t, half + t)        // c  bottom-right
+        if (seg and 0x08 != 0) shapes.rect(x, y, dw, t)                       // d  bottom
+        if (seg and 0x10 != 0) shapes.rect(x, y, t, half + t)                 // e  bottom-left
+        if (seg and 0x20 != 0) shapes.rect(x, y + half, t, half + t)          // f  top-left
+        if (seg and 0x40 != 0) shapes.rect(x, y + half, dw, t)                // g  middle
     }
 
     private val uiMatrix = Matrix4()
@@ -241,45 +343,67 @@ abstract class Gdx3DGame(val session: GameSession) : ApplicationAdapter() {
         flashColor.set(color.r, color.g, color.b, max(flashColor.a, alpha))
     }
 
-    private class Shard(
-        val inst: ModelInstance,
-        val vel: Vector3,
-        val rotAxis: Vector3,
-        val rotSpeed: Float,
-        var life: Float,
-        val maxLife: Float,
-        val size: Float,
-        val pos: Vector3,
-        val blend: BlendingAttribute,
-    )
+    /**
+     * A pooled cube shard. Each owns one [ModelInstance] plus its own (mutable)
+     * colour + blend attributes, so colour/opacity are per-shard. Allocated once,
+     * then reused — [burst3d] only re-seeds the value fields (zero allocation).
+     */
+    private class Shard(val inst: ModelInstance, val color: ColorAttribute, val blend: BlendingAttribute) {
+        val vel = Vector3()
+        val rotAxis = Vector3()
+        val pos = Vector3()
+        var rotSpeed = 0f
+        var life = 0f
+        var maxLife = 0f
+        var size = 0f
+    }
 
-    private val shards = ArrayList<Shard>()
+    private val maxShards = 240
+    private val shards = ArrayList<Shard>(maxShards)      // active (updated + rendered)
+    private val shardPool = ArrayList<Shard>(maxShards)   // free list — reused across bursts
     private var shardModel: Model? = null
 
-    /** Cube-shard explosion at a world position. */
-    fun burst3d(at: Vector3, color: Color, n: Int = 14, speed: Float = 6f, size: Float = 0.16f, life: Float = 0.8f) {
+    private fun newShard(): Shard {
         val model = shardModel ?: box(1f, 1f, 1f, Color.WHITE).also { shardModel = it }
+        val inst = ModelInstance(model)
+        val color = ColorAttribute.createDiffuse(Color.WHITE)
+        val blend = BlendingAttribute(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA, 1f)
+        inst.materials.first().set(color, blend)
+        return Shard(inst, color, blend)
+    }
+
+    /** Build the whole pool up front (load time) so no burst ever allocates mid-run. */
+    private fun prewarmShardPool() {
+        if (shardPool.isNotEmpty()) return
+        repeat(maxShards) { shardPool.add(newShard()) }
+    }
+
+    /** Take a free shard: from the pool, or freshly built until the cap, else recycle oldest. */
+    private fun obtainShard(): Shard = when {
+        shardPool.isNotEmpty() -> shardPool.removeAt(shardPool.size - 1)
+        shards.size < maxShards -> newShard()
+        else -> shards.removeAt(0) // at cap: retire the oldest, re-seed it below
+    }
+
+    /** Cube-shard explosion at a world position. Allocation-free in steady state (pooled). */
+    fun burst3d(at: Vector3, color: Color, n: Int = 14, speed: Float = 6f, size: Float = 0.16f, life: Float = 0.8f) {
         repeat(n) {
-            val inst = ModelInstance(model)
-            val blend = BlendingAttribute(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA, 1f)
-            inst.materials.first().set(ColorAttribute.createDiffuse(color), blend)
-            val vel = Vector3(
+            val s = obtainShard()
+            s.color.color.set(color)
+            s.blend.opacity = 1f
+            s.vel.set(
                 rnd.nextFloat() * 2f - 1f,
                 rnd.nextFloat() * 1.6f - 0.3f,
                 rnd.nextFloat() * 2f - 1f,
             ).nor().scl(speed * (0.4f + rnd.nextFloat() * 0.9f))
+            s.rotAxis.set(rnd.nextFloat(), rnd.nextFloat(), rnd.nextFloat()).nor()
+            s.rotSpeed = (rnd.nextFloat() - 0.5f) * 720f
             val l = life * (0.5f + rnd.nextFloat() * 0.7f)
-            shards.add(
-                Shard(
-                    inst, vel,
-                    Vector3(rnd.nextFloat(), rnd.nextFloat(), rnd.nextFloat()).nor(),
-                    (rnd.nextFloat() - 0.5f) * 720f,
-                    l, l, size * (0.6f + rnd.nextFloat() * 0.9f),
-                    Vector3(at), blend,
-                )
-            )
+            s.life = l; s.maxLife = l
+            s.size = size * (0.6f + rnd.nextFloat() * 0.9f)
+            s.pos.set(at)
+            shards.add(s)
         }
-        if (shards.size > 240) shards.subList(0, shards.size - 240).clear()
     }
 
     private fun updateShards(dt: Float) {
@@ -288,23 +412,27 @@ abstract class Gdx3DGame(val session: GameSession) : ApplicationAdapter() {
             val s = shards[i]
             s.life -= dt
             if (s.life <= 0f) {
-                shards.removeAt(i)
+                val last = shards.size - 1
+                shards[i] = shards[last]      // swap-remove: O(1), no array shift
+                shards.removeAt(last)
+                shardPool.add(s)              // return to the pool for reuse
             } else {
                 s.vel.y -= 14f * dt
                 s.pos.mulAdd(s.vel, dt)
                 val k = (s.life / s.maxLife).coerceIn(0f, 1f)
                 s.blend.opacity = k
+                val sc = s.size * (0.4f + 0.6f * k)
                 s.inst.transform.idt()
                     .translate(s.pos)
                     .rotate(s.rotAxis, s.rotSpeed * (s.maxLife - s.life))
-                    .scale(s.size * (0.4f + 0.6f * k), s.size * (0.4f + 0.6f * k), s.size * (0.4f + 0.6f * k))
+                    .scale(sc, sc, sc)
             }
             i--
         }
     }
 
     private fun renderShards(batch: ModelBatch) {
-        for (s in shards) batch.render(s.inst, env)
+        for (i in shards.indices) batch.render(shards[i].inst, env)
     }
 
     // ----------------------------------------------------------- model utils

@@ -199,8 +199,8 @@ class CubeRun(session: GameSession) : Gdx3DGame(session) {
     private fun diffuse(inst: ModelInstance): Color =
         (inst.materials.first().get(ColorAttribute.Diffuse) as ColorAttribute).color
 
-    /** Allocation-free HSV write into an existing Color. */
-    private fun setHsv(c: Color, h: Float, s: Float, v: Float) {
+    /** Allocation-free HSV write into an existing Color; returns it for chaining. */
+    private fun setHsv(c: Color, h: Float, s: Float, v: Float): Color {
         val hh = (((h % 360f) + 360f) % 360f) / 60f
         val i = hh.toInt()
         val f = hh - i
@@ -209,7 +209,12 @@ class CubeRun(session: GameSession) : Gdx3DGame(session) {
             0 -> c.set(v, t, p, 1f); 1 -> c.set(q, v, p, 1f); 2 -> c.set(p, v, t, 1f)
             3 -> c.set(p, q, v, 1f); 4 -> c.set(t, p, v, 1f); else -> c.set(v, p, q, 1f)
         }
+        return c
     }
+
+    // reusable scratch Colors for transient flash/burst tints (flash + burst3d copy
+    // their argument immediately, so a shared scratch passed sequentially is safe).
+    private val tmpCol = Color()
 
     private fun tileHue(t: Tile) {
         // floor hue drifts with total distance; checker brightness reads as a grid
@@ -417,9 +422,9 @@ class CubeRun(session: GameSession) : Gdx3DGame(session) {
             flash(Color.WHITE, 0.07f)
             burst3d(tmp.set(px, py + 0.4f, 0.2f), Color.WHITE, n = 10, speed = 4f, size = 0.1f, life = 0.5f)
         }
-        // sky drifts as you survive
-        bgTop = gdxHsv(baseHue + 30f + rowsPassed * 2f, 0.6f, 0.4f)
-        bgBottom = gdxHsv(baseHue + 70f + rowsPassed * 2f, 0.65f, 0.1f)
+        // sky drifts as you survive (mutate in place — no per-row Color allocation)
+        setHsv(bgTop, baseHue + 30f + rowsPassed * 2f, 0.6f, 0.4f)
+        setHsv(bgBottom, baseHue + 70f + rowsPassed * 2f, 0.65f, 0.1f)
     }
 
     // ---------------------------------------------------------------- input
@@ -678,8 +683,8 @@ class CubeRun(session: GameSession) : Gdx3DGame(session) {
         if (boost > diff) diff = boost
         SoundFx.play("rise", rate = 0.85f + fireTaps * 0.12f)
         Haptics.click()
-        flash(gdxHsv(22f, 0.85f, 1f), 0.12f)
-        burst3d(tmp.set(px, py + 0.3f, 0.3f), gdxHsv(26f, 0.9f, 1f), n = 12, speed = 6f, size = 0.12f, life = 0.55f)
+        flash(setHsv(tmpCol, 22f, 0.85f, 1f), 0.12f)
+        burst3d(tmp.set(px, py + 0.3f, 0.3f), setHsv(tmpCol, 26f, 0.9f, 1f), n = 12, speed = 6f, size = 0.12f, life = 0.55f)
     }
 
     // ------------------------------------------------------------- style points
@@ -693,8 +698,8 @@ class CubeRun(session: GameSession) : Gdx3DGame(session) {
         Haptics.tick()
         // hot, non-green sparks that get richer the higher the combo
         val hue = 290f + styleCombo * 16f // purple → magenta → red, never green
-        flash(gdxHsv(hue, 0.5f, 1f), 0.05f)
-        burst3d(tmp.set(px, py + 0.3f, 0.2f), gdxHsv(hue, 0.9f, 1f),
+        flash(setHsv(tmpCol, hue, 0.5f, 1f), 0.05f)
+        burst3d(tmp.set(px, py + 0.3f, 0.2f), setHsv(tmpCol, hue, 0.9f, 1f),
             n = 10 + styleCombo * 3, speed = 5f + styleCombo, size = 0.11f, life = 0.55f)
         burst3d(tmp.set(px, py + 0.3f, 0.2f), Color.WHITE, n = 4, speed = 6f, size = 0.07f, life = 0.3f)
     }
@@ -704,8 +709,8 @@ class CubeRun(session: GameSession) : Gdx3DGame(session) {
         SoundFx.play("perfect", rate = (1f + 0.06f * styleCombo).coerceAtMost(1.7f))
         Haptics.success()
         val hue = 300f + styleCombo * 10f // warm, non-green
-        flash(gdxHsv(hue, 0.4f, 1f), 0.12f)
-        burst3d(tmp.set(px, py + 0.2f, 0.2f), gdxHsv(hue, 0.85f, 1f),
+        flash(setHsv(tmpCol, hue, 0.4f, 1f), 0.12f)
+        burst3d(tmp.set(px, py + 0.2f, 0.2f), setHsv(tmpCol, hue, 0.85f, 1f),
             n = 14 + styleCombo * 3, speed = 7f, size = 0.13f, life = 0.7f)
         burst3d(tmp.set(px, py + 0.2f, 0.2f), Color.WHITE, n = 6, speed = 5f, size = 0.09f, life = 0.4f)
         if (styleCombo >= 5) shake(0.3f) // only a big combo earns a screen shake
