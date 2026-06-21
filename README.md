@@ -19,7 +19,7 @@ Latest APK: [GitHub releases](https://github.com/Eve-146T/cube-run/releases/late
 ## Gameplay
 
 - Swipe to control your character
-- You have to jump over some and jump over other obsticles. 
+- You have to jump over some obstacles and slide under others.
 - If you're a pro gamer you can press the headstart icon up to 5 times to start faster
 
 
