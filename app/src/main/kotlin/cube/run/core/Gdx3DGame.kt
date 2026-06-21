@@ -67,10 +67,9 @@ abstract class Gdx3DGame(val session: GameSession) : ApplicationAdapter() {
     var perfLog = false
 
     private var glProfiler: GLProfiler? = null
-    private val frameMs = FloatArray(512)       // ring buffer of wall-clock frame times (ms, vsync-capped)
     private val cpuMs = FloatArray(512)          // ring buffer of render() CPU-build times (ms, NOT vsync-capped)
-    private var frameMsIdx = 0
-    private var frameMsCount = 0
+    private var ringIdx = 0
+    private var ringCount = 0
     private val sortBuf = FloatArray(512)        // reused for percentile sort (no per-log alloc)
     private var renderStartNs = 0L
     private var curSlot = 0
@@ -78,6 +77,8 @@ abstract class Gdx3DGame(val session: GameSession) : ApplicationAdapter() {
     private var logFrames = 0
     private var winMaxDraws = 0
     private var winMaxVerts = 0f
+    private var simAccNs = 0L     // per-window sum: tick() + updateShards()
+    private var drawAccNs = 0L    // per-window sum: ModelBatch begin..end (build+submit)
     // 7-segment masks for 0..9 (bit a=0x01 b=0x02 c=0x04 d=0x08 e=0x10 f=0x20 g=0x40)
     private val segMasks = intArrayOf(0x3F, 0x06, 0x5B, 0x4F, 0x66, 0x6D, 0x7D, 0x07, 0x7F, 0x6F)
 
@@ -194,16 +195,16 @@ abstract class Gdx3DGame(val session: GameSession) : ApplicationAdapter() {
     override fun render() {
         renderStartNs = System.nanoTime()
         glProfiler?.reset()
-        val rawMs = Gdx.graphics.rawDeltaTime * 1000f   // unclamped: real (wall-clock) frame time
-        frameMs[frameMsIdx] = rawMs
-        curSlot = frameMsIdx                             // cpuMs[curSlot] filled at end of render()
-        frameMsIdx = (frameMsIdx + 1) % frameMs.size
-        if (frameMsCount < frameMs.size) frameMsCount++
+        curSlot = ringIdx                               // cpuMs[curSlot] filled at end of render()
+        ringIdx = (ringIdx + 1) % cpuMs.size
+        if (ringCount < cpuMs.size) ringCount++
 
         val dt = min(Gdx.graphics.deltaTime, 0.035f)
         time += dt
+        val sim0 = System.nanoTime()
         tick(dt)
         updateShards(dt)
+        simAccNs += System.nanoTime() - sim0
 
         Gdx.gl.glViewport(0, 0, sw, sh)
         Gdx.gl.glClearColor(bgBottom.r, bgBottom.g, bgBottom.b, 1f)
@@ -231,10 +232,12 @@ abstract class Gdx3DGame(val session: GameSession) : ApplicationAdapter() {
         cam.viewportHeight = sh.toFloat()
         cam.update()
 
+        val draw0 = System.nanoTime()
         batch.begin(cam)
         renderWorld(batch, env)
         renderShards(batch)
         batch.end()
+        drawAccNs += System.nanoTime() - draw0
 
         if (shaken) cam.position.set(camSave)
 
@@ -278,26 +281,24 @@ abstract class Gdx3DGame(val session: GameSession) : ApplicationAdapter() {
         logFrames++
         if (logAccum < 1f) return
         if (perfLog) {
-            val n = frameMsCount
-            // wall-clock (vsync-capped) percentiles
-            System.arraycopy(frameMs, 0, sortBuf, 0, n)
-            java.util.Arrays.sort(sortBuf, 0, n)
-            val wp50 = sortBuf[n / 2]; val wp95 = sortBuf[(n * 95 / 100).coerceIn(0, n - 1)]
-            val wMax = sortBuf[n - 1]
-            // CPU frame-build (NOT vsync-capped — the real headroom signal) percentiles
+            val n = ringCount
+            // CPU frame-build (NOT vsync-capped — the real headroom signal) percentiles.
+            // Split into sim (tick+updateShards) vs draw (ModelBatch build+submit) below.
             System.arraycopy(cpuMs, 0, sortBuf, 0, n)
             java.util.Arrays.sort(sortBuf, 0, n)
             val cp50 = sortBuf[n / 2]; val cp95 = sortBuf[(n * 95 / 100).coerceIn(0, n - 1)]
             val cMax = sortBuf[n - 1]
             Gdx.app.log(
                 "PERF",
-                "fps=%.1f  wall[p50/p95/max]=%.1f/%.1f/%.1f  cpu[p50/p95/max]=%.1f/%.1f/%.1f  draws=%d verts=%.0f shards=%d".format(
-                    logFrames / logAccum, wp50, wp95, wMax, cp50, cp95, cMax,
-                    winMaxDraws, winMaxVerts, shards.size,
+                "fps=%.1f  cpu[p50/p95/max]=%.1f/%.1f/%.1f  sim=%.2f draw=%.2f  draws=%d shards=%d".format(
+                    logFrames / logAccum, cp50, cp95, cMax,
+                    simAccNs / logFrames / 1e6, drawAccNs / logFrames / 1e6,
+                    winMaxDraws, shards.size,
                 ),
             )
         }
         logAccum = 0f; logFrames = 0; winMaxDraws = 0; winMaxVerts = 0f
+        simAccNs = 0L; drawAccNs = 0L
     }
 
     /** Minimalist 7-segment FPS readout, top-left. Green ≥55, amber ≥40, red below. */
