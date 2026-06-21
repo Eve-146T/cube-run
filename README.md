@@ -8,6 +8,15 @@ through an endless neon gauntlet rushing toward you.
 
 Latest APK: [GitHub releases](https://github.com/Eve-146T/cube-run/releases/latest).
 
+## Screenshots
+
+<p align="center">
+  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/1.png" width="22%" alt="Leap the walls">
+  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/2.png" width="22%" alt="Thread the pillars">
+  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/3.png" width="22%" alt="Shards on a near-miss">
+  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/4.png" width="22%" alt="Weave the gauntlet">
+</p>
+
 ## Gameplay
 
 - Swipe **left / right** to snap between the three lanes.
