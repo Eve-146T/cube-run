@@ -1,0 +1,1 @@
+Polished the listing: added gameplay screenshots and tidied the README. No gameplay changes since 1.0.
