@@ -1,0 +1,1 @@
+Friendlier start: a low-key "Tap to start" prompt replaces the old control hint, and the "GO!" flash now picks a fresh colour each run. Tidied the pre-run screen (the experimental smooth-control toggle is hidden for now).
