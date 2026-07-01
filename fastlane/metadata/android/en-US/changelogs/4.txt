@@ -1,0 +1,1 @@
+Added quick sound and vibration toggles to the bottom-left of the start screen, so you can mute the audio or turn off haptics with a single tap; your choice is remembered. Restarting after a run is now seamless — no more screen-slide animation between attempts.
