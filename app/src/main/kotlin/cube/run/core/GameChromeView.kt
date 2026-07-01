@@ -3,6 +3,7 @@ package cube.run.core
 import android.animation.ValueAnimator
 import android.annotation.SuppressLint
 import android.app.Activity
+import android.content.Intent
 import android.content.res.ColorStateList
 import android.graphics.Color
 import android.graphics.Typeface
@@ -15,9 +16,11 @@ import android.view.animation.DecelerateInterpolator
 import android.view.animation.OvershootInterpolator
 import android.widget.CheckBox
 import android.widget.FrameLayout
+import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.SeekBar
 import android.widget.TextView
+import cube.run.R
 
 /**
  * The game's HUD overlay: score + best at the top, animated center banners,
@@ -137,6 +140,59 @@ class GameChromeView(private val activity: Activity, private val accent: Int) : 
         })
     }
 
+    /**
+     * A round, icon-only pre-run toggle (styled to match [optionsBox]: translucent
+     * black fill, accent ring). Reflects [isOn]; tapping flips it, gives audio + haptic
+     * confirmation that honours the *new* state (muting is silent, un-muting isn't),
+     * then repaints.
+     */
+    private fun makeToggle(
+        iconOn: Int,
+        iconOff: Int,
+        label: String,
+        isOn: () -> Boolean,
+        set: (Boolean) -> Unit,
+    ): ImageView = ImageView(activity).apply {
+        val pad = dp(11f)
+        setPadding(pad, pad, pad, pad)
+        scaleType = ImageView.ScaleType.FIT_CENTER
+        isClickable = true
+        isFocusable = true
+        fun paint() {
+            val on = isOn()
+            setImageResource(if (on) iconOn else iconOff)
+            imageTintList = ColorStateList.valueOf(if (on) accent else Palette.withAlpha(Color.WHITE, 110))
+            background = GradientDrawable().apply {
+                shape = GradientDrawable.OVAL
+                setColor(Palette.withAlpha(Color.BLACK, 115))
+                setStroke(dp(1f), Palette.withAlpha(if (on) accent else Color.WHITE, if (on) 150 else 60))
+            }
+            contentDescription = "$label ${if (on) "on" else "off"}"
+        }
+        paint()
+        setOnClickListener {
+            set(!isOn())
+            SoundFx.play("tap"); Haptics.tick()
+            paint()
+        }
+    }
+
+    private val soundBtn = makeToggle(
+        R.drawable.ic_sound_on, R.drawable.ic_sound_off, activity.getString(R.string.cd_sound),
+        { Settings.soundEnabled }, { Settings.setSoundEnabled(it) },
+    )
+    private val hapticBtn = makeToggle(
+        R.drawable.ic_haptic_on, R.drawable.ic_haptic_off, activity.getString(R.string.cd_haptics),
+        { Settings.hapticsEnabled }, { Settings.setHapticsEnabled(it) },
+    )
+    private val toggleBox = LinearLayout(activity).apply {
+        orientation = LinearLayout.HORIZONTAL
+        gravity = Gravity.CENTER_VERTICAL
+        val size = dp(46f)
+        addView(soundBtn, LinearLayout.LayoutParams(size, size))
+        addView(hapticBtn, LinearLayout.LayoutParams(size, size).apply { leftMargin = dp(12f) })
+    }
+
     init {
         isClickable = false
         isFocusable = false
@@ -169,15 +225,34 @@ class GameChromeView(private val activity: Activity, private val accent: Int) : 
             })
         }
 
-        // Keep the HUD clear of the display cutout.
+        // Sound + vibration toggles, tucked into the bottom-left of the pre-run menu.
+        addView(toggleBox, LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT).apply {
+            gravity = Gravity.BOTTOM or Gravity.START
+            leftMargin = dp(20f)
+            bottomMargin = dp(28f)
+        })
+
+        // Keep the HUD clear of the status bar / cutout (top) and nav bar / cutout (bottom-left).
         setOnApplyWindowInsetsListener { _, insets ->
-            val top = if (Build.VERSION.SDK_INT >= 30) {
-                insets.getInsets(WindowInsets.Type.statusBars() or WindowInsets.Type.displayCutout()).top
+            val top: Int
+            val left: Int
+            val bottom: Int
+            if (Build.VERSION.SDK_INT >= 30) {
+                top = insets.getInsets(WindowInsets.Type.statusBars() or WindowInsets.Type.displayCutout()).top
+                val nav = insets.getInsets(WindowInsets.Type.navigationBars() or WindowInsets.Type.displayCutout())
+                left = nav.left; bottom = nav.bottom
             } else {
-                @Suppress("DEPRECATION") insets.systemWindowInsetTop
+                @Suppress("DEPRECATION") top = insets.systemWindowInsetTop
+                @Suppress("DEPRECATION") left = insets.systemWindowInsetLeft
+                @Suppress("DEPRECATION") bottom = insets.systemWindowInsetBottom
             }
             (topBox.layoutParams as LayoutParams).topMargin = maxOf(dp(48f), top + dp(10f))
             topBox.requestLayout()
+            (toggleBox.layoutParams as LayoutParams).apply {
+                leftMargin = dp(20f) + left
+                bottomMargin = dp(28f) + bottom
+            }
+            toggleBox.requestLayout()
             insets
         }
     }
@@ -204,6 +279,10 @@ class GameChromeView(private val activity: Activity, private val accent: Int) : 
         if (optionsBox.parent != null && optionsBox.visibility == VISIBLE) {
             optionsBox.animate().alpha(0f).setDuration(160)
                 .withEndAction { optionsBox.visibility = GONE }.start()
+        }
+        if (toggleBox.visibility == VISIBLE) {
+            toggleBox.animate().alpha(0f).setDuration(160)
+                .withEndAction { toggleBox.visibility = GONE }.start()
         }
     }
 
@@ -336,12 +415,20 @@ class GameChromeView(private val activity: Activity, private val accent: Int) : 
 
         // finish + relaunch (NOT recreate): libGDX only disposes GL resources when
         // the activity is truly finishing, so recreate() would leak native meshes.
+        // Suppress the activity transition so the restart doesn't look like sliding
+        // to a new screen — overridePendingTransition is ignored on Android 14+, so
+        // rely on FLAG_ACTIVITY_NO_ANIMATION (all versions) + overrideActivityTransition
+        // (API 34+), keeping overridePendingTransition only as the pre-34 fallback.
         card.addView(button("RESTART", true) {
-            val relaunch = activity.intent
+            val relaunch = Intent(activity.intent).addFlags(Intent.FLAG_ACTIVITY_NO_ANIMATION)
+            if (Build.VERSION.SDK_INT >= 34) {
+                activity.overrideActivityTransition(Activity.OVERRIDE_TRANSITION_CLOSE, 0, 0)
+            }
             activity.finish()
-            @Suppress("DEPRECATION") activity.overridePendingTransition(0, 0)
             activity.startActivity(relaunch)
-            @Suppress("DEPRECATION") activity.overridePendingTransition(0, 0)
+            if (Build.VERSION.SDK_INT < 34) {
+                @Suppress("DEPRECATION") activity.overridePendingTransition(0, 0)
+            }
         }, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
         card.addView(button("EXIT", false) { activity.finish() },
             LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {

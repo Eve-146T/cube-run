@@ -25,10 +25,20 @@ object Settings {
     @Volatile var smoothSensitivity: Float = 0.5f
         private set
 
+    /** Master mute for all procedural sound effects. Read from the GL thread. */
+    @Volatile var soundEnabled: Boolean = true
+        private set
+
+    /** Master toggle for haptic feedback. Read from the GL thread. */
+    @Volatile var hapticsEnabled: Boolean = true
+        private set
+
     fun init(ctx: Context) {
         prefs = ctx.applicationContext.getSharedPreferences("settings", Context.MODE_PRIVATE)
         smoothControlPref = prefs.getBoolean("smooth_control", false)
         smoothSensitivity = prefs.getFloat("smooth_sensitivity", 0.5f)
+        soundEnabled = prefs.getBoolean("sound_enabled", true)
+        hapticsEnabled = prefs.getBoolean("haptics_enabled", true)
     }
 
     fun setSmoothControl(v: Boolean) {
@@ -39,5 +49,15 @@ object Settings {
     fun setSmoothSensitivity(v: Float) {
         smoothSensitivity = v.coerceIn(0f, 1f)
         prefs.edit().putFloat("smooth_sensitivity", smoothSensitivity).apply()
+    }
+
+    fun setSoundEnabled(v: Boolean) {
+        soundEnabled = v
+        prefs.edit().putBoolean("sound_enabled", v).apply()
+    }
+
+    fun setHapticsEnabled(v: Boolean) {
+        hapticsEnabled = v
+        prefs.edit().putBoolean("haptics_enabled", v).apply()
     }
 }

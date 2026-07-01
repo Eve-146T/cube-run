@@ -34,14 +34,17 @@ object Haptics {
     fun fail() = waveform(longArrayOf(0, 70, 60, 140), intArrayOf(0, 120, 0, 230))
 
     fun buzz(ms: Int, amp: Int = 200) {
+        if (!Settings.hapticsEnabled) return
         runCatching { vib?.vibrate(VibrationEffect.createOneShot(ms.toLong().coerceAtLeast(1), amp.coerceIn(1, 255))) }
     }
 
     private fun predefined(effect: Int) {
+        if (!Settings.hapticsEnabled) return
         runCatching { vib?.vibrate(VibrationEffect.createPredefined(effect)) }
     }
 
     private fun waveform(times: LongArray, amps: IntArray) {
+        if (!Settings.hapticsEnabled) return
         runCatching { vib?.vibrate(VibrationEffect.createWaveform(times, amps, -1)) }
     }
 }
