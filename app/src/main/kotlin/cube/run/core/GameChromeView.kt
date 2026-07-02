@@ -415,20 +415,18 @@ class GameChromeView(private val activity: Activity, private val accent: Int) : 
 
         // finish + relaunch (NOT recreate): libGDX only disposes GL resources when
         // the activity is truly finishing, so recreate() would leak native meshes.
-        // Suppress the activity transition so the restart doesn't look like sliding
-        // to a new screen — overridePendingTransition is ignored on Android 14+, so
-        // rely on FLAG_ACTIVITY_NO_ANIMATION (all versions) + overrideActivityTransition
-        // (API 34+), keeping overridePendingTransition only as the pre-34 fallback.
+        // The relaunch must stay INSIDE the current task: a fresh intent (never a
+        // copy of activity.intent, whose launcher FLAG_ACTIVITY_NEW_TASK would spawn
+        // a new task) started BEFORE finish() (so the task never empties). A
+        // task-to-task swap always plays the OEM's default slide on Android 12+ —
+        // apps cannot suppress task transitions — whereas this in-task activity open
+        // honours FLAG_ACTIVITY_NO_ANIMATION and cuts instantly. The old activity
+        // finishes hidden underneath, releasing its GL resources as before.
         card.addView(button("RESTART", true) {
-            val relaunch = Intent(activity.intent).addFlags(Intent.FLAG_ACTIVITY_NO_ANIMATION)
-            if (Build.VERSION.SDK_INT >= 34) {
-                activity.overrideActivityTransition(Activity.OVERRIDE_TRANSITION_CLOSE, 0, 0)
-            }
-            activity.finish()
+            val relaunch = Intent(activity, activity.javaClass)
+                .addFlags(Intent.FLAG_ACTIVITY_NO_ANIMATION)
             activity.startActivity(relaunch)
-            if (Build.VERSION.SDK_INT < 34) {
-                @Suppress("DEPRECATION") activity.overridePendingTransition(0, 0)
-            }
+            activity.finish()
         }, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
         card.addView(button("EXIT", false) { activity.finish() },
             LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
