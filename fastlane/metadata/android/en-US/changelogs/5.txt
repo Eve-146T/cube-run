@@ -1,0 +1,1 @@
+Restarting after a run now crossfades smoothly into the fresh attempt. Version 1.3 claimed to remove the screen-slide animation between attempts, but on Android 12 and newer the system still played it; the restart transition is now fully under the game's control on all supported devices.
