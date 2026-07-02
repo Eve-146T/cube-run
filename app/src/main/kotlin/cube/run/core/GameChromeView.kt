@@ -419,13 +419,12 @@ class GameChromeView(private val activity: Activity, private val accent: Int) : 
         // copy of activity.intent, whose launcher FLAG_ACTIVITY_NEW_TASK would spawn
         // a new task) started BEFORE finish() (so the task never empties). A
         // task-to-task swap always plays the OEM's default slide on Android 12+ —
-        // apps cannot suppress task transitions — whereas this in-task activity open
-        // honours FLAG_ACTIVITY_NO_ANIMATION and cuts instantly. The old activity
-        // finishes hidden underneath, releasing its GL resources as before.
+        // apps cannot suppress task transitions — whereas an in-task activity open
+        // honours the theme's animations: RunSwapAnim (themes.xml) crossfades the
+        // fresh run over the game-over screen. The old activity finishes hidden
+        // underneath, releasing its GL resources as before.
         card.addView(button("RESTART", true) {
-            val relaunch = Intent(activity, activity.javaClass)
-                .addFlags(Intent.FLAG_ACTIVITY_NO_ANIMATION)
-            activity.startActivity(relaunch)
+            activity.startActivity(Intent(activity, activity.javaClass))
             activity.finish()
         }, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
         card.addView(button("EXIT", false) { activity.finish() },
