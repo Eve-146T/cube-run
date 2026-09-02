@@ -3,4 +3,8 @@
     <string name="app_name">Cube Run</string>
     <string name="cd_sound">Sound</string>
     <string name="cd_haptics">Vibration</string>
+    <string name="cd_dev">Dev mode</string>
+    <string name="cd_shop">Shop</string>
+    <string name="cd_skins">Skins</string>
+    <string name="cd_sections">Section explorer</string>
 </resources>

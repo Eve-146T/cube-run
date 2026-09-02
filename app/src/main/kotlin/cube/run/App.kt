@@ -2,6 +2,7 @@ package cube.run
 
 import android.app.Application
 import cube.run.core.Haptics
+import cube.run.core.Progress
 import cube.run.core.Scores
 import cube.run.core.Settings
 import cube.run.core.SoundFx
@@ -11,6 +12,7 @@ class App : Application() {
         super.onCreate()
         Scores.init(this)
         Settings.init(this)
+        Progress.init(this)
         Haptics.init(this)
         SoundFx.init(this)
     }

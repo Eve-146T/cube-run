@@ -1,0 +1,69 @@
+package cube.run.core
+
+/**
+ * Player skins: a shape plus a colour behaviour. The game samples [Skin.hueAt]
+ * etc. every frame on the GL thread (pure functions of time — no state); the
+ * shop uses [Skin.previewArgb] for its swatches.
+ */
+object Skins {
+    const val CUBE = 0
+    const val ORB = 1
+    const val PYRAMID = 2
+
+    // colour modes
+    const val COMP = 0      // complementary to the world's base hue (the classic look)
+    const val FIXED = 1     // one fixed hue
+    const val RAINBOW = 2   // hue cycles continuously
+    const val PULSE = 3     // fixed hue, brightness throbs
+    const val EMBER = 4     // hot hue that flickers like a coal
+
+    class Skin(
+        val id: Int,
+        val name: String,
+        val price: Int,
+        val shape: Int,
+        val mode: Int,
+        val hue: Float = 0f,
+        val sat: Float = 0.55f,
+        val value: Float = 1f,
+        /** Glow-shell opacity multiplier (1 = classic). */
+        val glow: Float = 1f,
+        /** Trail shard rate multiplier (1 = classic). */
+        val trail: Float = 1f,
+        /** The trail/burst colour is white sparkle instead of the body colour. */
+        val sparkle: Boolean = false,
+    ) {
+        /** Hue in degrees for the body at [t] seconds given the world's [baseHue]. */
+        fun hueAt(t: Float, baseHue: Float): Float = when (mode) {
+            COMP -> baseHue + 180f
+            RAINBOW -> t * 60f
+            EMBER -> hue + 14f * kotlin.math.sin(t * 9f) + 6f * kotlin.math.sin(t * 23f)
+            else -> hue
+        }
+
+        fun valueAt(t: Float): Float = when (mode) {
+            PULSE -> value * (0.72f + 0.28f * (0.5f + 0.5f * kotlin.math.sin(t * 5f)))
+            EMBER -> value * (0.85f + 0.15f * kotlin.math.sin(t * 13f))
+            else -> value
+        }
+
+        /** Android ARGB for shop swatches (a representative frame). */
+        fun previewArgb(): Int = Palette.hsv(
+            when (mode) { COMP -> 190f; RAINBOW -> 300f; else -> hue },
+            sat, value,
+        )
+    }
+
+    val all: List<Skin> = listOf(
+        Skin(0, "Classic", 0, CUBE, COMP, sat = 0.55f),
+        Skin(1, "Neon", 150, CUBE, FIXED, hue = 0f, sat = 0.04f, value = 1f, glow = 1.8f, sparkle = true),
+        Skin(2, "Lava", 250, CUBE, EMBER, hue = 16f, sat = 0.95f, value = 1f, trail = 2f),
+        Skin(3, "Ice", 250, ORB, FIXED, hue = 196f, sat = 0.32f, value = 1f, glow = 1.4f),
+        Skin(4, "Void", 400, CUBE, FIXED, hue = 275f, sat = 0.6f, value = 0.16f, glow = 2.2f),
+        Skin(5, "Plasma", 500, PYRAMID, PULSE, hue = 305f, sat = 0.85f, value = 1f, glow = 1.6f, trail = 1.6f),
+        Skin(6, "Gold", 600, PYRAMID, FIXED, hue = 46f, sat = 0.85f, value = 1f, sparkle = true, trail = 1.8f),
+        Skin(7, "Prism", 800, ORB, RAINBOW, sat = 0.8f, value = 1f, glow = 1.5f, trail = 2f, sparkle = true),
+    )
+
+    fun get(id: Int): Skin = all.getOrElse(id) { all[0] }
+}

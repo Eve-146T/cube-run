@@ -3,195 +3,63 @@ package cube.run.core
 import android.animation.ValueAnimator
 import android.annotation.SuppressLint
 import android.app.Activity
-import android.content.Intent
-import android.content.res.ColorStateList
 import android.graphics.Color
-import android.graphics.Typeface
-import android.graphics.drawable.GradientDrawable
 import android.os.Build
 import android.view.Gravity
-import android.view.View
 import android.view.WindowInsets
 import android.view.animation.DecelerateInterpolator
 import android.view.animation.OvershootInterpolator
-import android.widget.CheckBox
 import android.widget.FrameLayout
-import android.widget.ImageView
 import android.widget.LinearLayout
-import android.widget.SeekBar
 import android.widget.TextView
-import cube.run.R
+import android.content.Intent
+import cube.run.core.ui.PreRunMenu
+import cube.run.core.ui.RunOverFlow
+import cube.run.core.ui.SectionsView
+import cube.run.core.ui.ShopView
+import cube.run.core.ui.SkinsView
+import cube.run.core.ui.Ui
+import cube.run.core.ui.UiKit
 
 /**
- * The game's HUD overlay: score + best at the top, animated center banners,
- * and the game-over card. Must only be touched from the UI thread
- * (GameHostSession marshals for you).
+ * The game's HUD overlay: score / best / coins / boxes at the top, animated
+ * centre banners, the "tap to start" prompt, and the panels it hosts — the
+ * [PreRunMenu] (toggles + skins + shop), the [ShopView], the [SkinsView] and
+ * the [RunOverFlow].
+ * Must only be touched from the UI thread (GameHostSession marshals for you).
  *
  * Created programmatically (never inflated from XML) and shows dynamic,
- * single-locale game text (scores, banners), so ViewConstructor / SetTextI18n
- * are intentionally suppressed.
+ * single-locale game text, so ViewConstructor / SetTextI18n are suppressed.
  */
 @SuppressLint("SetTextI18n", "ViewConstructor")
-class GameChromeView(private val activity: Activity, private val accent: Int) : FrameLayout(activity) {
+class GameChromeView(private val activity: Activity, accent: Int) : FrameLayout(activity) {
 
-    private val density = resources.displayMetrics.density
-    private fun dp(v: Float) = (v * density).toInt()
+    private val kit = UiKit(activity, accent)
+    private fun dp(v: Float) = kit.dp(v)
+    private fun shadow(t: TextView, r: Float = 6f) = t.setShadowLayer(dp(r).toFloat(), 0f, dp(2f).toFloat(), 0x90000000.toInt())
 
-    private val scoreText = TextView(activity).apply {
-        textSize = 52f
-        setTextColor(Color.WHITE)
-        typeface = Typeface.create(Typeface.DEFAULT_BOLD, Typeface.BOLD)
-        gravity = Gravity.CENTER_HORIZONTAL
-        setShadowLayer(dp(6f).toFloat(), 0f, dp(2f).toFloat(), 0x80000000.toInt())
-        text = "0"
-    }
-
-    private val bestText = TextView(activity).apply {
-        textSize = 15f
-        setTextColor(Palette.withAlpha(Color.WHITE, 170))
-        typeface = Typeface.DEFAULT_BOLD
-        gravity = Gravity.CENTER_HORIZONTAL
-    }
-
-    private val bannerText = TextView(activity).apply {
-        textSize = 40f
-        setTextColor(accent)
-        typeface = Typeface.create(Typeface.DEFAULT_BOLD, Typeface.BOLD)
-        gravity = Gravity.CENTER
-        setShadowLayer(dp(8f).toFloat(), 0f, dp(2f).toFloat(), 0xA0000000.toInt())
-        alpha = 0f
-    }
-
+    private val scoreText = kit.text("0", 52f, Color.WHITE, heavy = true).also { shadow(it) }
+    private val bestText = kit.text("", 15f, Palette.withAlpha(Color.WHITE, 190)).also { shadow(it, 4f) }
+    // Coin bank (pre-run) / bank + this run's haul (in-run), gold; mystery boxes beside it.
+    private val coinText = kit.text("", 17f, Ui.GOLD).also { shadow(it, 4f) }
+    private val boxText = kit.text("", 17f, 0xFFC28BFF.toInt()).also { shadow(it, 4f); it.visibility = GONE }
+    // Bubble stock + how to use it. Shown whenever at least one is in stock.
+    private val bubbleText = kit.text("", 13f, 0xFF7DF3FF.toInt()).also { shadow(it, 4f); it.visibility = GONE }
+    private val bannerText = kit.text("", 40f, accent, heavy = true).also { shadow(it, 8f); it.alpha = 0f }
     // Low-key prompt shown (softly pulsing) until the first touch starts a run.
-    private val startHint = TextView(activity).apply {
-        text = "Tap to start"
-        textSize = 22f
-        setTextColor(Palette.withAlpha(Color.WHITE, 160))
-        typeface = Typeface.DEFAULT_BOLD
-        gravity = Gravity.CENTER
-        setShadowLayer(dp(6f).toFloat(), 0f, dp(1f).toFloat(), 0x80000000.toInt())
-    }
+    private val startHint = kit.text("Tap to start", 22f, Palette.withAlpha(Color.WHITE, 180)).also { shadow(it) }
 
-    private var overCard: View? = null
-    private var bestPulse: ValueAnimator? = null
+    private var bankAtStart = Progress.coins
+    private var runCoins = 0
+    private var runStarted = false
+    private var shop: ShopView? = null
+    private var skins: SkinsView? = null
+    private var sections: SectionsView? = null
+    private var runOver: RunOverFlow? = null
     private var startPulse: ValueAnimator? = null
     private val topBox = LinearLayout(activity)
-
-    // Pre-run options: experimental "smooth control" toggle + its sensitivity. Hidden once a run begins.
-    private val sensBar = SeekBar(activity).apply {
-        max = 100
-        progress = (Settings.smoothSensitivity * 100f).toInt()
-        progressTintList = ColorStateList.valueOf(accent)
-        thumbTintList = ColorStateList.valueOf(accent)
-        setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
-            override fun onProgressChanged(sb: SeekBar?, p: Int, fromUser: Boolean) {
-                if (fromUser) Settings.setSmoothSensitivity(p / 100f)
-            }
-            override fun onStartTrackingTouch(sb: SeekBar?) {}
-            override fun onStopTrackingTouch(sb: SeekBar?) { Haptics.tick() }
-        })
-    }
-    private val sensRow = LinearLayout(activity).apply {
-        orientation = LinearLayout.HORIZONTAL
-        gravity = Gravity.CENTER_VERTICAL
-        visibility = if (Settings.smoothControl) VISIBLE else GONE
-        addView(TextView(activity).apply {
-            text = "Sensitivity"
-            setTextColor(Palette.withAlpha(Color.WHITE, 200))
-            textSize = 13f
-            typeface = Typeface.DEFAULT_BOLD
-        })
-        addView(sensBar, LinearLayout.LayoutParams(dp(150f), LinearLayout.LayoutParams.WRAP_CONTENT).apply {
-            leftMargin = dp(10f)
-        })
-    }
-    private val smoothCheck = CheckBox(activity).apply {
-        isChecked = Settings.smoothControl
-        buttonTintList = ColorStateList.valueOf(accent)
-        setOnCheckedChangeListener { _, c ->
-            SoundFx.play("tap"); Haptics.tick()
-            Settings.setSmoothControl(c)
-            sensRow.visibility = if (c) VISIBLE else GONE
-        }
-    }
-    private val optionsBox = LinearLayout(activity).apply {
-        orientation = LinearLayout.VERTICAL
-        setPadding(dp(16f), dp(8f), dp(18f), dp(10f))
-        background = GradientDrawable().apply {
-            cornerRadius = dp(22f).toFloat()
-            setColor(Palette.withAlpha(Color.BLACK, 115))
-            setStroke(dp(1f), Palette.withAlpha(accent, 150))
-        }
-        addView(LinearLayout(activity).apply { // toggle row (tapping the label toggles too)
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-            isClickable = true
-            addView(smoothCheck)
-            addView(TextView(activity).apply {
-                text = "Smooth control (beta)"
-                setTextColor(Color.WHITE)
-                textSize = 15f
-                typeface = Typeface.DEFAULT_BOLD
-            })
-            setOnClickListener { smoothCheck.toggle() }
-        })
-        addView(sensRow, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
-            topMargin = dp(2f)
-        })
-    }
-
-    /**
-     * A round, icon-only pre-run toggle (styled to match [optionsBox]: translucent
-     * black fill, accent ring). Reflects [isOn]; tapping flips it, gives audio + haptic
-     * confirmation that honours the *new* state (muting is silent, un-muting isn't),
-     * then repaints.
-     */
-    private fun makeToggle(
-        iconOn: Int,
-        iconOff: Int,
-        label: String,
-        isOn: () -> Boolean,
-        set: (Boolean) -> Unit,
-    ): ImageView = ImageView(activity).apply {
-        val pad = dp(11f)
-        setPadding(pad, pad, pad, pad)
-        scaleType = ImageView.ScaleType.FIT_CENTER
-        isClickable = true
-        isFocusable = true
-        fun paint() {
-            val on = isOn()
-            setImageResource(if (on) iconOn else iconOff)
-            imageTintList = ColorStateList.valueOf(if (on) accent else Palette.withAlpha(Color.WHITE, 110))
-            background = GradientDrawable().apply {
-                shape = GradientDrawable.OVAL
-                setColor(Palette.withAlpha(Color.BLACK, 115))
-                setStroke(dp(1f), Palette.withAlpha(if (on) accent else Color.WHITE, if (on) 150 else 60))
-            }
-            contentDescription = "$label ${if (on) "on" else "off"}"
-        }
-        paint()
-        setOnClickListener {
-            set(!isOn())
-            SoundFx.play("tap"); Haptics.tick()
-            paint()
-        }
-    }
-
-    private val soundBtn = makeToggle(
-        R.drawable.ic_sound_on, R.drawable.ic_sound_off, activity.getString(R.string.cd_sound),
-        { Settings.soundEnabled }, { Settings.setSoundEnabled(it) },
-    )
-    private val hapticBtn = makeToggle(
-        R.drawable.ic_haptic_on, R.drawable.ic_haptic_off, activity.getString(R.string.cd_haptics),
-        { Settings.hapticsEnabled }, { Settings.setHapticsEnabled(it) },
-    )
-    private val toggleBox = LinearLayout(activity).apply {
-        orientation = LinearLayout.HORIZONTAL
-        gravity = Gravity.CENTER_VERTICAL
-        val size = dp(46f)
-        addView(soundBtn, LinearLayout.LayoutParams(size, size))
-        addView(hapticBtn, LinearLayout.LayoutParams(size, size).apply { leftMargin = dp(12f) })
-    }
+    private val menu = PreRunMenu(activity, kit, { openShop() }, { openSkins() }, { openSections() }, { bankAtStart = Progress.coins; refreshCoins() })
+    private fun panelOpen() = shop != null || skins != null || sections != null || runStarted
 
     init {
         isClickable = false
@@ -200,102 +68,147 @@ class GameChromeView(private val activity: Activity, private val accent: Int) : 
         topBox.apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER_HORIZONTAL
+            clipChildren = false; clipToPadding = false // the pop animations scale past their bounds
             addView(scoreText)
             addView(bestText)
+            addView(LinearLayout(activity).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.CENTER
+                clipChildren = false; clipToPadding = false
+                addView(coinText)
+                addView(boxText, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { leftMargin = dp(14f) })
+            }, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(2f) })
+            addView(bubbleText, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(4f) })
         }
-        addView(topBox, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT).apply {
-            topMargin = dp(48f)
-        })
-        addView(bannerText, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT).apply {
-            gravity = Gravity.CENTER
-        })
-        addView(startHint, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT).apply {
-            gravity = Gravity.CENTER
-        })
+        addView(topBox, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT).apply { topMargin = dp(48f) })
+        addView(bannerText, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT).apply { gravity = Gravity.CENTER })
+        addView(startHint, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT).apply { gravity = Gravity.CENTER })
+        addView(menu, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
+        refreshCoins()
+        setBubbles(Progress.bubbles)
+        refreshStartHint()
+
         startPulse = ValueAnimator.ofFloat(0.45f, 0.8f).apply {
             duration = 1000; repeatCount = ValueAnimator.INFINITE; repeatMode = ValueAnimator.REVERSE
             addUpdateListener { a -> startHint.alpha = a.animatedValue as Float }
             start()
         }
-        // The smooth-control toggle + sensitivity only exist when the feature flag is on.
-        if (Settings.SMOOTH_CONTROL_UI) {
-            addView(optionsBox, LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT).apply {
-                gravity = Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL
-                bottomMargin = dp(168f) // sit above the bottom edge / debug slider
-            })
-        }
 
-        // Sound + vibration toggles, tucked into the bottom-left of the pre-run menu.
-        addView(toggleBox, LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT).apply {
-            gravity = Gravity.BOTTOM or Gravity.START
-            leftMargin = dp(20f)
-            bottomMargin = dp(28f)
-        })
-
-        // Keep the HUD clear of the status bar / cutout (top) and nav bar / cutout (bottom-left).
+        // Keep the top block clear of the status bar / cutout (the menu handles its own insets).
         setOnApplyWindowInsetsListener { _, insets ->
-            val top: Int
-            val left: Int
-            val bottom: Int
-            if (Build.VERSION.SDK_INT >= 30) {
-                top = insets.getInsets(WindowInsets.Type.statusBars() or WindowInsets.Type.displayCutout()).top
-                val nav = insets.getInsets(WindowInsets.Type.navigationBars() or WindowInsets.Type.displayCutout())
-                left = nav.left; bottom = nav.bottom
+            val top = if (Build.VERSION.SDK_INT >= 30) {
+                insets.getInsets(WindowInsets.Type.statusBars() or WindowInsets.Type.displayCutout()).top
             } else {
-                @Suppress("DEPRECATION") top = insets.systemWindowInsetTop
-                @Suppress("DEPRECATION") left = insets.systemWindowInsetLeft
-                @Suppress("DEPRECATION") bottom = insets.systemWindowInsetBottom
+                @Suppress("DEPRECATION") insets.systemWindowInsetTop
             }
             (topBox.layoutParams as LayoutParams).topMargin = maxOf(dp(48f), top + dp(10f))
             topBox.requestLayout()
-            (toggleBox.layoutParams as LayoutParams).apply {
-                leftMargin = dp(20f) + left
-                bottomMargin = dp(28f) + bottom
-            }
-            toggleBox.requestLayout()
             insets
         }
     }
 
     override fun onDetachedFromWindow() {
-        bestPulse?.cancel()
-        bestPulse = null
-        startPulse?.cancel()
-        startPulse = null
+        startPulse?.cancel(); startPulse = null
         super.onDetachedFromWindow()
+    }
+
+    private fun openShop() {
+        if (panelOpen()) return
+        val v = ShopView(activity, kit) {
+            shop = null
+            bankAtStart = Progress.coins
+            refreshCoins()
+            setBubbles(Progress.bubbles)
+        }
+        shop = v
+        addView(v, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
+    }
+
+    private fun openSkins() {
+        if (panelOpen()) return
+        topBox.visibility = INVISIBLE; startHint.visibility = INVISIBLE; menu.visibility = INVISIBLE // the wardrobe is the whole screen
+        val v = SkinsView(activity, kit) {
+            skins = null
+            topBox.visibility = VISIBLE; startHint.visibility = VISIBLE; menu.visibility = VISIBLE
+            bankAtStart = Progress.coins
+            refreshCoins()
+        }
+        skins = v
+        addView(v, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
+    }
+
+    private fun openSections() {
+        if (panelOpen()) return
+        val v = SectionsView(activity, kit) {
+            sections = null
+            refreshStartHint()
+        }
+        sections = v
+        addView(v, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
+    }
+
+    /** "Tap to start", or the chosen section's name when the explorer picked one. */
+    private fun refreshStartHint() {
+        val chosen = cube.run.game.Sections.byId(Settings.testSection)
+        startHint.text = if (chosen != null) "Tap to play ${chosen.name}" else "Tap to start"
     }
 
     fun setBest(best: Int) {
         bestText.text = if (best > 0) "BEST $best" else ""
     }
 
-    /** Hide the "Tap to start" prompt and the pre-run options once a run has begun. */
+    private fun refreshCoins() {
+        coinText.text = "${Ui.COIN} ${bankAtStart + runCoins}"
+    }
+
+    private fun pop(t: TextView, s: Float = 1.25f) {
+        t.animate().cancel()
+        t.scaleX = s; t.scaleY = s
+        t.animate().scaleX(1f).scaleY(1f).setDuration(160).start()
+    }
+
+    /** Coins collected this run: the counter shows bank + haul and pops on each pickup. */
+    fun setRunCoins(v: Int) {
+        runCoins = v
+        refreshCoins()
+        pop(coinText)
+    }
+
+    fun setBoxes(n: Int) {
+        boxText.text = "▣ ×$n"
+        boxText.visibility = if (n > 0) VISIBLE else GONE
+        pop(boxText, 1.4f)
+    }
+
+    private var bubbleStock = 0
+
+    /** Stock + the how-to before a run; just the stock (small, out of the way) during one. */
+    fun setBubbles(n: Int) {
+        bubbleStock = n
+        bubbleText.text = if (runStarted) "◯ ×$n" else "◯ ×$n  ·  double-tap to use"
+        bubbleText.visibility = if (n > 0) VISIBLE else GONE
+    }
+
+    /** Hide the "Tap to start" prompt and the pre-run menu once a run has begun. */
     fun hideOptions() {
+        runStarted = true
         startPulse?.cancel(); startPulse = null
+        shop?.let { removeView(it); shop = null }
+        skins?.let { removeView(it); skins = null; topBox.visibility = VISIBLE }
+        sections?.let { removeView(it); sections = null }
+        setBubbles(bubbleStock)
         if (startHint.visibility == VISIBLE) {
-            startHint.animate().alpha(0f).setDuration(160)
-                .withEndAction { startHint.visibility = GONE }.start()
+            startHint.animate().alpha(0f).setDuration(160).withEndAction { startHint.visibility = GONE }.start()
         }
-        if (optionsBox.parent != null && optionsBox.visibility == VISIBLE) {
-            optionsBox.animate().alpha(0f).setDuration(160)
-                .withEndAction { optionsBox.visibility = GONE }.start()
-        }
-        if (toggleBox.visibility == VISIBLE) {
-            toggleBox.animate().alpha(0f).setDuration(160)
-                .withEndAction { toggleBox.visibility = GONE }.start()
-        }
+        menu.hide()
     }
 
     fun setScore(v: Int) {
         scoreText.text = v.toString()
-        scoreText.animate().cancel()
-        scoreText.scaleX = 1.18f
-        scoreText.scaleY = 1.18f
-        scoreText.animate().scaleX(1f).scaleY(1f).setDuration(140).start()
+        pop(scoreText, 1.18f)
     }
 
-    /** A vivid random hue for the center banner — fresh each time; the drop shadow
-     *  (not an outline) keeps it legible on whatever colour the world is. */
+    /** A vivid random hue for the centre banner — fresh each time; the drop shadow keeps it legible. */
     private fun randomBannerColor(): Int =
         Color.HSVToColor(floatArrayOf((Math.random() * 360.0).toFloat(), 0.75f, 1f))
 
@@ -322,123 +235,29 @@ class GameChromeView(private val activity: Activity, private val accent: Int) : 
             .start()
     }
 
-    fun showGameOver(score: Int, best: Int, isNewBest: Boolean) {
-        if (overCard != null) return
-        scoreText.visibility = GONE
-        bestText.visibility = GONE
+    fun showRunOver(score: Int, best: Int, isNewBest: Boolean, coins: Int, boxes: Int) {
+        if (runOver != null) return
+        topBox.visibility = GONE
+        // RESTART = finish + relaunch (NOT recreate): libGDX only disposes GL resources
+        // when the activity is truly finishing, so recreate() would leak native meshes.
+        // The relaunch stays INSIDE the current task: a fresh intent (never a copy of
+        // activity.intent, whose launcher FLAG_ACTIVITY_NEW_TASK would spawn a new task)
+        // started BEFORE finish() so the task never empties. An in-task activity open
+        // honours the theme's animations (RunSwapAnim crossfades the fresh run over the
+        // run-over screen), whereas a task swap always plays the OEM's slide.
+        val flow = RunOverFlow(activity, kit, score, best, isNewBest, coins, boxes,
+            onRestart = {
+                activity.startActivity(Intent(activity, activity.javaClass))
+                activity.finish()
+            },
+            onExit = { activity.finish() },
+        )
+        runOver = flow
+        addView(flow, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
+    }
 
-        val scrim = FrameLayout(activity).apply {
-            setBackgroundColor(0xB8000000.toInt())
-            isClickable = true
-            alpha = 0f
-            animate().alpha(1f).setDuration(260).start()
-        }
-
-        val card = LinearLayout(activity).apply {
-            orientation = LinearLayout.VERTICAL
-            gravity = Gravity.CENTER_HORIZONTAL
-            setPadding(dp(28f), dp(26f), dp(28f), dp(24f))
-            background = GradientDrawable().apply {
-                cornerRadius = dp(24f).toFloat()
-                setColor(0xFF1E1840.toInt())
-                setStroke(dp(2f), accent)
-            }
-        }
-
-        card.addView(TextView(activity).apply {
-            text = "GAME OVER"
-            textSize = 26f
-            setTextColor(accent)
-            typeface = Typeface.create(Typeface.DEFAULT_BOLD, Typeface.BOLD)
-            gravity = Gravity.CENTER
-        })
-
-        card.addView(TextView(activity).apply {
-            text = score.toString()
-            textSize = 58f
-            setTextColor(Color.WHITE)
-            typeface = Typeface.create(Typeface.DEFAULT_BOLD, Typeface.BOLD)
-            gravity = Gravity.CENTER
-        }, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
-            topMargin = dp(8f)
-        })
-
-        val bestLabel = TextView(activity).apply {
-            textSize = 17f
-            typeface = Typeface.DEFAULT_BOLD
-            gravity = Gravity.CENTER
-            if (isNewBest) {
-                text = "★ NEW BEST! ★"
-                setTextColor(accent)
-            } else {
-                text = "BEST $best"
-                setTextColor(Palette.withAlpha(Color.WHITE, 180))
-            }
-        }
-        card.addView(bestLabel, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
-            topMargin = dp(4f); bottomMargin = dp(20f)
-        })
-        if (isNewBest) {
-            bestPulse = ValueAnimator.ofFloat(1f, 1.12f, 1f).apply {
-                duration = 700; repeatCount = ValueAnimator.INFINITE
-                addUpdateListener { a ->
-                    val s = a.animatedValue as Float
-                    bestLabel.scaleX = s; bestLabel.scaleY = s
-                }
-                start()
-            }
-        }
-
-        fun button(label: String, filled: Boolean, onClick: () -> Unit) = TextView(activity).apply {
-            text = label
-            textSize = 19f
-            typeface = Typeface.create(Typeface.DEFAULT_BOLD, Typeface.BOLD)
-            gravity = Gravity.CENTER
-            setPadding(dp(36f), dp(13f), dp(36f), dp(13f))
-            if (filled) {
-                setTextColor(0xFF14102E.toInt())
-                background = GradientDrawable().apply {
-                    cornerRadius = dp(30f).toFloat(); setColor(accent)
-                }
-            } else {
-                setTextColor(Color.WHITE)
-                background = GradientDrawable().apply {
-                    cornerRadius = dp(30f).toFloat(); setColor(Color.TRANSPARENT)
-                    setStroke(dp(2f), Palette.withAlpha(Color.WHITE, 140))
-                }
-            }
-            setOnClickListener {
-                SoundFx.play("tap"); Haptics.click()
-                onClick()
-            }
-        }
-
-        // finish + relaunch (NOT recreate): libGDX only disposes GL resources when
-        // the activity is truly finishing, so recreate() would leak native meshes.
-        // The relaunch must stay INSIDE the current task: a fresh intent (never a
-        // copy of activity.intent, whose launcher FLAG_ACTIVITY_NEW_TASK would spawn
-        // a new task) started BEFORE finish() (so the task never empties). A
-        // task-to-task swap always plays the OEM's default slide on Android 12+ —
-        // apps cannot suppress task transitions — whereas an in-task activity open
-        // honours the theme's animations: RunSwapAnim (themes.xml) crossfades the
-        // fresh run over the game-over screen. The old activity finishes hidden
-        // underneath, releasing its GL resources as before.
-        card.addView(button("RESTART", true) {
-            activity.startActivity(Intent(activity, activity.javaClass))
-            activity.finish()
-        }, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
-        card.addView(button("EXIT", false) { activity.finish() },
-            LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
-                topMargin = dp(10f)
-            })
-
-        scrim.addView(card, LayoutParams(dp(290f), LayoutParams.WRAP_CONTENT).apply {
-            gravity = Gravity.CENTER
-        })
-        // No slide-up: the card just fades in with the scrim, so the death
-        // animation that now plays beforehand isn't cut off by a moving panel.
-
-        overCard = scrim
-        addView(scrim, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
+    /** The game's 3D gift stage opened a box (GL → UI via the session). */
+    fun onBoxOpened(kind: Int, amount: Int) {
+        runOver?.onBoxOpened(kind, amount)
     }
 }

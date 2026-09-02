@@ -28,7 +28,7 @@ class GameActivity : AndroidApplication() {
             useCompass = false
             numSamples = 2
             r = 8; g = 8; b = 8; a = 8
-            depth = 16
+            depth = 24 // 16-bit z-fights at the far end of the long draw distance
         }
         val gameView = initializeForView(game, config)
 

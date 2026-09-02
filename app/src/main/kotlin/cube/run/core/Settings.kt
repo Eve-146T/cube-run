@@ -33,12 +33,23 @@ object Settings {
     @Volatile var hapticsEnabled: Boolean = true
         private set
 
+    /** Dev mode: the section director serves only the sections under review, announcing each by name. */
+    @Volatile var devMode: Boolean = false
+        private set
+
+    /**
+     * Section explorer: when ≥ 0 the director serves only this section id, on
+     * loop. Process-scoped on purpose (RESTART relaunches in-process), never persisted.
+     */
+    @Volatile var testSection: Int = -1
+
     fun init(ctx: Context) {
         prefs = ctx.applicationContext.getSharedPreferences("settings", Context.MODE_PRIVATE)
         smoothControlPref = prefs.getBoolean("smooth_control", false)
         smoothSensitivity = prefs.getFloat("smooth_sensitivity", 0.5f)
         soundEnabled = prefs.getBoolean("sound_enabled", true)
         hapticsEnabled = prefs.getBoolean("haptics_enabled", true)
+        devMode = prefs.getBoolean("dev_mode", false)
     }
 
     fun setSmoothControl(v: Boolean) {
@@ -59,5 +70,10 @@ object Settings {
     fun setHapticsEnabled(v: Boolean) {
         hapticsEnabled = v
         prefs.edit().putBoolean("haptics_enabled", v).apply()
+    }
+
+    fun setDevMode(v: Boolean) {
+        devMode = v
+        prefs.edit().putBoolean("dev_mode", v).apply()
     }
 }
