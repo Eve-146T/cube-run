@@ -94,7 +94,7 @@ class RunOverFlow(
         orientation = LinearLayout.VERTICAL
         gravity = Gravity.CENTER
         clipChildren = false; clipToPadding = false
-        setPadding(dp(14f), dp(10f), dp(14f), dp(12f))
+        setPadding(dp(14f), dp(10f), dp(14f), dp(10f) + kit.CARD_LIP)
         minimumWidth = dp(74f)
         background = kit.cardDrawable(color, null, 20f)
         if (icon != null) addView(ImageView(activity).apply { setImageDrawable(icon) }, LinearLayout.LayoutParams(dp(26f), dp(26f)).apply { bottomMargin = dp(2f) })
@@ -273,7 +273,7 @@ class RunOverFlow(
             rewardCard = LinearLayout(activity).apply {
                 orientation = LinearLayout.VERTICAL
                 gravity = Gravity.CENTER_HORIZONTAL
-                setPadding(dp(26f), dp(14f), dp(26f), dp(18f))
+                setPadding(dp(26f), dp(14f), dp(26f), dp(14f) + kit.CARD_LIP)
                 background = kit.cardDrawable(Theme.CARD, null, 26f)
                 alpha = 0f
                 rewardSub = kit.text("", 12f, Theme.MUTED, 700).apply { letterSpacing = 0.14f }

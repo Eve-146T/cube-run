@@ -21,24 +21,28 @@ abstract class Icon : Drawable() {
     override fun getIntrinsicHeight(): Int = 48
 }
 
-/** THE coin: dark rim, bright face, an inner ring and a highlight. Used for every coin amount in the app. */
+/** THE coin, matching the 3D one: a gold disc with a bevelled rim, a paler raised centre and a gloss arc. Used for every coin amount in the app. */
 class CoinIcon : Icon() {
     override fun draw(canvas: Canvas) {
         val b = bounds
         val cx = b.exactCenterX(); val cy = b.exactCenterY()
         val r = min(b.width(), b.height()) / 2f
         paint.style = Paint.Style.FILL
-        paint.color = Theme.darken(Theme.GOLD, 0.35f)
-        canvas.drawCircle(cx, cy + r * 0.08f, r, paint)
-        paint.color = Theme.GOLD
-        canvas.drawCircle(cx, cy - r * 0.04f, r * 0.92f, paint)
-        paint.color = Theme.darken(Theme.GOLD, 0.18f)
-        canvas.drawCircle(cx, cy - r * 0.04f, r * 0.62f, paint)
-        paint.color = Theme.lighten(Theme.GOLD, 0.25f)
-        canvas.drawCircle(cx, cy - r * 0.04f, r * 0.5f, paint)
-        paint.color = Theme.alpha(Theme.WHITE, 180)
-        rect.set(cx - r * 0.55f, cy - r * 0.7f, cx + r * 0.1f, cy - r * 0.35f)
-        canvas.drawOval(rect, paint)
+        paint.color = Theme.darken(Theme.GOLD, 0.38f)        // the rim
+        canvas.drawCircle(cx, cy, r, paint)
+        paint.color = Theme.GOLD                              // the face
+        canvas.drawCircle(cx, cy, r * 0.8f, paint)
+        paint.color = Theme.darken(Theme.GOLD, 0.16f)        // the step down to the raised centre
+        canvas.drawCircle(cx, cy + r * 0.06f, r * 0.5f, paint)
+        paint.color = Theme.lighten(Theme.GOLD, 0.32f)       // the raised centre
+        canvas.drawCircle(cx, cy - r * 0.02f, r * 0.46f, paint)
+        paint.style = Paint.Style.STROKE                      // gloss along the top-left of the face
+        paint.strokeWidth = r * 0.13f
+        paint.strokeCap = Paint.Cap.ROUND
+        paint.color = Theme.alpha(Theme.WHITE, 200)
+        rect.set(cx - r * 0.66f, cy - r * 0.66f, cx + r * 0.66f, cy + r * 0.66f)
+        canvas.drawArc(rect, 200f, 55f, false, paint)
+        paint.style = Paint.Style.FILL
     }
 }
 

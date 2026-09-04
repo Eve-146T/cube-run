@@ -290,11 +290,14 @@ class UiKit(val ctx: Context) {
         background = cardDrawable(fill, stroke, radius)
     }
 
+    /** The lip under every card face (px): views centring content on a card add this to their bottom padding. */
+    val CARD_LIP: Int get() = dp(4f)
+
     fun cardDrawable(fill: Int = Theme.CARD, stroke: Int? = null, radius: Float = 24f): Drawable =
         android.graphics.drawable.LayerDrawable(arrayOf(
             GradientDrawable().apply { cornerRadius = dpf(radius); setColor(Theme.alpha(Theme.INK, 26)) },
             GradientDrawable().apply { cornerRadius = dpf(radius); setColor(fill); if (stroke != null) setStroke(dp(2.5f), stroke) },
-        )).apply { setLayerInset(1, 0, 0, 0, dp(4f)) }
+        )).apply { setLayerInset(1, 0, 0, 0, CARD_LIP) }
 
     /** A small rounded label (a count, a price, a status). */
     fun pill(t: CharSequence, color: Int, textColor: Int = Theme.onColor(color), size: Float = 13f): TextView =
@@ -344,8 +347,8 @@ class UiKit(val ctx: Context) {
 
     /** A white candy pill holding an icon + value (the HUD's coin bank, bubble stock…). */
     fun iconPill(icon: Drawable, t: CharSequence, color: Int = Theme.INK, size: Float = 15f, fill: Int = Theme.WHITE): LinearLayout =
-        iconText(icon, t, size, color, iconDp = size * 1.25f).apply {
-            setPadding(dp(10f), dp(6f), dp(14f), dp(6f))
+        iconText(icon, t, size, color, iconDp = size * 1.05f).apply { // the icon matches the digits' height, not the whole line
+            setPadding(dp(12f), dp(7f), dp(14f), dp(7f) + CARD_LIP) // the lip sits under the face: pad it so the content centres on the face
             background = cardDrawable(fill, null, 22f)
         }
 
