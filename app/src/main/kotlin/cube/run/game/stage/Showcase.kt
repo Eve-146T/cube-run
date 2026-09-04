@@ -140,8 +140,8 @@ class Showcase(private val game: Gdx3DGame, private val player: Player, private 
         when (Stage.mode) {
             Stage.RESULT -> {
                 hsvInto(rayCol, Stage.resultHue, 0.55f, 1f)
-                game.sunburst(shapes, player.px, player.py, -2.5f, 9f * g, 14, time * 18f, rayCol, 0.42f * g, 0.5f)
-                if (Stage.resultRecord) game.sunburst(shapes, player.px, player.py, -2.6f, 8f * g, 10, -time * 26f + 8f, Color.WHITE, 0.25f * g, 0.35f)
+                game.sunburst(shapes, player.px, player.py - 1.3f, -2.5f, 9f * g, 14, time * 18f, rayCol, 0.42f * g, 0.5f)
+                if (Stage.resultRecord) game.sunburst(shapes, player.px, player.py - 1.3f, -2.6f, 8f * g, 10, -time * 26f + 8f, Color.WHITE, 0.25f * g, 0.35f)
             }
             Stage.SHOP -> {
                 hsvInto(rayCol, 46f, 0.5f, 1f)

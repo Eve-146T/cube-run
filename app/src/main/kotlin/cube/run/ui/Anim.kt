@@ -15,6 +15,17 @@ import cube.run.core.SoundFx
  * *shake* when they refuse.
  */
 object Anim {
+    /**
+     * Over the GL surface, a moving or fading view was seen painted only
+     * partly (cut off mid-slide, stale mid-fade) until something else forced
+     * a full paint. So every animation asks the whole window to repaint on
+     * each frame: use [repaint] as the update listener of any animate().
+     */
+    fun repaint(v: View) { v.rootView?.invalidate() }
+
+    /** [View.animate] with the full-window repaint attached and no leftover start delay. */
+    fun View.move(): android.view.ViewPropertyAnimator = animate().setStartDelay(0).setUpdateListener { repaint(this) }
+
     val spring = OvershootInterpolator(1.8f)
     val springSoft = OvershootInterpolator(1.1f)
     val ease = DecelerateInterpolator(1.6f)
@@ -38,21 +49,21 @@ object Anim {
     fun popIn(v: View, delay: Long = 0, from: Float = 0.5f, duration: Long = 320) {
         v.alpha = 0f; v.scaleX = from; v.scaleY = from
         v.animate().cancel()
-        v.animate().alpha(1f).scaleX(1f).scaleY(1f).setStartDelay(delay).setDuration(duration).setInterpolator(spring).withEndAction { settle(v) }.start()
+        v.move().alpha(1f).scaleX(1f).scaleY(1f).setStartDelay(delay).setDuration(duration).setInterpolator(spring).withEndAction { settle(v) }.start()
     }
 
     /** Slide up into place + fade in (no overshoot: translations never leave their parent's clip). */
     fun riseIn(v: View, delay: Long = 0, distancePx: Float, duration: Long = 300) {
         v.alpha = 0f; v.translationY = distancePx
         v.animate().cancel()
-        v.animate().alpha(1f).translationY(0f).setStartDelay(delay).setDuration(duration).setInterpolator(ease).withEndAction { settle(v) }.start()
+        v.move().alpha(1f).translationY(0f).setStartDelay(delay).setDuration(duration).setInterpolator(ease).withEndAction { settle(v) }.start()
     }
 
     /** Slide in from the side + fade in. */
     fun slideIn(v: View, delay: Long = 0, fromX: Float, duration: Long = 360) {
         v.alpha = 0f; v.translationX = fromX
         v.animate().cancel()
-        v.animate().alpha(1f).translationX(0f).setStartDelay(delay).setDuration(duration).setInterpolator(ease).withEndAction { settle(v) }.start()
+        v.move().alpha(1f).translationX(0f).setStartDelay(delay).setDuration(duration).setInterpolator(ease).withEndAction { settle(v) }.start()
     }
 
     /** Every child of [group] rises in, one after the other. */
@@ -64,15 +75,15 @@ object Anim {
     fun pulse(v: View, amount: Float = 1.25f, duration: Long = 200) {
         v.animate().cancel()
         v.scaleX = amount; v.scaleY = amount
-        v.animate().scaleX(1f).scaleY(1f).setDuration(duration).setInterpolator(ease).start()
+        v.move().scaleX(1f).scaleY(1f).setDuration(duration).setInterpolator(ease).start()
     }
 
     /** A sideways "no". */
     fun shake(v: View, px: Float) {
         v.animate().cancel(); v.translationX = 0f
-        v.animate().translationX(px).setDuration(45).withEndAction {
-            v.animate().translationX(-px * 0.7f).setDuration(45).withEndAction {
-                v.animate().translationX(0f).setDuration(90).setInterpolator(spring).start()
+        v.move().translationX(px).setDuration(45).withEndAction {
+            v.move().translationX(-px * 0.7f).setDuration(45).withEndAction {
+                v.move().translationX(0f).setDuration(90).setInterpolator(spring).start()
             }.start()
         }.start()
     }
@@ -81,7 +92,7 @@ object Anim {
     fun breathe(v: View, min: Float = 0.5f, max: Float = 1f, period: Long = 800): ValueAnimator =
         ValueAnimator.ofFloat(min, max).apply {
             duration = period; repeatCount = ValueAnimator.INFINITE; repeatMode = ValueAnimator.REVERSE
-            addUpdateListener { a -> v.alpha = a.animatedValue as Float }
+            addUpdateListener { a -> v.alpha = a.animatedValue as Float; repaint(v) }
             start()
         }
 
@@ -91,7 +102,7 @@ object Anim {
             duration = period; repeatCount = ValueAnimator.INFINITE; repeatMode = ValueAnimator.REVERSE
             interpolator = android.view.animation.AccelerateDecelerateInterpolator()
             v.setLayerType(View.LAYER_TYPE_HARDWARE, null)
-            addUpdateListener { a -> v.translationY = a.animatedValue as Float }
+            addUpdateListener { a -> v.translationY = a.animatedValue as Float; repaint(v) }
             start()
         }
 
@@ -100,7 +111,7 @@ object Anim {
         ValueAnimator.ofFloat(1f, amount, 1f).apply {
             duration = period; repeatCount = ValueAnimator.INFINITE
             v.setLayerType(View.LAYER_TYPE_HARDWARE, null)
-            addUpdateListener { a -> val s = a.animatedValue as Float; v.scaleX = s; v.scaleY = s }
+            addUpdateListener { a -> val s = a.animatedValue as Float; v.scaleX = s; v.scaleY = s; repaint(v) }
             start()
         }
 

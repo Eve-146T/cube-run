@@ -96,7 +96,7 @@ class Demos(private val game: Gdx3DGame, private val player: Player, private val
             }
             Stage.DEMO_JET -> { SoundFx.play("rise", rate = 1.2f); Haptics.click() }
             Stage.DEMO_MULT -> SoundFx.play("blip", rate = 1.2f)
-            Stage.DEMO_HEADSTART -> { SoundFx.play("whoosh", rate = 1.1f); game.flash(flame, 0.25f) }
+            Stage.DEMO_SAFESTART -> { bubble.duration = 3f; bubble.activate(px, py) }
             Stage.DEMO_PORTAL -> { SoundFx.play("rise", rate = 1.4f); game.flash(portal, 0.3f) }
             Stage.DEMO_BOX -> { boxY = 6f; boxVy = 0f; boxGone = false }
         }
@@ -147,29 +147,28 @@ class Demos(private val game: Gdx3DGame, private val player: Player, private val
                 }
                 if (coinsLive == 0) kind = 0
             }
-            Stage.DEMO_JET -> { // up on a jet of flame, hang, drop back
-                val target = if (t < 1.3f) 1.7f else 0f
-                lift += (target - lift) * min(1f, dt * (if (t < 1.3f) 5f else 9f))
-                if (t < 1.3f) game.burst3d(tmp.set(px, py + lift - 0.5f, 0.2f), flame, n = 3, speed = 2.5f, size = 0.12f, life = 0.35f, gravity = -10f)
-                if (t > 1.3f && t - dt <= 1.3f) SoundFx.play("slide", rate = 1.2f, vol = 0.6f)
-                if (t > 2.2f) { lift = 0f; kind = 0; SoundFx.play("pop", rate = 0.9f); game.burst3d(tmp.set(px, py - 0.4f, 0.3f), player.trailCol(), n = 10, speed = 3f, size = 0.09f, life = 0.4f) }
+            Stage.DEMO_JET -> { // up on a jet of flame (staying in the showroom), hover, ease back down
+                val target = if (t < 1.4f) 0.75f else 0f
+                lift += (target - lift) * min(1f, dt * (if (t < 1.4f) 6f else 5f))
+                if (t < 1.4f) {
+                    game.burst3d(tmp.set(px - 0.25f, py - 0.55f, 0.2f), flame, n = 2, speed = 2.2f, size = 0.11f, life = 0.3f, gravity = -9f)
+                    game.burst3d(tmp.set(px + 0.25f, py - 0.55f, 0.2f), gold, n = 2, speed = 2.2f, size = 0.09f, life = 0.3f, gravity = -9f)
+                }
+                if (t > 2.4f) { lift = 0f; kind = 0; SoundFx.play("pop", rate = 0.9f, vol = 0.6f); game.burst3d(tmp.set(px, py - 0.4f, 0.3f), player.trailCol(), n = 10, speed = 3f, size = 0.09f, life = 0.4f) }
             }
             Stage.DEMO_MULT -> if (t > 1.25f) { // the twins slam back in
                 kind = 0
                 game.burst3d(tmp.set(px, py, 0f), player.trailCol(), n = 30, speed = 6f, size = 0.14f, life = 0.7f)
                 game.burst3d(tmp, Color.WHITE, n = 10, speed = 9f, size = 0.08f, life = 0.4f)
-                SoundFx.play("perfect", rate = 1.1f); Haptics.success(); game.shake(0.15f)
+                SoundFx.play("perfect", rate = 1.1f); Haptics.success()
             }
-            Stage.DEMO_HEADSTART -> { // a stream of fire off the back, the cube bucking forward
-                game.burst3d(tmp.set(px + (Math.random().toFloat() - 0.5f) * 0.5f, py - 0.1f, -0.3f), if ((t * 30f).toInt() % 2 == 0) flame else gold, n = 4, speed = 2f, size = 0.12f, life = 0.45f, gravity = -4f, biasZ = -7f)
-                if (t > 1.1f) kind = 0
-            }
+            Stage.DEMO_SAFESTART -> if (!bubble.active) kind = 0
             Stage.DEMO_PORTAL -> if (t > 2.2f) kind = 0
             Stage.DEMO_BOX -> {
                 if (!boxGone) {
                     boxVy -= 22f * dt
                     boxY = max(0.45f, boxY + boxVy * dt)
-                    if (boxY == 0.45f && boxVy < 0f) { boxVy = 0f; SoundFx.play("place", rate = 0.8f); Haptics.click(); game.shake(0.1f) }
+                    if (boxY == 0.45f && boxVy < 0f) { boxVy = 0f; SoundFx.play("place", rate = 0.8f); Haptics.click() }
                     if (boxY == 0.45f && t > 1.1f) { // pop!
                         boxGone = true
                         game.burst3d(tmp.set(px + 1.7f, 0.5f, 0f), grape, n = 34, speed = 7f, size = 0.14f, life = 0.9f)

@@ -185,6 +185,17 @@ class Track(private val rnd: Random, private val fx: ObstacleFactory) {
         return id
     }
 
+    /** Debug: be inside bonus world [id] from the first row (the exit comes after the usual stretch). */
+    fun forceBonus(id: Int) {
+        bonus = id; bonusRowsLeft = 60; wideSafe = 2; rowsSincePortal = 0
+        pendingSteps.clear()
+        when (id) {
+            Bonus.WIDE -> { Lanes.count = 5; Lanes.targetW = Lanes.NORMAL_W }
+            Bonus.FLOAT -> { Lanes.count = 3; Lanes.targetW = 2.6f }
+            else -> { Lanes.count = 3; Lanes.targetW = Lanes.NORMAL_W }
+        }
+    }
+
     // ------------------------------------------------------------- director
 
     /** Distance to leave before the row that's about to spawn. */

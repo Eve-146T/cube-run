@@ -15,6 +15,7 @@ import cube.run.core.SoundFx
 import cube.run.core.Stage
 import cube.run.data.Progress
 import cube.run.data.Wardrobe
+import cube.run.ui.Anim.move
 import kotlin.math.abs
 
 /**
@@ -106,7 +107,7 @@ class WardrobeView(activity: Activity, kit: UiKit, onClose: () -> Unit) : Page(a
         index = Progress.equipped(cat)
         applyPreview() // the stage morphs: the bubble inflates / the cube glides out onto its loop
         name.translationY = dpf(16f); name.alpha = 0f
-        name.animate().translationY(0f).alpha(1f).setDuration(240).setInterpolator(Anim.spring).start()
+        name.move().translationY(0f).alpha(1f).setDuration(240).setInterpolator(Anim.spring).start()
         render()
     }
 
@@ -139,11 +140,11 @@ class WardrobeView(activity: Activity, kit: UiKit, onClose: () -> Unit) : Page(a
         Haptics.tick()
         name.animate().cancel()
         name.translationX = d * dpf(40f); name.alpha = 0f
-        name.animate().translationX(0f).alpha(1f).setDuration(220).setInterpolator(Anim.ease).start()
+        name.move().translationX(0f).alpha(1f).setDuration(220).setInterpolator(Anim.ease).start()
         val arrow = if (d > 0) right else left
         arrow.animate().cancel()
         arrow.translationX = d * dpf(8f)
-        arrow.animate().translationX(0f).setDuration(220).setInterpolator(Anim.ease).start()
+        arrow.move().translationX(0f).setDuration(220).setInterpolator(Anim.ease).start()
         render()
     }
 

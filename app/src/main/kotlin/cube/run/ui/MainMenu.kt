@@ -7,8 +7,8 @@ import android.view.Gravity
 import android.view.View
 import android.widget.FrameLayout
 import android.widget.LinearLayout
-import android.widget.TextView
 import cube.run.R
+import cube.run.ui.Anim.move
 import cube.run.data.Progress
 import cube.run.data.Settings
 
@@ -34,20 +34,45 @@ class MainMenu(
     private fun dpf(v: Float) = kit.dpf(v)
     private val anims = ArrayList<ValueAnimator>()
 
+    /** Every letter of the logo is its own view, so the word can ripple. */
+    private val letters = ArrayList<View>()
+
+    private fun word(text: String, color: Int): LinearLayout = LinearLayout(activity).apply {
+        orientation = LinearLayout.HORIZONTAL
+        clipChildren = false; clipToPadding = false
+        for (ch in text) {
+            val v = kit.stageText(ch.toString(), 62f, color, stroke = 7f).apply { setLayerType(View.LAYER_TYPE_HARDWARE, null) }
+            letters.add(v)
+            addView(v, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { leftMargin = -dp(6f); rightMargin = -dp(6f) })
+        }
+    }
+
     private val logo = LinearLayout(activity).apply {
         orientation = LinearLayout.VERTICAL
         gravity = Gravity.CENTER_HORIZONTAL
         clipChildren = false; clipToPadding = false
-        addView(kit.stageText("CUBE", 62f, Theme.WHITE, stroke = 7f).apply { letterSpacing = 0.06f; rotation = -4f })
-        addView(kit.stageText("RUN", 62f, Theme.YELLOW, stroke = 7f).apply { letterSpacing = 0.12f; rotation = -4f },
-            LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = -dp(18f) })
+        rotation = -4f
+        addView(word("CUBE", Theme.WHITE), LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT))
+        addView(word("RUN", Theme.YELLOW), LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = -dp(18f) })
+    }
+
+    /** The letters ripple: each bobs and tilts a little out of step with its neighbour. */
+    private fun ripple(): ValueAnimator = ValueAnimator.ofFloat(0f, 6.2832f).apply {
+        duration = 2400; repeatCount = ValueAnimator.INFINITE; interpolator = android.view.animation.LinearInterpolator()
+        addUpdateListener { a ->
+            val t = a.animatedValue as Float
+            for ((i, v) in letters.withIndex()) {
+                v.translationY = kotlin.math.sin(t + i * 0.75f) * dpf(4f)
+                v.rotation = kotlin.math.sin(t * 0.5f + i * 0.9f) * 4f
+            }
+            Anim.repaint(logo)
+        }
+        start()
     }
     private val bestRow = kit.iconText(TrophyIcon(), "", 22f, Theme.WHITE, stage = true, iconDp = 28f).apply { visibility = GONE }
     private val bank = kit.iconPill(CoinIcon(), "0", Theme.INK, 16f).apply { setOnClickListener { openShop() } }
     private val bubbles = kit.iconPill(BubbleIcon(), "", Theme.INK, 16f).apply { visibility = GONE; setOnClickListener { openShop() } }
     private val tapHint = kit.stageText("TAP TO START", 22f, Theme.WHITE, stroke = 3f).apply { letterSpacing = 0.12f }
-    /** Amber notice under the prompt while a test tool (section test / dev mode) is on. */
-    val testPill: TextView = kit.pill("", Theme.YELLOW, Theme.INK, 12f).apply { visibility = GONE }
 
     private val leftChips = LinearLayout(activity).apply {
         orientation = LinearLayout.HORIZONTAL
@@ -88,7 +113,6 @@ class MainMenu(
         gravity = Gravity.CENTER_HORIZONTAL
         clipChildren = false; clipToPadding = false
         addView(tapHint)
-        addView(testPill, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(12f) })
     }
 
     init {
@@ -96,16 +120,17 @@ class MainMenu(
         isFocusable = false
         clipChildren = false; clipToPadding = false
         addView(top, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT).apply { topMargin = dp(70f) })
-        addView(bank, LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT).apply { gravity = Gravity.TOP or Gravity.END; topMargin = dp(48f); rightMargin = dp(14f) })
-        addView(bubbles, LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT).apply { gravity = Gravity.TOP or Gravity.START; topMargin = dp(48f); leftMargin = dp(14f) })
+        addView(bank, LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT).apply { gravity = Gravity.TOP or Gravity.END; topMargin = dp(40f); rightMargin = dp(14f) })
+        addView(bubbles, LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT).apply { gravity = Gravity.TOP or Gravity.START; topMargin = dp(40f); leftMargin = dp(14f) })
         addView(middle, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT).apply { gravity = Gravity.CENTER; topMargin = dp(40f) })
         addView(leftChips, LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT).apply { gravity = Gravity.BOTTOM or Gravity.START; leftMargin = dp(14f); bottomMargin = dp(28f) })
         addView(rightChips, LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT).apply { gravity = Gravity.BOTTOM or Gravity.END; rightMargin = dp(14f); bottomMargin = dp(26f) })
         setOnApplyWindowInsetsListener { _, insets ->
             val (l, t, r, b) = insetsOf(insets)
             (top.layoutParams as LayoutParams).topMargin = maxOf(dp(70f), t + dp(40f))
-            (bank.layoutParams as LayoutParams).apply { topMargin = maxOf(dp(48f), t + dp(10f)); rightMargin = dp(14f) + r }
-            (bubbles.layoutParams as LayoutParams).apply { topMargin = maxOf(dp(48f), t + dp(10f)); leftMargin = dp(14f) + l }
+            // the same corner as every page's balance pill (page padding max(36, t+6) + 4): it never shifts between screens
+            (bank.layoutParams as LayoutParams).apply { topMargin = maxOf(dp(40f), t + dp(10f)); rightMargin = dp(14f) + r }
+            (bubbles.layoutParams as LayoutParams).apply { topMargin = maxOf(dp(40f), t + dp(10f)); leftMargin = dp(14f) + l }
             (leftChips.layoutParams as LayoutParams).apply { leftMargin = dp(14f) + l; bottomMargin = dp(28f) + b }
             (rightChips.layoutParams as LayoutParams).apply { rightMargin = dp(14f) + r; bottomMargin = dp(26f) + b }
             requestLayout()
@@ -127,7 +152,7 @@ class MainMenu(
         Anim.stagger(leftChips, dpf(40f), 280, 60)
         Anim.stagger(rightChips, dpf(40f), 420, 80)
         anims.add(Anim.breathe(tapHint, 0.55f, 1f, 750))
-        logo.postDelayed({ if (isAttachedToWindow && visibility == VISIBLE) anims.add(Anim.bob(logo, dpf(5f), 1600)) }, 620)
+        logo.postDelayed({ if (isAttachedToWindow && visibility == VISIBLE) anims.add(ripple()) }, 620)
     }
 
     /** Re-read the bank / stock / best (after the shop, the wardrobe, a dev toggle). */
@@ -148,12 +173,12 @@ class MainMenu(
     fun hide() {
         if (visibility != VISIBLE) return
         for (a in anims) a.cancel()
-        top.animate().translationY(-dpf(60f)).alpha(0f).setDuration(220).start()
-        middle.animate().alpha(0f).scaleX(0.8f).scaleY(0.8f).setDuration(160).start()
-        leftChips.animate().translationY(dpf(80f)).alpha(0f).setDuration(220).start()
-        rightChips.animate().translationY(dpf(80f)).alpha(0f).setDuration(220).start()
-        bank.animate().alpha(0f).translationY(-dpf(30f)).setDuration(200).start()
-        bubbles.animate().alpha(0f).translationY(-dpf(30f)).setDuration(200).withEndAction { visibility = GONE }.start()
+        top.move().translationY(-dpf(60f)).alpha(0f).setDuration(220).start()
+        middle.move().alpha(0f).scaleX(0.8f).scaleY(0.8f).setDuration(160).start()
+        leftChips.move().translationY(dpf(80f)).alpha(0f).setDuration(220).start()
+        rightChips.move().translationY(dpf(80f)).alpha(0f).setDuration(220).start()
+        bank.move().alpha(0f).translationY(-dpf(30f)).setDuration(200).start()
+        bubbles.move().alpha(0f).translationY(-dpf(30f)).setDuration(200).withEndAction { visibility = GONE }.start()
     }
 
     override fun onDetachedFromWindow() {
@@ -177,14 +202,13 @@ class MainMenu(
         } else {
             for (a in anims) a.cancel()
             anims.clear()
-            for (p in parts) { p.animate().cancel(); p.animate().setStartDelay(0) }
-            top.animate().translationY(-dpf(40f)).alpha(0f).setDuration(140).withEndAction { top.visibility = INVISIBLE }.start()
-            // over the GL surface a pure alpha change was seen to stay stale until a layout: ask for one every frame of this fade
-            middle.animate().alpha(0f).scaleX(0.85f).scaleY(0.85f).setDuration(120).withEndAction { middle.visibility = INVISIBLE }.start()
-            leftChips.animate().translationY(dpf(50f)).alpha(0f).setDuration(140).withEndAction { leftChips.visibility = INVISIBLE }.start()
-            rightChips.animate().translationY(dpf(50f)).alpha(0f).setDuration(140).withEndAction { rightChips.visibility = INVISIBLE }.start()
-            bank.animate().alpha(0f).translationY(-dpf(20f)).setDuration(120).withEndAction { bank.visibility = INVISIBLE }.start()
-            bubbles.animate().alpha(0f).translationY(-dpf(20f)).setDuration(120).withEndAction { bubbles.visibility = INVISIBLE }.start()
+            for (p in parts) p.animate().cancel()
+            top.move().translationY(-dpf(40f)).alpha(0f).setDuration(140).withEndAction { top.visibility = INVISIBLE }.start()
+            middle.move().alpha(0f).scaleX(0.85f).scaleY(0.85f).setDuration(120).withEndAction { middle.visibility = INVISIBLE }.start()
+            leftChips.move().translationY(dpf(50f)).alpha(0f).setDuration(140).withEndAction { leftChips.visibility = INVISIBLE }.start()
+            rightChips.move().translationY(dpf(50f)).alpha(0f).setDuration(140).withEndAction { rightChips.visibility = INVISIBLE }.start()
+            bank.move().alpha(0f).translationY(-dpf(20f)).setDuration(120).withEndAction { bank.visibility = INVISIBLE }.start()
+            bubbles.move().alpha(0f).translationY(-dpf(20f)).setDuration(120).withEndAction { bubbles.visibility = INVISIBLE }.start()
         }
     }
 }

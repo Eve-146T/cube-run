@@ -74,7 +74,7 @@ class ShopView(activity: Activity, kit: UiKit, onClose: () -> Unit) : Page(activ
         Progress.MAGNET -> Stage.DEMO_MAGNET
         Progress.MULT -> Stage.DEMO_MULT
         Progress.JET -> Stage.DEMO_JET
-        Progress.HEADSTART -> Stage.DEMO_HEADSTART
+        Progress.SAFESTART -> Stage.DEMO_SAFESTART
         Progress.COINVALUE -> Stage.DEMO_COINS
         Progress.PORTALS -> Stage.DEMO_PORTAL
         else -> Stage.DEMO_BOX
@@ -144,7 +144,11 @@ class ShopView(activity: Activity, kit: UiKit, onClose: () -> Unit) : Page(activ
             background = GradientDrawable(GradientDrawable.Orientation.LEFT_RIGHT, intArrayOf(color, Theme.lighten(color, 0.22f))).apply {
                 cornerRadii = floatArrayOf(dpf(24f), dpf(24f), dpf(24f), dpf(24f), 0f, 0f, 0f, 0f)
             }
-            addView(ImageView(activity).apply { setImageDrawable(icon) }, LinearLayout.LayoutParams(dp(44f), dp(44f)))
+            addView(ImageView(activity).apply { // the icon on a soft white badge, so it reads on any band
+                setImageDrawable(icon)
+                val p = dp(7f); setPadding(p, p, p, p)
+                background = GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(Theme.alpha(Theme.WHITE, 70)) }
+            }, LinearLayout.LayoutParams(dp(48f), dp(48f)))
             addView(LinearLayout(activity).apply {
                 orientation = LinearLayout.VERTICAL
                 addView(kit.text(name, 19f, Theme.onColor(color), 700, Gravity.START))
@@ -161,14 +165,15 @@ class ShopView(activity: Activity, kit: UiKit, onClose: () -> Unit) : Page(activ
         return outer
     }
 
-    /** A rack of [slots] icons, the first [n] lit, "+k" past the rack. */
-    private fun rack(slots: Int, n: Int, icon: () -> Drawable, plusColor: Int): LinearLayout = LinearLayout(activity).apply {
+    /** Your stock: the count, big, then a rack of [slots] icons that fills up as you buy (every full rack starts a fresh one). */
+    private fun rack(slots: Int, n: Int, icon: () -> Drawable, color: Int): LinearLayout = LinearLayout(activity).apply {
         orientation = LinearLayout.HORIZONTAL
         gravity = Gravity.CENTER_VERTICAL
+        addView(kit.stageText("×$n", 30f, color, stroke = 3.5f), LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { rightMargin = dp(12f) })
+        val lit = if (n == 0) 0 else ((n - 1) % slots) + 1
         for (i in 0 until slots) {
-            addView(ImageView(activity).apply { setImageDrawable(icon()); alpha = if (i < n) 1f else 0.22f }, LinearLayout.LayoutParams(dp(28f), dp(28f)).apply { if (i > 0) leftMargin = dp(4f) })
+            addView(ImageView(activity).apply { setImageDrawable(icon()); alpha = if (i < lit) 1f else 0.22f }, LinearLayout.LayoutParams(dp(24f), dp(24f)).apply { if (i > 0) leftMargin = dp(3f) })
         }
-        if (n > slots) addView(kit.stageText("+${n - slots}", 15f, plusColor, stroke = 2f), LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { leftMargin = dp(4f) })
     }
 
     private fun bubbleCard(): View = card("bubbles", Theme.BUBBLE, BubbleIcon(Theme.WHITE), "Bubble shield", "Double-tap in a run: takes one hit, smashes the row") {
@@ -217,28 +222,28 @@ class ShopView(activity: Activity, kit: UiKit, onClose: () -> Unit) : Page(activ
     }
 
     private fun perkColor(u: Progress.Upgrade): Int = when (u) {
-        Progress.HEADSTART -> Theme.ORANGE
+        Progress.SAFESTART -> Theme.ORANGE
         Progress.COINVALUE -> Theme.GOLD
         Progress.PORTALS -> Theme.MINT
         else -> Theme.GRAPE
     }
 
     private fun perkIcon(u: Progress.Upgrade): Drawable = when (u) {
-        Progress.HEADSTART -> FlameIcon(Theme.YELLOW)
+        Progress.SAFESTART -> BubbleIcon(Theme.WHITE)
         Progress.COINVALUE -> CoinIcon()
         Progress.PORTALS -> PortalIcon(Theme.WHITE)
         else -> BoxIcon(Theme.WHITE)
     }
 
     private fun perkBlurb(u: Progress.Upgrade): String = when (u) {
-        Progress.HEADSTART -> "Boost taps already lit at the start"
+        Progress.SAFESTART -> "Every run begins under a bubble"
         Progress.COINVALUE -> "Every coin is worth more"
         Progress.PORTALS -> "Portals to bonus worlds open sooner"
         else -> "Mystery boxes turn up more often"
     }
 
     private fun perkValue(u: Progress.Upgrade, lvl: Int): String = when (u) {
-        Progress.HEADSTART -> "$lvl taps"
+        Progress.SAFESTART -> if (lvl == 0) "none" else "${fmt(3f + 1.5f * lvl)} s"
         Progress.COINVALUE -> "×${fmt(u.duration(lvl))}"
         Progress.PORTALS -> "${110 - 14 * lvl} rows"
         else -> "×${fmt(1f + 0.5f * lvl)}"

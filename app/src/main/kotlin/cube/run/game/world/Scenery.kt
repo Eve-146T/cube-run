@@ -155,13 +155,20 @@ class Scenery(private val game: Gdx3DGame, private val rnd: Random) {
      */
     fun renderRoad() {
         hsvInto(edgeCol, world.floorH + 30f, world.floorS * 0.6f, 1f)
-        val n = Lanes.count
-        val kerb = Lanes.halfRoad + 0.12f
+        val w = Lanes.w
+        val u = Lanes.unfold
+        val kerb = Lanes.halfRoadDrawn + 0.12f
         val landW = 30f
         val landX = kerb + 0.12f + landW / 2f
         for (t in tiles) {
             val fog = Fog.at(t.z)
-            for (l in 0 until n) game.worldBox(Lanes.x(l), -0.14f, t.z, Lanes.w, 0.26f, tileD, if ((l + t.parity) % 2 == 0) t.col else t.col2, fog)
+            // the three core lanes, then the two outer ones growing out from the edges as the road unfolds
+            for (l in 0 until 3) game.worldBox((l - 1) * w, -0.14f, t.z, w, 0.26f, tileD, if ((l + 1 + t.parity) % 2 == 0) t.col else t.col2, fog)
+            if (u > 0.01f) {
+                val ow = w * u
+                game.worldBox(-(1.5f * w + ow / 2f), -0.14f, t.z, ow, 0.26f, tileD, if (t.parity == 0) t.col else t.col2, fog)
+                game.worldBox(1.5f * w + ow / 2f, -0.14f, t.z, ow, 0.26f, tileD, if (t.parity == 0) t.col else t.col2, fog)
+            }
             game.worldBox(-kerb, -0.1f, t.z, 0.24f, 0.34f, tileD, edgeCol, fog)
             game.worldBox(kerb, -0.1f, t.z, 0.24f, 0.34f, tileD, edgeCol, fog)
             game.worldBox(-landX, -0.16f, t.z, landW, 0.3f, tileD, t.ground, fog)
@@ -256,19 +263,23 @@ class Scenery(private val game: Gdx3DGame, private val rnd: Random) {
     /** Two tall pylons and a beam across the road, in the coming world's colour. The start gate adds bunting and flags. */
     private fun renderGate(g: Gate, time: Float) {
         val fog = Fog.at(g.z)
-        val x = Lanes.halfRoad + 1.1f
+        val x = Lanes.halfRoadDrawn + 1.1f
         val h = if (g.start) 5.4f else 4.0f // the start gate stands taller: the camera passes clean under its bunting
         game.worldBox(-x, h / 2f, g.z, 0.5f, h, 0.5f, g.col, fog)
         game.worldBox(x, h / 2f, g.z, 0.5f, h, 0.5f, g.col, fog)
         game.worldBox(0f, h + 0.15f, g.z, x * 2f + 0.5f, 0.4f, 0.5f, g.col, fog)
         game.worldBox(0f, h + 0.55f, g.z, 1.4f, 0.4f, 0.5f, white, fog)
-        if (g.start) { // candy bunting swinging under the beam, a spinning star on each pylon
-            val n = 7
+        if (g.start) { // a chequered start banner under the beam, a chequered line on the road, a spinning star on each pylon
+            val n = 12
+            val cw = (2 * x - 0.6f) / n
             for (i in 0 until n) {
-                val bx = -x + 0.6f + (2 * x - 1.2f) * i / (n - 1f)
-                val sway = 0.12f * sin(time * 4f + i)
-                hsvInto(edgeCol, 40f + i * 50f, 0.75f, 1f)
-                game.worldBoxSpin(bx + sway, h - 0.35f, g.z, 0.34f, 0.5f, 0.12f, sway * 60f, edgeCol, fog)
+                val bx = -x + 0.3f + cw * (i + 0.5f)
+                game.worldBox(bx, h - 0.22f, g.z, cw, 0.36f, 0.2f, if (i % 2 == 0) white else dark, fog)
+            }
+            val m = 8
+            val lw = (Lanes.halfRoadDrawn * 2f) / m
+            for (i in 0 until m) for (k in 0 until 2) {
+                game.worldBox(-Lanes.halfRoadDrawn + lw * (i + 0.5f), 0.0f, g.z + (k - 0.5f) * 0.55f, lw, 0.03f, 0.55f, if ((i + k) % 2 == 0) white else dark, fog)
             }
             hsvInto(edgeCol, 50f, 0.8f, 1f)
             game.worldBoxSpin(-x, h + 0.55f, g.z, 0.55f, 0.55f, 0.55f, time * 140f, edgeCol, fog)

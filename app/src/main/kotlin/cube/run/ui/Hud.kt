@@ -11,8 +11,7 @@ import cube.run.core.Haptics
 import cube.run.core.SoundFx
 import cube.run.core.Stage
 import cube.run.data.Progress
-import cube.run.data.Settings
-import cube.run.game.track.Sections
+import cube.run.ui.Anim.move
 
 /**
  * Everything drawn over the 3D surface: the [MainMenu] before a run; the
@@ -65,7 +64,7 @@ class Hud(private val activity: Activity) : FrameLayout(activity) {
     private var page: Page? = null
     private var pauseSheet: PauseSheet? = null
     private var runOver: RunOverFlow? = null
-    private val menu: MainMenu = MainMenu(activity, kit, { openShop() }, { openWardrobe() }, { openSections() }, { menu.pulseBank(); refreshTestPill() })
+    private val menu: MainMenu = MainMenu(activity, kit, { openShop() }, { openWardrobe() }, { openSections() }, { menu.pulseBank() })
 
     init {
         isClickable = false
@@ -75,7 +74,6 @@ class Hud(private val activity: Activity) : FrameLayout(activity) {
         addView(topBox, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT).apply { topMargin = dp(44f) })
         addView(pauseChip, LayoutParams(dp(48f), dp(52f)).apply { gravity = Gravity.TOP or Gravity.END; topMargin = dp(48f); rightMargin = dp(14f) })
         setBubbles(Progress.bubbles)
-        refreshTestPill()
         setOnApplyWindowInsetsListener { _, insets ->
             val (_, t, r, _) = insetsOf(insets)
             (topBox.layoutParams as LayoutParams).topMargin = maxOf(dp(44f), t + dp(6f))
@@ -101,23 +99,11 @@ class Hud(private val activity: Activity) : FrameLayout(activity) {
         menu.show()
         menu.refresh()
         setBubbles(Progress.bubbles)
-        refreshTestPill()
     }
 
     private fun openShop() { if (!pageOpen()) open(ShopView(activity, kit) { closed() }) }
     private fun openWardrobe() { if (!pageOpen()) open(WardrobeView(activity, kit) { closed() }) }
     private fun openSections() { if (!pageOpen()) open(SectionsView(activity, kit) { closed() }) }
-
-    /** Says plainly when the next run is a test (one section on loop, or the dev review cycle). */
-    private fun refreshTestPill() {
-        val chosen = Sections.byId(Settings.testSection)
-        menu.testPill.text = when {
-            chosen != null -> "SECTION TEST  ·  ${chosen.name} on loop"
-            Settings.devMode -> "DEV MODE  ·  free coins, pickups galore"
-            else -> ""
-        }
-        menu.testPill.visibility = if (menu.testPill.text.isNotEmpty() && !runStarted) VISIBLE else GONE
-    }
 
     // ------------------------------------------------------------- HUD values
 
@@ -171,7 +157,7 @@ class Hud(private val activity: Activity) : FrameLayout(activity) {
                     SoundFx.play("tap", rate = 1.1f + b.taps * 0.1f); Haptics.click()
                     Anim.pulse(b, 1.15f, 220)
                 }
-                addView(b, LayoutParams(dp(64f), dp(150f)).apply { gravity = Gravity.TOP or Gravity.END; topMargin = dp(120f); rightMargin = dp(18f) })
+                addView(b, LayoutParams(dp(84f), dp(160f)).apply { gravity = Gravity.TOP or Gravity.END; topMargin = dp(116f); rightMargin = dp(10f) })
                 boost = b
                 Anim.popIn(b, 250, 0.4f, 420)
             }
@@ -180,7 +166,7 @@ class Hud(private val activity: Activity) : FrameLayout(activity) {
             val b = boost ?: return
             boost = null
             b.taps = taps
-            b.animate().translationX(dpf(120f)).alpha(0f).setDuration(260).setInterpolator(Anim.ease).withEndAction { removeView(b) }.start()
+            b.move().translationX(dpf(120f)).alpha(0f).setDuration(260).setInterpolator(Anim.ease).withEndAction { removeView(b) }.start()
         }
     }
 
@@ -238,7 +224,7 @@ class Hud(private val activity: Activity) : FrameLayout(activity) {
 
     fun showRunOver(score: Int, best: Int, isNewBest: Boolean, coins: Int, boxes: Int) {
         if (runOver != null) return
-        topBox.animate().alpha(0f).setDuration(200).withEndAction { topBox.visibility = GONE }.start()
+        topBox.move().alpha(0f).setDuration(200).withEndAction { topBox.visibility = GONE }.start()
         pauseChip.visibility = GONE
         setBoost(false, 0, 5)
         val flow = RunOverFlow(activity, kit, score, best, isNewBest, coins, boxes, world, bonusVisited,

@@ -26,12 +26,20 @@ object Lanes {
     /** Half the road's width (to the outer lane edge). */
     val halfRoad: Float get() = w * count / 2f
 
-    fun reset() { count = 3; w = NORMAL_W; targetW = NORMAL_W }
+    /** How far the two outer lanes have unfolded (0 = a three-lane road, 1 = five), eased: the road widens instead of snapping. */
+    @Volatile var unfold = 0f
+    /** Half the road's width as drawn (follows [unfold]). */
+    val halfRoadDrawn: Float get() = w * (3f + 2f * unfold) / 2f
 
-    /** Ease the spacing toward its target. */
+    fun reset() { count = 3; w = NORMAL_W; targetW = NORMAL_W; unfold = 0f }
+
+    /** Ease the spacing and the unfolding toward their targets. */
     fun tick(dt: Float) {
         if (w != targetW) w += (targetW - w) * kotlin.math.min(1f, dt * 2.5f)
         if (kotlin.math.abs(w - targetW) < 0.005f) w = targetW
+        val u = if (count > 3) 1f else 0f
+        unfold += (u - unfold) * kotlin.math.min(1f, dt * 3f)
+        if (kotlin.math.abs(unfold - u) < 0.004f) unfold = u
     }
 }
 

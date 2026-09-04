@@ -152,8 +152,6 @@ class CubeRun(session: GameSession, private val autoStart: Boolean = false) : Gd
         fire.reset(); styleCombo = 0
         coinsRun = 0; coinsRunF = 0f; boxesRun = 0; coinStreak = 0
         if (Settings.devMode && Settings.testBoxes > 0) { boxesRun = Settings.testBoxes; session.setBoxes(boxesRun) } // dev: boxes to open
-        // perks: a head start lights boost taps for you; portal luck opens portals sooner
-        repeat(Progress.level(Progress.HEADSTART)) { Stage.boostRequests.incrementAndGet() }
         track.portalPool = when {
             Settings.testBonus >= 0 -> listOf(Settings.testBonus)
             Settings.devMode -> Bonus.all.map { it.id }
@@ -166,6 +164,19 @@ class CubeRun(session: GameSession, private val autoStart: Boolean = false) : Gd
         curTier = difficulty.tier()
         track.tier = curTier
         track.reset(coinTrailChance = 0.2f, hue = worldHue())
+        if (Settings.devMode && Settings.testBonusNow >= 0) { // debug: begin inside a bonus world
+            val oldCount = Lanes.count
+            track.forceBonus(Settings.testBonusNow)
+            bonus = Settings.testBonusNow
+            player.remapLane(oldCount, Lanes.count)
+            Terrain.set(bonus == Bonus.HILLS)
+            session.setBonus(bonus)
+        }
+        if (Progress.safeStartSeconds > 0f) { // the Safe start perk: a bubble is already up
+            bubble.duration = Progress.safeStartSeconds
+            bubble.activate(player.px, player.py, quiet = true)
+            bubble.duration = Progress.BUBBLE.duration(Progress.bubbleLevel)
+        }
         session.runStarted()
         fx.runStart(worldHue())
         rig.punch(0.8f)
@@ -311,7 +322,7 @@ class CubeRun(session: GameSession, private val autoStart: Boolean = false) : Gd
     override fun onDrag(x: Float, y: Float, dx: Float, dy: Float) {
         if (!Settings.smoothControl || !live()) return
         val laneTravel = sw * (0.32f - 0.20f * Settings.smoothSensitivity) // finger px per lane
-        val target = (smoothAnchorLane + ((x - smoothAnchorX) / laneTravel).roundToInt()).coerceIn(0, 2)
+        val target = (smoothAnchorLane + ((x - smoothAnchorX) / laneTravel).roundToInt()).coerceIn(0, Lanes.last)
         player.moveToLane(target)
         val vStep = sw * (0.16f - 0.08f * Settings.smoothSensitivity)
         if (abs(dy) > abs(dx)) smoothVAccum += dy else smoothVAccum *= 0.6f
@@ -338,7 +349,7 @@ class CubeRun(session: GameSession, private val autoStart: Boolean = false) : Gd
         when (dir) {
             LEFT, RIGHT -> {
                 val d = if (dir == LEFT) -1 else 1
-                if (player.lane + d in 0..2) player.moveToLane(player.lane + d)
+                if (player.lane + d in 0..Lanes.last) player.moveToLane(player.lane + d)
                 else player.bonk(d)
             }
             UP -> player.jump()
@@ -399,7 +410,8 @@ class CubeRun(session: GameSession, private val autoStart: Boolean = false) : Gd
             if (fire.tick(dt, player.px, player.py) > 0) rig.punch(0.45f)
             difficulty.ramp(dt)
         } else if (!started) {
-            spd = 4.5f // ambient pre-start scroll
+            spd = 0f // nothing moves before the run: the cube waits at the line
+            player.idle(dt)
             introT += dt
             val k = min(1f, introT / 1.8f).let { it * it * it * (it * (it * 6f - 15f) + 10f) }
             rig.intro = -2.2f + 2.2f * k // the menu shot swoops in from high and far back and settles

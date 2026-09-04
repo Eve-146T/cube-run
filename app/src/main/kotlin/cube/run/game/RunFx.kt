@@ -52,7 +52,7 @@ class RunFx(private val game: Gdx3DGame, private val rnd: Random) {
         SoundFx.play("boom")
         Haptics.heavy()
         game.slowMo(0.35f, 0.4f)
-        game.shake(0.5f)
+        game.shake(0.35f) // the one screen shake in the game: the crash
         game.flash(Color.RED, 0.45f)
     }
 
@@ -76,7 +76,6 @@ class RunFx(private val game: Gdx3DGame, private val rnd: Random) {
         SoundFx.play("boom", rate = 1.4f, vol = 0.7f)
         SoundFx.play("perfect", rate = 1.2f)
         Haptics.heavy()
-        game.shake(0.22f)
         game.flash(Color.WHITE, 0.2f)
     }
 
@@ -94,7 +93,7 @@ class RunFx(private val game: Gdx3DGame, private val rnd: Random) {
     }
 
     fun coin(x: Float, y: Float, z: Float, pitch: Int, gold: Color) {
-        SoundFx.play("coin", rate = (1f + 0.05f * minOf(pitch, 14)).coerceAtMost(1.9f), vol = 0.65f)
+        SoundFx.play("coin", rate = (1f + 0.04f * minOf(pitch, 12)).coerceAtMost(1.5f), vol = 0.42f) // gentle: many overlap in a line
         Haptics.tick()
         game.burst3d(tmp.set(x, y, z), gold, n = 6, speed = 3.2f, size = 0.09f, life = 0.4f)
         game.burst3d(tmp, Color.WHITE, n = 2, speed = 4f, size = 0.06f, life = 0.25f)

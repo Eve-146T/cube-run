@@ -15,6 +15,7 @@ import cube.run.core.SoundFx
 import cube.run.core.Stage
 import cube.run.data.Progress
 import cube.run.data.Wardrobe
+import cube.run.ui.Anim.move
 
 /**
  * The run-over sequence, full screen, one focused page at a time on the
@@ -27,8 +28,8 @@ import cube.run.data.Wardrobe
  *     box in 3D ([Stage.BOX]); a tap opens one, the reward pops up as a
  *     card, the next tap brings the next box (already opening) or, after
  *     the last, moves on;
- *  3. go again — best / bank / bubbles, RESTART (straight into a new run) or MENU.
- * Leaving (RESTART / MENU) whooshes the page away before the relaunch.
+ *  3. and then straight back to the main menu (everything else lives there).
+ * Leaving whooshes the page away before the relaunch.
  */
 @SuppressLint("SetTextI18n", "ViewConstructor")
 class RunOverFlow(
@@ -68,7 +69,7 @@ class RunOverFlow(
     /** Slide the old page out to the left, the new one in from the right. */
     private fun swap(next: View) {
         page?.let { old ->
-            old.animate().alpha(0f).translationX(-dpf(60f)).setDuration(160).withEndAction { removeView(old) }.start()
+            old.move().alpha(0f).translationX(-dpf(60f)).setDuration(160).withEndAction { removeView(old) }.start()
         }
         page = next
         addView(next, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
@@ -80,7 +81,7 @@ class RunOverFlow(
         if (leaving) return
         leaving = true
         SoundFx.play("whoosh", rate = 1.2f); Haptics.click()
-        animate().scaleX(0.86f).scaleY(0.86f).alpha(0f).setDuration(170).setInterpolator(Anim.ease).withEndAction { action() }.start()
+        move().scaleX(0.86f).scaleY(0.86f).alpha(0f).setDuration(170).setInterpolator(Anim.ease).withEndAction { action() }.start()
     }
 
     /** A soft hint that breathes at the bottom of a page (hide it with visibility, not alpha). */
@@ -161,8 +162,6 @@ class RunOverFlow(
             }
         }
         column.addView(stars, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, dp(48f)).apply { topMargin = -dp(8f) })
-        column.addView(kit.iconText(TrophyIcon(), if (isNewBest) "was $best" else "BEST $best", 16f, Theme.alpha(Theme.WHITE, 230), stage = true, iconDp = 20f),
-            LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(10f) })
 
         val tiles = LinearLayout(activity).apply {
             orientation = LinearLayout.HORIZONTAL
@@ -170,8 +169,6 @@ class RunOverFlow(
             val coinTile = tile(Theme.GOLD, CoinIcon(), "+0", "coins")
             coinText = coinTile.getChildAt(1) as TextView
             addView(coinTile)
-            if (boxes > 0) addView(tile(Theme.GRAPE, BoxIcon(), "×$boxes", if (boxes == 1) "box" else "boxes"),
-                LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { leftMargin = dp(8f) })
             if (world.isNotEmpty()) addView(tile(Theme.MINT, null, world, "reached"),
                 LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { leftMargin = dp(8f) })
         }
@@ -183,7 +180,7 @@ class RunOverFlow(
             if (isNewBest) for (w in cube.run.data.Bonus.newlyUnlocked(best, score)) addView(tile(Theme.PINK, null, w.name, "portal unlocked!"),
                 LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { leftMargin = dp(4f); rightMargin = dp(4f) })
         }
-        column.addView(tiles, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(18f) })
+        column.addView(tiles, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(24f) })
         if (extras.childCount > 0) column.addView(extras, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(10f) })
         postDelayed({ if (counting) coinAnim = Anim.countUp(coinText, coins, 900, tickEvery = 2) { "+$it" } }, 700)
         postDelayed({ counting = false }, 1700)
@@ -192,7 +189,7 @@ class RunOverFlow(
         host.addView(column, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT).apply {
             gravity = Gravity.TOP; topMargin = belowCube()
         })
-        host.addView(tapHint("TAP TO CONTINUE"), LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT).apply {
+        host.addView(tapHint(if (boxes > 0) "TAP TO CONTINUE" else "TAP FOR THE MENU"), LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT).apply {
             gravity = Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL; bottomMargin = dp(32f)
         })
         swap(host)
@@ -232,7 +229,7 @@ class RunOverFlow(
     }
 
     private fun next() {
-        if (boxes > 0) showBoxes() else showEnd()
+        if (boxes > 0) showBoxes() else leave(onMenu)
     }
 
     // ------------------------------------------------------------- 2. boxes
@@ -294,11 +291,11 @@ class RunOverFlow(
     /** A tap opens the next box; once the last one is open, a tap moves on. */
     private fun tapBox() {
         if (boxBusy) return
-        if (boxesLeft <= 0) { showEnd(); return }
+        if (boxesLeft <= 0) { leave(onMenu); return }
         boxBusy = true
         boxesLeft--
         boxHint?.visibility = INVISIBLE
-        rewardCard?.animate()?.alpha(0f)?.scaleX(0.7f)?.scaleY(0.7f)?.setDuration(150)?.start()
+        rewardCard?.move()?.alpha(0f)?.scaleX(0.7f)?.scaleY(0.7f)?.setDuration(150)?.start()
         Stage.openRequests.incrementAndGet() // the game shakes + opens it, then calls onBoxOpened
     }
 
@@ -340,45 +337,13 @@ class RunOverFlow(
         if (rare) boxHost?.addView(CelebrationView(activity, focusY = 0.55f, rays = false, count = 140, burst = true, seconds = 3f), LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
         boxRack?.let { r -> // the box just opened dims
             val opened = boxes - boxesLeft - 1
-            r.getChildAt(opened)?.animate()?.alpha(0.3f)?.scaleX(0.8f)?.scaleY(0.8f)?.setDuration(300)?.start()
+            r.getChildAt(opened)?.move()?.alpha(0.3f)?.scaleX(0.8f)?.scaleY(0.8f)?.setDuration(300)?.start()
         }
         postDelayed({
             boxBusy = false
-            boxHint?.text = if (boxesLeft > 0) "TAP FOR THE NEXT BOX" else "TAP TO CONTINUE"
+            boxHint?.text = if (boxesLeft > 0) "TAP FOR THE NEXT BOX" else "TAP FOR THE MENU"
             boxHint?.visibility = VISIBLE
         }, 900)
-    }
-
-    // ------------------------------------------------------------- 3. go again
-
-    private fun showEnd() {
-        Stage.mode = Stage.RESULT // your cube is back up top
-        val host = FrameLayout(activity).apply { clipChildren = false; clipToPadding = false }
-        val title = kit.stageText("GO AGAIN?", 34f, stroke = 4.5f).apply { letterSpacing = 0.06f }
-        val column = LinearLayout(activity).apply {
-            orientation = LinearLayout.VERTICAL
-            gravity = Gravity.CENTER_HORIZONTAL
-            clipChildren = false; clipToPadding = false
-            addView(title, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { bottomMargin = dp(4f) })
-            addView(LinearLayout(activity).apply {
-                orientation = LinearLayout.HORIZONTAL
-                clipChildren = false; clipToPadding = false
-                addView(tile(Theme.WHITE, TrophyIcon(), maxOf(best, score).toString(), "best"))
-                addView(tile(Theme.GOLD, CoinIcon(), Progress.coins.toString(), "bank"), LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { leftMargin = dp(8f) })
-                addView(tile(Theme.lighten(Theme.CYAN, 0.5f), BubbleIcon(), "×${Progress.bubbles}", "bubbles"), LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { leftMargin = dp(8f) })
-            }, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(14f) })
-            addView(kit.button("RESTART", Theme.PLAY, UiKit.Size.BIG) { leave(onRestart) },
-                LinearLayout.LayoutParams(dp(250f), LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(28f) })
-            addView(kit.button("MENU", Theme.WHITE, UiKit.Size.NORMAL) { leave(onMenu) },
-                LinearLayout.LayoutParams(dp(250f), LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(12f) })
-        }
-        host.addView(column, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT).apply {
-            gravity = Gravity.TOP; topMargin = belowCube()
-        })
-        SoundFx.play("tap"); Haptics.tick()
-        swap(host)
-        Anim.popIn(title, 100, 0.5f, 400)
-        for (i in 1 until column.childCount) Anim.riseIn(column.getChildAt(i), 160L + i * 70L, dpf(40f))
     }
 
     override fun onDetachedFromWindow() {

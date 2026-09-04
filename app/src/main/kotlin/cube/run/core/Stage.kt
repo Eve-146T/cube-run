@@ -24,7 +24,7 @@ object Stage {
     const val DEMO_MAGNET = 2
     const val DEMO_MULT = 3
     const val DEMO_JET = 4
-    const val DEMO_HEADSTART = 5
+    const val DEMO_SAFESTART = 5
     const val DEMO_COINS = 6
     const val DEMO_PORTAL = 7
     const val DEMO_BOX = 8

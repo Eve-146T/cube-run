@@ -63,12 +63,25 @@ on its own it lays no pickups.
 
 ## The start
 
-Before a run the road scrolls slowly with a bunting-hung start gate held a
-little way down it while the camera swoops in from far back. The first tap
-squashes the cube, sprays dust behind it, releases the gate and eases the
-speed and the chase camera in over a second and a half; passing under the
-gate is a bang, a flash and candy raining off the beam. No coins are laid
-before the run, so nothing appears that cannot be collected.
+Before a run nothing moves: the cube waits at a chequered start line under
+a start gate (chequered banner, a spinning star on each pylon), hopping
+now and then, while the camera swoops in from high and far. The first tap
+squashes the cube, sprays dust behind it, and eases the speed and the chase
+camera in over a second and a half; passing under the gate is a bang, a
+flash and candy raining off the beam. No coins are laid before the run.
+
+## Screen shake
+
+Exactly one thing shakes the screen: the crash (`RunFx.crash`, 0.35). The
+bubble smash, the second wind, the gift box, the shop demos and the portals
+use slow motion, a flash and a field-of-view punch instead.
+
+## The run-over flow
+
+Results (the cube in front of a sunburst, the score, the stars, coins and
+the world reached) → the mystery boxes, if any (each shatters into shards
+and its prize hangs where it was) → straight back to the main menu. There
+is no "go again" page: restart and everything else live on the menu.
 
 ## The shop
 
@@ -131,11 +144,16 @@ with a short bubble). The shop shows them in their own section.
 
 ## Debug launch extras
 
-`adb shell am start -n cube.run/.GameActivity --ez dev true --ei section 56 --ei bonus 3 --ei world 1 --ei boxes 3`
+`adb shell am start -n cube.run/.GameActivity --ez dev true --ei section 56 --ei bonus 3 --ei bonusnow 0 --ei world 1 --ei boxes 3`
 turns dev mode on (free coins, pickups and portals galore, END RUN on the
 pause card), loops one section, forces which bonus world portals open to,
-picks the starting world, and starts the run holding mystery boxes (so the
-box stage is one END RUN away). All process-scoped.
+starts the run already inside a bonus world, picks the starting world, and
+starts the run holding mystery boxes (so the box stage is one END RUN
+away). All process-scoped.
+
+`game.Lanes.unfold` eases the two outer lanes of the five-lane world open
+and closed, so the road widens instead of snapping; lane input is bounded
+by `Lanes.last`, not 2.
 
 ## Building
 

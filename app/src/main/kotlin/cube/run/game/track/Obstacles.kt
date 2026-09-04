@@ -51,6 +51,8 @@ class Ob(
     val anim: Int = ObAnim.NONE, val phase: Float = 0f,
     /** Platforms only: length of the rising ramp at the front (0 = flat continuation). */
     val ramp: Float = 0f,
+    /** A tar pit: drawn sunk into the road as a void (the collision box stays where it is). */
+    val pit: Boolean = false,
 ) {
     /** Pads: launched the player already (once per pass). */
     var used = false
@@ -179,8 +181,8 @@ class ObstacleFactory(private val rnd: Random) {
     fun addTar(a: Int, b: Int, hue: Float, into: ArrayList<Ob>) {
         val cx = (laneX(a) + laneX(b)) / 2f
         val w = (b - a) * laneW + laneW * 1.05f; val h = 0.16f; val d = 1.7f
-        into.add(Ob(hsv(hue + 140f, 0.9f, 1f), cx, 0.055f, 0f, ObType.DECO, w + 0.18f, 0.11f, d + 0.18f)) // rim
-        into.add(Ob(Color(0.03f, 0.02f, 0.05f, 1f), cx, h / 2f, w / 2f - 0.11f, ObType.SOLID, w, h, d))
+        into.add(Ob(hsv(hue + 140f, 0.9f, 1f), cx, 0.0f, 0f, ObType.DECO, w + 0.22f, 0.05f, d + 0.22f, pit = true)) // the glowing lip, flush with the road
+        into.add(Ob(Color(0.03f, 0.02f, 0.05f, 1f), cx, h / 2f, w / 2f - 0.11f, ObType.SOLID, w, h, d, pit = true))
     }
 
     /** A piston in lane [l]: pumps out of the floor and sinks back, out of phase with its neighbours. */

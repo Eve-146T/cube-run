@@ -31,15 +31,18 @@ object Progress {
     val JET = Upgrade("jet_time", "Jetpack", 5f, 0.6f)
     val upgrades = listOf(BUBBLE, MAGNET, MULT, JET)
     // ---- perks: each level changes a rule of the run (see CubeRun)
-    /** Every run starts with this many boost taps already lit. */
-    val HEADSTART = Upgrade("perk_headstart", "Head start", 0f, 1f, max = 5, basePrice = 150)
+    /** Every run starts under a bubble for a few seconds (3 s + 1.5 s per level; 0 = none). */
+    val SAFESTART = Upgrade("perk_safestart", "Safe start", 0f, 1f, max = 5, basePrice = 150)
     /** Coins are worth +20% per level. */
     val COINVALUE = Upgrade("perk_coinvalue", "Rich coins", 1f, 0.2f, max = 10, basePrice = 120)
     /** Portals open more often. */
     val PORTALS = Upgrade("perk_portals", "Portal luck", 0f, 1f, max = 5, basePrice = 200)
     /** Mystery boxes turn up more often. */
     val LUCKYBOX = Upgrade("perk_luckybox", "Lucky boxes", 0f, 1f, max = 5, basePrice = 180)
-    val perks = listOf(HEADSTART, COINVALUE, PORTALS, LUCKYBOX)
+    val perks = listOf(SAFESTART, COINVALUE, PORTALS, LUCKYBOX)
+
+    /** Seconds of free bubble at the start of a run. */
+    val safeStartSeconds: Float get() = level(SAFESTART).let { if (it == 0) 0f else 3f + 1.5f * it }
 
     /**
      * What a mystery box held. [amount] is coins for [COINS], count for

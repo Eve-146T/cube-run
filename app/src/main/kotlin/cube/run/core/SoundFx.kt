@@ -89,9 +89,9 @@ object SoundFx {
         "boom" to lowpassed(380, 0.035) { t, p ->
             (noise() * 0.9 + sin(t * 64.0 * TAU) * 0.8) * decay(p, 3.2)
         },
-        "coin" to synth(190) { t, p ->
-            val f = if (t < 0.035) 987.77 else 1318.5
-            square(t * f) * 0.45 * decay(p, 2.6)
+        "coin" to synth(150) { t, p -> // a soft two-note chime: sine with a whisper of a second harmonic (a square wave here shreds on recordings)
+            val f = if (t < 0.03) 987.77 else 1318.5
+            (sin(t * f * TAU) * 0.85 + sin(t * f * 2 * TAU) * 0.15) * 0.32 * decay(p, 3.2)
         },
         "rise" to synth(300) { t, p ->
             sin(t * (280.0 + 1000.0 * p.pow(1.5)) * TAU) * (0.6 + 0.4 * sin(t * 30.0 * TAU)) *

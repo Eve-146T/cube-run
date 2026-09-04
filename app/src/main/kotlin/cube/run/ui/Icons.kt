@@ -160,17 +160,17 @@ class MagnetIcon(private val color: Int = Theme.MAGNET) : Icon() {
             canvas.drawLine(x0 + s * 0.32f, y0 + s * 0.4f + dy, x0 + s * 0.32f, y0 + s * 0.8f + dy, paint)
             canvas.drawLine(x0 + s * 0.68f, y0 + s * 0.4f + dy, x0 + s * 0.68f, y0 + s * 0.8f + dy, paint)
         }
-        horseshoe(Theme.darken(color, 0.35f), s * 0.06f, s * 0.26f)
-        horseshoe(color, 0f, s * 0.26f)
-        paint.style = Paint.Style.FILL
-        paint.color = Theme.lighten(Theme.INK, 0.75f)
-        canvas.drawRect(x0 + s * 0.19f, y0 + s * 0.72f, x0 + s * 0.45f, y0 + s * 0.92f, paint)
-        canvas.drawRect(x0 + s * 0.55f, y0 + s * 0.72f, x0 + s * 0.81f, y0 + s * 0.92f, paint)
-        paint.color = Theme.WHITE
-        canvas.drawRect(x0 + s * 0.19f, y0 + s * 0.72f, x0 + s * 0.45f, y0 + s * 0.8f, paint)
-        canvas.drawRect(x0 + s * 0.55f, y0 + s * 0.72f, x0 + s * 0.81f, y0 + s * 0.8f, paint)
-        paint.color = Theme.alpha(Theme.WHITE, 150)
-        rect.set(x0 + s * 0.28f, y0 + s * 0.16f, x0 + s * 0.46f, y0 + s * 0.3f)
+        horseshoe(Theme.INK, 0f, s * 0.36f)                         // an ink outline, like everything on the stage
+        horseshoe(color, 0f, s * 0.24f)
+        paint.style = Paint.Style.FILL                                // pale tips with a dark seam
+        paint.color = Theme.INK
+        canvas.drawRect(x0 + s * 0.14f, y0 + s * 0.66f, x0 + s * 0.5f, y0 + s * 0.98f, paint)
+        canvas.drawRect(x0 + s * 0.5f, y0 + s * 0.66f, x0 + s * 0.86f, y0 + s * 0.98f, paint)
+        paint.color = Theme.lighten(Theme.SKY, 0.7f)
+        canvas.drawRect(x0 + s * 0.2f, y0 + s * 0.72f, x0 + s * 0.44f, y0 + s * 0.92f, paint)
+        canvas.drawRect(x0 + s * 0.56f, y0 + s * 0.72f, x0 + s * 0.8f, y0 + s * 0.92f, paint)
+        paint.color = Theme.alpha(Theme.WHITE, 170)
+        rect.set(x0 + s * 0.3f, y0 + s * 0.18f, x0 + s * 0.46f, y0 + s * 0.3f)
         canvas.drawOval(rect, paint)
     }
 }
@@ -301,32 +301,41 @@ class HeartIcon(private val color: Int = Theme.PINK) : Icon() {
     }
 }
 
-/** A fat five-point star (the run's rating). [color] = lit; ghosted when [lit] is false. */
+/**
+ * A fat five-point star in the candy style: rounded points, an ink outline
+ * like the stage text, a gloss. [color] = lit; ghosted when [lit] is false.
+ */
 class StarIcon(private val color: Int = Theme.YELLOW, private val lit: Boolean = true) : Icon() {
     private val path = Path()
     override fun draw(canvas: Canvas) {
         val b = bounds
         val s = min(b.width(), b.height()).toFloat()
         val cx = b.exactCenterX(); val cy = b.exactCenterY()
-        paint.style = Paint.Style.FILL
-        fun star(scale: Float, col: Int, dy: Float) {
+        fun star(scale: Float, dy: Float) {
             path.reset()
             for (i in 0 until 10) {
-                val r = (if (i % 2 == 0) s * 0.5f else s * 0.22f) * scale
+                val r = (if (i % 2 == 0) s * 0.46f else s * 0.22f) * scale
                 val a = Math.toRadians((i * 36f - 90f).toDouble())
                 val px = cx + (r * Math.cos(a)).toFloat(); val py = cy + dy + (r * Math.sin(a)).toFloat()
                 if (i == 0) path.moveTo(px, py) else path.lineTo(px, py)
             }
             path.close()
-            paint.color = col
+        }
+        paint.pathEffect = android.graphics.CornerPathEffect(s * 0.07f)
+        paint.strokeJoin = Paint.Join.ROUND
+        star(1f, 0f)
+        paint.style = Paint.Style.STROKE
+        paint.strokeWidth = s * 0.16f
+        paint.color = if (lit) Theme.INK else Theme.alpha(Theme.INK, 110)
+        canvas.drawPath(path, paint)
+        paint.style = Paint.Style.FILL
+        paint.color = if (lit) color else Theme.alpha(Theme.WHITE, 90)
+        canvas.drawPath(path, paint)
+        if (lit) {
+            star(0.5f, -s * 0.04f)
+            paint.color = Theme.lighten(color, 0.5f)
             canvas.drawPath(path, paint)
         }
-        if (lit) {
-            star(1f, Theme.darken(color, 0.35f), s * 0.06f)
-            star(1f, color, 0f)
-            star(0.55f, Theme.lighten(color, 0.45f), -s * 0.03f)
-        } else {
-            star(1f, Theme.alpha(Theme.WHITE, 60), 0f)
-        }
+        paint.pathEffect = null
     }
 }

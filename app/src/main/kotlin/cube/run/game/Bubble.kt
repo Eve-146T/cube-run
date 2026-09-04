@@ -48,12 +48,13 @@ class Bubble(private val game: Gdx3DGame) {
     /** Burst colour: the skin's first hue (white for sparkle skins). */
     private fun burstCol(): Color = if (skin.sparkle) Color.WHITE else hsvInto(tmpCol, skin.hue, max(0.4f, skin.sat), 1f)
 
-    fun activate(px: Float, py: Float) {
+    fun activate(px: Float, py: Float, quiet: Boolean = false) {
         skin = BubbleSkins.get(wanted())
         timer.start(duration)
         age = 0f
         shock = 1f; shockHue = skin.hue
         x = px; y = py
+        if (quiet) { SoundFx.play("rise", rate = 1.3f, vol = 0.5f); return } // the Safe start perk: no hitch, no flash
         SoundFx.play("rise", rate = 1.3f)
         SoundFx.play("perfect", rate = 0.9f)
         Haptics.success()

@@ -68,13 +68,13 @@ private fun View.candyTouch(painter: CandyPainter, sound: Boolean = true) {
         when (ev.actionMasked) {
             MotionEvent.ACTION_DOWN -> {
                 v.animate().cancel()
-                v.animate().scaleX(0.96f).scaleY(0.96f).setDuration(70).setUpdateListener { painter.press = v.scaleX.let { (1f - it) / 0.04f }.coerceIn(0f, 1f); v.invalidate() }.start()
+                v.animate().scaleX(0.96f).scaleY(0.96f).setDuration(70).setUpdateListener { painter.press = v.scaleX.let { (1f - it) / 0.04f }.coerceIn(0f, 1f); Anim.repaint(v) }.start()
                 if (sound) Haptics.tick()
             }
             MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
                 v.animate().cancel()
                 v.animate().scaleX(1f).scaleY(1f).setDuration(220).setInterpolator(android.view.animation.OvershootInterpolator(3f))
-                    .setUpdateListener { painter.press = ((1f - v.scaleX) / 0.04f).coerceIn(0f, 1f); v.invalidate() }.start()
+                    .setUpdateListener { painter.press = ((1f - v.scaleX) / 0.04f).coerceIn(0f, 1f); Anim.repaint(v) }.start()
             }
         }
         false
@@ -433,8 +433,8 @@ class BoostArrows(ctx: Context, private val dpf: (Float) -> Float) : View(ctx) {
         isClickable = true
         setOnTouchListener { v, ev ->
             when (ev.actionMasked) {
-                MotionEvent.ACTION_DOWN -> v.animate().scaleX(0.9f).scaleY(0.9f).setDuration(60).start()
-                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> v.animate().scaleX(1f).scaleY(1f).setDuration(200).setInterpolator(android.view.animation.OvershootInterpolator(3f)).start()
+                MotionEvent.ACTION_DOWN -> v.animate().scaleX(0.9f).scaleY(0.9f).setDuration(60).setUpdateListener { Anim.repaint(v) }.start()
+                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> v.animate().scaleX(1f).scaleY(1f).setDuration(200).setInterpolator(android.view.animation.OvershootInterpolator(3f)).setUpdateListener { Anim.repaint(v) }.start()
             }
             false
         }
@@ -454,7 +454,7 @@ class BoostArrows(ctx: Context, private val dpf: (Float) -> Float) : View(ctx) {
     override fun onDraw(canvas: Canvas) {
         val w = width.toFloat(); val h = height.toFloat()
         val gap = h / max
-        val cw = w * 0.42f; val ch = gap * 0.38f
+        val cw = w * 0.34f; val ch = gap * 0.34f // leaves room for the press/pulse scale inside the view
         line.strokeWidth = dpf(3.5f)
         for (i in 0 until max) {
             val lit = i < taps

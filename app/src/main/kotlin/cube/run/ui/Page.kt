@@ -10,6 +10,7 @@ import android.view.WindowInsets
 import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.TextView
+import cube.run.ui.Anim.move
 
 /** Reads the system bar + cutout insets the same way everywhere. */
 fun insetsOf(insets: WindowInsets): IntArray =
@@ -76,16 +77,18 @@ abstract class Page(
             setPadding(l, maxOf(dp(36f), t + dp(6f)), r, maxOf(dp(24f), b + dp(8f)))
             insets
         }
+        // the title row starts a little lower than the corner pill so the two line up at the same height
+        topBar.setPadding(dp(14f), dp(4f), dp(16f), dp(6f))
         // entrance: the page fades in, the content rises, the title pops (the top bar itself never moves:
         // translated over the GL surface it was seen to paint a frame late, which reads as the wrong order)
-        alpha = 0f; animate().alpha(1f).setDuration(140).start()
+        alpha = 0f; move().alpha(1f).setDuration(140).start()
         Anim.riseIn(content, 0, dpf(40f), 260)
         Anim.popIn(titleView, 40, 0.7f, 300)
     }
 
-    /** Something for the top bar's right end (a balance, a count). */
+    /** The corner slot (a balance): pinned top-right exactly where the menu keeps its bank pill, so it never shifts between screens. */
     protected fun addRight(v: View) {
-        topBar.addView(v, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { leftMargin = dp(10f) })
+        addView(v, LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT).apply { gravity = Gravity.TOP or Gravity.END; topMargin = dp(4f); rightMargin = dp(14f) })
     }
 
     /** The back button. Pages that need to tidy up first override this and call [close]. */
@@ -94,8 +97,8 @@ abstract class Page(
     fun close() {
         if (closing) return
         closing = true
-        content.animate().translationY(dpf(40f)).alpha(0f).setDuration(130).start()
-        animate().alpha(0f).setDuration(140).withEndAction {
+        content.move().translationY(dpf(40f)).alpha(0f).setDuration(130).start()
+        move().alpha(0f).setDuration(140).withEndAction {
             (parent as? FrameLayout)?.removeView(this)
             onClosed()
         }.start()
@@ -131,16 +134,16 @@ abstract class Sheet(
         addView(card, LayoutParams(dp(300f), LayoutParams.WRAP_CONTENT).apply { gravity = Gravity.CENTER })
         setOnClickListener { dismiss() }
         alpha = 0f
-        animate().alpha(1f).setDuration(110).start()
+        move().alpha(1f).setDuration(110).start()
         card.alpha = 0f; card.scaleX = 0.86f; card.scaleY = 0.86f; card.translationY = dpf(24f)
-        card.animate().alpha(1f).scaleX(1f).scaleY(1f).translationY(0f).setDuration(200).setInterpolator(Anim.springSoft).withEndAction { card.requestLayout() }.start()
+        card.move().alpha(1f).scaleX(1f).scaleY(1f).translationY(0f).setDuration(200).setInterpolator(Anim.springSoft).withEndAction { card.requestLayout() }.start()
     }
 
     fun dismiss() {
         if (closing) return
         closing = true
-        card.animate().alpha(0f).scaleX(0.9f).scaleY(0.9f).translationY(dpf(16f)).setDuration(110).start()
-        animate().alpha(0f).setDuration(120).withEndAction {
+        card.move().alpha(0f).scaleX(0.9f).scaleY(0.9f).translationY(dpf(16f)).setDuration(110).start()
+        move().alpha(0f).setDuration(120).withEndAction {
             (parent as? FrameLayout)?.removeView(this)
             onDismissed()
         }.start()

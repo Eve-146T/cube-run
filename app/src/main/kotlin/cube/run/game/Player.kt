@@ -168,6 +168,14 @@ class Player(private val game: Gdx3DGame, private val rnd: Random) {
     /** The run begins: a quick squash, then it springs off (a beat of anticipation). */
     fun squashForLaunch() { squash = 1.4f }
 
+    private var idleT = 0f
+    /** Waiting at the line: a little hop every few seconds so the cube feels alive. */
+    fun idle(dt: Float) {
+        idleT += dt
+        if (idleT > 2.6f && !air) { idleT = 0f; air = true; vy = 4.2f; quietLanding = true }
+    }
+    private var quietLanding = false
+
     /** A bounce pad: launched high, stretched tall, whatever you were doing. */
     fun launch(v: Float) {
         air = true; vy = v; duckT = 0f; slamming = false
@@ -216,8 +224,8 @@ class Player(private val game: Gdx3DGame, private val rnd: Random) {
             py += vy * dt
             if (py <= gy && vy <= 0f) {
                 py = gy; air = false; vy = 0f
-                SoundFx.play("pop", rate = 0.95f + rnd.nextFloat() * 0.12f)
-                Haptics.click()
+                if (!quietLanding) { SoundFx.play("pop", rate = 0.95f + rnd.nextFloat() * 0.12f); Haptics.click() }
+                quietLanding = false
                 game.burst3d(tmp.set(px, gy - 0.39f, 0.4f), trailCol(), n = 8, speed = 3.2f, size = 0.09f, life = 0.4f)
                 squash = 1f
                 if (slamming) { slamming = false; duckT = 0.5f } // slam → auto-crouch on landing

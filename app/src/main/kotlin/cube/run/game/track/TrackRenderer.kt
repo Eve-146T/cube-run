@@ -60,6 +60,7 @@ class TrackRenderer(private val game: Gdx3DGame) {
                     ob.type == ObType.PLAT -> renderPlatform(ob, r.z, fog, p)
                     ob.type == ObType.PAD -> renderPad(ob, r.z, fog, time, p)
                     ob.anim == ObAnim.PISTON && ob.sy < 0.03f -> {} // sunk into the floor
+                    ob.pit -> renderPit(ob, r.z, fog, time, p)
                     ob.anim == ObAnim.PENDULUM -> {
                         box(ob.x, ob.cy, r.z, ob.sx, ob.sy, ob.sz, ob.col, fog, p, false)
                         game.worldBox(ob.x * 0.5f, ob.top + 1.1f, r.z, abs(ob.x) + 0.16f, 0.16f, 0.16f, rod, fog) // the rod up to the beam
@@ -132,6 +133,24 @@ class TrackRenderer(private val game: Gdx3DGame) {
                 val h = top * (i + 1) / n
                 game.worldBox(ob.x, h / 2f, front - d * (i + 0.5f), ob.sx, h, d, ob.col, fog)
             }
+        }
+    }
+
+    /**
+     * A tar pit as a void: a black slab sunk below the road surface inside a
+     * thin glowing lip, with dark motes drifting up out of it. The lip is the
+     * DECO half of the pair, the slab the SOLID one (drawn lower than it
+     * collides, so it reads as a hole rather than a block).
+     */
+    private fun renderPit(ob: Ob, z: Float, fog: Float, time: Float, p: Float) {
+        if (ob.type == ObType.DECO) { game.worldBox(ob.x, -0.01f, z, ob.sx * p, 0.06f, ob.sz, ob.col, fog); return } // the lip: top at 0.02
+        game.worldBox(ob.x, -0.1f, z, ob.sx * p, 0.26f, ob.sz, ob.col, fog)                                        // the void: top at 0.03, black
+        hsvInto(tmpCol, 270f, 0.6f, 0.18f)
+        for (i in 0 until 4) { // motes rising out of the dark
+            val k = ((time * 0.7f + i * 0.25f + z * 0.05f) % 1f)
+            val mx = ob.x + (i - 1.5f) * ob.sx * 0.22f + 0.15f * sin(time * 3f + i)
+            val s = 0.1f * (1f - k)
+            game.worldBoxSpin(mx, 0.1f + k * 0.9f, z + (i % 2 - 0.5f) * 0.5f, s, s, s, time * 90f + i * 50f, tmpCol, fog)
         }
     }
 
