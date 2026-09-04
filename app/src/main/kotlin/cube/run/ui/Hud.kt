@@ -36,8 +36,8 @@ class Hud(private val activity: Activity) : FrameLayout(activity) {
     // ---- in-run HUD
     private val scoreText = kit.stageText("0", 60f, stroke = 7f)
     private val haul = kit.iconPill(CoinIcon(), "0", Theme.INK, 18f, Theme.WHITE)
-    private val boxes = kit.iconPill(BoxIcon(), "", Theme.INK, 15f, Theme.LAVENDER).apply { visibility = GONE }
-    private val bubbles = kit.iconPill(BubbleIcon(), "", Theme.INK, 15f, Theme.lighten(Theme.CYAN, 0.55f)).apply { visibility = GONE }
+    private val boxes = kit.iconPill(BoxIcon(), "", Theme.INK, 18f, Theme.LAVENDER).apply { visibility = GONE }
+    private val bubbles = kit.iconPill(BubbleIcon(), "", Theme.INK, 18f, Theme.lighten(Theme.CYAN, 0.55f)).apply { visibility = GONE }
     private val pauseChip = kit.chip(R.drawable.ic_pause, Theme.WHITE, Theme.INK, activity.getString(R.string.cd_pause)) { pause() }.apply { visibility = GONE }
     private var boost: BoostArrows? = null
     private val bonusVisited = ArrayList<Int>()

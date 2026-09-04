@@ -30,7 +30,7 @@ class WardrobeView(activity: Activity, kit: UiKit, onClose: () -> Unit) : Page(a
 
     private var cat = Wardrobe.CUBE
     private var index = Progress.equipped(cat)
-    private val balance = kit.iconPill(CoinIcon(), "", Theme.INK, 15f)
+    private val balance = kit.iconPill(CoinIcon(), "", Theme.INK, 16f)
     private val tabs = LinearLayout(activity).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER; clipChildren = false; clipToPadding = false }
     private val tabViews = ArrayList<TextView>()
     private val name = kit.stageText("", 32f, stroke = 4f)

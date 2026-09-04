@@ -44,7 +44,7 @@ class MainMenu(
     }
     private val bestRow = kit.iconText(TrophyIcon(), "", 22f, Theme.WHITE, stage = true, iconDp = 28f).apply { visibility = GONE }
     private val bank = kit.iconPill(CoinIcon(), "0", Theme.INK, 16f).apply { setOnClickListener { openShop() } }
-    private val bubbles = kit.iconPill(BubbleIcon(), "", Theme.INK, 14f).apply { visibility = GONE; setOnClickListener { openShop() } }
+    private val bubbles = kit.iconPill(BubbleIcon(), "", Theme.INK, 16f).apply { visibility = GONE; setOnClickListener { openShop() } }
     private val tapHint = kit.stageText("TAP TO START", 22f, Theme.WHITE, stroke = 3f).apply { letterSpacing = 0.12f }
     /** Amber notice under the prompt while a test tool (section test / dev mode) is on. */
     val testPill: TextView = kit.pill("", Theme.YELLOW, Theme.INK, 12f).apply { visibility = GONE }
