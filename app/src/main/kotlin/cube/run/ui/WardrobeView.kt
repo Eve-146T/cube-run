@@ -14,6 +14,8 @@ import cube.run.core.Haptics
 import cube.run.core.SoundFx
 import cube.run.core.Stage
 import cube.run.data.Progress
+import cube.run.data.Shards
+import cube.run.data.Skins
 import cube.run.data.Wardrobe
 import cube.run.ui.Anim.move
 import kotlin.math.abs
@@ -36,6 +38,7 @@ class WardrobeView(activity: Activity, kit: UiKit, onClose: () -> Unit) : Page(a
     private val tabViews = ArrayList<TextView>()
     private val name = kit.stageText("", 32f, stroke = 4f)
     private val status = kit.stageText("", 15f, Theme.alpha(Theme.WHITE, 220), weight = 600, stroke = 2f)
+    private val shardBar = kit.segments(10).apply { visibility = View.GONE; offColor = Theme.alpha(Theme.WHITE, 60) }
     private val dots = LinearLayout(activity).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER }
     private val action: CandyButton
     private val left: View
@@ -77,6 +80,7 @@ class WardrobeView(activity: Activity, kit: UiKit, onClose: () -> Unit) : Page(a
             clipChildren = false; clipToPadding = false
             addView(name)
             addView(status, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = -dp(4f) })
+            addView(shardBar, LinearLayout.LayoutParams(dp(180f), dp(10f)).apply { topMargin = dp(8f) })
             addView(dots, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(12f) })
             addView(action, LinearLayout.LayoutParams(dp(230f), LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(18f) })
         }
@@ -152,22 +156,42 @@ class WardrobeView(activity: Activity, kit: UiKit, onClose: () -> Unit) : Page(a
         val owned = Progress.owns(cat, index)
         val equipped = Progress.equipped(cat) == index
         val price = Wardrobe.price(cat, index)
+        val shardSkin = if (cat == Wardrobe.CUBE) Skins.get(index).takeIf { it.shardOnly } else null
         kit.labelOf(balance).text = Progress.coins.toString()
         name.text = Wardrobe.name(cat, index).uppercase()
+        shardBar.visibility = View.GONE
         status.text = when {
             equipped -> "EQUIPPED"
             owned -> "OWNED"
+            shardSkin != null -> { // how far the shards have come: "34 / 100 ember shards" + a bar
+                val k = Shards.get(shardSkin.shardType)
+                val have = Progress.shards(k.id)
+                shardBar.visibility = View.VISIBLE
+                shardBar.level = (have * 10 / shardSkin.shardsNeeded).coerceIn(0, 10)
+                shardBar.color = Theme.hsv(k.hue, 0.75f, 1f)
+                "$have / ${shardSkin.shardsNeeded} ${k.name.uppercase()}"
+            }
             else -> ""
         }
-        status.setTextColor(if (equipped) Theme.MINT else Theme.alpha(Theme.WHITE, 220))
+        status.setTextColor(when {
+            equipped -> Theme.MINT
+            shardSkin != null && !owned -> Theme.hsv(Shards.get(shardSkin.shardType).hue, 0.6f, 1f)
+            else -> Theme.alpha(Theme.WHITE, 220)
+        })
+        val canUnlock = shardSkin != null && Progress.shards(shardSkin.shardType) >= shardSkin.shardsNeeded
         action.setLabel(when {
             equipped -> "EQUIPPED"
             owned -> "EQUIP"
+            shardSkin != null -> android.text.SpannableStringBuilder("UNLOCK  ").also { sb ->
+                val d = ShardIcon(Theme.hsv(Shards.get(shardSkin.shardType).hue, 0.75f, 1f)); val px = kit.dp(24f); d.setBounds(0, 0, px, px)
+                sb.append("\u2009 ", CenteredImageSpan(d), android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE).append(" ${shardSkin.shardsNeeded}")
+            }
             else -> android.text.SpannableStringBuilder("BUY ").append(kit.coins(price, 22f))
         })
         action.color = when {
             equipped -> Theme.alpha(Theme.WHITE, 200)
             owned -> Theme.PLAY
+            shardSkin != null -> if (canUnlock) Theme.hsv(Shards.get(shardSkin.shardType).hue, 0.7f, 1f) else Theme.alpha(Theme.MUTED, 200)
             price <= Progress.coins -> Theme.GOLD
             else -> Theme.alpha(Theme.MUTED, 200)
         }
@@ -197,9 +221,18 @@ class WardrobeView(activity: Activity, kit: UiKit, onClose: () -> Unit) : Page(a
         if (paying) return
         val before = Progress.coins
         val id = index; val c = cat
+        val shardSkin = if (cat == Wardrobe.CUBE) Skins.get(index).takeIf { it.shardOnly } else null
         when {
             Progress.equipped(cat) == index -> {}
             Progress.owns(cat, index) -> { Progress.equip(cat, index); SoundFx.play("tap"); Haptics.tick(); Anim.pulse(name, 1.15f); Stage.previewKicks.incrementAndGet(); render() }
+            shardSkin != null -> { // shards, not coins
+                if (Progress.unlockWithShards(index)) {
+                    Progress.equip(c, id)
+                    Stage.previewBuys.incrementAndGet()
+                    Anim.pulse(name, 1.25f)
+                    render()
+                } else { SoundFx.play("tap", rate = 0.6f); Haptics.tick(); Anim.shake(status, dpf(8f)) }
+            }
             Progress.buy(cat, index) -> { // paid: coins fly from the balance into the button, then the cube celebrates and it's yours
                 paying = true
                 Haptics.click()

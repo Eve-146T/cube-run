@@ -46,16 +46,18 @@ object Progress {
 
     /**
      * What a mystery box held. [amount] is coins for [COINS], count for
-     * [BUBBLE]; for [SKIN] it is the wardrobe [cat] + [id] of the new item.
+     * [BUBBLE] and [SHARDS] (with [id] = the shard kind); for [SKIN] it is
+     * the wardrobe [cat] + [id] of the new item.
      */
     class BoxReward(val kind: Int, val amount: Int, val cat: Int = -1, val id: Int = -1) {
         companion object {
             const val COINS = 0
             const val BUBBLE = 1
             const val SKIN = 2
+            const val SHARDS = 3
         }
-        /** Big coin hauls and skins are the "rare" pulls. */
-        val rare: Boolean get() = kind == SKIN || (kind == COINS && amount >= 100)
+        /** Big coin hauls, skins and big shard drops are the "rare" pulls. */
+        val rare: Boolean get() = kind == SKIN || (kind == COINS && amount >= 100) || (kind == SHARDS && amount >= 20)
     }
 
     /** A bubble shield: activate in-run with a double tap, absorbs one crash. */
@@ -78,6 +80,7 @@ object Progress {
     @Volatile var revives: Int = 0
         private set
     private val perkLevels = HashMap<String, Int>()
+    private val shardCounts = IntArray(Shards.all.size)
 
     // ---- wardrobe: equipped ids + owned bitmasks (item 0 of each is always owned)
     @Volatile var skin: Int = 0
@@ -112,6 +115,7 @@ object Progress {
         jetLevel = prefs.getInt(JET.key, 0)
         revives = prefs.getInt("revives", 0)
         for (u in perks) perkLevels[u.key] = prefs.getInt(u.key, 0)
+        for (k in Shards.all) shardCounts[k.id] = prefs.getInt("shards_${k.id}", 0)
         skin = prefs.getInt("skin", 0)
         ownedSkins = prefs.getInt("owned_skins", 1) or 1
         bubbleSkin = prefs.getInt("bubble_skin", 0)
@@ -227,6 +231,26 @@ object Progress {
         return true
     }
 
+    // ------------------------------------------------------------- shards
+
+    fun shards(kind: Int): Int = shardCounts.getOrElse(kind) { 0 }
+
+    private fun addShards(kind: Int, n: Int) {
+        shardCounts[kind] += n
+        prefs.edit().putInt("shards_$kind", shardCounts[kind]).apply()
+    }
+
+    /** Spend the shards a shard-only skin asks for and own it. False when it is not that kind of skin, or there are not enough. */
+    fun unlockWithShards(id: Int): Boolean {
+        val sk = Skins.get(id)
+        if (!sk.shardOnly || owns(Wardrobe.CUBE, id)) return false
+        if (shards(sk.shardType) < sk.shardsNeeded) return false
+        shardCounts[sk.shardType] -= sk.shardsNeeded
+        prefs.edit().putInt("shards_${sk.shardType}", shardCounts[sk.shardType]).apply()
+        grant(Wardrobe.CUBE, id)
+        return true
+    }
+
     // ------------------------------------------------------------- wardrobe
 
     private fun ownedMask(cat: Int): Int = when (cat) { Wardrobe.CUBE -> ownedSkins; Wardrobe.BUBBLE -> ownedBubbleSkins; else -> ownedTrails }
@@ -235,8 +259,8 @@ object Progress {
 
     fun equipped(cat: Int): Int = when (cat) { Wardrobe.CUBE -> skin; Wardrobe.BUBBLE -> bubbleSkin; else -> trail }
 
-    /** Every item of [cat] not yet owned. */
-    fun unowned(cat: Int): List<Int> = (0 until Wardrobe.count(cat)).filter { !owns(cat, it) }
+    /** Every item of [cat] not yet owned and buyable (shard-only skins are never handed out or sold). */
+    fun unowned(cat: Int): List<Int> = (0 until Wardrobe.count(cat)).filter { !owns(cat, it) && !(cat == Wardrobe.CUBE && Skins.get(it).shardOnly) }
 
     private fun grant(cat: Int, id: Int) {
         when (cat) {
@@ -249,6 +273,7 @@ object Progress {
     fun buy(cat: Int, id: Int): Boolean {
         if (id !in 0 until Wardrobe.count(cat)) return false
         if (owns(cat, id)) return true
+        if (cat == Wardrobe.CUBE && Skins.get(id).shardOnly) return false // shards only
         if (!spend(Wardrobe.price(cat, id))) return false
         grant(cat, id)
         return true
@@ -279,6 +304,17 @@ object Progress {
                 val id = pool[(Math.random() * pool.size).toInt()]
                 grant(cat, id)
                 return BoxReward(BoxReward.SKIN, 1, cat, id)
+            }
+        }
+        // shards, while a shard skin is still locked: 1 to 30 of one kind, small drops far more often than big ones
+        if (r < (if (Settings.devMode) 0.7 else 0.34)) { // dev: shards most of the time, so the drop can be looked at
+            val kinds = Shards.all.filter { k -> Skins.forShard(k.id)?.let { !owns(Wardrobe.CUBE, it.id) } ?: false }
+            if (kinds.isNotEmpty()) {
+                val kind = kinds[(Math.random() * kinds.size).toInt()]
+                val roll = Math.random()
+                val n = 1 + (roll * roll * 29.99).toInt()
+                addShards(kind.id, n)
+                return BoxReward(BoxReward.SHARDS, n, id = kind.id)
             }
         }
         val reward = when {

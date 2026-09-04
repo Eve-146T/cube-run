@@ -425,20 +425,25 @@ class BoostArrows(ctx: Context, private val dpf: (Float) -> Float) : View(ctx) {
     private val path = android.graphics.Path()
     private var shimmer = 0f
     private var anim: android.animation.ValueAnimator? = null
+    private var pop = 0f            // 1 → 0: the chevron just lit swells and settles (the stack itself never moves)
+    private var popIndex = -1
+    private var popAnim: android.animation.ValueAnimator? = null
     var taps = 0
-        set(v) { field = v; invalidate() }
+        set(v) {
+            if (v > field) { // one more lit: pop it
+                popIndex = v - 1; pop = 1f
+                popAnim?.cancel()
+                popAnim = android.animation.ValueAnimator.ofFloat(1f, 0f).apply {
+                    duration = 320; interpolator = Anim.spring
+                    addUpdateListener { a -> pop = a.animatedValue as Float; Anim.repaint(this@BoostArrows) }
+                    start()
+                }
+            }
+            field = v; invalidate()
+        }
     var max = 5
 
-    init {
-        isClickable = true
-        setOnTouchListener { v, ev ->
-            when (ev.actionMasked) {
-                MotionEvent.ACTION_DOWN -> v.animate().scaleX(0.9f).scaleY(0.9f).setDuration(60).setUpdateListener { Anim.repaint(v) }.start()
-                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> v.animate().scaleX(1f).scaleY(1f).setDuration(200).setInterpolator(android.view.animation.OvershootInterpolator(3f)).setUpdateListener { Anim.repaint(v) }.start()
-            }
-            false
-        }
-    }
+    init { isClickable = true }
 
     override fun onAttachedToWindow() {
         super.onAttachedToWindow()
@@ -460,13 +465,15 @@ class BoostArrows(ctx: Context, private val dpf: (Float) -> Float) : View(ctx) {
             val lit = i < taps
             val yBase = h - gap * (i + 0.5f) + ch * 0.5f
             val cx = w / 2f
+            val k = if (i == popIndex) 1f + 0.35f * pop else 1f // the freshly lit one swells from its own centre
+            val cy = yBase - ch * 0.5f
             path.reset()
-            path.moveTo(cx - cw, yBase)
-            path.lineTo(cx, yBase - ch * 1.6f)
-            path.lineTo(cx + cw, yBase)
-            path.lineTo(cx + cw * 0.62f, yBase + ch * 0.55f)
-            path.lineTo(cx, yBase - ch * 0.55f)
-            path.lineTo(cx - cw * 0.62f, yBase + ch * 0.55f)
+            path.moveTo(cx - cw * k, cy + ch * 0.5f * k)
+            path.lineTo(cx, cy - ch * 1.1f * k)
+            path.lineTo(cx + cw * k, cy + ch * 0.5f * k)
+            path.lineTo(cx + cw * 0.62f * k, cy + ch * 1.05f * k)
+            path.lineTo(cx, cy - ch * 0.05f * k)
+            path.lineTo(cx - cw * 0.62f * k, cy + ch * 1.05f * k)
             path.close()
             if (lit) {
                 val wave = 0.5f + 0.5f * kotlin.math.sin(shimmer - i * 0.9f)

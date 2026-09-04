@@ -52,7 +52,6 @@ class RunFx(private val game: Gdx3DGame, private val rnd: Random) {
         SoundFx.play("boom")
         Haptics.heavy()
         game.slowMo(0.35f, 0.4f)
-        game.shake(0.35f) // the one screen shake in the game: the crash
         game.flash(Color.RED, 0.45f)
     }
 

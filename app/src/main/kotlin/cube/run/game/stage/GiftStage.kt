@@ -145,7 +145,8 @@ class GiftStage(private val game: Gdx3DGame) {
         game.session.boxOpened(r.kind, r.amount, r.cat, r.id)
         val bubble = r.kind == Progress.BoxReward.BUBBLE
         val skin = r.kind == Progress.BoxReward.SKIN
-        SoundFx.play(if (bubble) "success" else "coin", rate = if (bubble) 1f else 1.2f)
+        val shards = r.kind == Progress.BoxReward.SHARDS
+        SoundFx.play(if (bubble || shards) "success" else "coin", rate = if (bubble) 1f else if (shards) 1.3f else 1.2f)
         SoundFx.play("boom", rate = 1.6f, vol = 0.35f)
         if (r.rare) SoundFx.play("success", rate = 1.25f)
         Haptics.success()
@@ -153,6 +154,7 @@ class GiftStage(private val game: Gdx3DGame) {
         val col = when {
             skin -> hsvInto(tmpCol, 300f, 0.4f, 1f)
             bubble -> hsvInto(tmpCol, 190f, 0.4f, 1f)
+            shards -> hsvInto(tmpCol, cube.run.data.Shards.get(r.id).hue, 0.55f, 1f)
             else -> hsvInto(tmpCol, 46f, 0.5f, 1f)
         }
         rayCol.set(col)
@@ -161,7 +163,7 @@ class GiftStage(private val game: Gdx3DGame) {
         game.burst3d(tmp.set(0f, boxY, 0f), body, n = 34, speed = 5.5f, size = 0.2f, life = 1.2f)
         game.burst3d(tmp, band, n = 14, speed = 6f, size = 0.14f, life = 1.0f)
         game.burst3d(tmp, Color.WHITE, n = 10, speed = 7f, size = 0.09f, life = 0.5f)
-        if (!bubble && !skin) { // a few coins spill out and fall away
+        if (!bubble && !skin && !shards) { // a few coins spill out and fall away
             coinsLive = if (r.rare) maxCoins else maxCoins / 2
             for (i in 0 until coinsLive) {
                 val o = i * 7
@@ -226,6 +228,17 @@ class GiftStage(private val game: Gdx3DGame) {
                     if (r.amount >= 100) {
                         game.worldCoin(0.75f, py - 0.3f, 0.3f, 0.38f * rise, 0.12f, time * 120f + 60f, gold)
                         game.worldCoin(0.75f, py - 0.3f, 0.3f, 0.25f * rise, 0.17f, time * 120f + 60f, coinFace)
+                    }
+                }
+                r.kind == Progress.BoxReward.SHARDS -> { // a cluster of crystals turning together, more of them for a bigger drop
+                    val kind = cube.run.data.Shards.get(r.id)
+                    val n = 3 + min(4, r.amount / 8)
+                    for (i in 0 until n) {
+                        val a = time * 1.6f + i * (6.2832f / n)
+                        val rr = if (i == 0) 0f else 0.55f
+                        val h = (if (i == 0) 0.9f else 0.5f + 0.1f * (i % 3)) * rise
+                        hsvInto(tmpCol, kind.hue + (i % 2) * 14f, 0.75f, 1f)
+                        game.worldBoxSpin(cos(a) * rr, py + (if (i == 0) 0.1f else -0.2f + 0.12f * sin(time * 3f + i)), sin(a) * rr, 0.26f * rise, h, 0.26f * rise, time * 120f + i * 40f, tmpCol)
                     }
                 }
                 r.kind == Progress.BoxReward.BUBBLE -> { /* drawn in the blended pass */ }

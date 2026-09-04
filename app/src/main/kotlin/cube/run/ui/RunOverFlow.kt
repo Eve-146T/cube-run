@@ -312,6 +312,19 @@ class RunOverFlow(
                 big.text = Wardrobe.name(cat, id).uppercase()
                 big.setTextColor(Theme.INK)
             }
+            Progress.BoxReward.SHARDS -> {
+                val k = cube.run.data.Shards.get(id)
+                val col = Theme.hsv(k.hue, 0.7f, 0.9f)
+                rare = amount >= 20
+                sub.text = k.name.uppercase()
+                sub.setTextColor(col)
+                big.text = android.text.SpannableStringBuilder("+$amount ").also { sb ->
+                    val d = ShardIcon(Theme.hsv(k.hue, 0.75f, 1f)); val px = kit.dp(36f * 1.1f); d.setBounds(0, 0, px, px)
+                    sb.append("\u2009 ", CenteredImageSpan(d), android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+                }
+                big.textSize = 36f
+                big.setTextColor(col)
+            }
             Progress.BoxReward.BUBBLE -> {
                 rare = false
                 sub.text = "BUBBLE SHIELD"

@@ -63,7 +63,7 @@ class MainMenu(
             val t = a.animatedValue as Float
             for ((i, v) in letters.withIndex()) {
                 v.translationY = kotlin.math.sin(t + i * 0.75f) * dpf(4f)
-                v.rotation = kotlin.math.sin(t * 0.5f + i * 0.9f) * 4f
+                v.rotation = kotlin.math.sin(t + i * 0.9f + 1.2f) * 3.5f // same period as the bob, so the loop is seamless
             }
             Anim.repaint(logo)
         }

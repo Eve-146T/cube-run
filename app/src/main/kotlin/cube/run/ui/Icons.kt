@@ -252,6 +252,38 @@ class JetIcon(private val color: Int = Theme.JET) : Icon() {
     }
 }
 
+/** A shard: a crystal in the shard kind's colour, with an ink outline and a facet highlight. */
+class ShardIcon(private val color: Int) : Icon() {
+    private val path = Path()
+    override fun draw(canvas: Canvas) {
+        val b = bounds
+        val s = min(b.width(), b.height()).toFloat()
+        val cx = b.exactCenterX(); val cy = b.exactCenterY()
+        path.reset()
+        path.moveTo(cx, cy - s * 0.46f)
+        path.lineTo(cx + s * 0.3f, cy - s * 0.12f)
+        path.lineTo(cx + s * 0.18f, cy + s * 0.46f)
+        path.lineTo(cx - s * 0.18f, cy + s * 0.46f)
+        path.lineTo(cx - s * 0.3f, cy - s * 0.12f)
+        path.close()
+        paint.style = Paint.Style.STROKE
+        paint.strokeWidth = s * 0.14f
+        paint.strokeJoin = Paint.Join.ROUND
+        paint.color = Theme.INK
+        canvas.drawPath(path, paint)
+        paint.style = Paint.Style.FILL
+        paint.color = color
+        canvas.drawPath(path, paint)
+        path.reset()
+        path.moveTo(cx, cy - s * 0.46f)
+        path.lineTo(cx - s * 0.3f, cy - s * 0.12f)
+        path.lineTo(cx - s * 0.04f, cy + s * 0.1f)
+        path.close()
+        paint.color = Theme.alpha(Theme.WHITE, 170)
+        canvas.drawPath(path, paint)
+    }
+}
+
 /** A portal: a fat ring of candy beads. */
 class PortalIcon(private val color: Int = Theme.MINT) : Icon() {
     override fun draw(canvas: Canvas) {

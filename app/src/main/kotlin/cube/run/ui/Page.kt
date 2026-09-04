@@ -64,6 +64,7 @@ abstract class Page(
             if (back) addView(kit.backButton { onBack() }, LinearLayout.LayoutParams(dp(46f), dp(50f)))
             addView(titleView, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply { leftMargin = dp(12f) })
         }
+        content.clipChildren = false; content.clipToPadding = false // rows inside (the wardrobe's tabs) must not be clipped by their own row while they rise
         body.apply {
             orientation = LinearLayout.VERTICAL
             clipChildren = false; clipToPadding = false

@@ -155,7 +155,6 @@ class Hud(private val activity: Activity) : FrameLayout(activity) {
                     b.taps++
                     Stage.boostRequests.incrementAndGet()
                     SoundFx.play("tap", rate = 1.1f + b.taps * 0.1f); Haptics.click()
-                    Anim.pulse(b, 1.15f, 220)
                 }
                 addView(b, LayoutParams(dp(84f), dp(160f)).apply { gravity = Gravity.TOP or Gravity.END; topMargin = dp(116f); rightMargin = dp(10f) })
                 boost = b

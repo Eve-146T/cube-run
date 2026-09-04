@@ -521,6 +521,7 @@ class CubeRun(session: GameSession, private val autoStart: Boolean = false) : Gd
                     for (c in coins) {
                         if (c.taken) continue
                         val cz = row.z + c.dz
+                        if (c.missed) continue
                         if (pull > 0f && abs(cz) < pull) { // magnet: coins fly to you
                             val k = min(1f, dt * 11f)
                             c.x += (px - c.x) * k
@@ -528,8 +529,8 @@ class CubeRun(session: GameSession, private val autoStart: Boolean = false) : Gd
                         }
                         if (abs(cz) < 0.8f && abs(px - c.x) < 0.85f && abs(py - c.y) < 0.85f) {
                             collectCoin(c, cz)
-                        } else if (cz > 1.1f) { // it's behind you — the streak breaks
-                            c.taken = true
+                        } else if (cz > 1.1f) { // it's behind you — the streak breaks; the coin keeps sliding past the camera
+                            c.missed = true
                             coinStreak = 0
                         }
                     }

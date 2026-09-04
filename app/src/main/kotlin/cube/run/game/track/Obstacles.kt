@@ -75,6 +75,8 @@ class Ob(
  */
 class Coin(var x: Float, var y: Float, val dz: Float, val restY: Float = y) {
     var taken = false
+    /** Slid past the cube uncollected: still drawn (it glides by), but it no longer counts or pulls. */
+    var missed = false
 }
 
 /** One row of the lane-walk: obstacles, optional coins and pickup, scoring state. */

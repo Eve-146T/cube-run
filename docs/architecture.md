@@ -155,7 +155,20 @@ away). All process-scoped.
 and closed, so the road widens instead of snapping; lane input is bounded
 by `Lanes.last`, not 2.
 
+## Shards
+
+`data.Shards` lists three kinds of crystal (ember, frost, void). Only
+mystery boxes drop them, 1 to 30 at a time (small drops far more often),
+while the skin of that kind is still locked. Each kind unlocks one
+shard-only skin (`Skins.forShard`, `Skin.shardOnly`): Inferno, Glacier,
+Eclipse, at 100 shards. They are never sold for coins and never handed out
+whole by a box. The wardrobe shows the count, a bar and an UNLOCK button;
+`Progress.unlockWithShards` spends them.
+
 ## Building
+
+`./install` builds the debug APK, installs it on the connected phone and
+launches it (arguments go to Gradle, e.g. `./install --offline`).
 
 `./gradlew buildDebug` (an alias of `assembleDebug`) and `./gradlew
 installDebug` work with no `JAVA_HOME`: `gradle/gradle-daemon-jvm.properties`

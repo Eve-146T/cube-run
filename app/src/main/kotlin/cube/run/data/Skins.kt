@@ -32,7 +32,12 @@ object Skins {
         val trail: Float = 1f,
         /** The trail/burst colour is white sparkle instead of the body colour. */
         val sparkle: Boolean = false,
+        /** Shard-only skins: the [Shards] type that unlocks it (-1 = bought with coins). */
+        val shardType: Int = -1,
+        /** How many of those shards it takes. */
+        val shardsNeeded: Int = 100,
     ) {
+        val shardOnly: Boolean get() = shardType >= 0
         /** Hue in degrees for the body at [t] seconds given the world's [baseHue]. */
         fun hueAt(t: Float, baseHue: Float): Float = when (mode) {
             COMP -> baseHue + 180f
@@ -71,7 +76,14 @@ object Skins {
         Skin(17, "Lemon", 220, FIXED, hue = 58f, sat = 0.8f, value = 1f),
         Skin(18, "Candy", 480, WAVE, hue = 325f, hue2 = 200f, sat = 0.6f, value = 1f, glow = 1.4f, trail = 1.3f),
         Skin(19, "Galaxy", 750, PULSE, hue = 262f, sat = 0.7f, value = 0.6f, glow = 2.4f, sparkle = true, trail = 1.5f),
+        // shard-only: mystery boxes drop the shards, nothing else does
+        Skin(20, "Inferno", 0, EMBER, hue = 12f, sat = 1f, value = 1f, glow = 2.4f, trail = 2.6f, sparkle = true, shardType = Shards.EMBER),
+        Skin(21, "Glacier", 0, WAVE, hue = 185f, hue2 = 225f, sat = 0.55f, value = 1f, glow = 2.6f, trail = 1.8f, sparkle = true, shardType = Shards.FROST),
+        Skin(22, "Eclipse", 0, STROBE, hue = 285f, hue2 = 325f, sat = 0.9f, value = 0.55f, glow = 3f, trail = 2.2f, sparkle = true, shardType = Shards.VOID),
     )
+
+    /** The skin a shard type unlocks. */
+    fun forShard(type: Int): Skin? = all.firstOrNull { it.shardType == type }
 
     fun get(id: Int): Skin = all.getOrElse(id) { all[0] }
 }
@@ -177,6 +189,19 @@ object Trails {
 }
 
 /** The three wardrobe categories, so menus and rewards can talk about "a skin of kind X". */
+/**
+ * Shards: three kinds of crystal that only mystery boxes drop (1 to 30 at a
+ * time). Collect enough of one kind and its skin unlocks in the wardrobe.
+ */
+object Shards {
+    const val EMBER = 0
+    const val FROST = 1
+    const val VOID = 2
+    class Kind(val id: Int, val name: String, val hue: Float)
+    val all: List<Kind> = listOf(Kind(EMBER, "Ember shards", 18f), Kind(FROST, "Frost shards", 195f), Kind(VOID, "Void shards", 282f))
+    fun get(id: Int): Kind = all.getOrElse(id) { all[0] }
+}
+
 object Wardrobe {
     const val CUBE = 0
     const val BUBBLE = 1
