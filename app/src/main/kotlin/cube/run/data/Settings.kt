@@ -1,4 +1,4 @@
-package cube.run.core
+package cube.run.data
 
 import android.content.Context
 import android.content.SharedPreferences
@@ -46,6 +46,12 @@ object Settings {
      * loop. Process-scoped on purpose (RESTART relaunches in-process), never persisted.
      */
     @Volatile var testSection: Int = -1
+
+    /** Debug: when ≥ 0 every portal opens to this bonus world. Process-scoped. */
+    @Volatile var testBonus: Int = -1
+
+    /** Debug: when ≥ 0 the run starts in this world. Process-scoped. */
+    @Volatile var testWorld: Int = -1
 
     fun init(ctx: Context) {
         prefs = ctx.applicationContext.getSharedPreferences("settings", Context.MODE_PRIVATE)

@@ -1,6 +1,7 @@
 package cube.run.core
 
 import android.content.Context
+import cube.run.data.Settings
 import android.media.AudioAttributes
 import android.media.SoundPool
 import java.io.ByteArrayOutputStream

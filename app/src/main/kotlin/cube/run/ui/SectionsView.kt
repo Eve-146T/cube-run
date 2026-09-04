@@ -1,4 +1,4 @@
-package cube.run.core.ui
+package cube.run.ui
 
 import android.annotation.SuppressLint
 import android.app.Activity
@@ -6,25 +6,22 @@ import android.content.Context
 import android.graphics.Canvas
 import android.graphics.Paint
 import android.graphics.RectF
-import android.graphics.drawable.GradientDrawable
 import android.view.Gravity
 import android.view.View
-import android.widget.GridLayout
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import cube.run.core.Haptics
-import cube.run.core.Palette
-import cube.run.core.Settings
 import cube.run.core.SoundFx
-import cube.run.game.Sect
-import cube.run.game.Sections
+import cube.run.data.Settings
+import cube.run.game.track.Sect
+import cube.run.game.track.Sections
 
 /**
  * A little map of one section: three lane columns, one row per step, first
  * step at the bottom (the way it arrives). Colours follow the game's language.
  */
 @SuppressLint("ViewConstructor")
-class SectionThumbView(ctx: Context, private val sect: Sect) : View(ctx) {
+class SectionThumbView(ctx: Context, sect: Sect) : View(ctx) {
     private val cells = Sections.preview(sect)
     private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
     private val rect = RectF()
@@ -41,6 +38,9 @@ class SectionThumbView(ctx: Context, private val sect: Sect) : View(ctx) {
         0xFFB8E066.toInt(),     // platform
         0xFF2EB8FF.toInt(),     // pincer
         0xFFFFC533.toInt(),     // coins
+        0xFFB6F32A.toInt(),     // pad
+        0xFF7CE24A.toInt(),     // tall wall
+        0xFFA070FF.toInt(),     // pendulum
     )
 
     override fun onDraw(canvas: Canvas) {
@@ -64,7 +64,12 @@ class SectionThumbView(ctx: Context, private val sect: Sect) : View(ctx) {
                 when (k) {
                     Sections.C_BAR, Sections.C_SWEEP -> rect.set(x0 - laneW * 0.08f, top + (bottom - top) * 0.3f, x1 + laneW * 0.08f, top + (bottom - top) * 0.6f)
                     Sections.C_WALL, Sections.C_TAR -> rect.set(x0 - laneW * 0.08f, top + (bottom - top) * 0.55f, x1 + laneW * 0.08f, bottom)
+                    Sections.C_TALL -> rect.set(x0 - laneW * 0.08f, top + (bottom - top) * 0.2f, x1 + laneW * 0.08f, bottom)
                     Sections.C_PLAT -> rect.set(x0, top - rowH * 0.15f, x1, bottom + rowH * 0.15f)
+                    Sections.C_PAD -> rect.set(x0, top + (bottom - top) * 0.7f, x1, bottom)
+                    Sections.C_PENDULUM -> { // a hanging block in the middle
+                        if (l == 1) { rect.set(x0, top, x1, top + (bottom - top) * 0.7f) } else continue
+                    }
                     Sections.C_COIN -> { // a little stack of coins
                         val cw = laneW * 0.22f
                         val cx = (x0 + x1) / 2f
@@ -88,21 +93,21 @@ class SectionThumbView(ctx: Context, private val sect: Sect) : View(ctx) {
  * While one is chosen the page says so at the top and offers PLAY NORMALLY.
  */
 @SuppressLint("SetTextI18n", "ViewConstructor")
-class SectionsView(activity: Activity, kit: UiKit, onClose: () -> Unit) : FullScreen(activity, kit, "SECTIONS", dark = false, onClosed = onClose) {
+class SectionsView(activity: Activity, kit: UiKit, onClose: () -> Unit) : Page(activity, kit, "SECTIONS", dark = false, onClosed = onClose) {
 
-    private val grid = GridLayout(activity).apply {
-        columnCount = 3
+    private val grid = LinearLayout(activity).apply {
+        orientation = LinearLayout.VERTICAL
         setPadding(dp(10f), dp(4f), dp(10f), dp(8f))
     }
     private val status = LinearLayout(activity).apply {
         orientation = LinearLayout.HORIZONTAL
         gravity = Gravity.CENTER_VERTICAL
-        setPadding(dp(16f), dp(10f), dp(16f), dp(10f))
-        background = GradientDrawable().apply { cornerRadius = dp(16f).toFloat(); setColor(Palette.withAlpha(0xFFFFC14A.toInt(), 70)) }
+        setPadding(dp(16f), dp(10f), dp(16f), dp(14f))
+        background = kit.cardDrawable(Theme.YELLOW, null, 18f)
     }
 
     init {
-        addRight(kit.text("${Sections.lib.size}", 16f, Ui.MUTED))
+        addRight(kit.pill("${Sections.lib.size}", Theme.WHITE, Theme.INK_SOFT))
         val column = LinearLayout(activity).apply {
             orientation = LinearLayout.VERTICAL
             addView(status, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
@@ -114,51 +119,59 @@ class SectionsView(activity: Activity, kit: UiKit, onClose: () -> Unit) : FullSc
             }, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f))
         }
         content.addView(column)
-        render()
+        renderStatus()
+        post { renderGrid() } // the page shows at once; the thumbnails follow a frame later
     }
 
-    private fun render() {
+    private fun render() { renderStatus(); renderGrid() }
+
+    private fun renderStatus() {
         status.removeAllViews()
         val chosen = Sections.byId(Settings.testSection)
         if (chosen != null) {
             status.addView(LinearLayout(activity).apply {
                 orientation = LinearLayout.VERTICAL
-                addView(kit.text("TESTING ${chosen.name}", 14f, Ui.INK, heavy = true, gravity = Gravity.START))
-                addView(kit.text("The run plays only this section, on loop. No pickups.", 12f, Ui.MUTED, bold = false, gravity = Gravity.START))
+                addView(kit.text("TESTING ${chosen.name}", 14f, Theme.INK, 700, Gravity.START))
+                addView(kit.text("The run plays only this section, on loop. No pickups.", 12f, Theme.INK_SOFT, 500, Gravity.START))
             }, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
-            status.addView(kit.button("PLAY NORMALLY", UiKit.Style.FILLED, small = true) {
+            status.addView(kit.button("PLAY NORMALLY", Theme.PLAY, UiKit.Size.SMALL) {
                 Settings.testSection = -1
                 render()
             }, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { leftMargin = dp(10f) })
         } else {
-            status.addView(kit.text("Tap a section to play it on loop", 13f, Ui.INK, gravity = Gravity.START),
+            status.addView(kit.text("Tap a section to play it on loop", 13f, Theme.INK, 600, Gravity.START),
                 LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
         }
+    }
+
+    private fun renderGrid() {
         grid.removeAllViews()
-        for (s in Sections.lib.sortedWith(compareBy({ it.tier }, { it.id }))) {
-            grid.addView(cell(s), GridLayout.LayoutParams(GridLayout.spec(GridLayout.UNDEFINED), GridLayout.spec(GridLayout.UNDEFINED, 1f)).apply {
-                width = 0; setMargins(dp(4f), dp(4f), dp(4f), dp(4f))
-            })
+        val all = Sections.lib.sortedWith(compareBy({ it.tier }, { it.id }))
+        var row: LinearLayout? = null
+        for ((i, s) in all.withIndex()) {
+            if (i % 3 == 0) {
+                row = LinearLayout(activity).apply { orientation = LinearLayout.HORIZONTAL }
+                grid.addView(row, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
+            }
+            row!!.addView(cell(s), LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply { setMargins(dp(4f), dp(4f), dp(4f), dp(4f)) })
         }
+        val last = grid.getChildAt(grid.childCount - 1) as? LinearLayout
+        if (last != null) while (last.childCount < 3) last.addView(View(activity), LinearLayout.LayoutParams(0, 1, 1f).apply { setMargins(dp(4f), 0, dp(4f), 0) })
     }
 
     private fun cell(s: Sect): View = LinearLayout(activity).apply {
         val chosen = Settings.testSection == s.id
         orientation = LinearLayout.VERTICAL
         gravity = Gravity.CENTER_HORIZONTAL
-        setPadding(dp(4f), dp(6f), dp(4f), dp(6f))
+        setPadding(dp(4f), dp(6f), dp(4f), dp(8f))
         isClickable = true
-        background = GradientDrawable().apply {
-            cornerRadius = dp(12f).toFloat()
-            setColor(if (chosen) Palette.withAlpha(kit.accent, 60) else Ui.CARD)
-            setStroke(dp(2f), if (chosen) Ui.GREEN_INK else Palette.withAlpha(Ui.INK, 20))
-        }
+        background = kit.cardDrawable(if (chosen) Theme.lighten(Theme.MINT, 0.6f) else Theme.CARD, if (chosen) Theme.MINT else null, 14f)
         addView(SectionThumbView(activity, s).apply {
-            background = GradientDrawable().apply { cornerRadius = dp(8f).toFloat(); setColor(0xFF2A2350.toInt()) }
+            background = android.graphics.drawable.GradientDrawable().apply { cornerRadius = dpf(8f); setColor(0xFF2A2350.toInt()) }
         }, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(96f)))
-        addView(kit.text(s.name, 10f, Ui.INK).apply { maxLines = 1 },
+        addView(kit.text(s.name, 10f, Theme.INK, 700).apply { maxLines = 1 },
             LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(5f) })
-        addView(kit.text("tier ${s.tier} · ${s.steps.size} rows", 9f, Ui.MUTED, bold = false))
+        addView(kit.text("tier ${s.tier} · ${s.steps.size} rows", 9f, Theme.MUTED, 500))
         setOnClickListener {
             Settings.testSection = s.id
             SoundFx.play("tap"); Haptics.click()

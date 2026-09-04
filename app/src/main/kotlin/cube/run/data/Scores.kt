@@ -1,4 +1,4 @@
-package cube.run.core
+package cube.run.data
 
 import android.content.Context
 import android.content.SharedPreferences

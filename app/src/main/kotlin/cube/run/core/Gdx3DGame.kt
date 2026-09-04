@@ -16,6 +16,8 @@ import com.badlogic.gdx.graphics.glutils.ShapeRenderer
 import com.badlogic.gdx.math.Matrix4
 import com.badlogic.gdx.math.Vector3
 import cube.run.core.gfx.BoxMeshKit
+import cube.run.core.gfx.BubbleRenderer
+import cube.run.core.gfx.PrismBatch
 import cube.run.core.gfx.PerfMonitor
 import cube.run.core.gfx.ShardSystem
 import cube.run.core.gfx.TouchInput
@@ -47,6 +49,10 @@ abstract class Gdx3DGame(val session: GameSession) : ApplicationAdapter(), Touch
     private lateinit var shapes: ShapeRenderer
     private lateinit var kit: BoxMeshKit
     private lateinit var world: WorldBoxBatch
+    private lateinit var coins: PrismBatch
+    /** The soap-bubble shader (blended pass; use from [renderBlended]). */
+    lateinit var bubbles: BubbleRenderer
+        private set
     private lateinit var shards: ShardSystem
     private lateinit var perf: PerfMonitor
     val mb = ModelBuilder()
@@ -64,6 +70,11 @@ abstract class Gdx3DGame(val session: GameSession) : ApplicationAdapter(), Touch
     private val owned = ArrayList<Model>()
     private val rnd = Random(System.nanoTime())
     private var shakeMag = 0f
+    private var slowLeft = 0f
+    private var slowScale = 1f
+    /** Current simulation speed (1 = real time); eased toward [slowMo]'s target. */
+    var timeScale = 1f
+        private set
     private var flashColor = Color(1f, 1f, 1f, 0f)
     private val camSave = Vector3()
     private val uiMatrix = Matrix4()
@@ -80,12 +91,22 @@ abstract class Gdx3DGame(val session: GameSession) : ApplicationAdapter(), Touch
     open fun paused(): Boolean = false
     abstract fun renderWorld(batch: ModelBatch, env: Environment)
 
+    /** Blended extras drawn after the ModelBatch pass (the bubble): depth-tested, not written. */
+    open fun renderBlended() {}
+
     /**
      * Fill the world-box batch: called once per frame, before the ModelBatch pass.
      * Queue boxes with [worldBox] / [worldBoxSpin]; anything needing rotation,
      * blending or custom materials stays in [renderWorld].
      */
     open fun renderWorldBatched() {}
+
+    /**
+     * Blended, unlit shapes in world space, drawn after the opaque world and
+     * before the ModelBatch pass (depth-tested, not written): the sunbursts
+     * behind showpieces. Use [sunburst] from here.
+     */
+    open fun renderWorldShapes(shapes: ShapeRenderer) {}
 
     /**
      * Optional screen-space overlay drawn after the world (filled shapes).
@@ -123,6 +144,8 @@ abstract class Gdx3DGame(val session: GameSession) : ApplicationAdapter(), Touch
         batch = ModelBatch()
         shapes = ShapeRenderer()
         world = WorldBoxBatch(kit)
+        coins = PrismBatch(kit)
+        bubbles = BubbleRenderer(mb)
         shards = ShardSystem(kit)
         perf = PerfMonitor(showFps, perfLog)
         Gdx.input.inputProcessor = TouchInput(this, { sw }, { session.isOver })
@@ -133,7 +156,12 @@ abstract class Gdx3DGame(val session: GameSession) : ApplicationAdapter(), Touch
 
     override fun render() {
         perf.beginFrame()
-        val dt = if (paused()) 0f else min(Gdx.graphics.deltaTime, 0.035f)
+        val raw = if (paused()) 0f else min(Gdx.graphics.deltaTime, 0.035f)
+        // slow motion: ease toward the requested scale while it lasts, then back to real time
+        if (slowLeft > 0f) slowLeft = max(0f, slowLeft - raw)
+        val target = if (slowLeft > 0f) slowScale else 1f
+        timeScale += (target - timeScale) * min(1f, raw * (if (target < timeScale) 30f else 7f))
+        val dt = raw * timeScale
         time += dt
         val sim0 = System.nanoTime()
         tick(dt)
@@ -168,11 +196,25 @@ abstract class Gdx3DGame(val session: GameSession) : ApplicationAdapter(), Touch
 
         val draw0 = System.nanoTime()
         world.begin()
+        coins.begin()
         renderWorldBatched()
         world.render(cam)           // opaque pass: 1 draw call for every world box
+        coins.render(cam)           // + 1 for every coin
+        // unlit blended shapes in the world (sunbursts): behind whatever the ModelBatch draws next
+        Gdx.gl.glEnable(GL20.GL_DEPTH_TEST)
+        Gdx.gl.glDepthMask(false)
+        Gdx.gl.glEnable(GL20.GL_BLEND)
+        Gdx.gl.glBlendFunc(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA)
+        shapes.projectionMatrix = cam.combined
+        shapes.begin(ShapeRenderer.ShapeType.Filled)
+        renderWorldShapes(shapes)
+        shapes.end()
+        Gdx.gl.glDepthMask(true)
+        Gdx.gl.glDisable(GL20.GL_BLEND)
         batch.begin(cam)
         renderWorld(batch, env)
         batch.end()
+        renderBlended()
         shards.render(cam)          // own pass: 1 draw call for all live shards
         perf.addDraw(System.nanoTime() - draw0)
 
@@ -207,14 +249,54 @@ abstract class Gdx3DGame(val session: GameSession) : ApplicationAdapter(), Touch
         flashColor.set(color.r, color.g, color.b, max(flashColor.a, alpha))
     }
 
+    /** Hit-stop: run the simulation at [scale] for [seconds], then ease back to real time. */
+    fun slowMo(scale: Float, seconds: Float) {
+        slowScale = scale
+        slowLeft = max(slowLeft, seconds)
+    }
+
     /** Cube-shard explosion at a world position. Allocation-free in steady state (pooled). */
-    fun burst3d(at: Vector3, color: Color, n: Int = 14, speed: Float = 6f, size: Float = 0.16f, life: Float = 0.8f) =
-        shards.burst(at, color, n, speed, size, life)
+    fun burst3d(at: Vector3, color: Color, n: Int = 14, speed: Float = 6f, size: Float = 0.16f, life: Float = 0.8f, gravity: Float = 14f, biasZ: Float = 0f) =
+        shards.burst(at, color, n, speed, size, life, gravity, biasZ)
+
+    private val rayM = Matrix4()
+    private val rayC0 = Color()
+    private val rayC1 = Color()
+
+    /**
+     * A fan of [n] rays in the plane facing the camera (z = [z]), centred on
+     * ([x],[y]), turned [angleDeg], reaching [r] out and fading to nothing:
+     * the hype pattern behind a showpiece. Call from [renderWorldShapes].
+     */
+    fun sunburst(shapes: ShapeRenderer, x: Float, y: Float, z: Float, r: Float, n: Int, angleDeg: Float, col: Color, alpha: Float, width: Float = 0.5f) {
+        if (alpha <= 0.004f) return
+        rayM.setToTranslation(x, y, z).rotate(Vector3.Z, angleDeg)
+        shapes.transformMatrix = rayM
+        rayC0.set(col.r, col.g, col.b, alpha)
+        rayC1.set(col.r, col.g, col.b, 0f)
+        val step = 6.2832f / n
+        for (i in 0 until n) {
+            val a0 = i * step
+            val a1 = a0 + step * width
+            shapes.triangle(0f, 0f, r * kotlin.math.cos(a0), r * kotlin.math.sin(a0), r * kotlin.math.cos(a1), r * kotlin.math.sin(a1), rayC0, rayC1, rayC1)
+        }
+        shapes.identity()
+    }
 
     // ----------------------------------------------------------- world boxes
 
     /** Distance-haze target colour for [worldBox] fog (set per frame to match the sky). */
     val fogColor: Color get() = world.fogColor
+
+    /** Keep the coin pass hazed like the boxes (call after setting [fogColor]). */
+    fun syncFog() { coins.fogColor.set(world.fogColor) }
+
+    /** Ground height by z added to everything in the batched passes (null = flat). */
+    fun setTerrain(f: ((Float) -> Float)?) { world.terrain = f; coins.terrain = f }
+
+    /** Queue one coin (an octagonal prism) for the batched coin pass. */
+    fun worldCoin(x: Float, y: Float, z: Float, r: Float, t: Float, yawDeg: Float, col: Color, fog: Float = 0f) =
+        coins.coin(x, y, z, r, t, yawDeg, col, fog)
 
     /** Queue one axis-aligned box (centre position, full sizes) for the batched world pass. */
     fun worldBox(x: Float, y: Float, z: Float, sx: Float, sy: Float, sz: Float, col: Color, fog: Float = 0f) =
@@ -250,6 +332,8 @@ abstract class Gdx3DGame(val session: GameSession) : ApplicationAdapter(), Touch
         shapes.dispose()
         shards.dispose()
         world.dispose()
+        coins.dispose()
+        bubbles.dispose()
         kit.dispose()
         owned.forEach { it.dispose() }
         owned.clear()

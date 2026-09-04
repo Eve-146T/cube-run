@@ -25,10 +25,12 @@ import kotlin.math.sin
  * Per frame: [begin], queue boxes, [render]. Boxes past [maxBoxes] are dropped,
  * so queue gameplay-critical boxes first.
  */
-class WorldBoxBatch(private val kit: BoxMeshKit, private val maxBoxes: Int = 480) : Disposable {
+class WorldBoxBatch(private val kit: BoxMeshKit, private val maxBoxes: Int = 900) : Disposable {
 
     /** Distance-haze target colour (set per frame to match the sky). */
     val fogColor = Color(0.1f, 0.1f, 0.2f, 1f)
+    /** Ground height added to every box's y by its z (the rolling-hills bonus); null = flat. */
+    var terrain: ((Float) -> Float)? = null
 
     private val mesh = kit.newBatchMesh(maxBoxes)
     private val verts = FloatArray(maxBoxes * kit.vertsPerBox * 4)
@@ -49,8 +51,9 @@ class WorldBoxBatch(private val kit: BoxMeshKit, private val maxBoxes: Int = 480
     fun begin() { count = 0 }
 
     /** Queue one axis-aligned box (centre position, full sizes). [fog] 0..1 blends toward [fogColor]. */
-    fun box(x: Float, y: Float, z: Float, sx: Float, sy: Float, sz: Float, col: Color, fog: Float = 0f) {
+    fun box(x: Float, y0: Float, z: Float, sx: Float, sy: Float, sz: Float, col: Color, fog: Float = 0f) {
         if (count >= maxBoxes) return
+        val y = y0 + (terrain?.invoke(z) ?: 0f)
         packFaces(col, fog, axisLight)
         var w = count * kit.vertsPerBox * 4
         val cl = kit.cornerLocal
@@ -69,8 +72,9 @@ class WorldBoxBatch(private val kit: BoxMeshKit, private val maxBoxes: Int = 480
      * The face lighting is re-solved only when the yaw changes between calls, so a
      * field of coins spinning in lockstep costs about the same as static boxes.
      */
-    fun boxSpin(x: Float, y: Float, z: Float, sx: Float, sy: Float, sz: Float, yawDeg: Float, col: Color, fog: Float = 0f) {
+    fun boxSpin(x: Float, y0: Float, z: Float, sx: Float, sy: Float, sz: Float, yawDeg: Float, col: Color, fog: Float = 0f) {
         if (count >= maxBoxes) return
+        val y = y0 + (terrain?.invoke(z) ?: 0f)
         val rad = yawDeg * (Math.PI.toFloat() / 180f)
         val c = cos(rad); val s = sin(rad)
         if (yawDeg != spinCacheYaw) {

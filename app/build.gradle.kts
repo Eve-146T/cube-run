@@ -105,3 +105,10 @@ tasks.register("copyAndroidNatives") {
 tasks.matching { it.name.contains("merge") && it.name.contains("JniLibFolders") }.configureEach {
     dependsOn("copyAndroidNatives")
 }
+
+// `./gradlew buildDebug` — the name people reach for; same as assembleDebug.
+tasks.register("buildDebug") {
+    group = "build"
+    description = "Builds the debug APK (alias of assembleDebug)."
+    dependsOn("assembleDebug")
+}
