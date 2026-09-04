@@ -283,6 +283,24 @@ abstract class Gdx3DGame(val session: GameSession) : ApplicationAdapter(), Touch
         shapes.identity()
     }
 
+    private val rayV = Vector3()
+
+    /**
+     * A [sunburst] centred exactly behind the world point ([tx],[ty],[tz])
+     * as the camera sees it: the disc sits [depth] further along the
+     * camera's line of sight through that point, so on screen its origin
+     * and the point coincide whatever the phone's aspect.
+     */
+    fun sunburstBehind(shapes: ShapeRenderer, tx: Float, ty: Float, tz: Float, depth: Float, r: Float, n: Int, angleDeg: Float, col: Color, alpha: Float, width: Float = 0.5f) {
+        rayV.set(tx, ty, tz).sub(cam.position)
+        val d = rayV.len()
+        rayV.scl((d + depth) / d).add(cam.position)
+        sunburst(shapes, rayV.x, rayV.y, rayV.z, r, n, angleDeg, col, alpha, width)
+    }
+
+    /** Screen height in dp-independent terms: how far down the screen (0 = top, 1 = bottom) a height of [dp] from the top lands. */
+    fun fractionForDp(dp: Float): Float = dp * Gdx.graphics.density / sh
+
     // ----------------------------------------------------------- world boxes
 
     /** Distance-haze target colour for [worldBox] fog (set per frame to match the sky). */

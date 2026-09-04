@@ -169,12 +169,16 @@ class Player(private val game: Gdx3DGame, private val rnd: Random) {
     fun squashForLaunch() { squash = 1.4f }
 
     private var idleT = 0f
-    /** Waiting at the line: a little hop every few seconds so the cube feels alive. */
+    private var idleYaw = 0f
+    /** Waiting at the line: the cube turns slowly on the spot and breathes; every few seconds a small hop. */
     fun idle(dt: Float) {
         idleT += dt
-        if (idleT > 2.6f && !air) { idleT = 0f; air = true; vy = 4.2f; quietLanding = true }
+        idleYaw += 40f * dt
+        if (idleT > 3.2f && !air) { idleT = 0f; air = true; vy = 3.6f; quietLanding = true }
     }
     private var quietLanding = false
+    /** Eased 0..1: how much of the idle pose (the slow turn) is showing; fades out as the run begins. */
+    private var idleMix = 0f
 
     /** A bounce pad: launched high, stretched tall, whatever you were doing. */
     fun launch(v: Float) {
@@ -243,7 +247,9 @@ class Player(private val game: Gdx3DGame, private val rnd: Random) {
         if (duckT > 0f) duckT = max(0f, duckT - dt)
         val duckTarget = if (duckT > 0f && !air) 1f else 0f
         duck += (duckTarget - duck) * min(1f, dt * 18f)
-        roll += mv * 42f + (if (air) 160f * dt else 0f) + duck * 260f * dt // tumble; flip in air, fast roll while ducking
+        val idle = mv == 0f && !flying && !hover
+        idleMix += ((if (idle) 1f else 0f) - idleMix) * min(1f, dt * 4f)
+        roll += mv * 42f + (if (air && !idle) 160f * dt else 0f) + duck * 260f * dt // tumble; flip in air, fast roll while ducking
         if (roll > 360f) roll -= 360f
         // a rolling cube rides up over its corners: lift it so it never sinks into the floor (no jitter, a real roll)
         val ra = Math.toRadians((roll % 90f).toDouble())
@@ -255,14 +261,17 @@ class Player(private val game: Gdx3DGame, private val rnd: Random) {
         // skin colours are pure functions of time — sampled every frame, no allocation
         hsvInto(col, skin.hueAt(time, baseHue), skin.sat, skin.valueAt(time))
         hsvInto(shellCol, skin.hueAt(time, baseHue), skin.sat * 0.9f, 1f)
+        val breathe = 1f + 0.03f * idleMix * sin(time * 2.4f)
         inst.transform.setToTranslation(px + nudge, py - squash * 0.08f - duY, 0f)
+            .rotate(Vector3.Y, idleYaw * idleMix)
             .rotate(Vector3.Z, tilt)
             .rotate(Vector3.X, -roll)
+            .scale(breathe, 1f / breathe, breathe)
             .scale(0.9f * (1f + sq + duck * 0.35f - st * 0.5f), 0.9f * (1f - sq + st) * (1f - duck * 0.5f), 0.9f * (1f + sq + duck * 0.1f - st * 0.5f))
         val pulse = 0.9f * (1.18f + 0.06f * sin(time * 8f))
         shellBlend.opacity = ((0.22f + 0.08f * sin(time * 6f)) * skin.glow).coerceAtMost(0.75f)
         shellInst.transform.setToTranslation(px + nudge, py - duY, 0f)
-            .rotate(Vector3.Z, tilt).rotate(Vector3.X, -roll)
+            .rotate(Vector3.Y, idleYaw * idleMix).rotate(Vector3.Z, tilt).rotate(Vector3.X, -roll)
             .scale(pulse, pulse, pulse)
 
         if (trail) emitTrail(dt, time, px, py, 0.5f, if (flying) 2.5f else 1f, stream = stream)

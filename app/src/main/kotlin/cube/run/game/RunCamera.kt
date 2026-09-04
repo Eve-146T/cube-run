@@ -55,19 +55,25 @@ class RunCamera(private val cam: PerspectiveCamera) {
         cam.fieldOfView = 40f
     }
 
-    /** The shop: the cube small, high up under the title, the cards below it. */
-    fun shop() {
-        cam.position.set(0f, 3.2f, 14f)
-        cam.lookAt(0f, -1.9f, 0f)
+    /**
+     * Frame the world point (0, [targetY], 0) at [fraction] of the screen
+     * height from the top, from a camera at (0, [cy], [cz]) with a [fov]:
+     * the same shot on every phone whatever its aspect.
+     */
+    private fun frame(targetY: Float, fraction: Float, cy: Float, cz: Float, fov: Float) {
+        val half = Math.toRadians((fov / 2f).toDouble())
+        val above = kotlin.math.atan((0.5 - fraction) * 2.0 * kotlin.math.tan(half))      // the target's angle above the view centre
+        val below = kotlin.math.atan(((cy - targetY) / cz).toDouble())                      // the target's angle below horizontal
+        val lookY = cy - cz * kotlin.math.tan(below + above).toFloat()
+        cam.position.set(0f, cy, cz)
+        cam.lookAt(0f, lookY, 0f)
         cam.up.set(0f, 1f, 0f)
-        cam.fieldOfView = 40f
+        cam.fieldOfView = fov
     }
 
-    /** The results: the cube small and whole in the top third, the score card below it. */
-    fun results() {
-        cam.position.set(0f, 3.4f, 11.5f)
-        cam.lookAt(0f, -2.1f, 0f)
-        cam.up.set(0f, 1f, 0f)
-        cam.fieldOfView = 40f
-    }
+    /** The shop: the cube small, centred in the showroom strip ([fraction] of the screen from the top). */
+    fun shop(fraction: Float) = frame(1.0f, fraction, 3.2f, 14f, 40f)
+
+    /** The results: the cube small and whole up top, the score below it. */
+    fun results(fraction: Float) = frame(1.0f, fraction, 3.4f, 11.5f, 40f)
 }

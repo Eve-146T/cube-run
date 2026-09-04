@@ -72,10 +72,10 @@ abstract class Page(
             addView(content, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f))
         }
         addView(body, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
-        setPadding(0, dp(36f), 0, dp(24f))
+        setPadding(0, dp(36f), 0, 0)
         setOnApplyWindowInsetsListener { _, insets ->
             val (l, t, r, b) = insetsOf(insets)
-            setPadding(l, maxOf(dp(36f), t + dp(6f)), r, maxOf(dp(24f), b + dp(8f)))
+            setPadding(l, maxOf(dp(36f), t + dp(6f)), r, b) // edge to edge at the bottom: pages place their own bottom margins
             insets
         }
         // the title row starts a little lower than the corner pill so the two line up at the same height
@@ -132,7 +132,7 @@ abstract class Sheet(
     init {
         isClickable = true
         setBackgroundColor(Theme.SCRIM)
-        addView(card, LayoutParams(dp(300f), LayoutParams.WRAP_CONTENT).apply { gravity = Gravity.CENTER })
+        addView(card, LayoutParams(dp(320f), LayoutParams.WRAP_CONTENT).apply { gravity = Gravity.CENTER })
         setOnClickListener { dismiss() }
         alpha = 0f
         move().alpha(1f).setDuration(110).start()

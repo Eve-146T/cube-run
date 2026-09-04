@@ -85,7 +85,7 @@ class WardrobeView(activity: Activity, kit: UiKit, onClose: () -> Unit) : Page(a
             addView(action, LinearLayout.LayoutParams(dp(230f), LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(18f) })
         }
         content.addView(bottom, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT).apply {
-            gravity = Gravity.BOTTOM; bottomMargin = dp(20f)
+            gravity = Gravity.BOTTOM; bottomMargin = dp(36f)
         })
         render()
         Anim.stagger(tabs, dpf(16f), 160, 50)

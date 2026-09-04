@@ -152,10 +152,10 @@ class GiftStage(private val game: Gdx3DGame) {
         Haptics.success()
         game.slowMo(0.6f, 0.15f)
         val col = when {
-            skin -> hsvInto(tmpCol, 300f, 0.4f, 1f)
-            bubble -> hsvInto(tmpCol, 190f, 0.4f, 1f)
-            shards -> hsvInto(tmpCol, cube.run.data.Shards.get(r.id).hue, 0.55f, 1f)
-            else -> hsvInto(tmpCol, 46f, 0.5f, 1f)
+            skin -> hsvInto(tmpCol, 300f, 0.5f, 0.85f)
+            bubble -> hsvInto(tmpCol, 190f, 0.5f, 0.8f)
+            shards -> hsvInto(tmpCol, cube.run.data.Shards.get(r.id).hue + 30f, 0.55f, 0.7f) // a step off the crystals' own hue, so they stand out
+            else -> hsvInto(tmpCol, 30f, 0.55f, 0.75f)                                    // deeper than the gold of the coin
         }
         rayCol.set(col)
         game.flash(col, 0.18f)
@@ -246,17 +246,14 @@ class GiftStage(private val game: Gdx3DGame) {
         }
     }
 
-    /** The sunburst behind the box: pale while it waits, the reward's colour blazing once it is open. */
+    /** The one sunburst behind the box: a quiet violet while it waits, the reward's colour once it is open — centred on the box / prize as seen on screen. */
     fun renderShapes(shapes: ShapeRenderer, time: Float) {
         val open = phase == OPENED
-        val g = if (open) min(1f, t * 3f + 0.4f) else glow
-        val y = if (open) prizeY(time) else boxY + drop + 0.3f
-        hsvInto(tmpCol, 275f, 0.45f, 1f)
-        game.sunburst(shapes, 0f, y, -3f, 8f, 12, time * 12f, tmpCol, 0.22f, 0.5f)
-        if (g > 0.01f) {
-            game.sunburst(shapes, 0f, y, -2.8f, 5f + 9f * g, 16, time * 30f, rayCol, 0.6f * g, 0.5f)
-            game.sunburst(shapes, 0f, y, -2.9f, 4f + 7f * g, 8, -time * 45f, Color.WHITE, 0.25f * g, 0.3f)
-        }
+        val g = if (open) min(1f, t * 3f) else 0f
+        val y = if (open) prizeY(time) else boxY + drop + 0.2f
+        hsvInto(tmpCol, 268f, 0.5f, 0.75f)
+        tmpCol.lerp(rayCol, g)
+        game.sunburstBehind(shapes, 0f, y, 0f, 3f, 9f + 3f * g, 12, time * (12f + 14f * g), tmpCol, 0.3f + 0.15f * g, 0.5f)
     }
 
     /** The bubble prize (or bubble-skin prize) where the box was. */

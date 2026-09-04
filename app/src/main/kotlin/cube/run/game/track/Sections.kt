@@ -207,6 +207,9 @@ object Sections {
     /** An occasional short breather: a single open row. */
     val breather = Sect(-1, 0, 0f, "BREATHER", intArrayOf(EM), mirrorable = false)
 
+    /** The Rollercoaster: nothing solid on the hills, just coins to ride through — the world itself is the show. */
+    val hillRide = Sect(-3, 0, 0f, "HILL RIDE", intArrayOf(CF, EM, CF, CF, EM, CF), mirrorable = false)
+
     /** Section tier unlocked at difficulty [diff] (0..1). Tier 3 sits just past a maxed fire boost. */
     fun tierFor(diff: Float): Int = when {
         diff < 0.18f -> 0

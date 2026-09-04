@@ -57,7 +57,7 @@ class ShopView(activity: Activity, kit: UiKit, onClose: () -> Unit) : Page(activ
 
     private fun iconOf(u: Progress.Upgrade): Drawable = when (u) {
         Progress.BUBBLE -> BubbleIcon(Theme.WHITE)
-        Progress.MAGNET -> MagnetIcon(Theme.WHITE)
+        Progress.MAGNET -> MagnetIcon()
         Progress.MULT -> MultIcon(Theme.WHITE)
         else -> JetIcon(Theme.WHITE)
     }

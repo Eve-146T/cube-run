@@ -72,9 +72,23 @@ flash and candy raining off the beam. No coins are laid before the run.
 
 ## Screen shake
 
-Exactly one thing shakes the screen: the crash (`RunFx.crash`, 0.35). The
-bubble smash, the second wind, the gift box, the shop demos and the portals
-use slow motion, a flash and a field-of-view punch instead.
+Nothing shakes the screen. Crashes, smashes, the second wind, the gift box,
+the shop demos and the portals use slow motion, a flash and a
+field-of-view punch instead. When the bubble smashes a row the blocks
+split into chunks that tumble past the camera (`game.track.Debris`).
+
+## Framing the stages
+
+`RunCamera.frame` aims the stage cameras so a world point lands at a given
+fraction of the screen height (from a dp height via
+`Gdx3DGame.fractionForDp`), and `Gdx3DGame.sunburstBehind` puts a sunburst
+on the camera's line of sight behind a point — so the cube on the results,
+the cube in the shop's showroom strip and the box on the gift stage sit
+exactly on their sunburst's origin on every phone, whatever its aspect.
+
+Pickups are rare on purpose: per row, a multiplier about 0.9 %, a magnet
+0.06 %, a bubble 0.05 %, a jetpack 0.02 %, a box 0.01 % (times Lucky
+boxes). The Rollercoaster serves only coin rows: the hills are the show.
 
 ## The run-over flow
 

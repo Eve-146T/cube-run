@@ -218,9 +218,10 @@ class Track(private val rnd: Random, private val fx: ObstacleFactory) {
         if (!introServed) { introServed = true; return Sections.intro }
         sectsSinceBreather++
         if (sectsSinceBreather >= 5) { sectsSinceBreather = 0; return Sections.breather }
+        if (bonus == Bonus.HILLS) return Sections.hillRide // the hills are visual only: coins, no obstacles
         var pool = when (bonus) {
             Bonus.FLOAT -> Sections.floatPool.filter { it.id != lastSectId }
-            Bonus.HILLS, Bonus.KALEIDO -> Sections.lib.filter { it.tier <= max(1, tier) && it.id != lastSectId }
+            Bonus.KALEIDO -> Sections.lib.filter { it.tier <= max(1, tier) && it.id != lastSectId }
             else -> Sections.lib.filter { it.tier <= tier && it.id != lastSectId }
         }
         if (pool.isEmpty()) pool = Sections.lib.filter { it.tier <= tier }
@@ -481,11 +482,12 @@ class Track(private val rnd: Random, private val fx: ObstacleFactory) {
         val boxLuck = 1f + 0.5f * Progress.level(Progress.LUCKYBOX)
         row.pickup = when {
             galore -> when { r < 0.25f -> Pickup.BOX; r < 0.45f -> Pickup.BUBBLE; r < 0.65f -> Pickup.JET; r < 0.83f -> Pickup.MAGNET; else -> Pickup.MULT }
-            r < 0.009f -> Pickup.MAGNET
-            r < 0.018f -> Pickup.MULT
-            r < 0.024f -> Pickup.JET
-            r < 0.031f -> Pickup.BUBBLE
-            r < 0.031f + 0.003f * boxLuck && rowsSinceBox >= (boxSpacing / boxLuck).toInt() -> Pickup.BOX
+            // per-row chances: multipliers stay common; magnets and bubbles are 15× rarer, jetpacks and boxes 30× rarer than they were
+            r < 0.0006f -> Pickup.MAGNET
+            r < 0.0096f -> Pickup.MULT
+            r < 0.0098f -> Pickup.JET
+            r < 0.01027f -> Pickup.BUBBLE
+            r < 0.01027f + 0.0001f * boxLuck && rowsSinceBox >= (boxSpacing / boxLuck).toInt() -> Pickup.BOX
             else -> return
         }
         if (row.pickup == Pickup.BOX) rowsSinceBox = 0

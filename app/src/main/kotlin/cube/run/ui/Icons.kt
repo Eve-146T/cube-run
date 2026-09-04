@@ -144,33 +144,43 @@ class FlameIcon(private val color: Int = Theme.YELLOW) : Icon() {
     }
 }
 
-/** A horseshoe magnet: a fat red U on a darker lip, silver tips. */
+/** A horseshoe magnet: a fat red U with white tips, ink-outlined like everything on the stage. */
 class MagnetIcon(private val color: Int = Theme.MAGNET) : Icon() {
+    private val path = Path()
     override fun draw(canvas: Canvas) {
         val b = bounds
         val s = min(b.width(), b.height()).toFloat()
-        val x0 = b.exactCenterX() - s / 2f; val y0 = b.exactCenterY() - s / 2f
-        paint.strokeCap = Paint.Cap.BUTT
-        fun horseshoe(col: Int, dy: Float, w: Float) {
-            paint.style = Paint.Style.STROKE
-            paint.strokeWidth = w
-            paint.color = col
-            rect.set(x0 + s * 0.2f, y0 + s * 0.1f + dy, x0 + s * 0.8f, y0 + s * 0.7f + dy)
-            canvas.drawArc(rect, 180f, 180f, false, paint)
-            canvas.drawLine(x0 + s * 0.32f, y0 + s * 0.4f + dy, x0 + s * 0.32f, y0 + s * 0.8f + dy, paint)
-            canvas.drawLine(x0 + s * 0.68f, y0 + s * 0.4f + dy, x0 + s * 0.68f, y0 + s * 0.8f + dy, paint)
+        val cx = b.exactCenterX(); val cy = b.exactCenterY()
+        val ro = s * 0.44f; val ri = s * 0.18f            // outer / inner radius of the U
+        val legBottom = cy + s * 0.46f
+        val tipTop = cy + s * 0.2f
+        fun u(top: Float) { // the U as one closed path: outer arc, right leg, inner arc back, left leg
+            path.reset()
+            rect.set(cx - ro, cy - s * 0.46f, cx + ro, cy - s * 0.46f + 2 * ro)
+            path.arcTo(rect, 180f, 180f, true)
+            path.lineTo(cx + ro, top)
+            path.lineTo(cx + ri, top)
+            rect.set(cx - ri, cy - s * 0.46f + (ro - ri), cx + ri, cy - s * 0.46f + (ro - ri) + 2 * ri)
+            path.arcTo(rect, 0f, -180f, false)
+            path.lineTo(cx - ro, top)
+            path.close()
         }
-        horseshoe(Theme.INK, 0f, s * 0.36f)                         // an ink outline, like everything on the stage
-        horseshoe(color, 0f, s * 0.24f)
-        paint.style = Paint.Style.FILL                                // pale tips with a dark seam
-        paint.color = Theme.INK
-        canvas.drawRect(x0 + s * 0.14f, y0 + s * 0.66f, x0 + s * 0.5f, y0 + s * 0.98f, paint)
-        canvas.drawRect(x0 + s * 0.5f, y0 + s * 0.66f, x0 + s * 0.86f, y0 + s * 0.98f, paint)
-        paint.color = Theme.lighten(Theme.SKY, 0.7f)
-        canvas.drawRect(x0 + s * 0.2f, y0 + s * 0.72f, x0 + s * 0.44f, y0 + s * 0.92f, paint)
-        canvas.drawRect(x0 + s * 0.56f, y0 + s * 0.72f, x0 + s * 0.8f, y0 + s * 0.92f, paint)
-        paint.color = Theme.alpha(Theme.WHITE, 170)
-        rect.set(x0 + s * 0.3f, y0 + s * 0.18f, x0 + s * 0.46f, y0 + s * 0.3f)
+        paint.strokeJoin = Paint.Join.ROUND
+        u(legBottom)
+        paint.style = Paint.Style.STROKE; paint.strokeWidth = s * 0.12f; paint.color = Theme.INK
+        canvas.drawPath(path, paint)
+        paint.style = Paint.Style.FILL; paint.color = color
+        canvas.drawPath(path, paint)
+        // the white tips
+        paint.color = Theme.WHITE
+        canvas.drawRect(cx - ro, tipTop, cx - ri, legBottom, paint)
+        canvas.drawRect(cx + ri, tipTop, cx + ro, legBottom, paint)
+        paint.style = Paint.Style.STROKE; paint.strokeWidth = s * 0.07f; paint.color = Theme.INK
+        canvas.drawLine(cx - ro, tipTop, cx - ri, tipTop, paint)
+        canvas.drawLine(cx + ri, tipTop, cx + ro, tipTop, paint)
+        paint.style = Paint.Style.FILL
+        paint.color = Theme.alpha(Theme.WHITE, 150) // a gloss on the bend
+        rect.set(cx - s * 0.3f, cy - s * 0.38f, cx - s * 0.08f, cy - s * 0.24f)
         canvas.drawOval(rect, paint)
     }
 }

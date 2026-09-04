@@ -114,8 +114,8 @@ class Showcase(private val game: Gdx3DGame, private val player: Player, private 
 
     fun aim(rig: RunCamera) {
         when (Stage.mode) {
-            Stage.RESULT -> rig.results()
-            Stage.SHOP -> rig.shop()
+            Stage.RESULT -> rig.results(game.fractionForDp(36f + 120f))         // the results column starts below this
+            Stage.SHOP -> rig.shop(game.fractionForDp(36f + 60f + 75f))         // the middle of the showroom strip
             else -> rig.wardrobe(wide)
         }
     }
@@ -138,14 +138,13 @@ class Showcase(private val game: Gdx3DGame, private val player: Player, private 
         val grow = min(1f, enterT * 1.4f)
         val g = 1f - (1f - grow) * (1f - grow)
         when (Stage.mode) {
-            Stage.RESULT -> {
-                hsvInto(rayCol, Stage.resultHue, 0.55f, 1f)
-                game.sunburst(shapes, player.px, player.py - 1.3f, -2.5f, 9f * g, 14, time * 18f, rayCol, 0.42f * g, 0.5f)
-                if (Stage.resultRecord) game.sunburst(shapes, player.px, player.py - 1.3f, -2.6f, 8f * g, 10, -time * 26f + 8f, Color.WHITE, 0.25f * g, 0.35f)
+            Stage.RESULT -> { // one sunburst, centred on the cube as seen on screen
+                hsvInto(rayCol, Stage.resultHue, 0.5f, 0.9f)
+                game.sunburstBehind(shapes, player.px, player.py, 0f, 3f, 12f * g, 14, time * 18f, rayCol, (if (Stage.resultRecord) 0.5f else 0.36f) * g, 0.5f)
             }
             Stage.SHOP -> {
-                hsvInto(rayCol, 46f, 0.5f, 1f)
-                game.sunburst(shapes, player.px, player.py, -2.5f, 9f * g, 12, time * 14f, rayCol, 0.3f * g, 0.45f)
+                hsvInto(rayCol, 46f, 0.45f, 0.9f)
+                game.sunburstBehind(shapes, player.px, player.py, 0f, 3f, 10f * g, 12, time * 14f, rayCol, 0.28f * g, 0.45f)
             }
             else -> if (pop > 0.01f) {
                 val p = min(1f, pop)

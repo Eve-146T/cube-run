@@ -90,17 +90,20 @@ class RunOverFlow(
         anims.add(Anim.breathe(this, 0.5f, 1f, 700))
     }
 
-    /** A candy stat tile: icon, value, label. */
-    private fun tile(color: Int, icon: Drawable?, value: CharSequence, label: String): LinearLayout = LinearLayout(activity).apply {
+    /** One stat cell inside the results card: icon (optional), value, label. */
+    private fun cell(icon: Drawable?, value: CharSequence, label: String, color: Int = Theme.WHITE): LinearLayout = LinearLayout(activity).apply {
         orientation = LinearLayout.VERTICAL
         gravity = Gravity.CENTER
         clipChildren = false; clipToPadding = false
-        setPadding(dp(14f), dp(10f), dp(14f), dp(10f) + kit.CARD_LIP)
-        minimumWidth = dp(74f)
-        background = kit.cardDrawable(color, null, 20f)
-        if (icon != null) addView(ImageView(activity).apply { setImageDrawable(icon) }, LinearLayout.LayoutParams(dp(26f), dp(26f)).apply { bottomMargin = dp(2f) })
-        addView(kit.text(value, 20f, Theme.onColor(color), 700))
-        addView(kit.text(label.uppercase(), 10f, Theme.alpha(Theme.onColor(color), 200), 700).apply { letterSpacing = 0.1f; maxLines = 1 })
+        setPadding(dp(6f), dp(10f), dp(6f), dp(10f))
+        if (icon != null) addView(ImageView(activity).apply { setImageDrawable(icon) }, LinearLayout.LayoutParams(dp(26f), dp(26f)).apply { bottomMargin = dp(4f) })
+        addView(kit.stageText(value, 22f, color, stroke = 2.5f).apply { maxLines = 1 })
+        addView(kit.text(label.uppercase(), 10f, Theme.alpha(Theme.WHITE, 200), 700).apply { letterSpacing = 0.1f; maxLines = 1 })
+    }
+
+    /** The glass the results sit on. */
+    private fun glass(): android.graphics.drawable.Drawable = android.graphics.drawable.GradientDrawable().apply {
+        cornerRadius = dpf(26f); setColor(Theme.alpha(Theme.WHITE, 34)); setStroke(dp(1.5f), Theme.alpha(Theme.WHITE, 80))
     }
 
     // ------------------------------------------------------------- 1. results
@@ -125,9 +128,6 @@ class RunOverFlow(
     /** The sunburst's hue by rating (yellow for a record). */
     private fun rayHue(): Float = if (isNewBest) 48f else when (starCount()) { 5 -> 330f; 4 -> 265f; 3 -> 200f; 2 -> 160f; else -> 28f }
 
-    /** Where the results column starts: below the cube the stage poses in the top fifth. */
-    private fun belowCube(): Int = (activity.resources.displayMetrics.heightPixels * 0.24f).toInt()
-
     private fun showResults() {
         Stage.resultHue = rayHue()
         Stage.resultRecord = isNewBest
@@ -137,8 +137,9 @@ class RunOverFlow(
             clipChildren = false; clipToPadding = false
             setOnClickListener { if (counting) finishCount() else next() }
         }
-        if (isNewBest) host.addView(CelebrationView(activity, focusY = 0.18f, rays = false, count = 160), LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
+        if (isNewBest) host.addView(CelebrationView(activity, focusY = 0.17f, rays = false, count = 160), LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
 
+        // the column: (NEW RECORD!) the score, then ONE card with the stars and the stats
         val column = LinearLayout(activity).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER_HORIZONTAL
@@ -152,6 +153,14 @@ class RunOverFlow(
         scoreText = kit.stageText("0", 104f, stroke = 11f)
         column.addView(scoreText, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = -dp(14f) })
         scoreAnim = Anim.countUp(scoreText, score, 1300)
+
+        val card = LinearLayout(activity).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER_HORIZONTAL
+            clipChildren = false; clipToPadding = false
+            background = glass()
+            setPadding(dp(16f), dp(14f), dp(16f), dp(10f))
+        }
         stars = LinearLayout(activity).apply {
             orientation = LinearLayout.HORIZONTAL
             clipChildren = false; clipToPadding = false
@@ -161,33 +170,27 @@ class RunOverFlow(
                     LinearLayout.LayoutParams(dp(if (i == 2) 44f else 36f), dp(if (i == 2) 44f else 36f)).apply { leftMargin = dp(3f); rightMargin = dp(3f); gravity = Gravity.CENTER_VERTICAL })
             }
         }
-        column.addView(stars, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, dp(48f)).apply { topMargin = -dp(8f) })
-
-        val tiles = LinearLayout(activity).apply {
+        card.addView(stars, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, dp(48f)))
+        card.addView(View(activity).apply { background = android.graphics.drawable.GradientDrawable().apply { cornerRadius = dpf(2f); setColor(Theme.alpha(Theme.WHITE, 70)) } },
+            LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(2f)).apply { topMargin = dp(10f); leftMargin = dp(10f); rightMargin = dp(10f) })
+        val stats = LinearLayout(activity).apply {
             orientation = LinearLayout.HORIZONTAL
             clipChildren = false; clipToPadding = false
-            val coinTile = tile(Theme.GOLD, CoinIcon(), "+0", "coins")
-            coinText = coinTile.getChildAt(1) as TextView
-            addView(coinTile)
-            if (world.isNotEmpty()) addView(tile(Theme.MINT, null, world, "reached"),
-                LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { leftMargin = dp(8f) })
+            val coinCell = cell(CoinIcon(), "+0", "coins", Theme.YELLOW)
+            coinText = coinCell.getChildAt(1) as TextView
+            addView(coinCell, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+            if (world.isNotEmpty()) addView(cell(null, world, "reached", Theme.MINT), LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+            for (id in bonusVisited) addView(cell(PortalIcon(Theme.hsv(cube.run.data.Bonus.get(id).hue, 0.6f, 1f)), cube.run.data.Bonus.get(id).name, "portal"), LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+            if (isNewBest) for (w in cube.run.data.Bonus.newlyUnlocked(best, score)) addView(cell(PortalIcon(Theme.PINK), w.name, "unlocked!", Theme.PINK), LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
         }
-        val extras = LinearLayout(activity).apply { // portals visited, portals unlocked
-            orientation = LinearLayout.HORIZONTAL
-            clipChildren = false; clipToPadding = false
-            for (id in bonusVisited) addView(tile(Theme.hsv(cube.run.data.Bonus.get(id).hue, 0.6f, 1f), null, cube.run.data.Bonus.get(id).name, "portal"),
-                LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { leftMargin = dp(4f); rightMargin = dp(4f) })
-            if (isNewBest) for (w in cube.run.data.Bonus.newlyUnlocked(best, score)) addView(tile(Theme.PINK, null, w.name, "portal unlocked!"),
-                LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { leftMargin = dp(4f); rightMargin = dp(4f) })
-        }
-        column.addView(tiles, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(24f) })
-        if (extras.childCount > 0) column.addView(extras, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(10f) })
+        card.addView(stats, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(4f) })
+        column.addView(card, LinearLayout.LayoutParams(dp(300f), LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(12f) })
         postDelayed({ if (counting) coinAnim = Anim.countUp(coinText, coins, 900, tickEvery = 2) { "+$it" } }, 700)
         postDelayed({ counting = false }, 1700)
         postDelayed({ if (counting) slamStamp() }, 1350)
 
         host.addView(column, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT).apply {
-            gravity = Gravity.TOP; topMargin = belowCube()
+            gravity = Gravity.TOP; topMargin = dp(200f) // the stage frames the cube at 156 dp
         })
         host.addView(tapHint(if (boxes > 0) "TAP TO CONTINUE" else "TAP FOR THE MENU"), LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT).apply {
             gravity = Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL; bottomMargin = dp(32f)
@@ -195,8 +198,7 @@ class RunOverFlow(
         swap(host)
         record?.let { Anim.popIn(it, 100, 0.3f, 480); anims.add(Anim.heartbeat(it, 1.05f, 900)) }
         Anim.popIn(scoreText, 160, 0.3f, 460)
-        Anim.stagger(tiles, dpf(30f), 420, 90)
-        if (extras.childCount > 0) Anim.stagger(extras, dpf(30f), 700, 120)
+        Anim.riseIn(card, 420, dpf(30f))
     }
 
     private var stamped = false

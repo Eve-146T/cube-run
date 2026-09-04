@@ -59,11 +59,13 @@ class MainMenu(
     /** The letters ripple: each bobs and tilts a little out of step with its neighbour. */
     private fun ripple(): ValueAnimator = ValueAnimator.ofFloat(0f, 6.2832f).apply {
         duration = 2400; repeatCount = ValueAnimator.INFINITE; interpolator = android.view.animation.LinearInterpolator()
+        val born = System.nanoTime()
         addUpdateListener { a ->
             val t = a.animatedValue as Float
+            val ramp = ((System.nanoTime() - born) / 1.2e9f).coerceIn(0f, 1f) // eases in from still, so the entrance never jumps
             for ((i, v) in letters.withIndex()) {
-                v.translationY = kotlin.math.sin(t + i * 0.75f) * dpf(4f)
-                v.rotation = kotlin.math.sin(t + i * 0.9f + 1.2f) * 3.5f // same period as the bob, so the loop is seamless
+                v.translationY = kotlin.math.sin(t + i * 0.75f) * dpf(4f) * ramp
+                v.rotation = kotlin.math.sin(t + i * 0.9f + 1.2f) * 3.5f * ramp // same period as the bob, so the loop is seamless
             }
             Anim.repaint(logo)
         }
@@ -144,6 +146,7 @@ class MainMenu(
     fun show() {
         for (a in anims) a.cancel()
         anims.clear()
+        for (v in letters) { v.translationY = 0f; v.rotation = 0f }
         Anim.popIn(logo, 60, 0.4f, 520)
         Anim.riseIn(bestRow, 220, dpf(20f))
         Anim.popIn(bank, 260, 0.6f)

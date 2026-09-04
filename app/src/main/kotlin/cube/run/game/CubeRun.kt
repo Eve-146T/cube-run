@@ -15,6 +15,7 @@ import cube.run.data.Settings
 import cube.run.game.stage.GiftStage
 import cube.run.game.stage.Showcase
 import cube.run.game.track.Coin
+import cube.run.game.track.Debris
 import cube.run.game.track.ObType
 import cube.run.game.track.ObstacleFactory
 import cube.run.game.track.Pickup
@@ -60,6 +61,7 @@ class CubeRun(session: GameSession, private val autoStart: Boolean = false) : Gd
     private val obstacles = ObstacleFactory(rnd)
     private val track = Track(rnd, obstacles)
     private val trackArt = TrackRenderer(this)
+    private val debris = Debris(this)
     private val player = Player(this, rnd)
     private val bubble = Bubble(this)
     private val powerUps = PowerUps()
@@ -195,7 +197,7 @@ class CubeRun(session: GameSession, private val autoStart: Boolean = false) : Gd
     private fun secondWind() {
         val zone = -(spd * 2.5f) - 4f
         val ahead = track.rows.filter { it.z > zone && it.z < 1.2f && it.obs.isNotEmpty() }
-        for (r in ahead) { fx.smash(r, emptyList()); r.obs.removeAll { it.type == ObType.SOLID } }
+        for (r in ahead) { fx.smash(r, emptyList()); for (ob in r.obs) if (ob.type == ObType.SOLID) debris.smash(ob, r.z); r.obs.removeAll { it.type == ObType.SOLID } }
         bubble.duration = 3f
         bubble.activate(player.px, player.py)
         bubble.duration = Progress.BUBBLE.duration(Progress.bubbleLevel)
@@ -226,6 +228,8 @@ class CubeRun(session: GameSession, private val autoStart: Boolean = false) : Gd
         val zone = -(spd * 2.2f) - 4f // ≈ 2 s of clean track
         val ahead = track.rows.filter { it !== row && it.z > zone && it.z < 0f && it.obs.isNotEmpty() }
         fx.smash(row, ahead)
+        for (ob in row.obs) if (ob.type == ObType.SOLID) debris.smash(ob, row.z)
+        for (r in ahead) for (ob in r.obs) if (ob.type == ObType.SOLID) debris.smash(ob, r.z)
         row.obs.removeAll { it.type == ObType.SOLID }
         for (r in ahead) r.obs.removeAll { it.type == ObType.SOLID }
         bubble.pop(player.px, player.py)
@@ -479,6 +483,7 @@ class CubeRun(session: GameSession, private val autoStart: Boolean = false) : Gd
 
         // ---- obstacle rows: move, collide, score; coins: magnet + collect; pickups
         track.scroll(mv, time, dt)
+        debris.update(dt, mv)
         collide(dt)
 
         rig.chase(dt, player.px, player.py, player.ground, deathT, spd)
@@ -575,6 +580,7 @@ class CubeRun(session: GameSession, private val autoStart: Boolean = false) : Gd
         syncFog()
         scenery.renderRoad()
         trackArt.render(track, time, kaleido, kaleidoHue)
+        debris.render()
         val wind = if (dead) 0f else ((spd - 13f) / 15f).coerceIn(0f, 1f)
         scenery.render(if (player.flying) 1f else wind, time)
     }

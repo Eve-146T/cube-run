@@ -5,7 +5,6 @@ import android.app.Activity
 import android.view.Gravity
 import android.widget.LinearLayout
 import cube.run.R
-import cube.run.core.Stage
 import cube.run.data.Settings
 
 /**
@@ -35,12 +34,10 @@ class PauseSheet(
 
         card.addView(kit.button("RESUME", Theme.PLAY, UiKit.Size.BIG) { dismiss() },
             LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(20f) })
-        card.addView(LinearLayout(activity).apply {
-            orientation = LinearLayout.HORIZONTAL
-            clipChildren = false; clipToPadding = false
-            addView(kit.button("RESTART", Theme.SKY, UiKit.Size.SMALL) { onRestart() }, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
-            addView(kit.button("MENU", Theme.LAVENDER, UiKit.Size.SMALL) { onMenu() }, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply { leftMargin = dp(10f) })
-        }, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(12f) })
+        card.addView(kit.button("RESTART", Theme.SKY, UiKit.Size.BIG) { onRestart() },
+            LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(12f) })
+        card.addView(kit.button("MENU", Theme.LAVENDER, UiKit.Size.BIG) { onMenu() },
+            LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(12f) })
 
         card.addView(divider(), LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(2f)).apply { topMargin = dp(18f); leftMargin = dp(20f); rightMargin = dp(20f) })
         card.addView(LinearLayout(activity).apply {
@@ -52,9 +49,5 @@ class PauseSheet(
             addView(kit.toggle(R.drawable.ic_haptic_on, R.drawable.ic_haptic_off, activity.getString(R.string.cd_haptics), Theme.SKY,
                 { Settings.hapticsEnabled }, { Settings.setHapticsEnabled(it) }), LinearLayout.LayoutParams(size, size + dp(4f)).apply { leftMargin = dp(14f) })
         }, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(16f) })
-        if (Settings.devMode) { // dev tool: straight to the results, boxes and all
-            card.addView(kit.button("END RUN (DEV)", Theme.ORANGE, UiKit.Size.SMALL) { Stage.endRun = true; dismiss() },
-                LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(14f) })
-        }
     }
 }
