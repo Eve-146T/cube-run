@@ -34,6 +34,10 @@ class Showcase(private val game: Gdx3DGame, private val player: Player, private 
 
     private val skyTopSave = Color()
     private val skyBottomSave = Color()
+    /** The stage's own sky (the game blends back out of it after [exit]). */
+    val stageTop = Color()
+    val stageBottom = Color()
+    private val gold = Color()
     private val spark = Color()
     private val rayCol = Color()
     private val tmp = Vector3()
@@ -56,9 +60,17 @@ class Showcase(private val game: Gdx3DGame, private val player: Player, private 
         trailMix = 0f; bubbleMix = 0f; kickV = 0f; kickA = 0f; pop = 0f; wide = 0f
         demos.reset()
         skyTopSave.set(bgTop); skyBottomSave.set(bgBottom)
-        hsvInto(bgTop, tint - 20f, 0.65f, 0.42f)
-        hsvInto(bgBottom, tint + 20f, 0.75f, 0.10f)
+        hsvInto(stageTop, tint - 20f, 0.65f, 0.42f)
+        hsvInto(stageBottom, tint + 20f, 0.75f, 0.10f)
         hsvInto(spark, tint + 180f, 0.5f, 1f)
+        hsvInto(gold, 46f, 0.8f, 1f)
+    }
+
+    /** Ease the sky from where the run was into the stage's deep tint. */
+    fun tintSky(bgTop: Color, bgBottom: Color) {
+        val k = min(1f, enterT * 2.8f)
+        bgTop.set(skyTopSave).lerp(stageTop, k)
+        bgBottom.set(skyBottomSave).lerp(stageBottom, k)
     }
 
     fun exit(bgTop: Color, bgBottom: Color) {
@@ -77,6 +89,14 @@ class Showcase(private val game: Gdx3DGame, private val player: Player, private 
             SoundFx.play("pop", rate = 1.25f, vol = 0.8f); Haptics.click()
             game.burst3d(tmp.set(player.px, player.py, 0.3f), player.trailCol(), n = 18, speed = 4.5f, size = 0.11f, life = 0.55f)
         }
+        if (Stage.previewBuys.getAndSet(0) > 0) { // bought: a double flip, gold rays, a shower of gold and its own colour
+            kickV = 2000f; pop = 1.6f
+            SoundFx.play("success", rate = 1.2f); SoundFx.play("boom", rate = 1.8f, vol = 0.3f); Haptics.success()
+            game.flash(gold, 0.25f)
+            game.burst3d(tmp.set(player.px, player.py, 0.3f), gold, n = 30, speed = 7f, size = 0.13f, life = 0.9f)
+            game.burst3d(tmp, player.trailCol(), n = 20, speed = 5f, size = 0.12f, life = 0.7f)
+            game.burst3d(tmp, Color.WHITE, n = 12, speed = 10f, size = 0.08f, life = 0.45f)
+        }
         kickA += kickV * dt
         kickV = max(0f, kickV - 2400f * dt)
         pop = max(0f, pop - dt * 2.6f)
@@ -86,7 +106,7 @@ class Showcase(private val game: Gdx3DGame, private val player: Player, private 
         val x = lx * trailMix
         val y = 1.0f + (ly - 1.0f) * trailMix + demos.lift
         val spin = 45f + 115f * trailMix
-        val scale = 1f + 0.22f * sin(pop * 3.14159f)
+        val scale = 1f + 0.22f * sin(min(1f, pop) * 3.14159f)
         player.showcase(time, baseHue, x, y, spin, extraYaw = kickA, scale = scale)
         if (trailMix > 0.08f) player.emitTrail(dt, time, x - 0.3f * cos(time * 1.4f), y, 0.3f, boost = 1.6f * trailMix, scale = 2.4f)
         demos.update(dt, time, player.px, player.py)
@@ -120,15 +140,16 @@ class Showcase(private val game: Gdx3DGame, private val player: Player, private 
         when (Stage.mode) {
             Stage.RESULT -> {
                 hsvInto(rayCol, Stage.resultHue, 0.55f, 1f)
-                game.sunburst(shapes, player.px, player.py, -2.5f, 14f * g, 14, time * 18f, rayCol, 0.55f * g, 0.5f)
-                if (Stage.resultRecord) game.sunburst(shapes, player.px, player.py, -2.6f, 12f * g, 10, -time * 26f + 8f, Color.WHITE, 0.28f * g, 0.35f)
+                game.sunburst(shapes, player.px, player.py, -2.5f, 9f * g, 14, time * 18f, rayCol, 0.42f * g, 0.5f)
+                if (Stage.resultRecord) game.sunburst(shapes, player.px, player.py, -2.6f, 8f * g, 10, -time * 26f + 8f, Color.WHITE, 0.25f * g, 0.35f)
             }
             Stage.SHOP -> {
                 hsvInto(rayCol, 46f, 0.5f, 1f)
                 game.sunburst(shapes, player.px, player.py, -2.5f, 9f * g, 12, time * 14f, rayCol, 0.3f * g, 0.45f)
             }
             else -> if (pop > 0.01f) {
-                game.sunburst(shapes, player.px, player.py, -2.5f, 3f + 8f * (1f - pop), 12, time * 60f, Color.WHITE, pop * pop * 0.5f, 0.4f)
+                val p = min(1f, pop)
+                game.sunburst(shapes, player.px, player.py, -2.5f, 3f + 8f * (1f - p), 12, time * 60f, if (pop > 1f) gold else Color.WHITE, p * p * 0.55f, 0.4f)
             }
         }
     }

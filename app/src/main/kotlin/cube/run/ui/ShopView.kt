@@ -35,7 +35,11 @@ class ShopView(activity: Activity, kit: UiKit, onClose: () -> Unit) : Page(activ
     }
     private val balance = kit.iconPill(CoinIcon(), "", Theme.INK, 16f)
     private val bars = HashMap<String, SegmentBar>()
+    private val cards = HashMap<String, View>()
+    private val nowViews = HashMap<String, View>()
+    private val nextViews = HashMap<String, View>()
     private var first = true
+    private var paying = false
     private val glass = Theme.alpha(Theme.WHITE, 36)
     private val glassLine = Theme.alpha(Theme.WHITE, 80)
 
@@ -48,10 +52,10 @@ class ShopView(activity: Activity, kit: UiKit, onClose: () -> Unit) : Page(activ
     }
 
     private fun iconOf(u: Progress.Upgrade): Drawable = when (u) {
-        Progress.BUBBLE -> BubbleIcon()
-        Progress.MAGNET -> MagnetIcon()
-        Progress.MULT -> MultIcon()
-        else -> JetIcon()
+        Progress.BUBBLE -> BubbleIcon(Theme.WHITE)
+        Progress.MAGNET -> MagnetIcon(Theme.WHITE)
+        Progress.MULT -> MultIcon(Theme.WHITE)
+        else -> JetIcon(Theme.WHITE)
     }
 
     private fun blurb(u: Progress.Upgrade): String = when (u) {
@@ -87,7 +91,7 @@ class ShopView(activity: Activity, kit: UiKit, onClose: () -> Unit) : Page(activ
     private fun render(popped: Progress.Upgrade? = null) {
         kit.labelOf(balance).text = Progress.coins.toString()
         list.removeAllViews()
-        bars.clear()
+        bars.clear(); cards.clear(); nowViews.clear(); nextViews.clear()
         list.addView(bubbleCard(), LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
         list.addView(heading("POWER-UPS"), LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(22f); leftMargin = dp(8f); bottomMargin = dp(2f) })
         for (u in Progress.upgrades) {
@@ -113,12 +117,13 @@ class ShopView(activity: Activity, kit: UiKit, onClose: () -> Unit) : Page(activ
     private fun heading(t: String) = kit.stageText(t, 13f, Theme.alpha(Theme.WHITE, 230), weight = 700, gravity = Gravity.START, stroke = 1.5f).apply { letterSpacing = 0.16f }
 
     /** A glass card with a coloured header band (icon + name + blurb). */
-    private fun card(color: Int, icon: Drawable, name: String, blurb: String, body: LinearLayout.() -> Unit): View {
+    private fun card(key: String, color: Int, icon: Drawable, name: String, blurb: String, body: LinearLayout.() -> Unit): View {
         val outer = LinearLayout(activity).apply {
             orientation = LinearLayout.VERTICAL
             clipChildren = false; clipToPadding = false
             background = GradientDrawable().apply { cornerRadius = dpf(24f); setColor(glass); setStroke(dp(1.5f), glassLine) }
         }
+        cards[key] = outer
         val header = LinearLayout(activity).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
@@ -153,18 +158,18 @@ class ShopView(activity: Activity, kit: UiKit, onClose: () -> Unit) : Page(activ
         if (n > slots) addView(kit.stageText("+${n - slots}", 15f, plusColor, stroke = 2f), LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { leftMargin = dp(4f) })
     }
 
-    private fun bubbleCard(): View = card(Theme.BUBBLE, BubbleIcon(), "Bubble shield", "Double-tap in a run: takes one hit, smashes the row") {
+    private fun bubbleCard(): View = card("bubbles", Theme.BUBBLE, BubbleIcon(Theme.WHITE), "Bubble shield", "Double-tap in a run: takes one hit, smashes the row") {
         addView(LinearLayout(activity).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
             clipChildren = false; clipToPadding = false
-            addView(rack(5, Progress.bubbles, { BubbleIcon() }, Theme.lighten(Theme.CYAN, 0.5f)), LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
-            addView(priceButton(Progress.BUBBLE_PRICE) { if (Progress.buyBubble()) bought(null, Stage.DEMO_BUBBLE) else broke() },
+            addView(rack(5, Progress.bubbles, { BubbleIcon() }, Theme.lighten(Theme.CYAN, 0.5f)).also { nowViews["bubbles"] = it }, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+            addView(priceButton(Progress.BUBBLE_PRICE, "bubbles", null, Stage.DEMO_BUBBLE) { Progress.buyBubble() },
                 LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { leftMargin = dp(10f) })
         })
     }
 
-    /** "now → next", the level bar, the price: shared by power-ups and perks. */
+    /** "now → NEXT" (what you are buying is the big, coloured one), the level bar, the price: shared by power-ups and perks. */
     private fun levelBody(host: LinearLayout, u: Progress.Upgrade, color: Int, now: String, next: String?) {
         val lvl = Progress.level(u)
         val price = Progress.nextPrice(u)
@@ -173,13 +178,15 @@ class ShopView(activity: Activity, kit: UiKit, onClose: () -> Unit) : Page(activ
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
             clipChildren = false; clipToPadding = false
-            addView(kit.stageText(now, 28f, Theme.lighten(color, 0.35f), stroke = 3f, gravity = Gravity.START).apply { maxLines = 1 })
             if (next != null) {
-                addView(kit.stageText("→", 18f, Theme.alpha(Theme.WHITE, 200), stroke = 2f), LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { leftMargin = dp(6f); rightMargin = dp(6f) })
-                addView(kit.stageText(next, 18f, Theme.alpha(Theme.WHITE, 230), stroke = 2f, gravity = Gravity.START).apply { maxLines = 1 })
+                addView(kit.stageText(now, 16f, Theme.alpha(Theme.WHITE, 215), stroke = 2f, gravity = Gravity.START).apply { maxLines = 1 }.also { nowViews[u.key] = it })
+                addView(kit.stageText("→", 16f, Theme.alpha(Theme.WHITE, 190), stroke = 2f), LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { leftMargin = dp(6f); rightMargin = dp(6f) })
+                addView(kit.stageText(next, 30f, Theme.lighten(color, 0.3f), stroke = 3.5f, gravity = Gravity.START).apply { maxLines = 1 }.also { nextViews[u.key] = it })
+            } else {
+                addView(kit.stageText(now, 30f, Theme.YELLOW, stroke = 3.5f, gravity = Gravity.START).apply { maxLines = 1 }.also { nowViews[u.key] = it })
             }
             addView(View(activity), LinearLayout.LayoutParams(0, 1, 1f))
-            addView(priceButton(price) { if (Progress.buyUpgrade(u)) bought(u, demoOf(u)) else broke() })
+            addView(priceButton(price, u.key, u, demoOf(u)) { Progress.buyUpgrade(u) })
         })
         val bar = kit.segments(u.max).apply { level = lvl; this.color = if (maxed) Theme.GOLD else Theme.lighten(color, 0.15f); offColor = Theme.alpha(Theme.WHITE, 60) }
         bars[u.key] = bar
@@ -191,7 +198,7 @@ class ShopView(activity: Activity, kit: UiKit, onClose: () -> Unit) : Page(activ
         val lvl = Progress.level(u)
         val now = u.duration(lvl)
         val maxed = Progress.nextPrice(u) == null
-        return card(color, iconOf(u), u.name, blurb(u)) {
+        return card(u.key, color, iconOf(u), u.name, blurb(u)) {
             levelBody(this, u, color, "${fmt(now)} s", if (maxed) null else "${fmt(now + u.step)} s")
         }
     }
@@ -207,7 +214,7 @@ class ShopView(activity: Activity, kit: UiKit, onClose: () -> Unit) : Page(activ
         Progress.HEADSTART -> FlameIcon(Theme.YELLOW)
         Progress.COINVALUE -> CoinIcon()
         Progress.PORTALS -> PortalIcon(Theme.WHITE)
-        else -> BoxIcon()
+        else -> BoxIcon(Theme.WHITE)
     }
 
     private fun perkBlurb(u: Progress.Upgrade): String = when (u) {
@@ -228,41 +235,63 @@ class ShopView(activity: Activity, kit: UiKit, onClose: () -> Unit) : Page(activ
         val color = perkColor(u)
         val lvl = Progress.level(u)
         val maxed = Progress.nextPrice(u) == null
-        return card(color, perkIcon(u), u.name, perkBlurb(u)) {
+        return card(u.key, color, perkIcon(u), u.name, perkBlurb(u)) {
             levelBody(this, u, color, perkValue(u, lvl), if (maxed) null else perkValue(u, lvl + 1))
         }
     }
 
     /** Second wind: a stock of revives. */
-    private fun reviveCard(): View = card(Theme.PINK, HeartIcon(Theme.WHITE), "Second wind", "A crash is not the end: back up, bubbled, still running") {
+    private fun reviveCard(): View = card("revives", Theme.PINK, HeartIcon(Theme.WHITE), "Second wind", "A crash is not the end: back up, bubbled, still running") {
         addView(LinearLayout(activity).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
             clipChildren = false; clipToPadding = false
-            addView(rack(3, Progress.revives, { HeartIcon(Theme.PINK) }, Theme.lighten(Theme.PINK, 0.4f)), LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
-            addView(priceButton(Progress.REVIVE_PRICE) { if (Progress.buyRevive()) bought(null, Stage.DEMO_REVIVE) else broke() },
+            addView(rack(3, Progress.revives, { HeartIcon(Theme.PINK) }, Theme.lighten(Theme.PINK, 0.4f)).also { nowViews["revives"] = it }, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+            addView(priceButton(Progress.REVIVE_PRICE, "revives", null, Stage.DEMO_REVIVE) { Progress.buyRevive() },
                 LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { leftMargin = dp(10f) })
         })
     }
 
-    /** Gold when affordable, a quiet glass slab when not, a MAX badge when there is nothing left to buy. */
-    private fun priceButton(price: Int?, onBuy: () -> Unit): View {
+    /**
+     * Gold when affordable, a quiet glass slab when not, a MAX badge when
+     * there is nothing left to buy. A tap pays right here: [buy] takes the
+     * coins, then they fly from the balance into this button.
+     */
+    private fun priceButton(price: Int?, key: String, u: Progress.Upgrade?, demo: Int, buy: () -> Boolean): View {
         if (price == null) return kit.pill("MAX", Theme.alpha(Theme.WHITE, 60), Theme.WHITE, 13f).apply { letterSpacing = 0.1f }
         val can = price <= Progress.coins
-        return kit.button(kit.coins(price, 15f), if (can) Theme.GOLD else Theme.alpha(Theme.WHITE, 46), UiKit.Size.SMALL) { onBuy() }.apply {
-            if (!can) setTextColor(Theme.alpha(Theme.WHITE, 170))
+        lateinit var btn: CandyButton
+        btn = kit.button(kit.coins(price, 15f), if (can) Theme.GOLD else Theme.alpha(Theme.WHITE, 46), UiKit.Size.SMALL) {
+            if (paying) return@button
+            val before = Progress.coins
+            if (!buy()) { broke(); return@button }
+            pay(btn, before, key, u, demo)
         }
+        if (!can) btn.setTextColor(Theme.alpha(Theme.WHITE, 170))
+        return btn
     }
 
     private fun fmt(v: Float): String = if (v == v.toInt().toFloat()) v.toInt().toString() else "%.1f".format(v)
 
-    /** Bought: the cube plays it out, the balance bounces, a little confetti from the cube. */
-    private fun bought(u: Progress.Upgrade?, demo: Int) {
-        SoundFx.play("coin"); SoundFx.play("success", rate = 1.4f, vol = 0.5f); Haptics.success()
-        Stage.demoRequests.set(demo)
-        render(u)
-        Anim.pulse(balance, 1.2f)
-        addView(CelebrationView(activity, focusY = 0.16f, rays = false, count = 50, burst = true, seconds = 1.8f), LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
+    /**
+     * Paying, where you tapped: coins fly from the balance into the button
+     * while the balance drains; then the card flashes, its numbers roll over
+     * (the big NEXT value becomes the small NOW), the new segment pops, and
+     * the cube up top plays the thing you just bought.
+     */
+    private fun pay(btn: View, before: Int, key: String, u: Progress.Upgrade?, demo: Int) {
+        paying = true
+        Haptics.click()
+        val ms = PayFx.fly(this, kit, balance, btn, n = 6, onDone = {
+            paying = false
+            SoundFx.play("success", rate = 1.4f, vol = 0.55f); Haptics.success()
+            Stage.demoRequests.set(demo)
+            render(u)
+            cards[key]?.let { PayFx.flash(it, dpf(24f)) }
+            nowViews[key]?.let { Anim.popIn(it, 0, 0.6f, 360) }
+            nextViews[key]?.let { Anim.slideIn(it, 60, dpf(30f), 320) }
+        })
+        Anim.countTo(kit.labelOf(balance), before, Progress.coins, ms)
     }
 
     private fun broke() {

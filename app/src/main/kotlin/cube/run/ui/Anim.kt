@@ -101,6 +101,15 @@ object Anim {
             start()
         }
 
+    /** Roll [t] from [from] to [to] (a balance draining, a stock growing), no ticks. */
+    fun countTo(t: TextView, from: Int, to: Int, ms: Long, format: (Int) -> String = { it.toString() }): ValueAnimator =
+        ValueAnimator.ofInt(from, to).apply {
+            duration = ms
+            interpolator = ease
+            addUpdateListener { a -> t.text = format(a.animatedValue as Int) }
+            start()
+        }
+
     /**
      * Count [t] from 0 to [to] with rising ticks. [format] renders a value.
      * Returns the animator (null when there is nothing to count).

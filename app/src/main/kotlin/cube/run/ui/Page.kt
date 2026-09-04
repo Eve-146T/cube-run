@@ -76,9 +76,10 @@ abstract class Page(
             setPadding(l, maxOf(dp(36f), t + dp(6f)), r, maxOf(dp(24f), b + dp(8f)))
             insets
         }
-        // entrance: the backdrop fades, the body rises, the title pops
+        // entrance: the page fades in, the content rises, the title pops (the top bar itself never moves:
+        // translated over the GL surface it was seen to paint a frame late, which reads as the wrong order)
         alpha = 0f; animate().alpha(1f).setDuration(140).start()
-        Anim.riseIn(body, 0, dpf(40f), 260)
+        Anim.riseIn(content, 0, dpf(40f), 260)
         Anim.popIn(titleView, 40, 0.7f, 300)
     }
 
@@ -93,7 +94,7 @@ abstract class Page(
     fun close() {
         if (closing) return
         closing = true
-        body.animate().translationY(dpf(40f)).alpha(0f).setDuration(130).start()
+        content.animate().translationY(dpf(40f)).alpha(0f).setDuration(130).start()
         animate().alpha(0f).setDuration(140).withEndAction {
             (parent as? FrameLayout)?.removeView(this)
             onClosed()

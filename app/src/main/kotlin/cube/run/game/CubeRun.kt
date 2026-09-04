@@ -82,6 +82,7 @@ class CubeRun(session: GameSession, private val autoStart: Boolean = false) : Gd
     private var runT = 0f            // seconds since the run began (the start ease)
     private var introT = 0f          // seconds since launch (the menu shot's swoop in)
     private var introAtStart = 0f    // where the swoop was when the run began (the start eases on from there)
+    private var skyBlend = 0f        // 1 → 0: the stage's sky fading back into the world's after a page closes
     private var bonus = Bonus.NONE   // the bonus world we are in
     private var kaleido = 0f         // eased 0..1: the Kaleidoscope's colour cycling + sway
     private var kaleidoHue = 0f
@@ -380,9 +381,10 @@ class CubeRun(session: GameSession, private val autoStart: Boolean = false) : Gd
         if (Stage.mode == Stage.SKINS || Stage.mode == Stage.RESULT || Stage.mode == Stage.SHOP) {
             if (!showcase.active) showcase.enter(bgTop, bgBottom, worldHue())
             showcase.update(dt, time, worldHue())
+            showcase.tintSky(bgTop, bgBottom)
             showcase.aim(rig)
             return
-        } else if (showcase.active) { showcase.exit(bgTop, bgBottom); introT = 0f } // back to the menu: the swoop again
+        } else if (showcase.active) { showcase.exit(bgTop, bgBottom); introT = 0f; skyBlend = 1f } // back to the menu: the swoop again
 
         if (!started && autoStart && time > 0.05f) start() // RESTART: straight into the run
         if (Stage.endRun) { Stage.endRun = false; if (live()) crash() } // dev tool: END RUN from the pause card
@@ -426,6 +428,10 @@ class CubeRun(session: GameSession, private val autoStart: Boolean = false) : Gd
         // ---- the world: sky cross-fade, roadside, the next gate
         worlds.tick(dt)
         bgTop.set(worlds.skyTop); bgBottom.set(worlds.skyBottom)
+        if (skyBlend > 0f) {
+            skyBlend = max(0f, skyBlend - dt * 2.2f)
+            bgTop.lerp(showcase.stageTop, skyBlend); bgBottom.lerp(showcase.stageBottom, skyBlend)
+        }
         if (kaleido > 0.001f) {
             bgTop.lerp(hsvInto(tmpCol, kaleidoHue, 0.85f, 1f), kaleido * 0.85f)
             bgBottom.lerp(hsvInto(tmpCol, kaleidoHue + 120f, 0.9f, 0.55f), kaleido * 0.85f)

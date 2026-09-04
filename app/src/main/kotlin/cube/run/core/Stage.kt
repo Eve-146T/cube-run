@@ -50,6 +50,9 @@ object Stage {
     /** Wardrobe: how many item switches the stage hasn't celebrated yet (a spin-flip each). */
     val previewKicks = AtomicInteger(0)
 
+    /** Wardrobe: purchases the stage hasn't celebrated yet (a big flip, gold rays, shards). */
+    val previewBuys = AtomicInteger(0)
+
     /** The results stage: the sunburst's hue behind the cube, and whether this run set a record. */
     @Volatile var resultHue = 46f
     @Volatile var resultRecord = false
@@ -71,6 +74,7 @@ object Stage {
         boostRequests.set(0)
         demoRequests.set(0)
         previewKicks.set(0)
+        previewBuys.set(0)
         previewCat = 0
         clearPreview()
     }

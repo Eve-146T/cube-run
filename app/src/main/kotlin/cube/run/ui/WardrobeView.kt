@@ -39,6 +39,7 @@ class WardrobeView(activity: Activity, kit: UiKit, onClose: () -> Unit) : Page(a
     private val action: CandyButton
     private val left: View
     private val right: View
+    private var paying = false
     private var downX = 0f
     private var downY = 0f
     private var swiped = false
@@ -192,15 +193,23 @@ class WardrobeView(activity: Activity, kit: UiKit, onClose: () -> Unit) : Page(a
     }
 
     private fun act() {
+        if (paying) return
+        val before = Progress.coins
+        val id = index; val c = cat
         when {
             Progress.equipped(cat) == index -> {}
-            Progress.owns(cat, index) -> { Progress.equip(cat, index); SoundFx.play("tap"); Haptics.tick(); Anim.pulse(name, 1.15f); render() }
-            Progress.buy(cat, index) -> {
-                Progress.equip(cat, index)
-                SoundFx.play("coin"); SoundFx.play("success", rate = 1.2f, vol = 0.6f); Haptics.success()
-                Anim.pulse(name, 1.25f); Anim.pulse(balance, 1.2f)
-                addView(CelebrationView(activity, focusY = 0.45f, rays = false, count = 70, burst = true, seconds = 2.2f), LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
-                render()
+            Progress.owns(cat, index) -> { Progress.equip(cat, index); SoundFx.play("tap"); Haptics.tick(); Anim.pulse(name, 1.15f); Stage.previewKicks.incrementAndGet(); render() }
+            Progress.buy(cat, index) -> { // paid: coins fly from the balance into the button, then the cube celebrates and it's yours
+                paying = true
+                Haptics.click()
+                val ms = PayFx.fly(this, kit, balance, action, n = 6, onDone = {
+                    paying = false
+                    Progress.equip(c, id)
+                    Stage.previewBuys.incrementAndGet()
+                    Anim.pulse(name, 1.25f)
+                    if (cat == c && index == id) render()
+                })
+                Anim.countTo(kit.labelOf(balance), before, Progress.coins, ms)
             }
             else -> { // can't afford: nudge the balance
                 SoundFx.play("tap", rate = 0.6f); Haptics.tick()

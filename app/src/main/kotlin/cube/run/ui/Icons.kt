@@ -43,17 +43,17 @@ class CoinIcon : Icon() {
 }
 
 /** A soap bubble: a cyan ring with a soft fill and a highlight. */
-class BubbleIcon : Icon() {
+class BubbleIcon(private val color: Int = Theme.CYAN) : Icon() {
     override fun draw(canvas: Canvas) {
         val b = bounds
         val cx = b.exactCenterX(); val cy = b.exactCenterY()
         val r = min(b.width(), b.height()) / 2f
         paint.style = Paint.Style.FILL
-        paint.color = Theme.alpha(Theme.CYAN, 70)
+        paint.color = Theme.alpha(color, 70)
         canvas.drawCircle(cx, cy, r, paint)
         paint.style = Paint.Style.STROKE
         paint.strokeWidth = r * 0.22f
-        paint.color = Theme.CYAN
+        paint.color = color
         canvas.drawCircle(cx, cy, r * 0.86f, paint)
         paint.style = Paint.Style.FILL
         paint.color = Theme.alpha(Theme.WHITE, 220)
@@ -63,17 +63,17 @@ class BubbleIcon : Icon() {
 }
 
 /** A gift box: a purple cube with a gold ribbon. */
-class BoxIcon : Icon() {
+class BoxIcon(private val color: Int = Theme.GRAPE) : Icon() {
     override fun draw(canvas: Canvas) {
         val b = bounds
         val s = min(b.width(), b.height()).toFloat()
         val x0 = b.exactCenterX() - s / 2f; val y0 = b.exactCenterY() - s / 2f
         val r = s * 0.18f
         paint.style = Paint.Style.FILL
-        paint.color = Theme.darken(Theme.GRAPE, 0.3f)
+        paint.color = Theme.darken(color, 0.3f)
         rect.set(x0, y0 + s * 0.12f, x0 + s, y0 + s)
         canvas.drawRoundRect(rect, r, r, paint)
-        paint.color = Theme.GRAPE
+        paint.color = color
         rect.set(x0, y0 + s * 0.05f, x0 + s, y0 + s * 0.92f)
         canvas.drawRoundRect(rect, r, r, paint)
         paint.color = Theme.GOLD
@@ -193,7 +193,7 @@ class MultIcon(private val color: Int = Theme.MULT) : Icon() {
         }
         burst(Theme.darken(color, 0.35f), s * 0.06f)
         burst(color, 0f)
-        paint.color = Theme.WHITE
+        paint.color = Theme.onColor(color)
         paint.textAlign = Paint.Align.CENTER
         paint.textSize = s * 0.46f
         paint.isFakeBoldText = true

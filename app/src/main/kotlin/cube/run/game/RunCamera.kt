@@ -57,8 +57,8 @@ class RunCamera(private val cam: PerspectiveCamera) {
 
     /** The shop: the cube small, high up under the title, the cards below it. */
     fun shop() {
-        cam.position.set(0f, 3.0f, 12.5f)
-        cam.lookAt(0f, -4.6f, 0f)
+        cam.position.set(0f, 3.2f, 14f)
+        cam.lookAt(0f, -2.4f, 0f)
         cam.up.set(0f, 1f, 0f)
         cam.fieldOfView = 40f
     }
