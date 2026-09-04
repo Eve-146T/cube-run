@@ -100,7 +100,7 @@ class GiftStage(private val game: Gdx3DGame) {
             drop = max(0f, drop - dropV * dt)
             if (drop == 0f) {
                 SoundFx.play("place", rate = 0.8f); Haptics.click()
-                game.shake(0.12f)
+                game.shake(0.05f)
                 game.burst3d(tmp.set(0f, 0.05f, 0f), body, n = 10, speed = 3f, size = 0.08f, life = 0.4f)
                 if (autoOpen) { autoOpen = false; shake() }
             }
@@ -122,7 +122,7 @@ class GiftStage(private val game: Gdx3DGame) {
                 lidYaw += 420f * dt
                 yaw += 90f * dt
                 if (t < 0.6f && (t * 60f).toInt() % 3 == 0) {
-                    game.burst3d(tmp.set(0f, 1.2f, 0f), gold, n = 3, speed = 4f, size = 0.12f, life = 0.9f)
+                    game.burst3d(tmp.set(0f, 1.2f, 0f), gold, n = 2, speed = 3.5f, size = 0.12f, life = 0.9f)
                 }
                 if (t > 1.1f) { phase = OPENED; t = 0f }
             }
@@ -162,7 +162,7 @@ class GiftStage(private val game: Gdx3DGame) {
 
     private fun burst() {
         phase = OPEN; t = 0f
-        lidVy = 8.5f; lidDx = 0f; glow = 1f; dolly = 1f
+        lidVy = 7.5f; lidDx = 0f; glow = 1f; dolly = 0.6f
         val r = Progress.openBox()
         reward = r
         game.session.boxOpened(r.kind, r.amount, r.cat, r.id)
@@ -172,19 +172,19 @@ class GiftStage(private val game: Gdx3DGame) {
         SoundFx.play("boom", rate = 1.6f, vol = 0.4f)
         if (r.rare) SoundFx.play("success", rate = 1.25f)
         Haptics.success()
-        game.slowMo(0.3f, 0.35f)
-        game.shake(0.25f)
+        game.slowMo(0.55f, 0.2f)
+        game.shake(0.07f)
         val col = when {
             skin -> hsvInto(tmpCol, 300f, 0.4f, 1f)
             bubble -> hsvInto(tmpCol, 190f, 0.4f, 1f)
             else -> hsvInto(tmpCol, 46f, 0.5f, 1f)
         }
         rayCol.set(col)
-        game.flash(col, 0.35f)
-        game.burst3d(tmp.set(0f, 1.1f, 0f), col, n = 46, speed = 6f, size = 0.16f, life = 1.2f)
-        game.burst3d(tmp, Color.WHITE, n = 16, speed = 9f, size = 0.09f, life = 0.6f)
+        game.flash(col, 0.2f)
+        game.burst3d(tmp.set(0f, 1.1f, 0f), col, n = 28, speed = 5f, size = 0.15f, life = 1.1f)
+        game.burst3d(tmp, Color.WHITE, n = 10, speed = 7f, size = 0.09f, life = 0.6f)
         if (!bubble && !skin) { // a fountain of real coins
-            coinsLive = if (r.rare) maxCoins else maxCoins / 2
+            coinsLive = if (r.rare) 26 else 14
             for (i in 0 until coinsLive) {
                 val o = i * 7
                 val a = i * 2.39996f
@@ -235,7 +235,7 @@ class GiftStage(private val game: Gdx3DGame) {
         val r = reward
         if (open && r != null) {
             val rise = min(1f, (if (phase == OPEN) t else 1f) * 1.6f)
-            val py = y + 1.3f + rise * 0.8f + 0.1f * sin(time * 2.5f)
+            val py = y + 1.0f + rise * 0.5f + 0.1f * sin(time * 2.5f)
             when {
                 r.kind == Progress.BoxReward.SKIN && r.cat == Wardrobe.CUBE -> { // the new cube, as itself
                     val sk = Skins.get(r.id)
@@ -284,7 +284,7 @@ class GiftStage(private val game: Gdx3DGame) {
         val r = reward ?: return
         if (phase != OPEN && phase != OPENED) return
         val rise = min(1f, (if (phase == OPEN) t else 1f) * 1.6f)
-        val y = 0.62f + 0.05f * sin(t * 3f) + 1.3f + rise * 0.8f + 0.1f * sin(time * 2.5f)
+        val y = 0.62f + 0.05f * sin(t * 3f) + 1.0f + rise * 0.5f + 0.1f * sin(time * 2.5f)
         val s = 1.4f * rise
         when {
             r.kind == Progress.BoxReward.BUBBLE ->

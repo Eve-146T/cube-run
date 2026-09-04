@@ -151,6 +151,7 @@ class CubeRun(session: GameSession, private val autoStart: Boolean = false) : Gd
         player.squashForLaunch()
         fire.reset(); styleCombo = 0
         coinsRun = 0; coinsRunF = 0f; boxesRun = 0; coinStreak = 0
+        if (Settings.devMode && Settings.testBoxes > 0) { boxesRun = Settings.testBoxes; session.setBoxes(boxesRun) } // dev: boxes to open
         // perks: a head start lights boost taps for you; portal luck opens portals sooner
         repeat(Progress.level(Progress.HEADSTART)) { Stage.boostRequests.incrementAndGet() }
         track.portalPool = when {
@@ -401,7 +402,7 @@ class CubeRun(session: GameSession, private val autoStart: Boolean = false) : Gd
             spd = 4.5f // ambient pre-start scroll
             introT += dt
             val k = min(1f, introT / 1.8f).let { it * it * it * (it * (it * 6f - 15f) + 10f) }
-            rig.intro = -1.2f + 1.2f * k // the menu shot swoops in from far back and settles
+            rig.intro = -2.2f + 2.2f * k // the menu shot swoops in from high and far back and settles
         } else {
             spd = max(0f, spd - spd * 2.4f * dt) // death: world glides to a stop
             deathT = min(deathT + dt, 2.5f)

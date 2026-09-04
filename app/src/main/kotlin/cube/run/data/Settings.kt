@@ -51,6 +51,8 @@ object Settings {
     @Volatile var testBonus: Int = -1
 
     /** Debug: when ≥ 0 the run starts in this world. Process-scoped. */
+    /** Debug: mystery boxes the next run starts with (dev mode only), so the box stage is one END RUN away. */
+    @Volatile var testBoxes = 0
     @Volatile var testWorld: Int = -1
 
     fun init(ctx: Context) {

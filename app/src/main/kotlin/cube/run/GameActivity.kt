@@ -26,6 +26,7 @@ class GameActivity : AndroidApplication() {
         intent.getIntExtra("section", -2).let { if (it >= -1) Settings.testSection = it }
         intent.getIntExtra("bonus", -2).let { if (it >= -1) Settings.testBonus = it }
         intent.getIntExtra("world", -2).let { if (it >= -1) Settings.testWorld = it }
+        intent.getIntExtra("boxes", -1).let { if (it >= 0) Settings.testBoxes = it }
         hud = Hud(this)
         hud.setBest(Scores.best(SCORE_ID))
         val session = GameHostSession(this, SCORE_ID, hud)

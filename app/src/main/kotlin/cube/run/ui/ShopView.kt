@@ -16,9 +16,11 @@ import cube.run.core.Stage
 import cube.run.data.Progress
 
 /**
- * The shop, full screen on the engine's stage with your cube up top: bubble
+ * The shop: a showroom strip up top where the engine shows your cube (with
+ * a sunburst behind it), and a dark sheet below it holding the cards — the
+ * cards scroll inside the sheet, so nothing ever covers the cube. Bubble
  * shields to stock up on, one bold card per power-up whose duration you
- * level up, then the perks. Cards are glass over the stage — a coloured
+ * level up, then the perks. Cards are glass over the sheet — a coloured
  * header band with the item's icon, what you have now and what the next
  * level gives, a bar of segments that pops as it fills, and a coin price
  * button. Every purchase goes through [Progress] and plays out on the cube
@@ -31,8 +33,10 @@ class ShopView(activity: Activity, kit: UiKit, onClose: () -> Unit) : Page(activ
     private val list = LinearLayout(activity).apply {
         orientation = LinearLayout.VERTICAL
         clipChildren = false; clipToPadding = false
-        setPadding(dp(16f), dp(96f), dp(16f), dp(28f)) // the cube shows above the first card
+        setPadding(dp(16f), dp(18f), dp(16f), dp(28f))
     }
+    /** How tall the showroom strip is (the cube lives there; the camera is aimed to match). */
+    private val showroomDp = 150f
     private val balance = kit.iconPill(CoinIcon(), "", Theme.INK, 16f)
     private val bars = HashMap<String, SegmentBar>()
     private val cards = HashMap<String, View>()
@@ -79,10 +83,19 @@ class ShopView(activity: Activity, kit: UiKit, onClose: () -> Unit) : Page(activ
     init {
         Stage.mode = Stage.SHOP
         addRight(balance)
-        content.addView(ScrollView(activity).apply {
-            isVerticalScrollBarEnabled = false
-            clipChildren = false; clipToPadding = false
-            addView(list)
+        content.addView(LinearLayout(activity).apply {
+            orientation = LinearLayout.VERTICAL
+            // clipChildren stays ON here: it is what clips the sheet's scrolled cards to the sheet
+            addView(View(activity), LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(showroomDp))) // the showroom: the cube shows through
+            addView(ScrollView(activity).apply { // the sheet the cards live in
+                isVerticalScrollBarEnabled = false
+                clipToPadding = false
+                background = GradientDrawable().apply {
+                    cornerRadii = floatArrayOf(dpf(30f), dpf(30f), dpf(30f), dpf(30f), 0f, 0f, 0f, 0f)
+                    setColor(Theme.alpha(Theme.INK, 165))
+                }
+                addView(list)
+            }, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f))
         })
         render()
     }

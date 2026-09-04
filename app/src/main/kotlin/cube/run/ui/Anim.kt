@@ -27,6 +27,9 @@ object Anim {
      */
     private fun settle(v: View) {
         v.alpha = 1f; v.scaleX = 1f; v.scaleY = 1f; v.translationX = 0f; v.translationY = 0f
+        // a view's property animator REMEMBERS its start delay: clear it, or the next animate() on this
+        // view (a fade-out, a drop) waits that long first and looks like it plays late or backwards
+        v.animate().setStartDelay(0).setUpdateListener(null)
         v.requestLayout()
         (v.parent as? View)?.requestLayout()
     }

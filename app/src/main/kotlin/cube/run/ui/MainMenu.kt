@@ -162,10 +162,29 @@ class MainMenu(
         super.onDetachedFromWindow()
     }
 
-    /** The views a page should hide while it is up (the menu itself stays for its layout). */
+    /**
+     * A page is opening (false) or closing (true). Opening: everything drops
+     * away quickly (the logo up, the chips down) before the page fades in;
+     * closing: it is put back so [show] can pop it all in again.
+     */
     fun setShown(show: Boolean) {
-        val v = if (show) View.VISIBLE else View.INVISIBLE
-        top.visibility = v; middle.visibility = v; leftChips.visibility = v; rightChips.visibility = v; bank.visibility = v
-        bubbles.visibility = if (show && Progress.bubbles > 0) VISIBLE else if (show) GONE else INVISIBLE
+        val parts = listOf(top, middle, leftChips, rightChips, bank, bubbles)
+        if (show) {
+            for (a in anims) a.cancel()
+            anims.clear()
+            for (p in parts) { p.animate().cancel(); p.animate().setStartDelay(0); p.alpha = 1f; p.translationY = 0f; p.scaleX = 1f; p.scaleY = 1f; p.visibility = VISIBLE }
+            bubbles.visibility = if (Progress.bubbles > 0) VISIBLE else GONE
+        } else {
+            for (a in anims) a.cancel()
+            anims.clear()
+            for (p in parts) { p.animate().cancel(); p.animate().setStartDelay(0) }
+            top.animate().translationY(-dpf(40f)).alpha(0f).setDuration(140).withEndAction { top.visibility = INVISIBLE }.start()
+            // over the GL surface a pure alpha change was seen to stay stale until a layout: ask for one every frame of this fade
+            middle.animate().alpha(0f).scaleX(0.85f).scaleY(0.85f).setDuration(120).withEndAction { middle.visibility = INVISIBLE }.start()
+            leftChips.animate().translationY(dpf(50f)).alpha(0f).setDuration(140).withEndAction { leftChips.visibility = INVISIBLE }.start()
+            rightChips.animate().translationY(dpf(50f)).alpha(0f).setDuration(140).withEndAction { rightChips.visibility = INVISIBLE }.start()
+            bank.animate().alpha(0f).translationY(-dpf(20f)).setDuration(120).withEndAction { bank.visibility = INVISIBLE }.start()
+            bubbles.animate().alpha(0f).translationY(-dpf(20f)).setDuration(120).withEndAction { bubbles.visibility = INVISIBLE }.start()
+        }
     }
 }

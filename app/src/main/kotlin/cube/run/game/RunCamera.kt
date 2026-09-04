@@ -16,7 +16,7 @@ class RunCamera(private val cam: PerspectiveCamera) {
     private var kick = 0f       // transient field-of-view punch
     private var dolly = 0f      // eased extra pull-back (bounces)
     /** 0 = the idle shot (higher, further back, looking down the road), 1 = the chase. Eased by the game at run start. */
-    var intro = -1.2f
+    var intro = -2.2f
     /** Camera roll in degrees (the Kaleidoscope sways), eased. */
     var roll = 0f
     /** Extra pull-back for wide roads, eased. */
@@ -25,7 +25,7 @@ class RunCamera(private val cam: PerspectiveCamera) {
     /** A field-of-view punch (bubble, fire taps, level up, bounces). Bigger wins. */
     fun punch(amount: Float) { kick = max(kick, amount) }
 
-    fun reset() { flyCam = 0f; kick = 0f; dolly = 0f; intro = -1.2f }
+    fun reset() { flyCam = 0f; kick = 0f; dolly = 0f; intro = -2.2f }
 
     /**
      * One frame of the chase. [lift] is the player's height above its ground,
@@ -58,7 +58,7 @@ class RunCamera(private val cam: PerspectiveCamera) {
     /** The shop: the cube small, high up under the title, the cards below it. */
     fun shop() {
         cam.position.set(0f, 3.2f, 14f)
-        cam.lookAt(0f, -2.4f, 0f)
+        cam.lookAt(0f, -1.9f, 0f)
         cam.up.set(0f, 1f, 0f)
         cam.fieldOfView = 40f
     }
