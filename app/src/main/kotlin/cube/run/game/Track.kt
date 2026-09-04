@@ -35,7 +35,6 @@ class Track(private val rnd: Random, private val fx: ObstacleFactory, private va
 
     // ---- lane-walk / director state ----
     private val pendingSteps = ArrayDeque<Int>()
-    private var pendingSectName: String? = null // dev mode: name to stamp on the next spawned row
     private var curSafe = 1         // the lane currently guaranteed safe (the walk position)
     private var prevKind = -1       // last spawned step code (drives recovery spacing)
     private var mirror = false
@@ -60,6 +59,14 @@ class Track(private val rnd: Random, private val fx: ObstacleFactory, private va
     private var rowsSinceBox = 99
     /** While the jetpack is on, new coin trails are laid at flying height. */
     @Volatile var airCoins = false
+    /**
+     * Jetpack: the z that reaches the player the moment the flight ends, and how
+     * long (in world units) the glide down before it lasts. Coins ahead of the
+     * end fly, coins along the glide descend with you, coins beyond it are laid
+     * on the ground — so the line itself announces the landing.
+     */
+    var jetEndZ = 0f
+    var jetGlideLen = 0f
 
     /** Unlocked tier, supplied by the game each spawn (difficulty lives there). */
     var tier = 0
@@ -69,7 +76,7 @@ class Track(private val rnd: Random, private val fx: ObstacleFactory, private va
     /** Start a run: wipe the walk and prefill the whole track down to [spawnZ]. */
     fun reset(coinTrailChance: Float, hue: Float) {
         rows.clear()
-        pendingSteps.clear(); pendingSectName = null
+        pendingSteps.clear()
         introServed = false; sectsSinceBreather = 0; lastSectId = -99
         curSafe = 1; prevKind = -1; rowsSpawned = 0
         coinRowsLeft = 0; prevPlatLane = -1
@@ -170,7 +177,6 @@ class Track(private val rnd: Random, private val fx: ObstacleFactory, private va
     private fun loadNextSection() {
         val s = pickSection()
         mirror = s.mirrorable && rnd.nextBoolean()
-        if (reviewing()) pendingSectName = s.name // announce when its first row nears the player
         for (c in s.steps) pendingSteps.add(c)
     }
 
@@ -180,6 +186,7 @@ class Track(private val rnd: Random, private val fx: ObstacleFactory, private va
         var platLane = -1
         when {
             code == Step.EM -> { /* open row — a beat of rest */ }
+            code == Step.CF -> { /* open row — coins in every lane (layCoins) */ }
             code == Step.JP -> obs.add(fx.wall(hue))
             code == Step.DK -> obs.add(fx.over(hue))
             code == Step.VD -> fx.addTar(0, 2, hue, obs)
@@ -242,8 +249,6 @@ class Track(private val rnd: Random, private val fx: ObstacleFactory, private va
         }
         val row = Row(z, obs)
         row.safeLane = curSafe
-        row.sectName = pendingSectName // first row of a section (dev mode only)
-        pendingSectName = null
         layCoins(row, code, platLane)
         layPickup(row, code)
         prevPlatLane = platLane
@@ -254,21 +259,39 @@ class Track(private val rnd: Random, private val fx: ObstacleFactory, private va
         prevKind = code
     }
 
-    /** Jetpack on: every coin still ahead rises to flying height, and rows without coins get an air line. */
-    fun liftCoins(y: Float) {
+    /**
+     * Height of the jet coin line at world z: cruising height ahead of the
+     * glide, sloping down along it, ground level past the landing point.
+     */
+    private fun jetY(z: Float, restY: Float): Float {
+        val glideStart = jetEndZ + jetGlideLen
+        return when {
+            z >= glideStart -> Player.FLY_Y
+            z >= jetEndZ -> restY + (Player.FLY_Y - restY) * ((z - jetEndZ) / max(0.01f, jetGlideLen))
+            else -> restY
+        }
+    }
+
+    /** Jetpack on: every coin ahead rises onto the flight line (cruise, glide or ground, by where it will be met). */
+    fun liftCoins() {
         for (row in rows) {
             if (row.z > -4f) continue
             val coins = row.coins
             if (coins == null) {
                 val x = fx.laneX(row.safeLane)
-                row.coins = arrayListOf(Coin(x, y, -1.6f), Coin(x, y, -3.1f), Coin(x, y, -4.6f))
+                val list = ArrayList<Coin>(3)
+                for (k in 0 until 3) {
+                    val dz = -1.6f - k * 1.5f
+                    list.add(Coin(x, jetY(row.z + dz, 0.5f), dz, restY = 0.5f))
+                }
+                row.coins = list
             } else {
-                for (c in coins) if (!c.taken) c.y = y
+                for (c in coins) if (!c.taken) c.y = jetY(row.z + c.dz, c.restY)
             }
         }
     }
 
-    /** Jetpack off: coins still ahead settle back to where they were laid. */
+    /** Jetpack off: anything still in the air ahead settles back to where it belongs. */
     fun dropCoins() {
         for (row in rows) {
             if (row.z > -3f) continue
@@ -289,8 +312,16 @@ class Track(private val rnd: Random, private val fx: ObstacleFactory, private va
     private fun layCoins(row: Row, code: Int, platLane: Int) {
         val x = fx.laneX(curSafe)
         val coins = ArrayList<Coin>(5)
-        if (airCoins) { // jetpack: a line at flying height, every row
-            for (k in 0 until 3) coins.add(Coin(x, Player.FLY_Y, -1.6f - k * 1.5f))
+        if (airCoins) { // jetpack: a line every row — cruising, gliding down, or already on the ground
+            for (k in 0 until 3) {
+                val dz = -1.6f - k * 1.5f
+                coins.add(Coin(x, jetY(row.z + dz, 0.5f), dz, restY = 0.5f))
+            }
+            row.coins = coins
+            return
+        }
+        if (code == Step.CF) { // coin field: a long line in every lane
+            for (l in 0..2) { val lx = fx.laneX(l); for (k in 0 until 4) coins.add(Coin(lx, 0.5f, -k * 1.5f)) }
             row.coins = coins
             return
         }
@@ -326,7 +357,7 @@ class Track(private val rnd: Random, private val fx: ObstacleFactory, private va
      * (magnet / 2× / jetpack), a bubble, or — much rarer — a mystery box.
      */
     private fun layPickup(row: Row, code: Int) {
-        if (reviewing() || rowsSpawned < pickupMinRows || code == Step.EM || Step.isPlatform(code)) return
+        if (reviewing() || rowsSpawned < pickupMinRows || code == Step.EM || code == Step.CF || Step.isPlatform(code)) return
         if (rowsSincePickup < pickupSpacing) return
         val r = rnd.nextFloat()
         row.pickup = when {

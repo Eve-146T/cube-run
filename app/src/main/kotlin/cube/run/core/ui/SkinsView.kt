@@ -2,16 +2,16 @@ package cube.run.core.ui
 
 import android.annotation.SuppressLint
 import android.app.Activity
+import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
-import android.os.Build
 import android.view.Gravity
 import android.view.MotionEvent
 import android.view.View
-import android.view.WindowInsets
 import android.view.animation.DecelerateInterpolator
 import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.TextView
+import cube.run.R
 import cube.run.core.Haptics
 import cube.run.core.Palette
 import cube.run.core.Progress
@@ -27,48 +27,31 @@ import kotlin.math.abs
  * EQUIP / BUY. Nothing here draws the cube: the engine does, in 3D.
  */
 @SuppressLint("SetTextI18n", "ViewConstructor", "ClickableViewAccessibility")
-class SkinsView(
-    private val activity: Activity,
-    private val kit: UiKit,
-    private val onClose: () -> Unit,
-) : FrameLayout(activity) {
+class SkinsView(activity: Activity, kit: UiKit, onClose: () -> Unit) : FullScreen(activity, kit, "SKINS", dark = true, onClosed = onClose) {
 
-    private fun dp(v: Float) = kit.dp(v)
     private var index = Progress.skin.coerceIn(0, Skins.all.size - 1)
-    private val balance = kit.text("", 18f, Ui.GOLD, heavy = true).also { shadow(it) }
-    private val name = kit.text("", 30f, Ui.CARD, heavy = true).also { shadow(it) }
-    private val status = kit.text("", 15f, Palette.withAlpha(Ui.CARD, 200)).also { shadow(it) }
+    private val balance = kit.stageText("", 18f, Ui.GOLD, heavy = true)
+    private val name = kit.stageText("", 30f, heavy = true)
+    private val status = kit.stageText("", 15f, Palette.withAlpha(Color.WHITE, 200))
     private val dots = LinearLayout(activity).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER }
     private val action: TextView
-    private val top = LinearLayout(activity)
+    private val left: View
+    private val right: View
     private var downX = 0f
     private var downY = 0f
 
-    private fun shadow(t: TextView) = t.setShadowLayer(dp(6f).toFloat(), 0f, dp(2f).toFloat(), 0xA0000000.toInt())
-
     init {
-        isClickable = true // the page owns every touch: the game must not start under it
-        alpha = 0f
-        animate().alpha(1f).setDuration(220).start()
         Stage.previewSkin = index
         Stage.mode = Stage.SKINS
+        addRight(balance)
 
-        // ---- header: title + balance
-        top.apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-            setPadding(dp(24f), 0, dp(24f), 0)
-            addView(kit.text("SKINS", 26f, Ui.CARD, heavy = true, gravity = Gravity.START).also { shadow(it); it.letterSpacing = 0.06f },
-                LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
-            addView(balance)
-        }
-        addView(top, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT).apply { topMargin = dp(48f) })
+        // ---- side arrows, mid-screen: big round targets that bounce when used
+        left = kit.iconButton(R.drawable.ic_chevron_left, Color.WHITE, activity.getString(R.string.cd_prev)) { step(-1) }
+        right = kit.iconButton(R.drawable.ic_chevron_right, Color.WHITE, activity.getString(R.string.cd_next)) { step(1) }
+        content.addView(left, FrameLayout.LayoutParams(dp(60f), dp(60f)).apply { gravity = Gravity.CENTER_VERTICAL or Gravity.START; leftMargin = dp(12f) })
+        content.addView(right, FrameLayout.LayoutParams(dp(60f), dp(60f)).apply { gravity = Gravity.CENTER_VERTICAL or Gravity.END; rightMargin = dp(12f) })
 
-        // ---- side arrows, mid-screen
-        addView(arrow("‹") { step(-1) }, LayoutParams(dp(56f), dp(56f)).apply { gravity = Gravity.CENTER_VERTICAL or Gravity.START; leftMargin = dp(10f) })
-        addView(arrow("›") { step(1) }, LayoutParams(dp(56f), dp(56f)).apply { gravity = Gravity.CENTER_VERTICAL or Gravity.END; rightMargin = dp(10f) })
-
-        // ---- bottom: name, status, dots, action, close
+        // ---- bottom: name, status, dots, action
         action = kit.button("", UiKit.Style.FILLED) { act() }
         val bottom = LinearLayout(activity).apply {
             orientation = LinearLayout.VERTICAL
@@ -77,34 +60,11 @@ class SkinsView(
             addView(status, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(2f) })
             addView(dots, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(14f) })
             addView(action, LinearLayout.LayoutParams(dp(220f), LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(18f) })
-            addView(kit.button("CLOSE", UiKit.Style.OUTLINE, small = true) { close() }.apply { setTextColor(Ui.CARD) },
-                LinearLayout.LayoutParams(dp(140f), LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(12f) })
         }
-        addView(bottom, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT).apply {
-            gravity = Gravity.BOTTOM; bottomMargin = dp(40f)
+        content.addView(bottom, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT).apply {
+            gravity = Gravity.BOTTOM; bottomMargin = dp(24f)
         })
-        setOnApplyWindowInsetsListener { _, insets ->
-            val top: Int; val bottomInset: Int
-            if (Build.VERSION.SDK_INT >= 30) {
-                top = insets.getInsets(WindowInsets.Type.statusBars() or WindowInsets.Type.displayCutout()).top
-                bottomInset = insets.getInsets(WindowInsets.Type.navigationBars() or WindowInsets.Type.displayCutout()).bottom
-            } else {
-                @Suppress("DEPRECATION") top = insets.systemWindowInsetTop
-                @Suppress("DEPRECATION") bottomInset = insets.systemWindowInsetBottom
-            }
-            (this.top.layoutParams as LayoutParams).topMargin = maxOf(dp(48f), top + dp(12f))
-            (bottom.layoutParams as LayoutParams).bottomMargin = dp(40f) + bottomInset
-            requestLayout()
-            insets
-        }
         render()
-    }
-
-    private fun arrow(glyph: String, onClick: () -> Unit) = kit.text(glyph, 34f, Ui.CARD, heavy = true).apply {
-        shadow(this)
-        background = GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(Palette.withAlpha(Ui.CARD, 40)) }
-        isClickable = true
-        setOnClickListener { onClick() }
     }
 
     /** A horizontal swipe anywhere browses; taps fall through to the buttons. Returns true on a swipe. */
@@ -139,6 +99,10 @@ class SkinsView(
         SoundFx.play("tick", rate = 1.3f, vol = 0.5f); Haptics.tick()
         name.translationX = d * dp(40f).toFloat(); name.alpha = 0f
         name.animate().translationX(0f).alpha(1f).setDuration(220).setInterpolator(DecelerateInterpolator()).start()
+        val arrow = if (d > 0) right else left // the arrow you went through nudges along
+        arrow.animate().cancel()
+        arrow.translationX = d * dp(8f).toFloat()
+        arrow.animate().translationX(0f).setDuration(220).setInterpolator(DecelerateInterpolator()).start()
         render()
     }
 
@@ -155,9 +119,9 @@ class SkinsView(
         }
         status.setTextColor(when {
             equipped -> kit.accent
-            owned -> Palette.withAlpha(Ui.CARD, 200)
+            owned -> Palette.withAlpha(Color.WHITE, 200)
             s.price <= Progress.coins -> Ui.GOLD
-            else -> Palette.withAlpha(Ui.CARD, 140)
+            else -> Palette.withAlpha(Color.WHITE, 140)
         })
         action.text = when {
             equipped -> "EQUIPPED"
@@ -170,9 +134,9 @@ class SkinsView(
             dots.addView(View(activity).apply {
                 background = GradientDrawable().apply {
                     shape = GradientDrawable.OVAL
-                    setColor(if (i == index) Ui.CARD else Palette.withAlpha(Ui.CARD, 70))
+                    setColor(if (i == index) Color.WHITE else Palette.withAlpha(Color.WHITE, 70))
                 }
-            }, LinearLayout.LayoutParams(dp(if (i == index) 10f else 7f), dp(if (i == index) 10f else 7f)).apply { leftMargin = dp(4f); rightMargin = dp(4f) })
+            }, LinearLayout.LayoutParams(dp(if (i == index) 9f else 6f), dp(if (i == index) 9f else 6f)).apply { leftMargin = dp(3f); rightMargin = dp(3f) })
         }
     }
 
@@ -192,12 +156,9 @@ class SkinsView(
         }
     }
 
-    private fun close() {
+    override fun onBack() {
         Stage.previewSkin = -1
         Stage.mode = Stage.NONE
-        animate().alpha(0f).setDuration(160).withEndAction {
-            (parent as? FrameLayout)?.removeView(this)
-            onClose()
-        }.start()
+        close()
     }
 }

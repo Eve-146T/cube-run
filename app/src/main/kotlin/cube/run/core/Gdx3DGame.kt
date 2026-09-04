@@ -75,6 +75,9 @@ abstract class Gdx3DGame(val session: GameSession) : ApplicationAdapter(), Touch
 
     abstract fun init()
     abstract fun tick(dt: Float)
+
+    /** While true the frame is drawn but nothing advances: [tick] gets dt = 0 and [time] holds. */
+    open fun paused(): Boolean = false
     abstract fun renderWorld(batch: ModelBatch, env: Environment)
 
     /**
@@ -130,7 +133,7 @@ abstract class Gdx3DGame(val session: GameSession) : ApplicationAdapter(), Touch
 
     override fun render() {
         perf.beginFrame()
-        val dt = min(Gdx.graphics.deltaTime, 0.035f)
+        val dt = if (paused()) 0f else min(Gdx.graphics.deltaTime, 0.035f)
         time += dt
         val sim0 = System.nanoTime()
         tick(dt)

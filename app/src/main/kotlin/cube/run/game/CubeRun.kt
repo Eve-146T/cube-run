@@ -44,7 +44,7 @@ import kotlin.random.Random
  * obstacle; coins and mystery boxes are handed to the session and banked at
  * game over.
  */
-class CubeRun(session: GameSession) : Gdx3DGame(session) {
+class CubeRun(session: GameSession, private val autoStart: Boolean = false) : Gdx3DGame(session) {
 
     private val laneW = 1.7f
     private val rnd = Random(System.nanoTime())
@@ -71,6 +71,10 @@ class CubeRun(session: GameSession) : Gdx3DGame(session) {
     private var touchIsFire = false  // current touch began on the fire button (don't steer with it)
     private var fovKick = 0f         // transient field-of-view punch (bubble, fire taps, level up)
     private var jetGrace = 0f        // safe landing window after a jetpack flight
+    private var jetBoost = 0f        // eased 0..1: how much of the jetpack's speed boost is on
+    private var flyCam = 0f          // eased 0..1: the high-angle flight camera
+    private val jetGlide = 1.4f      // the last seconds of a flight glide back down to the ground
+    private val jetSpeedUp = 0.75f   // the jetpack's speed boost (+75%)
 
     // ---- death: let the crash animation play before the run-over screens ----
     private val deathAnimTime = 1.5f
@@ -91,7 +95,9 @@ class CubeRun(session: GameSession) : Gdx3DGame(session) {
     private val flameCol = Color()
     private var coinsRun = 0        // collected this run (banked by the session at game over)
     private var boxesRun = 0        // mystery boxes collected this run (opened on the run-over screens)
-    private var coinStreak = 0      // consecutive pickups without a miss (drives the pitch + streak banners)
+    private var coinStreak = 0      // consecutive pickups without a miss (the milestone chimes)
+    private var coinPitch = 0       // rising coin pitch; resets after a short gap without a coin
+    private var lastCoinT = -9f
     private val magnetR = 1.6f      // passive pull radius (world units); the MAGNET pickup makes it huge
     private val nearMissBonus = 2   // score for shaving an obstacle
 
@@ -155,6 +161,8 @@ class CubeRun(session: GameSession) : Gdx3DGame(session) {
     // --------------------------------------------------------------- events
 
     private fun live() = started && !dead && !session.isOver
+
+    override fun paused(): Boolean = Stage.paused
 
     private fun start() {
         if (started || session.isOver) return
@@ -256,7 +264,11 @@ class CubeRun(session: GameSession) : Gdx3DGame(session) {
         coinsRun++
         coinStreak++
         session.setCoins(coinsRun)
-        SoundFx.play("coin", rate = (1f + 0.045f * min(coinStreak, 16)).coerceAtMost(1.9f), vol = 0.65f)
+        // the pitch climbs coin after coin and falls back as soon as the line breaks
+        if (time - lastCoinT > 0.4f) coinPitch = 0
+        lastCoinT = time
+        coinPitch++
+        SoundFx.play("coin", rate = (1f + 0.05f * min(coinPitch, 14)).coerceAtMost(1.9f), vol = 0.65f)
         Haptics.tick()
         burst3d(tmp.set(coin.x, coin.y, cz), coinCol, n = 6, speed = 3.2f, size = 0.09f, life = 0.4f)
         burst3d(tmp, Color.WHITE, n = 2, speed = 4f, size = 0.06f, life = 0.25f)
@@ -281,10 +293,12 @@ class CubeRun(session: GameSession) : Gdx3DGame(session) {
             Pickup.MAGNET -> { powerUps.magnet.start(Progress.MAGNET.duration(Progress.magnetLevel)); announce(magnetCol, row.pickupX, cz) }
             Pickup.MULT -> { powerUps.mult.start(Progress.MULT.duration(Progress.multLevel)); announce(multCol, row.pickupX, cz) }
             Pickup.JET -> {
-                powerUps.jet.start(Progress.JET.duration(Progress.jetLevel))
+                val dur = Progress.JET.duration(Progress.jetLevel)
+                powerUps.jet.start(dur)
                 player.setFlying(true)
                 track.airCoins = true
-                track.liftCoins(Player.FLY_Y)
+                aimJetCoins(dur, difficulty.speed() * (1f + jetSpeedUp)) // where the flight will end, at boosted speed
+                track.liftCoins()
                 announce(jetCol, row.pickupX, cz)
                 fovKick = 1f
             }
@@ -297,6 +311,12 @@ class CubeRun(session: GameSession) : Gdx3DGame(session) {
         Haptics.success()
         flash(col, 0.18f)
         burst3d(tmp.set(x, 0.8f, cz), col, n = 18, speed = 5f, size = 0.13f, life = 0.7f)
+    }
+
+    /** Tell the track where the flight lands, so the coin line it lays glides down to meet the ground there. */
+    private fun aimJetCoins(left: Float, speed: Float) {
+        track.jetEndZ = -(left * speed)
+        track.jetGlideLen = jetGlide * speed
     }
 
     private fun endJet() {
@@ -323,7 +343,7 @@ class CubeRun(session: GameSession) : Gdx3DGame(session) {
     // ---------------------------------------------------------------- input
 
     override fun onDown(x: Float, y: Float) {
-        if (gift.active) return
+        if (gift.active || wardrobe || Stage.paused) return
         touchIsFire = fire.available(live()) && fire.inZone(x, y)
         if (touchIsFire) {
             if (fire.tap(player.px, player.py, live())) fovKick = max(fovKick, 0.45f)
@@ -409,18 +429,26 @@ class CubeRun(session: GameSession) : Gdx3DGame(session) {
             gift.aimCamera(cam)
             return
         }
-        if (Stage.mode == Stage.SKINS) {
+        if (Stage.mode == Stage.SKINS || Stage.mode == Stage.RESULT) {
             if (!wardrobe) enterWardrobe()
             player.showcase(time, baseHue)
-            cam.position.set(0f, 2.3f, 7.0f)
-            cam.lookAt(0f, 0.75f, 0f)
+            if (Stage.mode == Stage.SKINS) { // the wardrobe: the cube centred
+                cam.position.set(0f, 2.3f, 7.0f)
+                cam.lookAt(0f, 0.75f, 0f)
+            } else { // the results: the cube small and whole in the top third, the score card below it
+                cam.position.set(0f, 3.4f, 11.5f)
+                cam.lookAt(0f, -2.1f, 0f)
+            }
             cam.up.set(0f, 1f, 0f)
             cam.fieldOfView = 40f
             return
         } else if (wardrobe) exitWardrobe()
 
+        if (!started && autoStart && time > 0.05f) start() // RESTART: straight into the run
+
         if (started && !dead) {
-            spd = difficulty.speed() // blue line is the cruising max; diminishing returns past it
+            jetBoost += ((if (player.flying) 1f else 0f) - jetBoost) * min(1f, dt * 2f)
+            spd = difficulty.speed() * (1f + jetSpeedUp * jetBoost) // blue line is the cruising max; the jetpack rides above it
             fire.tick(dt)
             difficulty.ramp(dt)
         } else if (!started) {
@@ -455,6 +483,11 @@ class CubeRun(session: GameSession) : Gdx3DGame(session) {
             powerUps.magnet.tick(dt)
             powerUps.mult.tick(dt)
             if (powerUps.jet.tick(dt)) endJet()
+            else if (player.flying) { // keep the landing point current; glide down through the last seconds
+                val left = powerUps.jet.left
+                aimJetCoins(left, spd)
+                player.flyY = if (left < jetGlide) player.ground + (Player.FLY_Y - player.ground) * (left / jetGlide) else Player.FLY_Y
+            }
         }
 
         if (!dead) {
@@ -474,12 +507,6 @@ class CubeRun(session: GameSession) : Gdx3DGame(session) {
         val immune = player.flying || jetGrace > 0f
         val pull = if (powerUps.magnet.active) 7.5f else magnetR
         for (row in track.rows) {
-            row.sectName?.let { name -> // dev mode: announce the section as its first row nears
-                if (row.z > -14f) {
-                    row.sectName = null
-                    if (started && !dead) session.banner(name)
-                }
-            }
             if (started && !dead && !immune && abs(row.z) < 0.95f) {
                 for (ob in row.obs) {
                     if (ob.type == ObType.DECO || ob.type == ObType.PLAT) continue
@@ -528,11 +555,15 @@ class CubeRun(session: GameSession) : Gdx3DGame(session) {
         }
 
         // ---- chase camera: above-behind, leans with the player, lifts with height,
-        // pulls back on death; the field of view widens with speed (and punches on bubble/level-up)
+        // pulls back on death; the field of view widens with speed (and punches on bubble/level-up).
+        // A jetpack flight (anything higher than a jump) swings it up into a high angle looking down the track.
         val lift = py - player.ground
-        val cy = 3.6f + lift * 0.3f + deathT * 1.6f
-        cam.position.set(px * 0.45f, cy, 6.4f + deathT * 2.2f)
-        cam.lookAt(px * 0.55f, 1.0f + lift * 0.5f, -8f)
+        val highT = ((lift - 1.5f) / (Player.FLY_Y - player.ground - 1.5f)).coerceIn(0f, 1f)
+        flyCam += (highT - flyCam) * min(1f, dt * 4f)
+        val f = flyCam
+        val cy = 3.6f + lift * 0.3f * (1f - f) + f * 9.5f + deathT * 1.6f
+        cam.position.set(px * (0.45f - 0.15f * f), cy, 6.4f + f * 1.2f + deathT * 2.2f)
+        cam.lookAt(px * (0.55f - 0.15f * f), 1.0f + lift * 0.5f * (1f - f) + f * 1.6f, -8f - f * 6f)
         cam.up.set(0f, 1f, 0f)
         cam.fieldOfView = 60f + max(0f, spd - 10f) * 0.42f + fovKick * fovKick * 9f
     }
@@ -567,7 +598,7 @@ class CubeRun(session: GameSession) : Gdx3DGame(session) {
     // ------------------------------------------------------------- rendering
 
     override fun renderHud(shapes: ShapeRenderer, w: Float, h: Float) {
-        if (gift.active || wardrobe || dead) return
+        if (gift.active || wardrobe || dead || Stage.paused) return
         powerUps.drawBars(shapes, w, h, time, if (shield.active) shield.timer else null)
         fire.drawHud(shapes, w, h, time, live())
     }

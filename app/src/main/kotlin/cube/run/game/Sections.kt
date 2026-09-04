@@ -6,6 +6,7 @@ package cube.run.game
  *   10..12   feint: a lone pillar (two lanes stay safe) for visual density
  *   20..22   slide: a pillar drifts into that lane (a "closing gate")
  *   JP       jump a low wall     DK  roll under an overhead bar     EM  open row
+ *   CF       coin field: an open row with a coin line in EVERY lane (a magnet feast)
  *   VD       tar pit across every lane — be airborne over it
  *   PS       pistons in every lane, pumping out of phase — jump, or time a sunk one
  *   SW       a low sweeper beam gliding across all lanes — jump it
@@ -28,6 +29,7 @@ object Step {
     const val PS = 33
     const val SW = 34
     const val EM = 40
+    const val CF = 41
     fun hw(l: Int) = 50 + l
     fun dw(l: Int) = 60 + l
     fun hg(l: Int) = 70 + l
@@ -64,6 +66,7 @@ object Sections {
     private val pl = Step::pl; private val pf = Step::pf
     private const val JP = Step.JP; private const val DK = Step.DK; private const val VD = Step.VD
     private const val PS = Step.PS; private const val SW = Step.SW; private const val EM = Step.EM
+    private const val CF = Step.CF
 
     val lib = listOf(
         // --- tier 0: teach, continuous but forgiving ---
@@ -86,6 +89,9 @@ object Sections {
         Sect(32, 1, 1.0f, "HIGH ROAD", intArrayOf(pl(1), pf(1), pf(1), pf(1), dg(1))),           // climb the ramp, ride the roof
         Sect(37, 1, 0.9f, "SPEED BUMPS", intArrayOf(JP, JP, dg(1), JP, JP)),                     // hop, hop, hop
         Sect(38, 1, 0.9f, "RAMP UP", intArrayOf(pl(2), pf(2), dg(1), pl(0), pf(0), dg(1))),      // two short roofs
+        Sect(47, 1, 0.8f, "GOLD RUSH", intArrayOf(CF, CF, CF, dg(1), CF, CF)),                    // coins in every lane
+        Sect(48, 1, 0.9f, "LOW BRIDGE", intArrayOf(DK, dg(0), DK, dg(2), DK)),                    // roll, step, roll
+        Sect(49, 1, 0.9f, "HOPSCOTCH", intArrayOf(JP, dg(0), JP, dg(2), JP, dg(1))),              // hop and cross
         // --- tier 2: dense, verb-switching ---
         Sect(8, 2, 1.2f, "GAUNTLET", intArrayOf(dg(0), JP, dg(2), dg(1), DK, dg(0), JP, dg(2))), // one duck
         Sect(9, 2, 1.2f, "RAPID FIRE", intArrayOf(dg(0), dg(1), dg(2), dg(1), dg(0), dg(1), dg(2), dg(1))),
@@ -104,6 +110,9 @@ object Sections {
         Sect(40, 2, 1.0f, "SKYBRIDGE", intArrayOf(pl(1), pf(1), pf(1), pf(1), pf(1), pf(1), dg(1))), // one long roof
         Sect(41, 2, 0.9f, "SWITCHBACK", intArrayOf(dg(0), dg(1), dg(2), sld(1), dg(2), dg(1), dg(0), sld(1))), // there and back
         Sect(42, 2, 0.8f, "TRAPDOORS", intArrayOf(vw(1), vw(0), vw(2), dg(1), VD)),              // tar everywhere
+        Sect(50, 2, 0.8f, "TREASURY", intArrayOf(dg(0), CF, CF, hw(1), CF, CF, dg(2))),           // a vault between two doors
+        Sect(51, 2, 0.8f, "DOUBLE DUTCH", intArrayOf(SW, SW, dg(1), SW, SW)),                     // beams in pairs
+        Sect(52, 2, 0.8f, "TAR & FEATHER", intArrayOf(vw(0), vw(2), vw(1), JP, dg(1))),           // hop the pits, then the wall
         // --- tier 3: expert set pieces ---
         Sect(20, 3, 1.1f, "PINCER", intArrayOf(pn(1), dg(1), pn(2), dg(2), pn(1))),              // converging crushers
         Sect(21, 3, 1.0f, "GATEKEEPER", intArrayOf(hg(0), dg(1), hg(2), dg(1), hg(0))),          // sealed gaps — jump it
@@ -117,10 +126,14 @@ object Sections {
         Sect(44, 3, 0.9f, "ROOF RUNNER", intArrayOf(pl(0), pf(0), pf(1), pf(2), pf(1), pf(0), dg(0))), // weave across the roofs
         Sect(45, 3, 0.8f, "LEAPFROG", intArrayOf(hw(1), hw(0), hw(2), hw(1), JP)),               // windows keep moving
         Sect(46, 3, 0.8f, "FINALE", intArrayOf(PS, st(1), VD, hg(1), SW, pn(1), pl(1), pf(1), dg(1))), // everything, once
+        Sect(53, 3, 0.7f, "COIN CANYON", intArrayOf(pn(1), CF, st(1), CF, pn(1), CF)),            // riches between the crushers
+        Sect(54, 3, 0.8f, "STOMP YARD", intArrayOf(st(0), st(2), st(1), st(0), st(2), st(1))),    // slam after slam
+        Sect(55, 3, 0.8f, "GAUNTLET II", intArrayOf(hg(1), pn(1), dw(1), hg(0), pn(2), dw(2))),   // gates, pincers, bars
+        Sect(56, 3, 0.5f, "MOTHERLODE", intArrayOf(CF, CF, CF, CF, CF, CF)),                      // rare: a solid field of gold
     )
 
     /** Dev mode reviews the newest sections back to back (no intro, no breathers). */
-    val devPool = lib.filter { it.id >= 36 }
+    val devPool = lib.filter { it.id >= 47 }
 
     fun byId(id: Int): Sect? = lib.firstOrNull { it.id == id }
 
@@ -136,6 +149,7 @@ object Sections {
     const val C_SLIDER = 8
     const val C_PLAT = 9
     const val C_PINCER = 10
+    const val C_COIN = 11
 
     /**
      * A static picture of a section: one 3-lane row of cell kinds per step,
@@ -148,6 +162,7 @@ object Sections {
         fun all(kind: Int) { for (k in 0..2) row[k] = kind }
         when {
             code == Step.EM -> {}
+            code == Step.CF -> all(C_COIN)
             code == Step.JP -> all(C_WALL)
             code == Step.DK -> all(C_BAR)
             code == Step.VD -> all(C_TAR)

@@ -13,9 +13,6 @@ interface GameSession {
 
     fun addScore(d: Int = 1)
 
-    /** Flashes a big animated message in the center of the screen ("PERFECT!", "COMBO x5"). */
-    fun banner(text: String)
-
     /** Called once when a run actually begins (first input), e.g. to hide pre-run options. */
     fun runStarted() {}
 
@@ -32,8 +29,8 @@ interface GameSession {
     fun boxOpened(kind: Int, amount: Int) {}
 
     /**
-     * Ends the run: saves the high score, plays success/fail sound + haptic,
-     * and shows the shared game-over card with RESTART / EXIT.
+     * Ends the run: banks the coins, saves the high score, plays the
+     * success/fail sound + haptic, and shows the run-over screens.
      * The game's update loop keeps running afterwards (for death animation) —
      * guard gameplay logic with [isOver].
      */

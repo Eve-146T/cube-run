@@ -23,24 +23,26 @@ import kotlin.random.Random
 
 /**
  * The player: lane, jump/roll physics, the tumbling pose, and its look (the
- * equipped [Skins.Skin]: shape + colour behaviour + glow shell + trail).
+ * equipped [Skins.Skin]: colour behaviour + glow shell + trail — always a cube).
  * Input verbs are [moveToLane] / [jump] / [downAction]; [update] integrates
- * one frame and returns true on a landing.
+ * one frame and returns an EV_* event.
  */
 class Player(private val game: Gdx3DGame, private val laneW: Float, private val rnd: Random) {
 
     companion object {
-        /** Jetpack cruising height (cube centre) — above every obstacle. */
-        const val FLY_Y = 3.3f
+        /** Jetpack cruising height (cube centre) — well above every obstacle. */
+        const val FLY_Y = 5.2f
         const val EV_NONE = 0
         const val EV_LANDED = 1
         const val EV_SIDE_HIT = 2   // ran into the side of a platform
     }
 
     val ground = 0.45f      // resting cube center (cube = 0.9 across)
-    /** Jetpack: hover at [FLY_Y], ignore the ground. Set via [setFlying]. */
+    /** Jetpack: hover at [flyY], ignore the ground. Set via [setFlying]. */
     var flying = false
         private set
+    /** Where the jetpack holds you: [FLY_Y] while cruising, gliding down to the ground as it runs out. */
+    var flyY = FLY_Y
 
     var lane = 1
         private set
@@ -67,8 +69,6 @@ class Player(private val game: Gdx3DGame, private val laneW: Float, private val 
     val headY: Float get() = py + 0.45f - duck * 0.72f
 
     private lateinit var unit: Model
-    private lateinit var orb: Model
-    private lateinit var pyramid: Model
     private lateinit var inst: ModelInstance
     lateinit var col: Color
         private set
@@ -86,8 +86,6 @@ class Player(private val game: Gdx3DGame, private val laneW: Float, private val 
 
     fun init(baseHue: Float, time: Float) {
         unit = game.box(1f, 1f, 1f, Color.WHITE)
-        orb = game.sphere(1f, Color.WHITE, div = 18)
-        pyramid = game.cone(1.25f, 1f, Color.WHITE, div = 4)
         shadowInst = ModelInstance(unit)
         shadowBlend = BlendingAttribute(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA, 0.3f)
         shadowInst.materials.first().set(ColorAttribute.createDiffuse(Color.BLACK), shadowBlend)
@@ -101,11 +99,10 @@ class Player(private val game: Gdx3DGame, private val laneW: Float, private val 
     private fun applySkin(baseHue: Float, time: Float) {
         curSkinId = wantedSkin()
         skin = Skins.get(curSkinId)
-        val model = when (skin.shape) { Skins.ORB -> orb; Skins.PYRAMID -> pyramid; else -> unit }
-        inst = ModelInstance(model)
+        inst = ModelInstance(unit)
         col = (inst.materials.first().get(ColorAttribute.Diffuse) as ColorAttribute).color
         hsvInto(col, skin.hueAt(time, baseHue), skin.sat, skin.valueAt(time))
-        shellInst = ModelInstance(model) // pulsing translucent "glow" shell
+        shellInst = ModelInstance(unit) // pulsing translucent "glow" shell
         shellBlend = BlendingAttribute(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA, 0.3f)
         shellInst.materials.first().set(ColorAttribute.createDiffuse(Color(col)), shellBlend)
         shellCol = (shellInst.materials.first().get(ColorAttribute.Diffuse) as ColorAttribute).color
@@ -137,6 +134,7 @@ class Player(private val game: Gdx3DGame, private val laneW: Float, private val 
         if (flying == on) return
         flying = on
         duckT = 0f
+        flyY = FLY_Y
         if (on) { air = false; vy = 0f } else { air = true; vy = 0f } // ends with a fall + normal landing
     }
 
@@ -186,7 +184,7 @@ class Player(private val game: Gdx3DGame, private val laneW: Float, private val 
         px += (laneX(lane) - px) * min(1f, dt * 13f) // eased lane snap
         nudge *= max(0f, 1f - 10f * dt)
         if (flying) {
-            py += (FLY_Y - py) * min(1f, dt * 4f)
+            py += (flyY - py) * min(1f, dt * (if (flyY < FLY_Y) 7f else 4f)) // quick to climb, tight on the glide down
         } else if (air) {
             vy -= 26f * dt
             py += vy * dt

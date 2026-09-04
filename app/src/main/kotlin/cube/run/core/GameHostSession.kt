@@ -4,7 +4,7 @@ import android.app.Activity
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 
-/** The GameSession implementation: marshals score/banner/game-over to the HUD on the UI thread. */
+/** The GameSession implementation: marshals score/coins/game-over to the HUD on the UI thread. */
 class GameHostSession(
     private val activity: Activity,
     private val id: String,
@@ -29,11 +29,6 @@ class GameHostSession(
         if (over.get()) return
         val v = scoreV.addAndGet(d)
         ui { chrome.setScore(v) }
-    }
-
-    override fun banner(text: String) {
-        if (over.get()) return
-        ui { chrome.banner(text) }
     }
 
     override fun runStarted() {

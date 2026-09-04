@@ -46,11 +46,13 @@ class Ob(
     val ramp: Float = 0f,
 )
 
-/** A coin: position relative to its row ([dz] is added to the row's z). */
-class Coin(var x: Float, var y: Float, val dz: Float) {
+/**
+ * A coin: position relative to its row ([dz] is added to the row's z).
+ * [restY] is where it belongs on the ground — air-laid coins settle there if
+ * a jetpack flight ends before they arrive.
+ */
+class Coin(var x: Float, var y: Float, val dz: Float, val restY: Float = y) {
     var taken = false
-    /** Where it was laid — restored when a jetpack flight ends. */
-    val restY = y
 }
 
 /** One row of the lane-walk: obstacles, optional coins and pickup, scoring state. */
@@ -58,7 +60,6 @@ class Row(var z: Float, val obs: ArrayList<Ob>) {
     var safeLane = 1              // the walk lane when this row spawned
     var scored = false
     var minClear = 99f            // tightest clearance seen while crossing (near-miss detect)
-    var sectName: String? = null  // set on a section's first row (dev mode); bannered as it nears
     var coins: ArrayList<Coin>? = null
     var pickup = Pickup.NONE
     var pickupX = 0f

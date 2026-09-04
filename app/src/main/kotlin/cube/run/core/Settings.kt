@@ -33,7 +33,11 @@ object Settings {
     @Volatile var hapticsEnabled: Boolean = true
         private set
 
-    /** Dev mode: the section director serves only the sections under review, announcing each by name. */
+    /**
+     * Dev mode: the section director cycles the sections under review and the
+     * bank is filled. A test tool, so it is process-scoped on purpose: it
+     * survives an in-task RESTART but never a fresh launch.
+     */
     @Volatile var devMode: Boolean = false
         private set
 
@@ -49,7 +53,7 @@ object Settings {
         smoothSensitivity = prefs.getFloat("smooth_sensitivity", 0.5f)
         soundEnabled = prefs.getBoolean("sound_enabled", true)
         hapticsEnabled = prefs.getBoolean("haptics_enabled", true)
-        devMode = prefs.getBoolean("dev_mode", false)
+        if (prefs.contains("dev_mode")) prefs.edit().remove("dev_mode").apply() // was persisted once; never again
     }
 
     fun setSmoothControl(v: Boolean) {
@@ -74,6 +78,5 @@ object Settings {
 
     fun setDevMode(v: Boolean) {
         devMode = v
-        prefs.edit().putBoolean("dev_mode", v).apply()
     }
 }

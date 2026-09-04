@@ -9,7 +9,6 @@ import android.graphics.RectF
 import android.graphics.drawable.GradientDrawable
 import android.view.Gravity
 import android.view.View
-import android.widget.FrameLayout
 import android.widget.GridLayout
 import android.widget.LinearLayout
 import android.widget.ScrollView
@@ -41,6 +40,7 @@ class SectionThumbView(ctx: Context, private val sect: Sect) : View(ctx) {
         0xFF3AD4FF.toInt(),     // slider
         0xFFB8E066.toInt(),     // platform
         0xFF2EB8FF.toInt(),     // pincer
+        0xFFFFC533.toInt(),     // coins
     )
 
     override fun onDraw(canvas: Canvas) {
@@ -65,6 +65,15 @@ class SectionThumbView(ctx: Context, private val sect: Sect) : View(ctx) {
                     Sections.C_BAR, Sections.C_SWEEP -> rect.set(x0 - laneW * 0.08f, top + (bottom - top) * 0.3f, x1 + laneW * 0.08f, top + (bottom - top) * 0.6f)
                     Sections.C_WALL, Sections.C_TAR -> rect.set(x0 - laneW * 0.08f, top + (bottom - top) * 0.55f, x1 + laneW * 0.08f, bottom)
                     Sections.C_PLAT -> rect.set(x0, top - rowH * 0.15f, x1, bottom + rowH * 0.15f)
+                    Sections.C_COIN -> { // a little stack of coins
+                        val cw = laneW * 0.22f
+                        val cx = (x0 + x1) / 2f
+                        for (i in 0 until 3) {
+                            val cy = bottom - (i + 0.5f) * (bottom - top) / 3f
+                            canvas.drawCircle(cx, cy, cw / 2f, paint)
+                        }
+                        continue
+                    }
                     else -> rect.set(x0, top, x1, bottom)
                 }
                 canvas.drawRoundRect(rect, laneW * 0.12f, laneW * 0.12f, paint)
@@ -74,65 +83,63 @@ class SectionThumbView(ctx: Context, private val sect: Sect) : View(ctx) {
 }
 
 /**
- * The section explorer (a test tool): every section as a thumbnail in a grid;
- * tap one to play it on loop (`Settings.testSection`), PLAY ALL to go back to
- * the normal director.
+ * The section explorer (a test tool), full screen: every section as a
+ * thumbnail in a grid; tap one to play it on loop (`Settings.testSection`).
+ * While one is chosen the page says so at the top and offers PLAY NORMALLY.
  */
 @SuppressLint("SetTextI18n", "ViewConstructor")
-class SectionsView(
-    private val activity: Activity,
-    private val kit: UiKit,
-    private val onClose: () -> Unit,
-) : FrameLayout(activity) {
+class SectionsView(activity: Activity, kit: UiKit, onClose: () -> Unit) : FullScreen(activity, kit, "SECTIONS", dark = false, onClosed = onClose) {
 
-    private fun dp(v: Float) = kit.dp(v)
+    private val grid = GridLayout(activity).apply {
+        columnCount = 3
+        setPadding(dp(10f), dp(4f), dp(10f), dp(8f))
+    }
+    private val status = LinearLayout(activity).apply {
+        orientation = LinearLayout.HORIZONTAL
+        gravity = Gravity.CENTER_VERTICAL
+        setPadding(dp(16f), dp(10f), dp(16f), dp(10f))
+        background = GradientDrawable().apply { cornerRadius = dp(16f).toFloat(); setColor(Palette.withAlpha(0xFFFFC14A.toInt(), 70)) }
+    }
 
     init {
-        setBackgroundColor(Ui.SCRIM)
-        isClickable = true
-        alpha = 0f
-        animate().alpha(1f).setDuration(200).start()
-
-        val card = kit.card()
-        card.addView(LinearLayout(activity).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-            setPadding(dp(22f), dp(18f), dp(22f), dp(6f))
-            addView(kit.text("SECTIONS", 24f, Ui.INK, heavy = true, gravity = Gravity.START),
-                LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
-            addView(kit.text("${Sections.lib.size}", 16f, Ui.MUTED))
-        })
-        card.addView(kit.text("Tap a section to play it on loop", 12f, Ui.MUTED, bold = false, gravity = Gravity.START),
-            LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { leftMargin = dp(22f) })
-
-        val grid = GridLayout(activity).apply {
-            columnCount = 3
-            setPadding(dp(12f), dp(8f), dp(12f), dp(8f))
+        addRight(kit.text("${Sections.lib.size}", 16f, Ui.MUTED))
+        val column = LinearLayout(activity).apply {
+            orientation = LinearLayout.VERTICAL
+            addView(status, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+                leftMargin = dp(14f); rightMargin = dp(14f); topMargin = dp(4f); bottomMargin = dp(6f)
+            })
+            addView(ScrollView(activity).apply {
+                isVerticalScrollBarEnabled = false
+                addView(grid)
+            }, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f))
         }
+        content.addView(column)
+        render()
+    }
+
+    private fun render() {
+        status.removeAllViews()
+        val chosen = Sections.byId(Settings.testSection)
+        if (chosen != null) {
+            status.addView(LinearLayout(activity).apply {
+                orientation = LinearLayout.VERTICAL
+                addView(kit.text("TESTING ${chosen.name}", 14f, Ui.INK, heavy = true, gravity = Gravity.START))
+                addView(kit.text("The run plays only this section, on loop. No pickups.", 12f, Ui.MUTED, bold = false, gravity = Gravity.START))
+            }, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+            status.addView(kit.button("PLAY NORMALLY", UiKit.Style.FILLED, small = true) {
+                Settings.testSection = -1
+                render()
+            }, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { leftMargin = dp(10f) })
+        } else {
+            status.addView(kit.text("Tap a section to play it on loop", 13f, Ui.INK, gravity = Gravity.START),
+                LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+        }
+        grid.removeAllViews()
         for (s in Sections.lib.sortedWith(compareBy({ it.tier }, { it.id }))) {
             grid.addView(cell(s), GridLayout.LayoutParams(GridLayout.spec(GridLayout.UNDEFINED), GridLayout.spec(GridLayout.UNDEFINED, 1f)).apply {
                 width = 0; setMargins(dp(4f), dp(4f), dp(4f), dp(4f))
             })
         }
-        card.addView(ScrollView(activity).apply {
-            isVerticalScrollBarEnabled = false
-            addView(grid)
-        }, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f))
-
-        card.addView(LinearLayout(activity).apply {
-            orientation = LinearLayout.HORIZONTAL
-            setPadding(dp(22f), dp(6f), dp(22f), dp(18f))
-            addView(kit.button("PLAY ALL", UiKit.Style.OUTLINE, small = true) {
-                Settings.testSection = -1
-                close()
-            }, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
-            addView(kit.button("CLOSE", UiKit.Style.FILLED, small = true) { close() },
-                LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply { leftMargin = dp(10f) })
-        })
-
-        addView(card, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT).apply {
-            leftMargin = dp(14f); rightMargin = dp(14f); topMargin = dp(48f); bottomMargin = dp(48f)
-        })
     }
 
     private fun cell(s: Sect): View = LinearLayout(activity).apply {
@@ -143,8 +150,8 @@ class SectionsView(
         isClickable = true
         background = GradientDrawable().apply {
             cornerRadius = dp(12f).toFloat()
-            setColor(if (chosen) Palette.withAlpha(kit.accent, 60) else Ui.CARD_ALT)
-            if (chosen) setStroke(dp(2f), Ui.GREEN_INK)
+            setColor(if (chosen) Palette.withAlpha(kit.accent, 60) else Ui.CARD)
+            setStroke(dp(2f), if (chosen) Ui.GREEN_INK else Palette.withAlpha(Ui.INK, 20))
         }
         addView(SectionThumbView(activity, s).apply {
             background = GradientDrawable().apply { cornerRadius = dp(8f).toFloat(); setColor(0xFF2A2350.toInt()) }
@@ -157,12 +164,5 @@ class SectionsView(
             SoundFx.play("tap"); Haptics.click()
             close()
         }
-    }
-
-    private fun close() {
-        animate().alpha(0f).setDuration(160).withEndAction {
-            (parent as? FrameLayout)?.removeView(this)
-            onClose()
-        }.start()
     }
 }

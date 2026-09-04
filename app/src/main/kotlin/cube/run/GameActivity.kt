@@ -13,14 +13,17 @@ import cube.run.game.CubeRun
 /** Single-game launcher host: builds the shared HUD over the libGDX surface and runs Cube Run. */
 class GameActivity : AndroidApplication() {
 
+    private lateinit var chrome: GameChromeView
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
 
-        val chrome = GameChromeView(this, ACCENT)
+        chrome = GameChromeView(this, ACCENT)
         chrome.setBest(Scores.best(SCORE_ID))
         val session = GameHostSession(this, SCORE_ID, chrome)
-        val game = CubeRun(session)
+        // RESTART relaunches with this extra: the run begins on the first frame, no "tap to start"
+        val game = CubeRun(session, autoStart = intent.getBooleanExtra(GameChromeView.EXTRA_AUTOSTART, false))
 
         val config = AndroidApplicationConfiguration().apply {
             useImmersiveMode = true
@@ -36,6 +39,12 @@ class GameActivity : AndroidApplication() {
         root.addView(gameView, FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT)
         root.addView(chrome, FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT)
         setContentView(root)
+    }
+
+    /** Leaving the app mid-run (home, a call) pauses it: the run resumes from the pause menu. */
+    override fun onPause() {
+        super.onPause()
+        chrome.autoPause()
     }
 
     private companion object {

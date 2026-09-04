@@ -17,7 +17,9 @@ import kotlin.math.sin
  * The run-over mystery-box stage, rendered by the engine in 3D: a gift box on
  * a dark backdrop that bobs and turns, shakes when the player taps (see
  * [Stage.openRequests]), launches its lid with a fountain of gold and
- * reports the reward through `session.boxOpened`, then the next box drops in.
+ * reports the reward through `session.boxOpened`. It then sits open until
+ * the next request, which drops the next box in and opens it straight away —
+ * one tap per box, never a closed box waiting for a second tap.
  */
 class GiftStage(private val game: Gdx3DGame) {
 
@@ -27,7 +29,9 @@ class GiftStage(private val game: Gdx3DGame) {
     private val IDLE = 0
     private val SHAKE = 1
     private val OPEN = 2
+    private val OPENED = 3
     private var phase = IDLE
+    private var autoOpen = false   // the box dropping in now opens by itself once it lands
     private var t = 0f
     private var yaw = 0f
     private var drop = 0f          // extra height while a fresh box falls in
@@ -54,7 +58,7 @@ class GiftStage(private val game: Gdx3DGame) {
 
     fun enter(bgTop: Color, bgBottom: Color) {
         active = true
-        phase = IDLE; t = 0f; yaw = 20f; glow = 0f
+        phase = IDLE; t = 0f; yaw = 20f; glow = 0f; autoOpen = false
         newBox()
         Stage.openRequests.set(0)
         hsvInto(bgTop, 265f, 0.55f, 0.28f)
@@ -76,16 +80,14 @@ class GiftStage(private val game: Gdx3DGame) {
             if (drop == 0f) {
                 SoundFx.play("place", rate = 0.8f); Haptics.click()
                 game.burst3d(tmp.set(0f, 0.05f, 0f), body, n = 10, speed = 3f, size = 0.08f, life = 0.4f)
+                if (autoOpen) { autoOpen = false; shake() }
             }
         }
         when (phase) {
             IDLE -> {
                 yaw += 35f * dt
                 glow = max(0f, glow - dt * 1.5f)
-                if (drop == 0f && Stage.openRequests.getAndSet(0) > 0) {
-                    phase = SHAKE; t = 0f
-                    SoundFx.play("slide", rate = 1.6f, vol = 0.8f)
-                }
+                if (drop == 0f && Stage.openRequests.getAndSet(0) > 0) shake()
             }
             SHAKE -> { // rattles harder and harder, then bursts
                 yaw += sin(t * 55f) * (200f + 600f * t) * dt
@@ -111,9 +113,25 @@ class GiftStage(private val game: Gdx3DGame) {
                 if (t < 0.7f && (t * 60f).toInt() % 3 == 0) {
                     game.burst3d(tmp.set(0f, 1.2f, 0f), gold, n = 3, speed = 4f, size = 0.12f, life = 0.9f)
                 }
-                if (t > 1.9f) { phase = IDLE; t = 0f; newBox() }
+                if (t > 1.2f) { phase = OPENED; t = 0f }
+            }
+            OPENED -> { // the open box turns slowly, the lid comes to rest beside it; the next request swaps in the next box, already opening
+                val floorLid = 0.14f - 0.62f - 1.2f * 0.52f // lidY at which the lid sits on the floor
+                if (lidY > floorLid) {
+                    lidY += lidVy * dt; lidVy -= 14f * dt
+                    lidDx += 1.6f * dt
+                    lidYaw += 420f * dt
+                    if (lidY <= floorLid) { lidY = floorLid; lidVy = 0f; SoundFx.play("place", rate = 1.3f, vol = 0.5f) }
+                }
+                yaw += 30f * dt
+                if (Stage.openRequests.getAndSet(0) > 0) { phase = IDLE; t = 0f; autoOpen = true; newBox() }
             }
         }
+    }
+
+    private fun shake() {
+        phase = SHAKE; t = 0f
+        SoundFx.play("slide", rate = 1.6f, vol = 0.8f)
     }
 
     /** Fixed stage camera: close, slightly above, looking at the box. */
@@ -134,8 +152,8 @@ class GiftStage(private val game: Gdx3DGame) {
         game.worldBoxSpin(0f, y, 0f, s, s * 0.82f, s, yaw, body)
         game.worldBoxSpin(0f, y, 0f, s + 0.06f, s * 0.24f, s * 0.26f, yaw, band)
         game.worldBoxSpin(0f, y, 0f, s * 0.26f, s * 0.24f, s + 0.06f, yaw, band)
-        if (phase == OPEN || glow > 0f) { // light pouring out of the open box
-            val g = if (phase == OPEN) 1f else glow
+        if (phase == OPEN || phase == OPENED || glow > 0f) { // light pouring out of the open box
+            val g = if (phase == OPEN || phase == OPENED) 1f else glow
             hsvInto(tmpCol, 50f, 0.35f * g, 1f)
             game.worldBoxSpin(0f, y + s * 0.44f, 0f, s * 0.86f, 0.12f, s * 0.86f, yaw, tmpCol)
         }

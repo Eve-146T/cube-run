@@ -7,4 +7,8 @@
     <string name="cd_shop">Shop</string>
     <string name="cd_skins">Skins</string>
     <string name="cd_sections">Section explorer</string>
+    <string name="cd_back">Back</string>
+    <string name="cd_pause">Pause</string>
+    <string name="cd_prev">Previous skin</string>
+    <string name="cd_next">Next skin</string>
 </resources>
