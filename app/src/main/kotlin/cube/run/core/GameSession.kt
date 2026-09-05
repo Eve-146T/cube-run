@@ -25,8 +25,20 @@ interface GameSession {
     /** Mystery boxes collected so far this run (opened on the run-over screens). */
     fun setBoxes(v: Int) {}
 
-    /** The 3D gift stage just opened a box (see [Stage]); [kind] is a `Progress.BoxReward` kind. */
-    fun boxOpened(kind: Int, amount: Int) {}
+    /** The world the player is running through (shown on the results). */
+    fun setWorld(name: String) {}
+
+    /** The fire-boost window opened/closed ([taps] used so far, [max] allowed). */
+    fun setBoost(open: Boolean, taps: Int, max: Int) {}
+
+    /** A portal was entered (a `data.Bonus` id) or left (-1). */
+    fun setBonus(id: Int) {}
+
+    /**
+     * The 3D gift stage just opened a box (see [Stage]); [kind] is a
+     * `Progress.BoxReward` kind; [cat]/[id] name the wardrobe item for SKIN.
+     */
+    fun boxOpened(kind: Int, amount: Int, cat: Int, id: Int) {}
 
     /**
      * Ends the run: banks the coins, saves the high score, plays the

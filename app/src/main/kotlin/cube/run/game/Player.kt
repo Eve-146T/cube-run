@@ -11,11 +11,13 @@ import com.badlogic.gdx.graphics.g3d.attributes.ColorAttribute
 import com.badlogic.gdx.math.Vector3
 import cube.run.core.Gdx3DGame
 import cube.run.core.Haptics
-import cube.run.core.Progress
-import cube.run.core.Skins
 import cube.run.core.SoundFx
 import cube.run.core.Stage
 import cube.run.core.hsvInto
+import cube.run.game.Lanes
+import cube.run.data.Progress
+import cube.run.data.Skins
+import cube.run.data.Trails
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.sin
@@ -23,15 +25,18 @@ import kotlin.random.Random
 
 /**
  * The player: lane, jump/roll physics, the tumbling pose, and its look (the
- * equipped [Skins.Skin]: colour behaviour + glow shell + trail — always a cube).
- * Input verbs are [moveToLane] / [jump] / [downAction]; [update] integrates
- * one frame and returns an EV_* event.
+ * equipped [Skins.Skin]: colour behaviour + glow shell; the equipped
+ * [Trails.Trail]: what it sheds — always a cube). Input verbs are
+ * [moveToLane] / [jump] / [downAction]; [update] integrates one frame and
+ * returns an EV_* event.
  */
-class Player(private val game: Gdx3DGame, private val laneW: Float, private val rnd: Random) {
+class Player(private val game: Gdx3DGame, private val rnd: Random) {
 
     companion object {
         /** Jetpack cruising height (cube centre) — well above every obstacle. */
         const val FLY_Y = 5.2f
+        /** Zero-G hover height (cube centre). */
+        const val HOVER_Y = 1.4f
         const val EV_NONE = 0
         const val EV_LANDED = 1
         const val EV_SIDE_HIT = 2   // ran into the side of a platform
@@ -43,6 +48,8 @@ class Player(private val game: Gdx3DGame, private val laneW: Float, private val 
         private set
     /** Where the jetpack holds you: [FLY_Y] while cruising, gliding down to the ground as it runs out. */
     var flyY = FLY_Y
+    /** Zero-G: hover at [HOVER_Y], drift between lanes slowly, no jumping or rolling. */
+    var hover = false
 
     var lane = 1
         private set
@@ -63,6 +70,8 @@ class Player(private val game: Gdx3DGame, private val laneW: Float, private val 
     private var duckT = 0f          // remaining roll/duck window (seconds)
     private var slamming = false    // a mid-air slam is in progress (auto-crouches on landing)
     private var trailT = 0f
+    private var trailK = 0          // emission counter (trail colour rules)
+    private var stretch = 0f        // vertical stretch after a bounce launch
 
     /** Collision extents. Rolling tucks the head below the bars. */
     val cubeBottom: Float get() = py - 0.45f
@@ -75,25 +84,29 @@ class Player(private val game: Gdx3DGame, private val laneW: Float, private val 
     private lateinit var shellInst: ModelInstance
     private lateinit var shellCol: Color
     private lateinit var shellBlend: BlendingAttribute
-    private lateinit var shadowInst: ModelInstance
-    private lateinit var shadowBlend: BlendingAttribute
     private var curSkinId = -1
     var skin: Skins.Skin = Skins.get(0)
         private set
+    var trail: Trails.Trail = Trails.get(0)
+        private set
     private val tmp = Vector3()
+    private val tmpCol = Color()
 
-    fun laneX(l: Int) = (l - 1) * laneW
+    fun laneX(l: Int) = Lanes.x(l)
+
+    /** The road changed shape (a portal): keep the cube on a lane that still exists. */
+    fun remapLane(oldCount: Int, newCount: Int) {
+        lane = (lane + (newCount - oldCount) / 2).coerceIn(0, newCount - 1)
+    }
 
     fun init(baseHue: Float, time: Float) {
         unit = game.box(1f, 1f, 1f, Color.WHITE)
-        shadowInst = ModelInstance(unit)
-        shadowBlend = BlendingAttribute(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA, 0.3f)
-        shadowInst.materials.first().set(ColorAttribute.createDiffuse(Color.BLACK), shadowBlend)
         applySkin(baseHue, time)
     }
 
     /** The skin to show: the wardrobe's try-on if one is set, else the equipped one. */
     private fun wantedSkin(): Int = if (Stage.previewSkin >= 0) Stage.previewSkin else Progress.skin
+    private fun wantedTrail(): Int = if (Stage.previewTrail >= 0) Stage.previewTrail else Progress.trail
 
     /** (Re)build the body + glow shell for the wanted skin. Only runs when it changes. */
     private fun applySkin(baseHue: Float, time: Float) {
@@ -108,14 +121,14 @@ class Player(private val game: Gdx3DGame, private val laneW: Float, private val 
         shellCol = (shellInst.materials.first().get(ColorAttribute.Diffuse) as ColorAttribute).color
     }
 
-    /** Shard colour for dust/trail: white sparkle for sparkle skins, else the body colour. */
+    /** Shard colour for dust/bursts: white sparkle for sparkle skins, else the body colour. */
     fun trailCol(): Color = if (skin.sparkle) Color.WHITE else col
 
     // ---------------------------------------------------------------- verbs
 
     /** Returns true if the lane changed (false = already there / out of range → bonk). */
     fun moveToLane(target: Int): Boolean {
-        val t = target.coerceIn(0, 2)
+        val t = target.coerceIn(0, Lanes.last)
         if (t == lane) return false
         lane = t
         SoundFx.play("whoosh", rate = 0.95f + rnd.nextFloat() * 0.15f)
@@ -144,7 +157,7 @@ class Player(private val game: Gdx3DGame, private val laneW: Float, private val 
     }
 
     fun jump() {
-        if (air || flying) return
+        if (air || flying || hover) return
         air = true; vy = 8.4f
         duckT = 0f // jumping cancels a roll
         SoundFx.play("whoosh", rate = 1.3f)
@@ -152,9 +165,30 @@ class Player(private val game: Gdx3DGame, private val laneW: Float, private val 
         game.burst3d(tmp.set(px, 0.1f, 0.3f), trailCol(), n = 6, speed = 2.5f, size = 0.08f, life = 0.35f)
     }
 
+    /** The run begins: a quick squash, then it springs off (a beat of anticipation). */
+    fun squashForLaunch() { squash = 1.4f }
+
+    private var idleT = 0f
+    private var idleYaw = 0f
+    /** Waiting at the line: the cube turns slowly on the spot and breathes; every few seconds a small hop. */
+    fun idle(dt: Float) {
+        idleT += dt
+        idleYaw += 40f * dt
+        if (idleT > 3.2f && !air) { idleT = 0f; air = true; vy = 3.6f; quietLanding = true }
+    }
+    private var quietLanding = false
+    /** Eased 0..1: how much of the idle pose (the slow turn) is showing; fades out as the run begins. */
+    private var idleMix = 0f
+
+    /** A bounce pad: launched high, stretched tall, whatever you were doing. */
+    fun launch(v: Float) {
+        air = true; vy = v; duckT = 0f; slamming = false
+        stretch = 1f
+    }
+
     /** Context-sensitive DOWN: slam when airborne, roll under when grounded. */
     fun downAction() {
-        if (flying) return
+        if (flying || hover) return
         if (air) {
             if (vy > -12f) { // slam back down fast
                 vy = -19f
@@ -175,23 +209,27 @@ class Player(private val game: Gdx3DGame, private val laneW: Float, private val 
     /**
      * Integrate one frame. [groundH] is the walkable height under the cube (0 on
      * the floor, a platform's top on its roof, rising along a ramp); [trail]
-     * emits the glow trail. Returns an EV_* event.
+     * emits the trail. Returns an EV_* event.
      */
-    fun update(dt: Float, mv: Float, time: Float, baseHue: Float, trail: Boolean, groundH: Float): Int {
+    fun update(dt: Float, mv: Float, time: Float, baseHue: Float, trail: Boolean, groundH: Float, stream: Float = 0f): Int {
         if (wantedSkin() != curSkinId) applySkin(baseHue, time) // a wardrobe change shows up live
+        this.trail = Trails.get(wantedTrail())
         var event = EV_NONE
         val gy = ground + groundH
-        px += (laneX(lane) - px) * min(1f, dt * 13f) // eased lane snap
+        px += (laneX(lane) - px) * min(1f, dt * (if (hover) 4.5f else 13f)) // eased lane snap (a lazy drift in zero-g)
         nudge *= max(0f, 1f - 10f * dt)
-        if (flying) {
+        if (hover) {
+            py += (HOVER_Y + 0.15f * sin(time * 2.2f) - py) * min(1f, dt * 3f)
+            air = false; vy = 0f
+        } else if (flying) {
             py += (flyY - py) * min(1f, dt * (if (flyY < FLY_Y) 7f else 4f)) // quick to climb, tight on the glide down
         } else if (air) {
             vy -= 26f * dt
             py += vy * dt
             if (py <= gy && vy <= 0f) {
                 py = gy; air = false; vy = 0f
-                SoundFx.play("pop", rate = 0.95f + rnd.nextFloat() * 0.12f)
-                Haptics.click()
+                if (!quietLanding) { SoundFx.play("pop", rate = 0.95f + rnd.nextFloat() * 0.12f); Haptics.click() }
+                quietLanding = false
                 game.burst3d(tmp.set(px, gy - 0.39f, 0.4f), trailCol(), n = 8, speed = 3.2f, size = 0.09f, life = 0.4f)
                 squash = 1f
                 if (slamming) { slamming = false; duckT = 0.5f } // slam → auto-crouch on landing
@@ -204,58 +242,87 @@ class Player(private val game: Gdx3DGame, private val laneW: Float, private val 
             air = true; vy = 0f // walked off an edge
         }
         squash = max(0f, squash - dt * 5f)
+        stretch = max(0f, stretch - dt * 2.2f)
         // roll/duck window decays; eased `duck` drives the rolling pose + low collision profile
         if (duckT > 0f) duckT = max(0f, duckT - dt)
         val duckTarget = if (duckT > 0f && !air) 1f else 0f
         duck += (duckTarget - duck) * min(1f, dt * 18f)
-        roll += mv * 90f + (if (air) 160f * dt else 0f) + duck * 260f * dt // tumble; flip in air, fast roll while ducking
+        val idle = mv == 0f && !flying && !hover
+        idleMix += ((if (idle) 1f else 0f) - idleMix) * min(1f, dt * 4f)
+        roll += mv * 42f + (if (air && !idle) 160f * dt else 0f) + duck * 260f * dt // tumble; flip in air, fast roll while ducking
         if (roll > 360f) roll -= 360f
+        // a rolling cube rides up over its corners: lift it so it never sinks into the floor (no jitter, a real roll)
+        val ra = Math.toRadians((roll % 90f).toDouble())
+        val lift = if (air || flying) 0f else (0.45f * (kotlin.math.abs(kotlin.math.cos(ra)) + kotlin.math.abs(kotlin.math.sin(ra))).toFloat() - 0.45f) * (1f - duck)
         val tilt = ((laneX(lane) - px) * -22f).coerceIn(-32f, 32f)
         val sq = squash * 0.3f
-        val duY = duck * 0.20f // hug the ground while rolling
+        val st = stretch * stretch * 0.35f
+        val duY = duck * 0.20f - lift // hug the ground while rolling
         // skin colours are pure functions of time — sampled every frame, no allocation
         hsvInto(col, skin.hueAt(time, baseHue), skin.sat, skin.valueAt(time))
         hsvInto(shellCol, skin.hueAt(time, baseHue), skin.sat * 0.9f, 1f)
+        val breathe = 1f + 0.03f * idleMix * sin(time * 2.4f)
         inst.transform.setToTranslation(px + nudge, py - squash * 0.08f - duY, 0f)
+            .rotate(Vector3.Y, idleYaw * idleMix)
             .rotate(Vector3.Z, tilt)
             .rotate(Vector3.X, -roll)
-            .scale(0.9f * (1f + sq + duck * 0.35f), 0.9f * (1f - sq) * (1f - duck * 0.5f), 0.9f * (1f + sq + duck * 0.1f))
+            .scale(breathe, 1f / breathe, breathe)
+            .scale(0.9f * (1f + sq + duck * 0.35f - st * 0.5f), 0.9f * (1f - sq + st) * (1f - duck * 0.5f), 0.9f * (1f + sq + duck * 0.1f - st * 0.5f))
         val pulse = 0.9f * (1.18f + 0.06f * sin(time * 8f))
         shellBlend.opacity = ((0.22f + 0.08f * sin(time * 6f)) * skin.glow).coerceAtMost(0.75f)
         shellInst.transform.setToTranslation(px + nudge, py - duY, 0f)
-            .rotate(Vector3.Z, tilt).rotate(Vector3.X, -roll)
+            .rotate(Vector3.Y, idleYaw * idleMix).rotate(Vector3.Z, tilt).rotate(Vector3.X, -roll)
             .scale(pulse, pulse, pulse)
-        shadowBlend.opacity = (0.36f * (1f - (py - gy) / 1.6f)).coerceIn(0.06f, 0.36f)
-        shadowInst.transform.setToTranslation(px + nudge, gy - ground + 0.04f, 0f).scale(1.0f, 0.02f, 1.0f)
 
-        if (trail) { // glow trail
-            trailT += dt
-            if (trailT > 0.08f / skin.trail) {
-                trailT = 0f
-                game.burst3d(tmp.set(px, py, 0.55f), trailCol(), n = if (flying) 3 else 1, speed = if (flying) 4f else 1.4f, size = 0.08f, life = 0.35f)
-            }
-        }
+        if (trail) emitTrail(dt, time, px, py, 0.5f, if (flying) 2.5f else 1f, stream = stream)
         return event
     }
 
-    /** Pose for the wardrobe stage: at the origin on a pedestal, turning slowly, bobbing. */
-    fun showcase(time: Float, baseHue: Float) {
-        if (wantedSkin() != curSkinId) applySkin(baseHue, time)
-        hsvInto(col, skin.hueAt(time, baseHue), skin.sat, skin.valueAt(time))
-        hsvInto(shellCol, skin.hueAt(time, baseHue), skin.sat * 0.9f, 1f)
-        val y = 0.75f + 0.06f * sin(time * 2.2f)
-        val yaw = time * 45f
-        inst.transform.setToTranslation(0f, y, 0f).rotate(Vector3.Y, yaw).rotate(Vector3.X, 12f).scale(0.9f, 0.9f, 0.9f)
-        val pulse = 0.9f * (1.18f + 0.06f * sin(time * 8f))
-        shellBlend.opacity = ((0.22f + 0.08f * sin(time * 6f)) * skin.glow).coerceAtMost(0.75f)
-        shellInst.transform.setToTranslation(0f, y, 0f).rotate(Vector3.Y, yaw).rotate(Vector3.X, 12f).scale(pulse, pulse, pulse)
-        shadowBlend.opacity = 0.3f
-        shadowInst.transform.setToTranslation(0f, 0.04f, 0f).scale(1.0f, 0.02f, 1.0f)
+    /** Shed the equipped trail behind ([x],[y],[z]); [boost] multiplies the rate (jetpack). */
+    fun emitTrail(dt: Float, time: Float, x: Float, y: Float, z: Float, boost: Float = 1f, scale: Float = 1f, stream: Float = 0f) {
+        val t = this.trail
+        trailT += dt
+        val every = 1f / (t.rate * skin.trail * boost)
+        if (trailT < every) return
+        trailT = 0f
+        trailK++
+        val c = if (t.mode == Trails.BODY) trailCol() else hsvInto(tmpCol, t.hueAt(time, trailK), t.sat, t.value)
+        // shards stream back past the camera ([stream] ≈ half the run speed), so the trail reads as motion
+        game.burst3d(tmp.set(x, y, z), c, n = t.count, speed = t.speed * scale, size = t.size * scale, life = t.life * (1f + (scale - 1f) * 0.5f), gravity = t.gravity, biasZ = stream)
     }
 
-    fun render(batch: ModelBatch, env: Environment) {
-        batch.render(shadowInst, env)
+    /**
+     * Pose for the wardrobe / results stage at ([x],[y]): turning slowly,
+     * bobbing. Colours keep animating so live skins show what they do.
+     */
+    fun showcase(time: Float, baseHue: Float, x: Float = 0f, y: Float = 0.75f, spin: Float = 45f, extraYaw: Float = 0f, scale: Float = 1f) {
+        if (wantedSkin() != curSkinId) applySkin(baseHue, time)
+        trail = Trails.get(wantedTrail())
+        hsvInto(col, skin.hueAt(time, baseHue), skin.sat, skin.valueAt(time))
+        hsvInto(shellCol, skin.hueAt(time, baseHue), skin.sat * 0.9f, 1f)
+        val yy = y + 0.06f * sin(time * 2.2f)
+        val yaw = time * spin + extraYaw
+        val sc = 0.9f * scale
+        inst.transform.setToTranslation(x, yy, 0f).rotate(Vector3.Y, yaw).rotate(Vector3.X, 12f).scale(sc, sc, sc)
+        val pulse = sc * (1.18f + 0.06f * sin(time * 8f))
+        shellBlend.opacity = ((0.22f + 0.08f * sin(time * 6f)) * skin.glow).coerceAtMost(0.75f)
+        shellInst.transform.setToTranslation(x, yy, 0f).rotate(Vector3.Y, yaw).rotate(Vector3.X, 12f).scale(pulse, pulse, pulse)
+        px = x; py = yy
+    }
+
+    private val liftM = com.badlogic.gdx.math.Matrix4()
+
+    /** Draw the cube; [ground] lifts everything by the rolling terrain under it. */
+    fun render(batch: ModelBatch, env: Environment, ground: Float = 0f) {
+        if (ground != 0f) {
+            liftM.setToTranslation(0f, ground, 0f)
+            inst.transform.mulLeft(liftM); shellInst.transform.mulLeft(liftM)
+        }
         batch.render(inst, env)
         batch.render(shellInst, env)
+        if (ground != 0f) {
+            liftM.setToTranslation(0f, -ground, 0f)
+            inst.transform.mulLeft(liftM); shellInst.transform.mulLeft(liftM)
+        }
     }
 }

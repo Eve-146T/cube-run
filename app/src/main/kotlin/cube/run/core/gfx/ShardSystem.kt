@@ -28,6 +28,7 @@ class ShardSystem(private val kit: BoxMeshKit, private val maxShards: Int = 240)
         var maxLife = 0f
         var size = 0f
         var alpha = 1f
+        var gravity = 14f
     }
 
     private val rnd = Random(System.nanoTime())
@@ -56,16 +57,18 @@ class ShardSystem(private val kit: BoxMeshKit, private val maxShards: Int = 240)
     }
 
     /** A shard explosion at a world position. */
-    fun burst(at: Vector3, color: Color, n: Int, speed: Float, size: Float, life: Float) {
+    fun burst(at: Vector3, color: Color, n: Int, speed: Float, size: Float, life: Float, gravity: Float = 14f, biasZ: Float = 0f) {
         repeat(n) {
             val s = obtain()
             s.color.set(color)
+            s.gravity = gravity
             s.alpha = 1f
             s.vel.set(
                 rnd.nextFloat() * 2f - 1f,
                 rnd.nextFloat() * 1.6f - 0.3f,
                 rnd.nextFloat() * 2f - 1f,
             ).nor().scl(speed * (0.4f + rnd.nextFloat() * 0.9f))
+            s.vel.z += biasZ
             s.rotAxis.set(rnd.nextFloat(), rnd.nextFloat(), rnd.nextFloat()).nor()
             s.rotSpeed = (rnd.nextFloat() - 0.5f) * 720f
             val l = life * (0.5f + rnd.nextFloat() * 0.7f)
@@ -87,7 +90,7 @@ class ShardSystem(private val kit: BoxMeshKit, private val maxShards: Int = 240)
                 live.removeAt(last)
                 pool.add(s)               // return to the pool for reuse
             } else {
-                s.vel.y -= 14f * dt
+                s.vel.y -= s.gravity * dt
                 s.pos.mulAdd(s.vel, dt)
                 val k = (s.life / s.maxLife).coerceIn(0f, 1f)
                 s.alpha = k

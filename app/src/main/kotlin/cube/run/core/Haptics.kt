@@ -1,6 +1,7 @@
 package cube.run.core
 
 import android.content.Context
+import cube.run.data.Settings
 import android.os.Build
 import android.os.VibrationEffect
 import android.os.Vibrator

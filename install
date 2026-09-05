@@ -1,0 +1,8 @@
+#!/bin/sh
+# Build the debug APK and install it on the connected phone (then launch it).
+# Any arguments are passed on to Gradle (e.g. ./install --offline).
+set -e
+cd "$(dirname "$0")"
+./gradlew installDebug -q "$@"
+adb shell am start -n cube.run/.GameActivity >/dev/null 2>&1 || true
+echo "installed and launched cube.run"

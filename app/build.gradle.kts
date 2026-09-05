@@ -29,6 +29,7 @@ android {
         targetSdk = 35
         versionCode = 5
         versionName = "1.4"
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
     // Keep release APKs free of Google's dependency-metadata signing block,
@@ -78,6 +79,8 @@ android {
 }
 
 dependencies {
+    androidTestImplementation("androidx.test.ext:junit:1.3.0")
+    androidTestImplementation("androidx.test:runner:1.7.0")
     implementation("com.badlogicgames.gdx:gdx:$gdxVersion")
     implementation("com.badlogicgames.gdx:gdx-backend-android:$gdxVersion")
     natives("com.badlogicgames.gdx:gdx-platform:$gdxVersion:natives-armeabi-v7a")
@@ -104,4 +107,11 @@ tasks.register("copyAndroidNatives") {
 
 tasks.matching { it.name.contains("merge") && it.name.contains("JniLibFolders") }.configureEach {
     dependsOn("copyAndroidNatives")
+}
+
+// `./gradlew buildDebug` — the name people reach for; same as assembleDebug.
+tasks.register("buildDebug") {
+    group = "build"
+    description = "Builds the debug APK (alias of assembleDebug)."
+    dependsOn("assembleDebug")
 }

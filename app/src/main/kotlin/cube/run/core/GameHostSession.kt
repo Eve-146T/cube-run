@@ -1,6 +1,9 @@
 package cube.run.core
 
 import android.app.Activity
+import cube.run.data.Progress
+import cube.run.data.Scores
+import cube.run.ui.Hud
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -8,7 +11,7 @@ import java.util.concurrent.atomic.AtomicInteger
 class GameHostSession(
     private val activity: Activity,
     private val id: String,
-    private val chrome: GameChromeView,
+    private val chrome: Hud,
 ) : GameSession {
 
     private val scoreV = AtomicInteger(0)
@@ -51,8 +54,20 @@ class GameHostSession(
         ui { chrome.setBoxes(v) }
     }
 
-    override fun boxOpened(kind: Int, amount: Int) {
-        ui { chrome.onBoxOpened(kind, amount) }
+    override fun setWorld(name: String) {
+        ui { chrome.setWorld(name) }
+    }
+
+    override fun setBoost(open: Boolean, taps: Int, max: Int) {
+        ui { chrome.setBoost(open, taps, max) }
+    }
+
+    override fun setBonus(id: Int) {
+        ui { chrome.setBonus(id) }
+    }
+
+    override fun boxOpened(kind: Int, amount: Int, cat: Int, id: Int) {
+        ui { chrome.onBoxOpened(kind, amount, cat, id) }
     }
 
     override fun gameOver() {
@@ -61,6 +76,7 @@ class GameHostSession(
         val runCoins = coinsV.get()
         val boxes = boxesV.get()
         Progress.addCoins(runCoins)
+        Progress.countRun()
         val prevBest = Scores.best(id)
         val isNew = finalScore > 0 && Scores.submit(id, finalScore)
         if (isNew) {
