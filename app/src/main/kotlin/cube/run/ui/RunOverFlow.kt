@@ -50,18 +50,26 @@ class RunOverFlow(
     private fun dpf(v: Float) = kit.dpf(v)
     private var page: View? = null
     private val anims = ArrayList<ValueAnimator>()
+    private val pending = ArrayList<Runnable>()
+    private var rewardBeat: ValueAnimator? = null
     private var leaving = false
 
-    init {
-        isClickable = true // swallow touches so the (dead) game never sees them
-        clipChildren = false; clipToPadding = false
-        setPadding(0, dp(36f), 0, dp(24f))
-        setOnApplyWindowInsetsListener { _, insets ->
-            val (_, t, _, b) = insetsOf(insets)
-            setPadding(0, maxOf(dp(36f), t + dp(6f)), 0, maxOf(dp(24f), b + dp(8f)))
-            insets
+    private fun later(ms: Long, action: () -> Unit) {
+        val task = object : Runnable {
+            override fun run() { pending.remove(this); action() }
         }
-        showResults()
+        pending.add(task)
+        postDelayed(task, ms)
+    }
+
+    private fun stopEffects() {
+        pending.forEach { removeCallbacks(it) }
+        pending.clear()
+        scoreAnim?.cancel(); coinAnim?.cancel()
+        rewardBeat?.cancel(); rewardBeat = null
+        anims.forEach { it.cancel() }
+        anims.clear()
+        Anim.cancelTree(this)
     }
 
     // ------------------------------------------------------------- transitions
@@ -80,6 +88,7 @@ class RunOverFlow(
     private fun leave(action: () -> Unit) {
         if (leaving) return
         leaving = true
+        stopEffects()
         SoundFx.play("whoosh", rate = 1.2f); Haptics.click()
         move().scaleX(0.86f).scaleY(0.86f).alpha(0f).setDuration(170).setInterpolator(Anim.ease).withEndAction { action() }.start()
     }
@@ -185,9 +194,9 @@ class RunOverFlow(
         }
         card.addView(stats, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(4f) })
         column.addView(card, LinearLayout.LayoutParams(dp(300f), LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(12f) })
-        postDelayed({ if (counting) coinAnim = Anim.countUp(coinText, coins, 900, tickEvery = 2) { "+$it" } }, 700)
-        postDelayed({ counting = false }, 1700)
-        postDelayed({ if (counting) slamStamp() }, 1350)
+        later(700) { if (counting) coinAnim = Anim.countUp(coinText, coins, 900, tickEvery = 2) { "+$it" } }
+        later(1700) { counting = false }
+        later(1350) { if (counting) slamStamp() }
 
         host.addView(column, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT).apply {
             gravity = Gravity.TOP; topMargin = dp(200f) // the stage frames the cube at 156 dp
@@ -196,7 +205,7 @@ class RunOverFlow(
             gravity = Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL; bottomMargin = dp(32f)
         })
         swap(host)
-        record?.let { Anim.popIn(it, 100, 0.3f, 480); anims.add(Anim.heartbeat(it, 1.05f, 900)) }
+        record?.let { r -> Anim.popIn(r, 100, 0.3f, 480) { anims.add(Anim.heartbeat(r, 1.05f, 900)) } }
         Anim.popIn(scoreText, 160, 0.3f, 460)
         Anim.riseIn(card, 420, dpf(30f))
     }
@@ -210,13 +219,13 @@ class RunOverFlow(
         val n = starCount()
         for (i in 0 until 5) {
             val v = stars.getChildAt(i)
-            v.postDelayed({
+            later(90L * i) {
                 v.alpha = 1f; v.scaleX = 2.4f; v.scaleY = 2.4f
-                v.animate().scaleX(1f).scaleY(1f).setDuration(260).setInterpolator(Anim.spring).start()
+                v.move().scaleX(1f).scaleY(1f).setDuration(260).setInterpolator(Anim.spring).start()
                 if (i < n) { SoundFx.play("pop", rate = 1f + i * 0.15f); Haptics.click() }
-            }, 90L * i)
+            }
         }
-        stars.postDelayed({ if (n == 5) anims.add(Anim.heartbeat(stars, 1.04f, 900)) }, 600)
+        later(620) { if (n == 5) anims.add(Anim.heartbeat(stars, 1.04f, 900)) }
         SoundFx.play(if (isNewBest) "success" else "perfect", rate = if (isNewBest) 1f else 0.9f); Haptics.heavy()
     }
 
@@ -246,6 +255,7 @@ class RunOverFlow(
     private var boxHost: FrameLayout? = null
 
     private fun showBoxes() {
+        stopEffects()
         val host = FrameLayout(activity).apply {
             isClickable = true
             clipChildren = false; clipToPadding = false
@@ -295,6 +305,7 @@ class RunOverFlow(
         if (boxBusy) return
         if (boxesLeft <= 0) { leave(onMenu); return }
         boxBusy = true
+        rewardBeat?.cancel(); rewardBeat = null
         boxesLeft--
         boxHint?.visibility = INVISIBLE
         rewardCard?.move()?.alpha(0f)?.scaleX(0.7f)?.scaleY(0.7f)?.setDuration(150)?.start()
@@ -303,8 +314,10 @@ class RunOverFlow(
 
     /** The 3D stage just opened a box: pop the reward card in. */
     fun onBoxOpened(kind: Int, amount: Int, cat: Int, id: Int) {
+        if (leaving) return
         val big = rewardBig ?: return
         val sub = rewardSub ?: return
+        big.textSize = 36f
         val rare: Boolean
         when (kind) {
             Progress.BoxReward.SKIN -> {
@@ -344,26 +357,38 @@ class RunOverFlow(
         }
         sub.visibility = if (sub.text.isEmpty()) GONE else VISIBLE
         rewardCard?.let { c ->
-            c.animate().cancel()
-            c.alpha = 1f
-            Anim.popIn(c, 0, 0.3f, 460)
-            if (rare) anims.add(Anim.heartbeat(c, 1.04f, 800))
+            rewardBeat?.cancel(); rewardBeat = null
+            Anim.popIn(c, 0, 0.3f, 460) {
+                if (rare) rewardBeat = Anim.heartbeat(c, 1.04f, 800)
+            }
         }
         if (rare) boxHost?.addView(CelebrationView(activity, focusY = 0.55f, rays = false, count = 140, burst = true, seconds = 3f), LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
         boxRack?.let { r -> // the box just opened dims
             val opened = boxes - boxesLeft - 1
             r.getChildAt(opened)?.move()?.alpha(0.3f)?.scaleX(0.8f)?.scaleY(0.8f)?.setDuration(300)?.start()
         }
-        postDelayed({
+        later(900) {
             boxBusy = false
             boxHint?.text = if (boxesLeft > 0) "TAP FOR THE NEXT BOX" else "TAP FOR THE MENU"
             boxHint?.visibility = VISIBLE
-        }, 900)
+        }
+    }
+
+    // Start only after all animation handles and result/box state are initialized.
+    init {
+        isClickable = true
+        clipChildren = false; clipToPadding = false
+        setPadding(0, dp(36f), 0, dp(24f))
+        setOnApplyWindowInsetsListener { _, insets ->
+            val (_, t, _, b) = insetsOf(insets)
+            setPadding(0, maxOf(dp(36f), t + dp(6f)), 0, maxOf(dp(24f), b + dp(8f)))
+            insets
+        }
+        showResults()
     }
 
     override fun onDetachedFromWindow() {
-        for (a in anims) a.cancel()
-        anims.clear()
+        stopEffects()
         super.onDetachedFromWindow()
     }
 }

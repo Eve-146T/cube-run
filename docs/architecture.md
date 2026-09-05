@@ -109,12 +109,16 @@ portal ring spins around it, a gift box drops in and bursts.
 
 ## Rendering notes
 
-Over the GL surface, Android's renderer was seen to leave the top of a
-freshly translated view unpainted until the next layout pass (a page's
-title bar never appeared), and a pure alpha fade was seen to stay stale
-until one. `Anim` therefore ends every entrance by pinning the final values
-and requesting a layout; pages never translate their top bar (only their
-content rises); the menu asks for a layout on every frame of its fade-out.
+The HUD excludes its full bounds from the SurfaceView transparent region.
+Otherwise Android can punch a hole around a scaled-down entrance and clip
+the view when it grows (the menu's coin pill lost its rounded top until the
+next layout). Normal alpha composition keeps growing and moving overlays
+intact. `Anim` repaints the view and window each frame and requests layout
+after entrances without overwriting newer feedback. Replacement motions
+cancel old end actions and reset timing; pulses replace only scale. Candy
+press feedback animates the drawing independently of entrance/exit motion.
+Delayed menu and results effects are cancelled when their screen leaves;
+reward heartbeats start after their entrance and stop before the next prize.
 
 The engine draws in this order: the batched opaque world (road and land
 first, so an overflowing batch drops roadside before tiles), the batched

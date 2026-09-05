@@ -110,8 +110,7 @@ class WardrobeView(activity: Activity, kit: UiKit, onClose: () -> Unit) : Page(a
         cat = c
         index = Progress.equipped(cat)
         applyPreview() // the stage morphs: the bubble inflates / the cube glides out onto its loop
-        name.translationY = dpf(16f); name.alpha = 0f
-        name.move().translationY(0f).alpha(1f).setDuration(240).setInterpolator(Anim.spring).start()
+        Anim.riseIn(name, distancePx = dpf(16f), duration = 240)
         render()
     }
 
@@ -142,11 +141,9 @@ class WardrobeView(activity: Activity, kit: UiKit, onClose: () -> Unit) : Page(a
         applyPreview()
         Stage.previewKicks.incrementAndGet() // the stage spin-flips the cube with a pop
         Haptics.tick()
-        name.animate().cancel()
-        name.translationX = d * dpf(40f); name.alpha = 0f
-        name.move().translationX(0f).alpha(1f).setDuration(220).setInterpolator(Anim.ease).start()
+        Anim.slideIn(name, fromX = d * dpf(40f), duration = 220)
         val arrow = if (d > 0) right else left
-        arrow.animate().cancel()
+        Anim.reset(arrow)
         arrow.translationX = d * dpf(8f)
         arrow.move().translationX(0f).setDuration(220).setInterpolator(Anim.ease).start()
         render()
@@ -235,13 +232,17 @@ class WardrobeView(activity: Activity, kit: UiKit, onClose: () -> Unit) : Page(a
             }
             Progress.buy(cat, index) -> { // paid: coins fly from the balance into the button, then the cube celebrates and it's yours
                 paying = true
+                // Commit the choice with the purchase; its visual completion may
+                // be cancelled if the user leaves the page while coins are flying.
+                Progress.equip(c, id)
                 Haptics.click()
                 val ms = PayFx.fly(this, kit, balance, action, n = 6, onDone = {
                     paying = false
-                    Progress.equip(c, id)
-                    Stage.previewBuys.incrementAndGet()
-                    Anim.pulse(name, 1.25f)
-                    if (cat == c && index == id) render()
+                    if (!closing && cat == c && index == id) {
+                        Stage.previewBuys.incrementAndGet()
+                        Anim.pulse(name, 1.25f)
+                        render()
+                    }
                 })
                 Anim.countTo(kit.labelOf(balance), before, Progress.coins, ms)
             }

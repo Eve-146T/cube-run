@@ -33,6 +33,15 @@ class MainMenu(
     private fun dp(v: Float) = kit.dp(v)
     private fun dpf(v: Float) = kit.dpf(v)
     private val anims = ArrayList<ValueAnimator>()
+    private val startRipple = Runnable {
+        if (isAttachedToWindow && visibility == VISIBLE && top.visibility == VISIBLE) anims.add(ripple())
+    }
+
+    private fun stopIdle() {
+        logo.removeCallbacks(startRipple)
+        for (a in anims) a.cancel()
+        anims.clear()
+    }
 
     /** Every letter of the logo is its own view, so the word can ripple. */
     private val letters = ArrayList<View>()
@@ -144,8 +153,8 @@ class MainMenu(
 
     /** The entrance (also replayed coming back from a page): everything pops in staggered, the logo bobs. */
     fun show() {
-        for (a in anims) a.cancel()
-        anims.clear()
+        setShown(true)
+        refresh()
         for (v in letters) { v.translationY = 0f; v.rotation = 0f }
         Anim.popIn(logo, 60, 0.4f, 520)
         Anim.riseIn(bestRow, 220, dpf(20f))
@@ -155,7 +164,7 @@ class MainMenu(
         Anim.stagger(leftChips, dpf(40f), 280, 60)
         Anim.stagger(rightChips, dpf(40f), 420, 80)
         anims.add(Anim.breathe(tapHint, 0.55f, 1f, 750))
-        logo.postDelayed({ if (isAttachedToWindow && visibility == VISIBLE) anims.add(ripple()) }, 620)
+        logo.postDelayed(startRipple, 620)
     }
 
     /** Re-read the bank / stock / best (after the shop, the wardrobe, a dev toggle). */
@@ -175,7 +184,8 @@ class MainMenu(
 
     fun hide() {
         if (visibility != VISIBLE) return
-        for (a in anims) a.cancel()
+        stopIdle()
+        Anim.cancelTree(this)
         top.move().translationY(-dpf(60f)).alpha(0f).setDuration(220).start()
         middle.move().alpha(0f).scaleX(0.8f).scaleY(0.8f).setDuration(160).start()
         leftChips.move().translationY(dpf(80f)).alpha(0f).setDuration(220).start()
@@ -185,8 +195,8 @@ class MainMenu(
     }
 
     override fun onDetachedFromWindow() {
-        for (a in anims) a.cancel()
-        anims.clear()
+        stopIdle()
+        Anim.cancelTree(this)
         super.onDetachedFromWindow()
     }
 
@@ -197,15 +207,13 @@ class MainMenu(
      */
     fun setShown(show: Boolean) {
         val parts = listOf(top, middle, leftChips, rightChips, bank, bubbles)
+        stopIdle()
+        Anim.cancelTree(this)
         if (show) {
-            for (a in anims) a.cancel()
-            anims.clear()
-            for (p in parts) { p.animate().cancel(); p.animate().setStartDelay(0); p.alpha = 1f; p.translationY = 0f; p.scaleX = 1f; p.scaleY = 1f; p.visibility = VISIBLE }
+            visibility = VISIBLE
+            for (p in parts) { Anim.reset(p); p.visibility = VISIBLE }
             bubbles.visibility = if (Progress.bubbles > 0) VISIBLE else GONE
         } else {
-            for (a in anims) a.cancel()
-            anims.clear()
-            for (p in parts) p.animate().cancel()
             top.move().translationY(-dpf(40f)).alpha(0f).setDuration(140).withEndAction { top.visibility = INVISIBLE }.start()
             middle.move().alpha(0f).scaleX(0.85f).scaleY(0.85f).setDuration(120).withEndAction { middle.visibility = INVISIBLE }.start()
             leftChips.move().translationY(dpf(50f)).alpha(0f).setDuration(140).withEndAction { leftChips.visibility = INVISIBLE }.start()

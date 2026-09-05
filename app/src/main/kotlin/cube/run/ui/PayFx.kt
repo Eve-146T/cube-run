@@ -49,7 +49,9 @@ object PayFx {
                     val sc = 0.7f + 0.5f * arc
                     coin.scaleX = sc; coin.scaleY = sc
                     coin.rotation = t * 360f * side
+                    Anim.repaint(coin)
                 }
+                Anim.cancelOnDetach(host, this)
                 doOnEnd {
                     host.removeView(coin)
                     SoundFx.play("coin", rate = 1.1f + i * 0.12f, vol = 0.6f); Haptics.tick()
@@ -71,6 +73,7 @@ object PayFx {
             duration = 520
             interpolator = Anim.ease
             addUpdateListener { a -> fg.alpha = a.animatedValue as Int }
+            Anim.cancelOnDetach(card, this)
             doOnEnd { card.foreground = null }
             start()
         }
@@ -79,7 +82,9 @@ object PayFx {
 
     private fun ValueAnimator.doOnEnd(f: () -> Unit) {
         addListener(object : android.animation.AnimatorListenerAdapter() {
-            override fun onAnimationEnd(animation: android.animation.Animator) { f() }
+            private var cancelled = false
+            override fun onAnimationCancel(animation: android.animation.Animator) { cancelled = true }
+            override fun onAnimationEnd(animation: android.animation.Animator) { if (!cancelled) f() }
         })
     }
 }

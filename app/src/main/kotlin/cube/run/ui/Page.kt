@@ -47,7 +47,8 @@ abstract class Page(
     protected val content = FrameLayout(activity)
     protected val titleView: TextView
     private val body = LinearLayout(activity)
-    private var closing = false
+    protected var closing = false
+        private set
 
     init {
         isClickable = true // the page owns every touch: the game must not start under it
@@ -98,11 +99,17 @@ abstract class Page(
     fun close() {
         if (closing) return
         closing = true
+        Anim.cancelTree(this)
         content.move().translationY(dpf(40f)).alpha(0f).setDuration(130).start()
         move().alpha(0f).setDuration(140).withEndAction {
             (parent as? FrameLayout)?.removeView(this)
             onClosed()
         }.start()
+    }
+
+    override fun onDetachedFromWindow() {
+        Anim.cancelTree(this)
+        super.onDetachedFromWindow()
     }
 }
 
@@ -143,11 +150,17 @@ abstract class Sheet(
     fun dismiss() {
         if (closing) return
         closing = true
+        Anim.cancelTree(this)
         card.move().alpha(0f).scaleX(0.9f).scaleY(0.9f).translationY(dpf(16f)).setDuration(110).start()
         move().alpha(0f).setDuration(120).withEndAction {
             (parent as? FrameLayout)?.removeView(this)
             onDismissed()
         }.start()
+    }
+
+    override fun onDetachedFromWindow() {
+        Anim.cancelTree(this)
+        super.onDetachedFromWindow()
     }
 
     /** A thin divider line inside the card. */

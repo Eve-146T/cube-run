@@ -23,6 +23,19 @@ import cube.run.ui.Anim.move
 @SuppressLint("SetTextI18n", "ViewConstructor")
 class Hud(private val activity: Activity) : FrameLayout(activity) {
 
+    /** Animated overlays can grow into any part of the game window between layouts. */
+    override fun gatherTransparentRegion(region: android.graphics.Region?): Boolean {
+        // SurfaceView's transparent-region optimization otherwise punches holes
+        // using the pill's small entrance bounds and clips it as it grows. Keep
+        // the HUD in normal alpha composition for the entire animation.
+        if (region != null) {
+            val location = IntArray(2)
+            getLocationInWindow(location)
+            region.op(location[0], location[1], location[0] + width, location[1] + height, android.graphics.Region.Op.DIFFERENCE)
+        }
+        return false
+    }
+
     companion object {
         /** Intent extra: begin the run on the first frame (RESTART). */
         const val EXTRA_AUTOSTART = "autostart"
@@ -95,9 +108,7 @@ class Hud(private val activity: Activity) : FrameLayout(activity) {
 
     private fun closed() {
         page = null
-        menu.setShown(true)
         menu.show()
-        menu.refresh()
         setBubbles(Progress.bubbles)
     }
 

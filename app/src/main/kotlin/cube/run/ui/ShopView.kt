@@ -122,6 +122,7 @@ class ShopView(activity: Activity, kit: UiKit, onClose: () -> Unit) : Page(activ
             ValueAnimator.ofFloat(1f, 0f).apply {
                 duration = 420; interpolator = Anim.spring
                 addUpdateListener { a -> bar.pop = a.animatedValue as Float }
+                Anim.cancelOnDetach(bar, this)
                 start()
             }
         }
@@ -302,6 +303,7 @@ class ShopView(activity: Activity, kit: UiKit, onClose: () -> Unit) : Page(activ
         Haptics.click()
         val ms = PayFx.fly(this, kit, balance, btn, n = 6, onDone = {
             paying = false
+            if (closing) return@fly
             SoundFx.play("success", rate = 1.4f, vol = 0.55f); Haptics.success()
             Stage.demoRequests.set(demo)
             render(u)

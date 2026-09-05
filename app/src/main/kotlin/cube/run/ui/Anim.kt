@@ -15,54 +15,81 @@ import cube.run.core.SoundFx
  * *shake* when they refuse.
  */
 object Anim {
+    /** One-shot effects must not update detached pages or call their completion work. */
+    fun cancelOnDetach(v: View, animator: ValueAnimator) {
+        val attachment = object : View.OnAttachStateChangeListener {
+            override fun onViewAttachedToWindow(v: View) = Unit
+            override fun onViewDetachedFromWindow(v: View) { animator.cancel() }
+        }
+        v.addOnAttachStateChangeListener(attachment)
+        animator.addListener(object : android.animation.AnimatorListenerAdapter() {
+            override fun onAnimationEnd(animation: android.animation.Animator) {
+                v.removeOnAttachStateChangeListener(attachment)
+            }
+        })
+    }
     /**
      * Over the GL surface, a moving or fading view was seen painted only
      * partly (cut off mid-slide, stale mid-fade) until something else forced
      * a full paint. So every animation asks the whole window to repaint on
      * each frame: use [repaint] as the update listener of any animate().
      */
-    fun repaint(v: View) { v.rootView?.invalidate() }
+    fun repaint(v: View) {
+        v.invalidate()
+        v.rootView?.invalidate()
+    }
 
-    /** [View.animate] with the full-window repaint attached and no leftover start delay. */
-    fun View.move(): android.view.ViewPropertyAnimator = animate().setStartDelay(0).setUpdateListener { repaint(this) }
+    /** Replace a motion, including its pending end action and remembered timing. */
+    fun View.move(): android.view.ViewPropertyAnimator {
+        animate().cancel()
+        return animate().withEndAction(null).setStartDelay(0).setInterpolator(ease).setUpdateListener { repaint(this) }
+    }
 
     val spring = OvershootInterpolator(1.8f)
     val springSoft = OvershootInterpolator(1.1f)
     val ease = DecelerateInterpolator(1.6f)
 
-    /**
-     * Settle a view after an entrance. Over the GL surface, the renderer was
-     * seen to leave the top of a freshly translated view unpainted until the
-     * next layout pass (the page's title bar simply never appeared), so every
-     * entrance ends by pinning its final values and asking for a layout.
-     */
+    /** Refresh layout after an entrance without resetting newer animation state. */
     private fun settle(v: View) {
-        v.alpha = 1f; v.scaleX = 1f; v.scaleY = 1f; v.translationX = 0f; v.translationY = 0f
-        // a view's property animator REMEMBERS its start delay: clear it, or the next animate() on this
-        // view (a fade-out, a drop) waits that long first and looks like it plays late or backwards
-        v.animate().setStartDelay(0).setUpdateListener(null)
+        // The animator already reached its targets. Do not overwrite properties
+        // owned by newer feedback (a pulse may have started during this entrance).
         v.requestLayout()
         (v.parent as? View)?.requestLayout()
+        repaint(v)
+    }
+
+    /** Restore reused views before a new entrance, including interrupted slides. */
+    fun reset(v: View) {
+        v.animate().cancel()
+        v.animate().withEndAction(null).setStartDelay(0)
+        v.alpha = 1f; v.scaleX = 1f; v.scaleY = 1f
+        v.translationX = 0f; v.translationY = 0f
+        repaint(v)
+    }
+
+    fun cancelTree(v: View) {
+        v.animate().cancel()
+        if (v is ViewGroup) for (i in 0 until v.childCount) cancelTree(v.getChildAt(i))
     }
 
     /** Scale + fade in with overshoot. */
-    fun popIn(v: View, delay: Long = 0, from: Float = 0.5f, duration: Long = 320) {
+    fun popIn(v: View, delay: Long = 0, from: Float = 0.5f, duration: Long = 320, onEnd: () -> Unit = {}) {
+        reset(v)
         v.alpha = 0f; v.scaleX = from; v.scaleY = from
-        v.animate().cancel()
-        v.move().alpha(1f).scaleX(1f).scaleY(1f).setStartDelay(delay).setDuration(duration).setInterpolator(spring).withEndAction { settle(v) }.start()
+        v.move().alpha(1f).scaleX(1f).scaleY(1f).setStartDelay(delay).setDuration(duration).setInterpolator(spring).withEndAction { settle(v); onEnd() }.start()
     }
 
     /** Slide up into place + fade in (no overshoot: translations never leave their parent's clip). */
     fun riseIn(v: View, delay: Long = 0, distancePx: Float, duration: Long = 300) {
+        reset(v)
         v.alpha = 0f; v.translationY = distancePx
-        v.animate().cancel()
         v.move().alpha(1f).translationY(0f).setStartDelay(delay).setDuration(duration).setInterpolator(ease).withEndAction { settle(v) }.start()
     }
 
     /** Slide in from the side + fade in. */
     fun slideIn(v: View, delay: Long = 0, fromX: Float, duration: Long = 360) {
+        reset(v)
         v.alpha = 0f; v.translationX = fromX
-        v.animate().cancel()
         v.move().alpha(1f).translationX(0f).setStartDelay(delay).setDuration(duration).setInterpolator(ease).withEndAction { settle(v) }.start()
     }
 
@@ -73,9 +100,10 @@ object Anim {
 
     /** A quick swell on a value change. */
     fun pulse(v: View, amount: Float = 1.25f, duration: Long = 200) {
-        v.animate().cancel()
+        // Replace only scale: cancelling the whole animator would strand an
+        // in-flight entrance's alpha/translation at an intermediate value.
         v.scaleX = amount; v.scaleY = amount
-        v.move().scaleX(1f).scaleY(1f).setDuration(duration).setInterpolator(ease).start()
+        v.animate().scaleX(1f).scaleY(1f).setStartDelay(0).setDuration(duration).setInterpolator(ease).setUpdateListener { repaint(v) }.start()
     }
 
     /** A sideways "no". */
@@ -121,6 +149,7 @@ object Anim {
             duration = ms
             interpolator = ease
             addUpdateListener { a -> t.text = format(a.animatedValue as Int) }
+            cancelOnDetach(t, this)
             start()
         }
 

@@ -36,7 +36,9 @@ class CandyPainter(private val radius: Float, private val lip: Float) {
     var ring = 0f
     var ringColor = Theme.WHITE
 
-    fun offset() = lip * press
+    fun offset() = lip * press.coerceIn(0f, 1f)
+
+    fun scale() = 1f - 0.04f * press
 
     fun draw(c: Canvas, w: Float, h: Float) {
         val off = offset()
@@ -64,17 +66,32 @@ class CandyPainter(private val radius: Float, private val lip: Float) {
 /** Press feedback shared by the candy controls: squash to the lip, spring back (the click still fires). */
 @SuppressLint("ClickableViewAccessibility")
 private fun View.candyTouch(painter: CandyPainter, sound: Boolean = true) {
+    // Press feedback belongs to the drawing, so touching a rising button cannot
+    // cancel its entrance, arrow nudge, purchase pulse, or exit.
+    var pressAnim: android.animation.ValueAnimator? = null
+    fun press(to: Float, ms: Long) {
+        pressAnim?.cancel()
+        pressAnim = android.animation.ValueAnimator.ofFloat(painter.press, to).apply {
+            duration = ms
+            interpolator = if (to == 0f) android.view.animation.OvershootInterpolator(3f) else Anim.ease
+            addUpdateListener { painter.press = it.animatedValue as Float; Anim.repaint(this@candyTouch) }
+            start()
+        }
+    }
+    addOnAttachStateChangeListener(object : View.OnAttachStateChangeListener {
+        override fun onViewAttachedToWindow(v: View) = Unit
+        override fun onViewDetachedFromWindow(v: View) {
+            pressAnim?.cancel(); pressAnim = null; painter.press = 0f
+        }
+    })
     setOnTouchListener { v, ev ->
         when (ev.actionMasked) {
             MotionEvent.ACTION_DOWN -> {
-                v.animate().cancel()
-                v.animate().scaleX(0.96f).scaleY(0.96f).setDuration(70).setUpdateListener { painter.press = v.scaleX.let { (1f - it) / 0.04f }.coerceIn(0f, 1f); Anim.repaint(v) }.start()
+                press(1f, 70)
                 if (sound) Haptics.tick()
             }
             MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                v.animate().cancel()
-                v.animate().scaleX(1f).scaleY(1f).setDuration(220).setInterpolator(android.view.animation.OvershootInterpolator(3f))
-                    .setUpdateListener { painter.press = ((1f - v.scaleX) / 0.04f).coerceIn(0f, 1f); Anim.repaint(v) }.start()
+                press(0f, 220)
             }
         }
         false
@@ -108,8 +125,9 @@ class CandyButton(ctx: Context, color: Int, label: CharSequence, textSize: Float
     }
 
     override fun onDraw(canvas: Canvas) {
-        painter.draw(canvas, width.toFloat(), height.toFloat())
         canvas.save()
+        canvas.scale(painter.scale(), painter.scale(), width / 2f, height / 2f)
+        painter.draw(canvas, width.toFloat(), height.toFloat())
         canvas.translate(0f, painter.offset())
         super.onDraw(canvas)
         canvas.restore()
@@ -138,8 +156,9 @@ class CandyChip(ctx: Context, color: Int, private val lipPx: Float, radiusPx: Fl
     }
 
     override fun onDraw(canvas: Canvas) {
-        painter.draw(canvas, width.toFloat(), height.toFloat())
         canvas.save()
+        canvas.scale(painter.scale(), painter.scale(), width / 2f, height / 2f)
+        painter.draw(canvas, width.toFloat(), height.toFloat())
         canvas.translate(0f, painter.offset())
         super.onDraw(canvas)
         canvas.restore()
