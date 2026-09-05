@@ -163,16 +163,16 @@ class Scenery(private val game: Gdx3DGame, private val rnd: Random) {
         for (t in tiles) {
             val fog = Fog.at(t.z)
             // the three core lanes, then the two outer ones growing out from the edges as the road unfolds
-            for (l in 0 until 3) game.worldBox((l - 1) * w, -0.14f, t.z, w, 0.26f, tileD, if ((l + 1 + t.parity) % 2 == 0) t.col else t.col2, fog)
+            for (l in 0 until 3) game.worldGround((l - 1) * w, -0.14f, t.z, w, 0.26f, tileD, if ((l + 1 + t.parity) % 2 == 0) t.col else t.col2, fog)
             if (u > 0.01f) {
                 val ow = w * u
-                game.worldBox(-(1.5f * w + ow / 2f), -0.14f, t.z, ow, 0.26f, tileD, if (t.parity == 0) t.col else t.col2, fog)
-                game.worldBox(1.5f * w + ow / 2f, -0.14f, t.z, ow, 0.26f, tileD, if (t.parity == 0) t.col else t.col2, fog)
+                game.worldGround(-(1.5f * w + ow / 2f), -0.14f, t.z, ow, 0.26f, tileD, if (t.parity == 0) t.col else t.col2, fog)
+                game.worldGround(1.5f * w + ow / 2f, -0.14f, t.z, ow, 0.26f, tileD, if (t.parity == 0) t.col else t.col2, fog)
             }
-            game.worldBox(-kerb, -0.1f, t.z, 0.24f, 0.34f, tileD, edgeCol, fog)
-            game.worldBox(kerb, -0.1f, t.z, 0.24f, 0.34f, tileD, edgeCol, fog)
-            game.worldBox(-landX, -0.16f, t.z, landW, 0.3f, tileD, t.ground, fog)
-            game.worldBox(landX, -0.16f, t.z, landW, 0.3f, tileD, t.ground, fog)
+            game.worldGround(-kerb, -0.1f, t.z, 0.24f, 0.34f, tileD, edgeCol, fog)
+            game.worldGround(kerb, -0.1f, t.z, 0.24f, 0.34f, tileD, edgeCol, fog)
+            game.worldGround(-landX, -0.16f, t.z, landW, 0.3f, tileD, t.ground, fog)
+            game.worldGround(landX, -0.16f, t.z, landW, 0.3f, tileD, t.ground, fog)
         }
     }
 

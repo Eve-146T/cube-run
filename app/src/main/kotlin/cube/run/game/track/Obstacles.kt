@@ -81,7 +81,9 @@ class Coin(var x: Float, var y: Float, val dz: Float, val restY: Float = y) {
 
 /** One row of the lane-walk: obstacles, optional coins and pickup, scoring state. */
 class Row(var z: Float, val obs: ArrayList<Ob>) {
+    var laneCount = 3            // geometry when generated, even before its portal is crossed
     var safeLane = 1              // the walk lane when this row spawned
+    fun safeX(): Float = if (laneCount == 5) (safeLane - 2) * Lanes.NORMAL_W else (safeLane - 1) * Lanes.w
     var scored = false
     var minClear = 99f            // tightest clearance seen while crossing (near-miss detect)
     var coins: ArrayList<Coin>? = null

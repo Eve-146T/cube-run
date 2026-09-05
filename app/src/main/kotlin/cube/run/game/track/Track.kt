@@ -61,11 +61,13 @@ class Track(private val rnd: Random, private val fx: ObstacleFactory) {
     // ---- goodies ----
     private var coinRowsLeft = 0         // rows still to carry coins in the current trail
     private var coinTrailChance = 0.16f  // chance per row to start a new coin trail
-    private val pickupMinRows = 24       // no pickups in the opening rows
-    private val pickupSpacing = 14       // rows between any two pickups
-    private val boxSpacing = 90          // rows between mystery boxes (rare on purpose)
-    private var rowsSincePickup = 99
-    private var rowsSinceBox = 99
+    private val pickupMinRows = 12       // a short warm-up before the first pickup
+    private var pickupSpacing = 12      // re-rolled after each pickup: 10–18 rows
+    private var rowsSincePickup = 0
+    private val pickupBag = ArrayDeque<Int>() // every kind appears before the bag repeats
+    private var runScore = 0
+    private var jetOffers = 0
+    private var boxOffers = 0
     /** While the jetpack is on, new coin trails are laid at flying height. */
     @Volatile var airCoins = false
     /**
@@ -85,6 +87,8 @@ class Track(private val rnd: Random, private val fx: ObstacleFactory) {
     private var rowsSincePortal = 0
     private var portalPending = Bonus.NONE   // a portal row is queued for the next spawn (-2 = the exit)
     private var wideSafe = 2                 // the walk in the five-lane world
+    private var wideDirection = 1
+    private var wideRows = 0
     /** Unlocked bonus worlds a portal may open to (set by the game from the best score). */
     var portalPool: List<Int> = emptyList()
     /** Rows between portals (the Portal luck perk shortens it). */
@@ -102,7 +106,8 @@ class Track(private val rnd: Random, private val fx: ObstacleFactory) {
         introServed = false; sectsSinceBreather = 0; lastSectId = -99
         curSafe = 1; prevKind = -1; rowsSpawned = 0
         coinRowsLeft = 0; prevPlatLane = -1
-        rowsSincePickup = 99; rowsSinceBox = 99; airCoins = false
+        rowsSincePickup = 0; pickupSpacing = 12; pickupBag.clear(); airCoins = false
+        runScore = 0; jetOffers = 0; boxOffers = 0
         bonus = Bonus.NONE; bonusRowsLeft = 0; rowsSincePortal = 0; portalPending = Bonus.NONE
         this.coinTrailChance = coinTrailChance
         var z = -38f
@@ -118,7 +123,8 @@ class Track(private val rnd: Random, private val fx: ObstacleFactory) {
     }
 
     /** Steady-state spawning: after the world moved [mv], spawn whatever rows are due. */
-    fun spawn(mv: Float, hue: Float) {
+    fun spawn(mv: Float, hue: Float, score: Int) {
+        runScore = score
         spawnAcc += mv
         while (true) {
             if (pendingSteps.isEmpty()) loadNextSection()
@@ -187,13 +193,22 @@ class Track(private val rnd: Random, private val fx: ObstacleFactory) {
 
     /** Debug: be inside bonus world [id] from the first row (the exit comes after the usual stretch). */
     fun forceBonus(id: Int) {
-        bonus = id; bonusRowsLeft = 60; wideSafe = 2; rowsSincePortal = 0
+        beginBonus(id)
+        rowsSincePortal = 0
         pendingSteps.clear()
         when (id) {
             Bonus.WIDE -> { Lanes.count = 5; Lanes.targetW = Lanes.NORMAL_W }
             Bonus.FLOAT -> { Lanes.count = 3; Lanes.targetW = 2.6f }
             else -> { Lanes.count = 3; Lanes.targetW = Lanes.NORMAL_W }
         }
+    }
+
+    private fun beginBonus(id: Int) {
+        bonus = id
+        bonusRowsLeft = when (id) { Bonus.HILLS -> 30; Bonus.WIDE -> 42; else -> 46 }
+        wideSafe = curSafe + 1 // same physical lane when the two outer lanes unfold
+        wideDirection = if (rnd.nextBoolean()) 1 else -1
+        wideRows = 0
     }
 
     // ------------------------------------------------------------- director
@@ -205,7 +220,11 @@ class Track(private val rnd: Random, private val fx: ObstacleFactory) {
             Step.isJump(prevKind) -> jumpRecoverGap   // we were airborne — give room to land
             else -> dodgeGap
         }
-        return if (code == Step.EM) max(recover, breatherGap) else recover
+        return when {
+            code == Step.EM -> max(recover, breatherGap)
+            code == Step.WIDE || bonus == Bonus.HILLS -> max(recover, jumpRecoverGap)
+            else -> recover
+        }
     }
 
     /** The section explorer alone shows the section bare: no pickups. Dev mode showers them instead. */
@@ -218,8 +237,8 @@ class Track(private val rnd: Random, private val fx: ObstacleFactory) {
         if (!introServed) { introServed = true; return Sections.intro }
         sectsSinceBreather++
         if (sectsSinceBreather >= 5) { sectsSinceBreather = 0; return Sections.breather }
-        if (bonus == Bonus.HILLS) return Sections.hillRide // the hills are visual only: coins, no obstacles
         var pool = when (bonus) {
+            Bonus.HILLS -> Sections.hillPool.filter { it.id != lastSectId }
             Bonus.FLOAT -> Sections.floatPool.filter { it.id != lastSectId }
             Bonus.KALEIDO -> Sections.lib.filter { it.tier <= max(1, tier) && it.id != lastSectId }
             else -> Sections.lib.filter { it.tier <= tier && it.id != lastSectId }
@@ -247,7 +266,7 @@ class Track(private val rnd: Random, private val fx: ObstacleFactory) {
             return
         }
         if (bonus == Bonus.WIDE) { // the five-lane world writes itself: a wandering corridor
-            repeat(6) { pendingSteps.add(Step.WIDE) }
+            repeat(minOf(6, bonusRowsLeft)) { pendingSteps.add(Step.WIDE) }
             return
         }
         val s = pickSection()
@@ -256,34 +275,48 @@ class Track(private val rnd: Random, private val fx: ObstacleFactory) {
     }
 
     /** Decode one step code into a row at [z], advancing the walk. */
-    private fun spawnStep(code: Int, z: Float, hue: Float) {
+    private fun spawnStep(code: Int, z: Float, baseHue: Float) {
+        // The original track drifted with distance. Keep neighbouring rows varied
+        // within a biome, with each row's colour fixed for its entire lifetime.
+        val hue = (baseHue + rowsSpawned * 19f) % 360f
         val obs = ArrayList<Ob>(2)
         var platLane = -1
         if (code == Step.PORTAL) { // the doorway: an open row that flips the world when crossed
             val row = Row(z, obs)
             if (portalPending == -2) { row.portalExit = true; row.portal = bonus; bonus = Bonus.NONE; rowsSincePortal = 0 }
-            else { row.portal = portalPending; bonus = portalPending; bonusRowsLeft = 46; wideSafe = 2 }
+            else { row.portal = portalPending; beginBonus(portalPending) }
             portalPending = Bonus.NONE
             row.safeLane = curSafe
             rows.add(row)
-            rowsSpawned++; rowsSincePickup++; rowsSinceBox++
+            rowsSpawned++; rowsSincePickup++
             prevKind = Step.EM
             return
         }
-        if (code == Step.WIDE) { // five lanes: pillars everywhere but a two-lane corridor that wanders
+        if (code == Step.WIDE) { // a single clear lane sweeps across all five; every third row holds for a beat
             val n = 5
-            wideSafe = (wideSafe + rnd.nextInt(3) - 1).coerceIn(0, n - 1)
-            val open2 = if (wideSafe == n - 1) wideSafe - 1 else wideSafe + 1
-            for (l in 0 until n) if (l != wideSafe && l != open2 && rnd.nextFloat() < 0.85f) obs.add(fx.pillar((l - 2) * Lanes.NORMAL_W, hue))
-            curSafe = wideSafe.coerceIn(0, 2)
+            if (bonusRowsLeft <= 4) {
+                // Bring the path back to the centre before the road narrows.
+                wideSafe += (2 - wideSafe).coerceIn(-1, 1)
+            } else if (wideRows > 0 && wideRows % 3 != 0) {
+                if (wideSafe + wideDirection !in 0 until n) wideDirection = -wideDirection
+                wideSafe += wideDirection
+            }
+            wideRows++
+            for (l in 0 until n) if (l != wideSafe) obs.add(fx.pillar((l - 2) * Lanes.NORMAL_W, hue))
+            curSafe = (wideSafe - 1).coerceIn(0, 2)
             val row = Row(z, obs)
+            row.laneCount = n
             row.safeLane = wideSafe
             val list = ArrayList<Coin>(3)
             val cx = (wideSafe - 2) * Lanes.NORMAL_W
-            for (k in 0 until 3) list.add(Coin(cx, 0.5f, -1.6f - k * 1.5f))
+            for (k in 0 until 3) {
+                val dz = -1.6f - k * 1.5f
+                list.add(Coin(cx, if (airCoins) jetY(z + dz, 0.5f) else 0.5f, dz, restY = 0.5f))
+            }
             row.coins = list
+            layPickup(row, code)
             rows.add(row)
-            rowsSpawned++; rowsSincePickup++; rowsSinceBox++
+            rowsSpawned++; rowsSincePickup++
             bonusRowsLeft--
             prevKind = code
             return
@@ -362,7 +395,6 @@ class Track(private val rnd: Random, private val fx: ObstacleFactory) {
         rows.add(row)
         rowsSpawned++
         rowsSincePickup++
-        rowsSinceBox++
         rowsSincePortal++
         if (bonus != Bonus.NONE) bonusRowsLeft--
         prevKind = code
@@ -387,7 +419,7 @@ class Track(private val rnd: Random, private val fx: ObstacleFactory) {
             if (row.z > -4f) continue
             val coins = row.coins
             if (coins == null) {
-                val x = fx.laneX(row.safeLane.coerceIn(0, 2))
+                val x = row.safeX()
                 val list = ArrayList<Coin>(3)
                 for (k in 0 until 3) {
                     val dz = -1.6f - k * 1.5f
@@ -470,28 +502,31 @@ class Track(private val rnd: Random, private val fx: ObstacleFactory) {
     }
 
     /**
-     * A rare pickup on the walk lane, between this row and the next: power-ups
-     * (magnet / 2× / jetpack), a bubble, or — much rarer — a mystery box.
+     * Regular pickups on the walk lane. A shuffled bag prevents any one kind
+     * from disappearing for a whole run; Lucky Box adds boxes to each bag.
      */
     private fun layPickup(row: Row, code: Int) {
-        if (noPickups() || code == Step.EM || Step.isPlatform(code) || Step.isPad(code) || code == Step.TW || bonus == Bonus.FLOAT) return
+        if (noPickups() || Step.isPlatform(code) || Step.isPad(code) || code == Step.TW || bonus == Bonus.FLOAT) return
         val galore = Settings.devMode // dev mode: a pickup every few rows, boxes included, so everything can be tried
-        if (!galore && (code == Step.CF || rowsSpawned < pickupMinRows || rowsSincePickup < pickupSpacing)) return
+        if (!galore && (rowsSpawned < pickupMinRows || rowsSincePickup < pickupSpacing)) return
         if (galore && rowsSincePickup < 3) return
-        val r = rnd.nextFloat()
-        val boxLuck = 1f + 0.5f * Progress.level(Progress.LUCKYBOX)
-        row.pickup = when {
-            galore -> when { r < 0.25f -> Pickup.BOX; r < 0.45f -> Pickup.BUBBLE; r < 0.65f -> Pickup.JET; r < 0.83f -> Pickup.MAGNET; else -> Pickup.MULT }
-            // per-row chances: multipliers stay common; magnets and bubbles are 15× rarer, jetpacks and boxes 30× rarer than they were
-            r < 0.0006f -> Pickup.MAGNET
-            r < 0.0096f -> Pickup.MULT
-            r < 0.0098f -> Pickup.JET
-            r < 0.01027f -> Pickup.BUBBLE
-            r < 0.01027f + 0.0001f * boxLuck && rowsSinceBox >= (boxSpacing / boxLuck).toInt() -> Pickup.BOX
-            else -> return
+        if (pickupBag.isEmpty()) {
+            val kinds = arrayListOf(Pickup.MAGNET, Pickup.MULT, Pickup.JET, Pickup.BUBBLE, Pickup.BOX)
+            val luck = Progress.level(Progress.LUCKYBOX)
+            repeat(luck / 2) { kinds.add(Pickup.BOX) }
+            if (luck % 2 != 0 && rnd.nextBoolean()) kinds.add(Pickup.BOX) // +0.5 box weight per level
+            pickupBag.addAll(kinds.shuffled(rnd))
         }
-        if (row.pickup == Pickup.BOX) rowsSinceBox = 0
+        val kind = pickupBag.removeFirst()
+        // Empty slots still consume the normal spacing: neither gated nor
+        // skipped rare pickups turn into extra magnets, multipliers or bubbles.
+        row.pickup = when (kind) {
+            Pickup.JET -> if (runScore >= 100 && ++jetOffers % 2 == 0) kind else Pickup.NONE
+            Pickup.BOX -> if (runScore >= 100 && ++boxOffers % 2 == 0) kind else Pickup.NONE
+            else -> kind
+        }
         rowsSincePickup = 0
-        row.pickupX = fx.laneX(curSafe)
+        pickupSpacing = rnd.nextInt(10, 19)
+        row.pickupX = row.safeX()
     }
 }

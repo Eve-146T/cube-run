@@ -47,7 +47,8 @@ object SoundFx {
                 if (loaded.incrementAndGet() >= expected) ready = true
             }
             for ((name, pcm) in sounds) {
-                val f = File(dir, "$name.wav")
+                // Version the changed chime so installed games replace their cached quiet sample.
+                val f = File(dir, if (name == "coin") "coin-chime-v2.wav" else "$name.wav")
                 if (!f.exists() || f.length() == 0L) f.writeBytes(wav(pcm))
                 ids[name] = p.load(f.path, 1)
             }
@@ -91,7 +92,7 @@ object SoundFx {
         },
         "coin" to synth(150) { t, p -> // a soft two-note chime: sine with a whisper of a second harmonic (a square wave here shreds on recordings)
             val f = if (t < 0.03) 987.77 else 1318.5
-            (sin(t * f * TAU) * 0.85 + sin(t * f * 2 * TAU) * 0.15) * 0.32 * decay(p, 3.2)
+            (sin(t * f * TAU) * 0.85 + sin(t * f * 2 * TAU) * 0.15) * 0.5 * decay(p, 3.2)
         },
         "rise" to synth(300) { t, p ->
             sin(t * (280.0 + 1000.0 * p.pow(1.5)) * TAU) * (0.6 + 0.4 * sin(t * 30.0 * TAU)) *

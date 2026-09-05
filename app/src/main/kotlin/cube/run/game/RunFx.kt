@@ -92,7 +92,7 @@ class RunFx(private val game: Gdx3DGame, private val rnd: Random) {
     }
 
     fun coin(x: Float, y: Float, z: Float, pitch: Int, gold: Color) {
-        SoundFx.play("coin", rate = (1f + 0.04f * minOf(pitch, 12)).coerceAtMost(1.5f), vol = 0.42f) // gentle: many overlap in a line
+        SoundFx.play("coin", rate = (1f + 0.04f * minOf(pitch, 12)).coerceAtMost(1.5f), vol = 0.7f)
         Haptics.tick()
         game.burst3d(tmp.set(x, y, z), gold, n = 6, speed = 3.2f, size = 0.09f, life = 0.4f)
         game.burst3d(tmp, Color.WHITE, n = 2, speed = 4f, size = 0.06f, life = 0.25f)

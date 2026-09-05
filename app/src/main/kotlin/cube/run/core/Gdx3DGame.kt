@@ -320,6 +320,10 @@ abstract class Gdx3DGame(val session: GameSession) : ApplicationAdapter(), Touch
     fun worldBox(x: Float, y: Float, z: Float, sx: Float, sy: Float, sz: Float, col: Color, fog: Float = 0f) =
         world.box(x, y, z, sx, sy, sz, col, fog)
 
+    /** Continuous road/land pieces: both ends follow the terrain, joining adjacent tiles. */
+    fun worldGround(x: Float, y: Float, z: Float, sx: Float, sy: Float, sz: Float, col: Color, fog: Float = 0f) =
+        world.box(x, y, z, sx, sy, sz, col, fog, followTerrain = true)
+
     /** Like [worldBox] but spun [yawDeg] about its vertical axis (coins, pickups). */
     fun worldBoxSpin(x: Float, y: Float, z: Float, sx: Float, sy: Float, sz: Float, yawDeg: Float, col: Color, fog: Float = 0f) =
         world.boxSpin(x, y, z, sx, sy, sz, yawDeg, col, fog)
