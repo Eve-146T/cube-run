@@ -34,8 +34,8 @@ jobs:
       - name: Make gradlew executable
         run: chmod +x gradlew
 
-      - name: Build debug APK
-        run: ./gradlew assembleDebug --stacktrace
+      - name: Build and check debug APK
+        run: ./gradlew assembleDebug lintDebug testDebugUnitTest assembleDebugAndroidTest --stacktrace
 
       - name: Upload debug APK
         uses: actions/upload-artifact@v7
@@ -92,10 +92,14 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          release_flags=()
+          case "${{ github.ref_name }}" in
+            *-*) release_flags+=(--prerelease) ;;
+          esac
           gh release create "${{ github.ref_name }}" \
             "cube-run-${{ github.ref_name }}.apk" \
             --title "Cube Run ${{ github.ref_name }}" \
-            --generate-notes
+            --generate-notes "${release_flags[@]}"
 
       - name: Upload release APK artifact
         uses: actions/upload-artifact@v7

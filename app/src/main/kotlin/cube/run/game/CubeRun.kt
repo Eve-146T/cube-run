@@ -457,7 +457,7 @@ class CubeRun(session: GameSession, private val autoStart: Boolean = false) : Gd
             Scenery.PASSED_WORLD -> worlds.gatePassed()?.let { fx.worldGate(worlds.gateColor()); rig.punch(0.7f); session.setWorld(it.name) }
             Scenery.PASSED_START -> { fx.startGate(player.trailCol()); rig.punch(0.9f) }
         }
-        if (live()) track.spawn(mv, worldHue())
+        if (live()) track.spawn(mv, worldHue(), session.score)
 
         // ---- timed power-ups
         if (started && !dead) {

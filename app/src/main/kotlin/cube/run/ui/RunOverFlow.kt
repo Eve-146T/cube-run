@@ -22,8 +22,7 @@ import cube.run.ui.Anim.move
  * engine's stage (your cube floating in a world-tinted sky):
  *  1. the results — your cube up top with a sunburst spinning behind it (in
  *     the 3D stage, so the cube stays in front), a huge score counting up,
- *     stars that slam in, the trophy line, then candy tiles for coins,
- *     boxes and the world reached. One tap skips the count, the next moves on;
+ *     stars that slam in and coins. One tap skips the count, the next moves on;
  *  2. the mystery boxes (only if any were collected) — the game renders the
  *     box in 3D ([Stage.BOX]); a tap opens one, the reward pops up as a
  *     card, the next tap brings the next box (already opening) or, after
@@ -188,9 +187,6 @@ class RunOverFlow(
             val coinCell = cell(CoinIcon(), "+0", "coins", Theme.YELLOW)
             coinText = coinCell.getChildAt(1) as TextView
             addView(coinCell, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
-            if (world.isNotEmpty()) addView(cell(null, world, "reached", Theme.MINT), LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
-            for (id in bonusVisited) addView(cell(PortalIcon(Theme.hsv(cube.run.data.Bonus.get(id).hue, 0.6f, 1f)), cube.run.data.Bonus.get(id).name, "portal"), LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
-            if (isNewBest) for (w in cube.run.data.Bonus.newlyUnlocked(best, score)) addView(cell(PortalIcon(Theme.PINK), w.name, "unlocked!", Theme.PINK), LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
         }
         card.addView(stats, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(4f) })
         column.addView(card, LinearLayout.LayoutParams(dp(300f), LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(12f) })

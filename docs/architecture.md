@@ -51,8 +51,9 @@ Bounce pads are harmless triggers; platforms raise the ground.
 A run starts in Candy Fields. Every 140 rows a gate is dropped at the
 horizon in the next world's colour; everything born behind it (tiles,
 roadside, obstacle hues) is already in the new style, and when the gate
-passes the player the sky and haze cross-fade. Obstacle kinds keep fixed hue
-offsets from the world hue, so they read the same in every world.
+passes the player the sky and haze cross-fade. Obstacle hues advance by 19°
+per generated row, restoring colour variety within each biome. Kind offsets
+stay consistent within a row, and colours stay fixed as obstacles approach.
 
 ## Test tools
 
@@ -86,14 +87,27 @@ on the camera's line of sight behind a point — so the cube on the results,
 the cube in the shop's showroom strip and the box on the gift stage sit
 exactly on their sunburst's origin on every phone, whatever its aspect.
 
-Pickups are rare on purpose: per row, a multiplier about 0.9 %, a magnet
-0.06 %, a bubble 0.05 %, a jetpack 0.02 %, a box 0.01 % (times Lucky
-boxes). The Rollercoaster serves only coin rows: the hills are the show.
+After 12 opening rows, pickup opportunities occur on the next eligible row
+every 10–18 rows. A shuffled bag includes every kind; Lucky Boxes adds extra
+boxes. Jetpacks and mystery boxes require an actual run score of at least
+100, then use only every second opportunity for that kind. Skipped slots
+stay empty and consume their spacing, reducing their frequency by half
+without increasing other pickups. The gates also apply in developer mode.
+Coin fields and five-lane rows can carry pickups too. Five-lane roads have
+one clear lane sweeping across all five, with a rest beat every third row,
+9.5-unit spacing and a centre-lane approach before the exit. Rollercoaster
+visits last about 30 rows, mixing short dodge, jump and duck patterns with
+coin fields and extra spacing for visibility over the hills.
+
+Road tiles, kerbs and roadside ground use `worldGround`: both ends sample
+the hill height at their own z, so neighbouring pieces share an edge instead
+of floating at separate centre heights. Face lighting follows the slope.
+Obstacles and decorations keep their rigid shapes through `worldBox`.
 
 ## The run-over flow
 
-Results (the cube in front of a sunburst, the score, the stars, coins and
-the world reached) → the mystery boxes, if any (each shatters into shards
+Results (the cube in front of a sunburst, the score, the stars and coins)
+→ the mystery boxes, if any (each shatters into shards
 and its prize hangs where it was) → straight back to the main menu. There
 is no "go again" page: restart and everything else live on the menu.
 

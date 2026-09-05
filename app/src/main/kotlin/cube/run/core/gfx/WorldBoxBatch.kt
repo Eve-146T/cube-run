@@ -8,6 +8,7 @@ import com.badlogic.gdx.utils.Disposable
 import kotlin.math.cos
 import kotlin.math.min
 import kotlin.math.sin
+import kotlin.math.sqrt
 
 /**
  * Every static box in the world (floor tiles, posts, obstacles, coins) in ONE
@@ -37,6 +38,7 @@ class WorldBoxBatch(private val kit: BoxMeshKit, private val maxBoxes: Int = 900
     private var count = 0
     private val axisLight = FloatArray(18)     // 6 axis-aligned faces × rgb Lambert factor (constant)
     private val spinLight = FloatArray(18)     // same, for the last spin yaw (cached)
+    private val slopeLight = FloatArray(18)    // terrain-following floor faces
     private var spinCacheYaw = Float.NaN
     private val packed = FloatArray(6)         // scratch: per-face packed colour
     private val corners = FloatArray(24)       // scratch: 8 transformed corners
@@ -51,16 +53,29 @@ class WorldBoxBatch(private val kit: BoxMeshKit, private val maxBoxes: Int = 900
     fun begin() { count = 0 }
 
     /** Queue one axis-aligned box (centre position, full sizes). [fog] 0..1 blends toward [fogColor]. */
-    fun box(x: Float, y0: Float, z: Float, sx: Float, sy: Float, sz: Float, col: Color, fog: Float = 0f) {
+    fun box(x: Float, y0: Float, z: Float, sx: Float, sy: Float, sz: Float, col: Color, fog: Float = 0f, followTerrain: Boolean = false) {
         if (count >= maxBoxes) return
-        val y = y0 + (terrain?.invoke(z) ?: 0f)
-        packFaces(col, fog, axisLight)
+        // Ground pieces meet at the SAME sampled height along each shared edge.
+        // Rigid obstacles still translate as a whole at their centre.
+        val back = terrain?.invoke(if (followTerrain) z - sz / 2f else z) ?: 0f
+        val front = if (followTerrain) terrain?.invoke(z + sz / 2f) ?: 0f else back
+        val slope = if (sz > 0f) (front - back) / sz else 0f
+        val light = if (slope == 0f) axisLight else slopeLight.also {
+            val normalScale = 1f / sqrt(1f + slope * slope)
+            for (f in 0 until 6) {
+                val fi = f * 3
+                val nx = kit.faceNrm[fi]; val ny = kit.faceNrm[fi + 1]; val nz = kit.faceNrm[fi + 2]
+                val scale = if (ny == 0f) 1f else normalScale
+                kit.lightFace(nx * scale, ny * scale, (nz - slope * ny) * scale, it, fi)
+            }
+        }
+        packFaces(col, fog, light)
         var w = count * kit.vertsPerBox * 4
         val cl = kit.cornerLocal
         for (v in 0 until kit.vertsPerBox) {
             val ci = kit.cornerOf[v] * 3
             verts[w++] = x + cl[ci] * sx
-            verts[w++] = y + cl[ci + 1] * sy
+            verts[w++] = y0 + (if (cl[ci + 2] > 0f) front else back) + cl[ci + 1] * sy
             verts[w++] = z + cl[ci + 2] * sz
             verts[w++] = packed[kit.faceOf[v]]
         }
