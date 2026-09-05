@@ -21,13 +21,15 @@ class GameActivity : AndroidApplication() {
         super.onCreate(savedInstanceState)
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
 
-        // debug hooks (adb): --ez dev true turns dev mode on, --ei section N loops one section
-        if (intent.getBooleanExtra("dev", false) && !Settings.devMode) { Settings.setDevMode(true); Progress.enterDev() }
-        intent.getIntExtra("section", -2).let { if (it >= -1) Settings.testSection = it }
-        intent.getIntExtra("bonus", -2).let { if (it >= -1) Settings.testBonus = it }
-        intent.getIntExtra("world", -2).let { if (it >= -1) Settings.testWorld = it }
-        intent.getIntExtra("boxes", -1).let { if (it >= 0) Settings.testBoxes = it }
-        intent.getIntExtra("bonusnow", -2).let { if (it >= -1) Settings.testBonusNow = it }
+        // Debug builds only: adb shortcuts for testing individual sections and worlds.
+        if (BuildConfig.DEBUG) {
+            if (intent.getBooleanExtra("dev", false) && !Settings.devMode) { Settings.setDevMode(true); Progress.enterDev() }
+            intent.getIntExtra("section", -2).let { if (it >= -1) Settings.testSection = it }
+            intent.getIntExtra("bonus", -2).let { if (it >= -1) Settings.testBonus = it }
+            intent.getIntExtra("world", -2).let { if (it >= -1) Settings.testWorld = it }
+            intent.getIntExtra("boxes", -1).let { if (it >= 0) Settings.testBoxes = it }
+            intent.getIntExtra("bonusnow", -2).let { if (it >= -1) Settings.testBonusNow = it }
+        }
         hud = Hud(this)
         hud.setBest(Scores.best(SCORE_ID))
         val session = GameHostSession(this, SCORE_ID, hud)

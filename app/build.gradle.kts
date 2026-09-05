@@ -23,6 +23,10 @@ android {
     namespace = "cube.run"
     compileSdk = 35
 
+    buildFeatures {
+        buildConfig = true
+    }
+
     defaultConfig {
         applicationId = "cube.run"
         minSdk = 28

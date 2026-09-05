@@ -7,6 +7,7 @@ import android.view.Gravity
 import android.view.View
 import android.widget.FrameLayout
 import android.widget.LinearLayout
+import cube.run.BuildConfig
 import cube.run.R
 import cube.run.ui.Anim.move
 import cube.run.data.Progress
@@ -82,7 +83,7 @@ class MainMenu(
     }
     private val bestRow = kit.iconText(TrophyIcon(), "", 22f, Theme.WHITE, stage = true, iconDp = 28f).apply { visibility = GONE }
     private val bank = kit.iconPill(CoinIcon(), "0", Theme.INK, 16f).apply { setOnClickListener { openShop() } }
-    private val bubbles = kit.iconPill(BubbleIcon(), "", Theme.INK, 16f).apply { visibility = GONE; setOnClickListener { openShop() } }
+    private val bubbles = kit.iconPill(BubbleIcon(), "", Theme.INK, 16f, Theme.lighten(Theme.CYAN, 0.55f)).apply { visibility = GONE; setOnClickListener { openShop() } }
     private val tapHint = kit.stageText("TAP TO START", 22f, Theme.WHITE, stroke = 3f).apply { letterSpacing = 0.12f }
 
     private val leftChips = LinearLayout(activity).apply {
@@ -94,12 +95,13 @@ class MainMenu(
             { Settings.soundEnabled }, { Settings.setSoundEnabled(it) }), LinearLayout.LayoutParams(size, size + dp(4f)))
         addView(kit.toggle(R.drawable.ic_haptic_on, R.drawable.ic_haptic_off, activity.getString(R.string.cd_haptics), Theme.SKY,
             { Settings.hapticsEnabled }, { Settings.setHapticsEnabled(it) }), LinearLayout.LayoutParams(size, size + dp(4f)).apply { leftMargin = dp(8f) })
-        // Dev mode (this launch only): the run serves the sections under review on loop,
-        // and every tap of it fills the bank, so anything in the shop can be tried.
-        addView(kit.toggle(R.drawable.ic_dev_on, R.drawable.ic_dev_off, activity.getString(R.string.cd_dev), Theme.ORANGE,
-            { Settings.devMode }, { Settings.setDevMode(it); if (it) Progress.enterDev() else Progress.leaveDev(); onDevToggled() }), LinearLayout.LayoutParams(size, size + dp(4f)).apply { leftMargin = dp(8f) })
-        addView(kit.chip(R.drawable.ic_sections, Theme.WHITE, Theme.INK, activity.getString(R.string.cd_sections)) { openSections() },
-            LinearLayout.LayoutParams(size, size + dp(4f)).apply { leftMargin = dp(8f) })
+        if (BuildConfig.DEBUG) {
+            // Debug builds only: fill the bank or loop a section for testing.
+            addView(kit.toggle(R.drawable.ic_dev_on, R.drawable.ic_dev_off, activity.getString(R.string.cd_dev), Theme.ORANGE,
+                { Settings.devMode }, { Settings.setDevMode(it); if (it) Progress.enterDev() else Progress.leaveDev(); onDevToggled() }), LinearLayout.LayoutParams(size, size + dp(4f)).apply { leftMargin = dp(8f) })
+            addView(kit.chip(R.drawable.ic_sections, Theme.WHITE, Theme.INK, activity.getString(R.string.cd_sections)) { openSections() },
+                LinearLayout.LayoutParams(size, size + dp(4f)).apply { leftMargin = dp(8f) })
+        }
     }
 
     private val rightChips = LinearLayout(activity).apply {
