@@ -57,7 +57,7 @@ stay consistent within a row, and colours stay fixed as obstacles approach.
 
 ## Test tools
 
-Dev mode (this launch only): free coins, a pickup every few rows (boxes
+Dev mode (debug builds only, this launch only): free coins, a pickup every few rows (boxes
 included), and an END RUN button on the pause card so the results and box
 stage can be reached from any run. The section explorer loops one section;
 on its own it lays no pickups.
@@ -181,7 +181,8 @@ turns dev mode on (free coins, pickups and portals galore, END RUN on the
 pause card), loops one section, forces which bonus world portals open to,
 starts the run already inside a bonus world, picks the starting world, and
 starts the run holding mystery boxes (so the box stage is one END RUN
-away). All process-scoped.
+away). All process-scoped and ignored by release builds. The dev toggle
+and section explorer buttons are also available only in debug builds.
 
 `game.Lanes.unfold` eases the two outer lanes of the five-lane world open
 and closed, so the road widens instead of snapping; lane input is bounded
