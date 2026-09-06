@@ -28,7 +28,7 @@ import cube.run.ui.Anim.move
  *     card, the next tap brings the next box (already opening) or, after
  *     the last, moves on;
  *  3. and then straight back to the main menu (everything else lives there).
- * Leaving whooshes the page away before the relaunch.
+ * Leaving hands off immediately to the activity crossfade, keeping this screen visible underneath.
  */
 @SuppressLint("SetTextI18n", "ViewConstructor")
 class RunOverFlow(
@@ -83,13 +83,13 @@ class RunOverFlow(
         Anim.slideIn(next, 0, dpf(70f), 260)
     }
 
-    /** Whoosh the whole flow away, then do [action] (RESTART / MENU relaunch the activity). */
+    /** Start the destination immediately; the window transition keeps these results visible until it is ready. */
     private fun leave(action: () -> Unit) {
         if (leaving) return
         leaving = true
         stopEffects()
-        SoundFx.play("whoosh", rate = 1.2f); Haptics.click()
-        move().scaleX(0.86f).scaleY(0.86f).alpha(0f).setDuration(170).setInterpolator(Anim.ease).withEndAction { action() }.start()
+        Haptics.click()
+        action()
     }
 
     /** A soft hint that breathes at the bottom of a page (hide it with visibility, not alpha). */

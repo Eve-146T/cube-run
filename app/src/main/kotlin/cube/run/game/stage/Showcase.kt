@@ -31,6 +31,19 @@ class Showcase(private val game: Gdx3DGame, private val player: Player, private 
 
     var active = false
         private set
+    var shop = false
+        private set
+    private var shopMix = 0f
+    val menuVisibility: Float get() = 1f - shopMix
+    private var shopSpin = 0f
+    private var playYaw = 0f
+    private var playVelocity = 0f
+    private var playLift = 0f
+    private var playLiftVelocity = 0f
+    private val menuCameraPosition = Vector3()
+    private val menuCameraDirection = Vector3()
+    private val menuCameraUp = Vector3()
+    private var menuFov = 60f
 
     private val skyTopSave = Color()
     private val skyBottomSave = Color()
@@ -56,7 +69,17 @@ class Showcase(private val game: Gdx3DGame, private val player: Player, private 
     /** [tint] is the world's hue: the backdrop stays a deep version of where you were. */
     fun enter(bgTop: Color, bgBottom: Color, tint: Float) {
         active = true
+        shop = Stage.mode == Stage.SHOP
+        if (shop) {
+            menuCameraPosition.set(game.cam.position)
+            menuCameraDirection.set(game.cam.direction)
+            menuCameraUp.set(game.cam.up)
+            menuFov = game.cam.fieldOfView
+            player.saveMenuPose()
+        }
         enterT = 0f
+        shopSpin = 0f
+        playYaw = 0f; playVelocity = 0f; playLift = 0f; playLiftVelocity = 0f
         trailMix = 0f; bubbleMix = 0f; kickV = 0f; kickA = 0f; pop = 0f; wide = 0f
         demos.reset()
         skyTopSave.set(bgTop); skyBottomSave.set(bgBottom)
@@ -68,18 +91,48 @@ class Showcase(private val game: Gdx3DGame, private val player: Player, private 
 
     /** Ease the sky from where the run was into the stage's deep tint. */
     fun tintSky(bgTop: Color, bgBottom: Color) {
-        val k = min(1f, enterT * 2.8f)
+        val k = if (shop) shopMix else min(1f, enterT * 2.8f)
         bgTop.set(skyTopSave).lerp(stageTop, k)
         bgBottom.set(skyBottomSave).lerp(stageBottom, k)
     }
 
     fun exit(bgTop: Color, bgBottom: Color) {
         active = false
+        if (shop) player.restoreMenuPose(game.time)
         bgTop.set(skyTopSave); bgBottom.set(skyBottomSave)
     }
 
     fun update(dt: Float, time: Float, baseHue: Float) {
+        if (shop) {
+            // Integrate a positive velocity analytically: a brisk turn easing to 45 degrees/second.
+            val before = kotlin.math.exp(-enterT / 0.14f)
+            val after = kotlin.math.exp(-(enterT + dt) / 0.14f)
+            shopSpin += 45f * dt + 600f * 0.14f * (before - after)
+        }
         enterT += dt
+        shopMix = Stage.shopProgress
+        if (shop) {
+            val gesture = Stage.shopPlayRequests.getAndSet(0)
+            if (gesture != 0 && shopMix == 1f && !demos.running) {
+                when (gesture) {
+                    Stage.SHOP_LEFT -> playVelocity = -1000f
+                    Stage.SHOP_RIGHT -> playVelocity = 1000f
+                    else -> {
+                        playLiftVelocity = when (gesture) { Stage.SHOP_UP -> 3.8f; Stage.SHOP_DOWN -> 1.8f; else -> 2.8f }
+                        playVelocity = 240f
+                    }
+                }
+                SoundFx.play("pop", rate = if (gesture == Stage.SHOP_TAP) 1.4f else 1.7f, vol = 0.35f)
+                Haptics.tick()
+                game.burst3d(tmp.set(player.px, player.py, 0f), player.trailCol(), n = 8, speed = 2.6f, size = 0.07f, life = 0.4f)
+            }
+            val drag = if (shopMix < 1f) 14f else 4.5f
+            val keep = kotlin.math.exp(-drag * dt)
+            playYaw += playVelocity * (1f - keep) / drag
+            playVelocity *= keep
+            playLift = max(0f, playLift + playLiftVelocity * dt - 7f * dt * dt)
+            playLiftVelocity = if (playLift > 0f) playLiftVelocity - 14f * dt else 0f
+        }
         val c = cat()
         trailMix += ((if (c == Wardrobe.TRAIL) 1f else 0f) - trailMix) * min(1f, dt * 3.2f)
         bubbleMix += ((if (c == Wardrobe.BUBBLE) 1f else 0f) - bubbleMix) * min(1f, dt * 4.5f)
@@ -104,10 +157,11 @@ class Showcase(private val game: Gdx3DGame, private val player: Player, private 
         val lx = 0.9f * sin(time * 1.4f)
         val ly = 1.0f + 0.35f * sin(time * 2.8f)
         val x = lx * trailMix
-        val y = 1.0f + (ly - 1.0f) * trailMix + demos.lift
+        val y = 1.0f + (ly - 1.0f) * trailMix + demos.lift + playLift
         val spin = 45f + 115f * trailMix
         val scale = 1f + 0.22f * sin(min(1f, pop) * 3.14159f)
-        player.showcase(time, baseHue, x, y, spin, extraYaw = kickA, scale = scale)
+        player.showcase(time, baseHue, x, y, if (shop) 0f else spin, extraYaw = if (shop) 0f else kickA, scale = scale)
+        if (shop) player.blendFromMenu(shopMix, shopSpin + kickA + playYaw, time)
         if (trailMix > 0.08f) player.emitTrail(dt, time, x - 0.3f * cos(time * 1.4f), y, 0.3f, boost = 1.6f * trailMix, scale = 2.4f)
         demos.update(dt, time, player.px, player.py)
     }
@@ -118,16 +172,23 @@ class Showcase(private val game: Gdx3DGame, private val player: Player, private 
             Stage.SHOP -> rig.shop(game.fractionForDp(36f + 60f + 75f))         // the middle of the showroom strip
             else -> rig.wardrobe(wide)
         }
+        if (shop) {
+            // Interpolate from the captured menu shot, never from last frame's already-blended camera.
+            game.cam.position.lerp(menuCameraPosition, 1f - shopMix)
+            game.cam.direction.lerp(menuCameraDirection, 1f - shopMix).nor()
+            game.cam.up.lerp(menuCameraUp, 1f - shopMix).nor()
+            game.cam.fieldOfView += (menuFov - game.cam.fieldOfView) * (1f - shopMix)
+        }
     }
 
     /** The ring of sparkles around the cube, plus whatever demo is running. */
     fun render(time: Float) {
-        val t = min(1f, enterT * 1.5f)
+        val t = if (shop) shopMix else min(1f, enterT * 1.5f)
         for (i in 0 until 8) {
             val a = time * 0.9f + i * 0.785f
             val r = (2.1f + 0.25f * sin(time * 2f + i)) * t
             val y = player.py + 0.5f * sin(time * 1.6f + i * 1.3f)
-            val s = 0.07f + 0.05f * (0.5f + 0.5f * sin(time * 5f + i * 2f))
+            val s = (0.07f + 0.05f * (0.5f + 0.5f * sin(time * 5f + i * 2f))) * (if (shop) shopMix else 1f)
             game.worldBoxSpin(player.px + cos(a) * r, y, sin(a) * r, s, s, s, time * 120f + i * 45f, spark)
         }
         demos.render(time)
@@ -136,7 +197,7 @@ class Showcase(private val game: Gdx3DGame, private val player: Player, private 
     /** The sunburst behind the cube: the results' hype pattern, a soft one in the shop, a flash on a wardrobe switch. */
     fun renderShapes(shapes: ShapeRenderer, time: Float) {
         val grow = min(1f, enterT * 1.4f)
-        val g = 1f - (1f - grow) * (1f - grow)
+        val g = if (shop) shopMix else 1f - (1f - grow) * (1f - grow)
         when (Stage.mode) {
             Stage.RESULT -> { // one sunburst, centred on the cube as seen on screen
                 hsvInto(rayCol, Stage.resultHue, 0.5f, 0.9f)

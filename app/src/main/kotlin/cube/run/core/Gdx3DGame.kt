@@ -101,6 +101,9 @@ abstract class Gdx3DGame(val session: GameSession) : ApplicationAdapter(), Touch
      */
     open fun renderWorldBatched() {}
 
+    /** Background shapes behind all geometry, including translucent scenery during navigation. */
+    open fun renderWorldBackdrop(shapes: ShapeRenderer) {}
+
     /**
      * Blended, unlit shapes in world space, drawn after the opaque world and
      * before the ModelBatch pass (depth-tested, not written): the sunbursts
@@ -195,6 +198,18 @@ abstract class Gdx3DGame(val session: GameSession) : ApplicationAdapter(), Touch
         cam.update()
 
         val draw0 = System.nanoTime()
+        // Draw backdrop effects before the fading road can write depth. Otherwise almost-invisible
+        // floor tiles cut holes in the shop rays until the last tile disappears at progress = 1.
+        Gdx.gl.glDisable(GL20.GL_DEPTH_TEST)
+        Gdx.gl.glDepthMask(false)
+        Gdx.gl.glEnable(GL20.GL_BLEND)
+        Gdx.gl.glBlendFunc(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA)
+        shapes.projectionMatrix = cam.combined
+        shapes.begin(ShapeRenderer.ShapeType.Filled)
+        renderWorldBackdrop(shapes)
+        shapes.end()
+        Gdx.gl.glDepthMask(true)
+        Gdx.gl.glDisable(GL20.GL_BLEND)
         world.begin()
         coins.begin()
         renderWorldBatched()
@@ -308,6 +323,9 @@ abstract class Gdx3DGame(val session: GameSession) : ApplicationAdapter(), Touch
 
     /** Keep the coin pass hazed like the boxes (call after setting [fogColor]). */
     fun syncFog() { coins.fogColor.set(world.fogColor) }
+
+    /** Opacity of subsequently queued scenery; reset before drawing showcase effects. */
+    fun setWorldOpacity(amount: Float) { world.opacity = amount; coins.opacity = amount }
 
     /** Ground height by z added to everything in the batched passes (null = flat). */
     fun setTerrain(f: ((Float) -> Float)?) { world.terrain = f; coins.terrain = f }

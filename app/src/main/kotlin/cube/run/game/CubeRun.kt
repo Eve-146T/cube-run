@@ -73,6 +73,7 @@ class CubeRun(session: GameSession, private val autoStart: Boolean = false) : Gd
     private val showcase = Showcase(this, player, bubble)
     private val fx = RunFx(this, rnd)
     private lateinit var rig: RunCamera
+    private var shopMenuIntroT = 0f
 
     // ---- run state ----
     private var started = false
@@ -395,12 +396,21 @@ class CubeRun(session: GameSession, private val autoStart: Boolean = false) : Gd
             return
         }
         if (Stage.mode == Stage.SKINS || Stage.mode == Stage.RESULT || Stage.mode == Stage.SHOP) {
-            if (!showcase.active) showcase.enter(bgTop, bgBottom, worldHue())
+            if (!showcase.active) {
+                if (Stage.mode == Stage.SHOP) shopMenuIntroT = introT
+                showcase.enter(bgTop, bgBottom, worldHue())
+            }
             showcase.update(dt, time, worldHue())
             showcase.tintSky(bgTop, bgBottom)
             showcase.aim(rig)
             return
-        } else if (showcase.active) { showcase.exit(bgTop, bgBottom); introT = 0f; skyBlend = 1f } // back to the menu: the swoop again
+        } else if (showcase.active) {
+            showcase.exit(bgTop, bgBottom)
+            introT = if (showcase.shop) shopMenuIntroT else 0f
+            // The shop's reverse transition already restored the menu sky. Replaying the older
+            // showcase fade here jumps back to a dark sky and flashes brightly in Sunset Dunes.
+            skyBlend = if (showcase.shop) 0f else 1f
+        }
 
         if (!started && autoStart && time > 0.05f) start() // RESTART: straight into the run
         if (Stage.endRun) { Stage.endRun = false; if (live()) crash() } // dev tool: END RUN from the pause card
@@ -573,7 +583,19 @@ class CubeRun(session: GameSession, private val autoStart: Boolean = false) : Gd
 
     override fun renderWorldBatched() {
         if (gift.active) { fogColor.set(bgBottom); syncFog(); gift.render(time); return }
-        if (showcase.active) { fogColor.set(bgBottom); syncFog(); showcase.render(time); return }
+        if (showcase.active) {
+            if (showcase.shop && showcase.menuVisibility > 0f) {
+                setWorldOpacity(showcase.menuVisibility)
+                renderTrackScene()
+                setWorldOpacity(1f)
+            }
+            fogColor.set(bgBottom); syncFog(); showcase.render(time)
+            return
+        }
+        renderTrackScene()
+    }
+
+    private fun renderTrackScene() {
         // haze target ≈ the sky gradient at the horizon, so the far track end and
         // freshly spawned rows dissolve into the background instead of popping in
         fogColor.set(bgBottom).lerp(bgTop, worlds.fogMix)
@@ -585,9 +607,13 @@ class CubeRun(session: GameSession, private val autoStart: Boolean = false) : Gd
         scenery.render(if (player.flying) 1f else wind, time)
     }
 
+    override fun renderWorldBackdrop(shapes: ShapeRenderer) {
+        if (showcase.active && showcase.shop) showcase.renderShapes(shapes, time)
+    }
+
     override fun renderWorldShapes(shapes: ShapeRenderer) {
         if (gift.active) gift.renderShapes(shapes, time)
-        else if (showcase.active) showcase.renderShapes(shapes, time)
+        else if (showcase.active && !showcase.shop) showcase.renderShapes(shapes, time)
     }
 
     override fun renderWorld(batch: ModelBatch, env: Environment) {

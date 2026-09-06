@@ -5,6 +5,7 @@ import android.annotation.SuppressLint
 import android.app.Activity
 import android.view.Gravity
 import android.view.View
+import android.view.MotionEvent
 import android.widget.FrameLayout
 import android.widget.LinearLayout
 import cube.run.BuildConfig
@@ -183,6 +184,45 @@ class MainMenu(
 
     /** Called when the bank changes while the menu is up: pulse it. */
     fun pulseBank() { refresh(); Anim.pulse(bank) }
+
+    /** The shop uses this very same pill for payment: it never leaves its corner. */
+    val shopBalance: LinearLayout get() = bank
+    private var shopNavigating = false
+
+    // During shop navigation these controls draw over the departing sheet, but the shop owns input.
+    override fun dispatchTouchEvent(event: MotionEvent): Boolean =
+        if (shopNavigating) false else super.dispatchTouchEvent(event)
+
+    fun beginShop() {
+        shopNavigating = true
+        logo.removeCallbacks(startRipple)
+        for (a in anims) a.pause()
+        Anim.cancelTree(this)
+        for (v in listOf(top, logo, bestRow, middle, leftChips, rightChips, bank, bubbles)) Anim.reset(v)
+        for (group in listOf(leftChips, rightChips)) for (i in 0 until group.childCount) Anim.reset(group.getChildAt(i))
+        setShopProgress(0f)
+    }
+
+    /** The panel's clock also moves the menu out of its way; Back reverses these exact poses. */
+    fun setShopProgress(progress: Float) {
+        val retreat = (progress / 0.65f).coerceIn(0f, 1f)
+        for (v in listOf(top, middle, leftChips, rightChips, bubbles)) v.alpha = 1f - retreat
+        top.translationY = -dpf(24f) * retreat
+        middle.translationY = -dpf(12f) * retreat
+        leftChips.translationY = dpf(20f) * retreat
+        rightChips.translationY = dpf(20f) * retreat
+        bubbles.translationY = -dpf(12f) * retreat
+        Anim.repaint(this)
+    }
+
+    fun finishShop() {
+        shopNavigating = false
+        setShopProgress(0f)
+        refresh()
+        for (a in anims) a.resume()
+        if (anims.isEmpty()) anims.add(Anim.breathe(tapHint, 0.55f, 1f, 750))
+        if (anims.size == 1) anims.add(ripple())
+    }
 
     fun hide() {
         if (visibility != VISIBLE) return
