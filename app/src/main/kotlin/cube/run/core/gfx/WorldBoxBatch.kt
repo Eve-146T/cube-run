@@ -32,6 +32,9 @@ class WorldBoxBatch(private val kit: BoxMeshKit, private val maxBoxes: Int = 900
     val fogColor = Color(0.1f, 0.1f, 0.2f, 1f)
     /** Ground height added to every box's y by its z (the rolling-hills bonus); null = flat. */
     var terrain: ((Float) -> Float)? = null
+    /** Applied when geometry is queued, so scenery can dissolve independently of stage particles. */
+    var opacity = 1f
+    private var translucent = false
 
     private val mesh = kit.newBatchMesh(maxBoxes)
     private val verts = FloatArray(maxBoxes * kit.vertsPerBox * 4)
@@ -50,7 +53,7 @@ class WorldBoxBatch(private val kit: BoxMeshKit, private val maxBoxes: Int = 900
         }
     }
 
-    fun begin() { count = 0 }
+    fun begin() { count = 0; translucent = false }
 
     /** Queue one axis-aligned box (centre position, full sizes). [fog] 0..1 blends toward [fogColor]. */
     fun box(x: Float, y0: Float, z: Float, sx: Float, sy: Float, sz: Float, col: Color, fog: Float = 0f, followTerrain: Boolean = false) {
@@ -122,6 +125,7 @@ class WorldBoxBatch(private val kit: BoxMeshKit, private val maxBoxes: Int = 900
     }
 
     private fun packFaces(col: Color, fog: Float, light: FloatArray) {
+        if (opacity < 1f) translucent = true
         val keep = 1f - fog
         val fr = fogColor.r * fog; val fg = fogColor.g * fog; val fb = fogColor.b * fog
         for (f in 0 until 6) {
@@ -130,7 +134,7 @@ class WorldBoxBatch(private val kit: BoxMeshKit, private val maxBoxes: Int = 900
                 min(1f, col.r * light[fi]) * keep + fr,
                 min(1f, col.g * light[fi + 1]) * keep + fg,
                 min(1f, col.b * light[fi + 2]) * keep + fb,
-                1f,
+                opacity,
             )
         }
     }
@@ -143,13 +147,17 @@ class WorldBoxBatch(private val kit: BoxMeshKit, private val maxBoxes: Int = 900
         Gdx.gl.glEnable(GL20.GL_DEPTH_TEST)
         Gdx.gl.glDepthMask(true)
         Gdx.gl.glEnable(GL20.GL_CULL_FACE)
-        Gdx.gl.glDisable(GL20.GL_BLEND)
+        if (translucent) {
+            Gdx.gl.glEnable(GL20.GL_BLEND)
+            Gdx.gl.glBlendFunc(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA)
+        } else Gdx.gl.glDisable(GL20.GL_BLEND)
         kit.shader.bind()
         kit.shader.setUniformMatrix("u_projViewTrans", cam.combined)
         mesh.render(kit.shader, GL20.GL_TRIANGLES, 0, n * kit.idxPerBox)
         // ModelBatch.begin() resets its own state; restore the shared baseline anyway.
         Gdx.gl.glDisable(GL20.GL_CULL_FACE)
         Gdx.gl.glDisable(GL20.GL_DEPTH_TEST)
+        Gdx.gl.glDisable(GL20.GL_BLEND)
     }
 
     override fun dispose() {

@@ -37,6 +37,31 @@ HUD lives on the UI thread. They only meet through `core.GameSession`
   `CelebrationView`, `PayFx` (coins flying from the balance into the button
   you pressed: every purchase pays where you tapped).
 
+Shop navigation uses one UI animator (`Stage.shopProgress`) for the opaque
+sheet, the departing menu, and the 3D camera and cube pose. It starts at the
+page's first draw and reverses from its current position on Back. The menu's
+actual balance pill stays in its corner and is shared with shop payments;
+returning resumes the paused idle effects instead of replaying the menu
+entrance. `Showcase` preserves the menu framing and position, including an
+idle hop. The cube spins right with a decaying entry velocity and carries
+its current heading back into menu idle. Scenery is drawn with per-queued
+geometry opacity during the move, so roadside objects return gradually;
+the corner controls draw above the departing sheet while the shop keeps
+ownership of touch input. Other showcase pages retain their own entrances.
+The shop sunburst draws before the fading world geometry so transparent
+road tiles cannot leave depth-buffer holes in its rays. Returning from the
+shop also skips the older showcase sky fade: its reverse animation has
+already restored the menu palette.
+The glow shell uses its current pulse scale on both sides of the pose blend,
+so returning never restores a frozen pulse. The HUD prepares and measures
+a detached shop page after the menu entrance; opening reuses it if prices
+and stock still match, otherwise it builds a fresh page. Preparation never
+changes the 3D stage or captures touches.
+
+Leaving results starts the menu activity immediately. The existing window
+crossfade keeps the results visible until the new menu is ready, without
+waiting for a separate outgoing page animation before launching it.
+
 ## Collision
 
 Every solid obstacle is a box with a `bottom` and `top`; the cube hits it
@@ -120,6 +145,13 @@ demo (`Stage.demoRequests` → `game.stage.Demos`): the bubble inflates
 around the cube, coins spiral into it, a twin splits off and slams back,
 it lifts on a jet of flame, fire streams off its back, gold rains, a
 portal ring spins around it, a gift box drops in and bursts.
+
+The showroom cube also reacts to taps and directional swipes: taps and
+vertical swipes make it hop, while horizontal swipes spin it with decaying
+inertia. These cosmetic requests cross to the render thread through
+`Stage.shopPlayRequests`; they are ignored during navigation and purchase
+demos, and never change stock or progress. The touch area stays inside the
+showroom so the cards retain their normal scrolling behavior.
 
 ## Rendering notes
 

@@ -75,6 +75,16 @@ class Hud(private val activity: Activity) : FrameLayout(activity) {
     private var world = ""
     private var runStarted = false
     private var page: Page? = null
+    private var preparedShop: ShopView? = null
+    private val prepareShop = Runnable {
+        if (isAttachedToWindow && !pageOpen() && width > 0 && height > 0 && preparedShop?.isCurrent() != true) {
+            preparedShop = newShop().also { shop ->
+                rootWindowInsets?.let { shop.dispatchApplyWindowInsets(it) }
+                shop.measure(MeasureSpec.makeMeasureSpec(width, MeasureSpec.EXACTLY), MeasureSpec.makeMeasureSpec(height, MeasureSpec.EXACTLY))
+                shop.layout(0, 0, width, height)
+            }
+        }
+    }
     private var pauseSheet: PauseSheet? = null
     private var runOver: RunOverFlow? = null
     private val menu: MainMenu = MainMenu(activity, kit, { openShop() }, { openWardrobe() }, { openSections() }, { menu.pulseBank() })
@@ -98,6 +108,22 @@ class Hud(private val activity: Activity) : FrameLayout(activity) {
 
     // ------------------------------------------------------------- pages
 
+    override fun onAttachedToWindow() {
+        super.onAttachedToWindow()
+        postDelayed(prepareShop, 900) // let the initial menu entrance finish before preparing cards
+    }
+
+    override fun onDetachedFromWindow() {
+        removeCallbacks(prepareShop)
+        preparedShop = null
+        super.onDetachedFromWindow()
+    }
+
+    private fun scheduleShopPreparation() {
+        removeCallbacks(prepareShop)
+        postDelayed(prepareShop, 900)
+    }
+
     private fun pageOpen() = page != null || runStarted
 
     private fun open(p: Page) {
@@ -110,9 +136,26 @@ class Hud(private val activity: Activity) : FrameLayout(activity) {
         page = null
         menu.show()
         setBubbles(Progress.bubbles)
+        scheduleShopPreparation()
     }
 
-    private fun openShop() { if (!pageOpen()) open(ShopView(activity, kit) { closed() }) }
+    private fun newShop() = ShopView(activity, kit, menu.shopBalance, menu::setShopProgress) {
+        page = null
+        menu.finishShop()
+        setBubbles(Progress.bubbles)
+        scheduleShopPreparation()
+    }
+
+    private fun openShop() {
+        if (pageOpen()) return
+        removeCallbacks(prepareShop)
+        val shop = preparedShop?.takeIf { it.isCurrent() } ?: newShop()
+        preparedShop = null
+        menu.beginShop()
+        page = shop
+        addView(shop, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
+        menu.bringToFront() // corner controls return above the sheet instead of flashing out from beneath it
+    }
     private fun openWardrobe() { if (!pageOpen()) open(WardrobeView(activity, kit) { closed() }) }
     private fun openSections() { if (!pageOpen()) open(SectionsView(activity, kit) { closed() }) }
 

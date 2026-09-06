@@ -28,6 +28,8 @@ class PrismBatch(private val kit: BoxMeshKit, private val sides: Int = 12, priva
     val fogColor = Color(0.1f, 0.1f, 0.2f, 1f)
     /** Ground height added to every coin's y by its z (the rolling-hills bonus); null = flat. */
     var terrain: ((Float) -> Float)? = null
+    var opacity = 1f
+    private var translucent = false
 
     private val vertsPer = sides * 4 + sides * 2
     private val idxPer = sides * 6 + (sides - 2) * 3 * 2
@@ -68,16 +70,17 @@ class PrismBatch(private val kit: BoxMeshKit, private val sides: Int = 12, priva
         mesh.setIndices(idx)
     }
 
-    fun begin() { count = 0 }
+    fun begin() { count = 0; translucent = false }
 
     private fun packed(col: Color, k: Float, fog: Float, lx: Float, ly: Float, lz: Float, floor: Float): Float {
+        if (opacity < 1f) translucent = true
         kit.lightFace(lx, ly, lz, light, 0)
         val keep = 1f - fog
         return Color.toFloatBits(
             min(1f, col.r * k * max(floor, light[0])) * keep + fogColor.r * fog,
             min(1f, col.g * k * max(floor, light[1])) * keep + fogColor.g * fog,
             min(1f, col.b * k * max(floor, light[2])) * keep + fogColor.b * fog,
-            1f,
+            opacity,
         )
     }
 
@@ -137,12 +140,16 @@ class PrismBatch(private val kit: BoxMeshKit, private val sides: Int = 12, priva
         Gdx.gl.glEnable(GL20.GL_DEPTH_TEST)
         Gdx.gl.glDepthMask(true)
         Gdx.gl.glEnable(GL20.GL_CULL_FACE)
-        Gdx.gl.glDisable(GL20.GL_BLEND)
+        if (translucent) {
+            Gdx.gl.glEnable(GL20.GL_BLEND)
+            Gdx.gl.glBlendFunc(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA)
+        } else Gdx.gl.glDisable(GL20.GL_BLEND)
         kit.shader.bind()
         kit.shader.setUniformMatrix("u_projViewTrans", cam.combined)
         mesh.render(kit.shader, GL20.GL_TRIANGLES, 0, n * idxPer)
         Gdx.gl.glDisable(GL20.GL_CULL_FACE)
         Gdx.gl.glDisable(GL20.GL_DEPTH_TEST)
+        Gdx.gl.glDisable(GL20.GL_BLEND)
     }
 
     override fun dispose() { mesh.dispose() }

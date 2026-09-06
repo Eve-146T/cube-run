@@ -6,6 +6,7 @@ import android.graphics.drawable.GradientDrawable
 import android.os.Build
 import android.view.Gravity
 import android.view.View
+import android.view.ViewTreeObserver
 import android.view.WindowInsets
 import android.widget.FrameLayout
 import android.widget.LinearLayout
@@ -49,6 +50,13 @@ abstract class Page(
     private val body = LinearLayout(activity)
     protected var closing = false
         private set
+    private val entrance = object : ViewTreeObserver.OnPreDrawListener {
+        override fun onPreDraw(): Boolean {
+            viewTreeObserver.removeOnPreDrawListener(this)
+            if (!closing) animateEntrance()
+            return true
+        }
+    }
 
     init {
         isClickable = true // the page owns every touch: the game must not start under it
@@ -81,6 +89,16 @@ abstract class Page(
         }
         // the title row starts a little lower than the corner pill so the two line up at the same height
         topBar.setPadding(dp(14f), dp(4f), dp(16f), dp(6f))
+        alpha = 0f
+    }
+
+    override fun onAttachedToWindow() {
+        super.onAttachedToWindow()
+        if (!closing) viewTreeObserver.addOnPreDrawListener(entrance)
+    }
+
+    /** Start at the first draw, so construction and list layout do not consume the entrance. */
+    protected open fun animateEntrance() {
         // entrance: the page fades in, the content rises, the title pops (the top bar itself never moves:
         // translated over the GL surface it was seen to paint a frame late, which reads as the wrong order)
         alpha = 0f; move().alpha(1f).setDuration(140).start()
@@ -100,14 +118,19 @@ abstract class Page(
         if (closing) return
         closing = true
         Anim.cancelTree(this)
-        content.move().translationY(dpf(40f)).alpha(0f).setDuration(130).start()
-        move().alpha(0f).setDuration(140).withEndAction {
+        animateExit {
             (parent as? FrameLayout)?.removeView(this)
             onClosed()
-        }.start()
+        }
+    }
+
+    protected open fun animateExit(onFinished: () -> Unit) {
+        content.move().translationY(dpf(40f)).alpha(0f).setDuration(130).start()
+        move().alpha(0f).setDuration(140).withEndAction(onFinished).start()
     }
 
     override fun onDetachedFromWindow() {
+        viewTreeObserver.removeOnPreDrawListener(entrance)
         Anim.cancelTree(this)
         super.onDetachedFromWindow()
     }

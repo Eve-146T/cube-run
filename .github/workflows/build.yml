@@ -95,11 +95,22 @@ jobs:
           release_flags=()
           case "${{ github.ref_name }}" in
             *-*) release_flags+=(--prerelease) ;;
+            *) release_flags+=(--prerelease=false --latest) ;;
           esac
-          gh release create "${{ github.ref_name }}" \
-            "cube-run-${{ github.ref_name }}.apk" \
-            --title "Cube Run ${{ github.ref_name }}" \
-            --generate-notes "${release_flags[@]}"
+          # A maintainer can prepare a draft to retain their authorship and notes.
+          if gh release view "${{ github.ref_name }}" --json isDraft > release-state.json 2>/dev/null; then
+            if ! jq -e '.isDraft == true' release-state.json > /dev/null; then
+              echo "::error::Release already published; refusing to replace its APK." >&2
+              exit 1
+            fi
+            gh release upload "${{ github.ref_name }}" "cube-run-${{ github.ref_name }}.apk" --clobber
+            gh release edit "${{ github.ref_name }}" --draft=false "${release_flags[@]}"
+          else
+            gh release create "${{ github.ref_name }}" \
+              "cube-run-${{ github.ref_name }}.apk" \
+              --title "Cube Run ${{ github.ref_name }}" \
+              --generate-notes "${release_flags[@]}"
+          fi
 
       - name: Upload release APK artifact
         uses: actions/upload-artifact@v7

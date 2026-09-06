@@ -1,12 +1,15 @@
 package cube.run.ui
 
 import android.animation.ValueAnimator
+import android.animation.Animator
+import android.animation.AnimatorListenerAdapter
 import android.annotation.SuppressLint
 import android.app.Activity
 import android.graphics.drawable.Drawable
 import android.graphics.drawable.GradientDrawable
 import android.view.Gravity
 import android.view.View
+import android.view.MotionEvent
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ScrollView
@@ -14,6 +17,7 @@ import cube.run.core.Haptics
 import cube.run.core.SoundFx
 import cube.run.core.Stage
 import cube.run.data.Progress
+import android.view.animation.PathInterpolator
 
 /**
  * The shop: a showroom strip up top where the engine shows your cube (with
@@ -28,7 +32,13 @@ import cube.run.data.Progress
  * it, it lifts on a jet of flame…
  */
 @SuppressLint("SetTextI18n", "ViewConstructor")
-class ShopView(activity: Activity, kit: UiKit, onClose: () -> Unit) : Page(activity, kit, "SHOP", dark = true, onClosed = onClose) {
+class ShopView(
+    activity: Activity,
+    kit: UiKit,
+    private val balance: LinearLayout,
+    private val onProgress: (Float) -> Unit,
+    onClose: () -> Unit,
+) : Page(activity, kit, "SHOP", dark = true, onClosed = onClose) {
 
     private val list = LinearLayout(activity).apply {
         orientation = LinearLayout.VERTICAL
@@ -37,15 +47,62 @@ class ShopView(activity: Activity, kit: UiKit, onClose: () -> Unit) : Page(activ
     }
     /** How tall the showroom strip is (the cube lives there; the camera is aimed to match). */
     private val showroomDp = 150f
-    private val balance = kit.iconPill(CoinIcon(), "", Theme.INK, 16f)
+    private var progress = 0f
+    private var navigation: ValueAnimator? = null
+    private var balanceCount: ValueAnimator? = null
     private val bars = HashMap<String, SegmentBar>()
     private val cards = HashMap<String, View>()
     private val nowViews = HashMap<String, View>()
     private val nextViews = HashMap<String, View>()
-    private var first = true
     private var paying = false
     private val glass = Theme.alpha(Theme.WHITE, 36)
     private val glassLine = Theme.alpha(Theme.WHITE, 80)
+    private val preparedState = currentState()
+    private var cubeDownX = 0f
+    private var cubeDownY = 0f
+    private var cubeGesture = false
+    private var cubeSwiped = false
+
+    private val showroom = View(activity).apply {
+        contentDescription = "Shop cube"
+        isClickable = true
+        setOnClickListener { playWithCube(Stage.SHOP_TAP) }
+        setOnTouchListener { view, event ->
+            when (event.actionMasked) {
+                MotionEvent.ACTION_DOWN -> {
+                    cubeGesture = !closing && progress == 1f &&
+                        kotlin.math.abs(event.x - view.width / 2f) <= dpf(70f) &&
+                        kotlin.math.abs(event.y - view.height / 2f) <= dpf(65f)
+                    cubeDownX = event.x; cubeDownY = event.y; cubeSwiped = false
+                }
+                MotionEvent.ACTION_MOVE -> if (cubeGesture && !cubeSwiped) {
+                    val dx = event.x - cubeDownX; val dy = event.y - cubeDownY
+                    if (maxOf(kotlin.math.abs(dx), kotlin.math.abs(dy)) > dpf(24f)) {
+                        cubeSwiped = true
+                        playWithCube(if (kotlin.math.abs(dx) > kotlin.math.abs(dy)) {
+                            if (dx > 0f) Stage.SHOP_RIGHT else Stage.SHOP_LEFT
+                        } else if (dy < 0f) Stage.SHOP_UP else Stage.SHOP_DOWN)
+                    }
+                }
+                MotionEvent.ACTION_UP -> {
+                    if (cubeGesture && !cubeSwiped) view.performClick()
+                    cubeGesture = false
+                }
+                MotionEvent.ACTION_CANCEL -> cubeGesture = false
+            }
+            true
+        }
+    }
+
+    private fun playWithCube(gesture: Int) {
+        if (!closing && progress == 1f && !paying) Stage.shopPlayRequests.set(gesture)
+    }
+
+    private fun currentState(): List<Int> = listOf(Progress.coins, Progress.bubbles, Progress.revives) +
+        (Progress.upgrades + Progress.perks).map { Progress.level(it) }
+
+    /** A prepared page must never show prices or stock from before a wardrobe purchase/dev toggle. */
+    fun isCurrent() = preparedState == currentState()
 
     /** Each power-up's colour, matching its pickup on the track. */
     private fun colorOf(u: Progress.Upgrade): Int = when (u) {
@@ -81,18 +138,16 @@ class ShopView(activity: Activity, kit: UiKit, onClose: () -> Unit) : Page(activ
     }
 
     init {
-        Stage.mode = Stage.SHOP
-        addRight(balance)
         content.addView(LinearLayout(activity).apply {
             orientation = LinearLayout.VERTICAL
             // clipChildren stays ON here: it is what clips the sheet's scrolled cards to the sheet
-            addView(View(activity), LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(showroomDp))) // the showroom: the cube shows through
+            addView(showroom, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(showroomDp)))
             addView(ScrollView(activity).apply { // the sheet the cards live in
                 isVerticalScrollBarEnabled = false
                 clipToPadding = false
                 background = GradientDrawable().apply {
                     cornerRadii = floatArrayOf(dpf(30f), dpf(30f), dpf(30f), dpf(30f), 0f, 0f, 0f, 0f)
-                    setColor(Theme.alpha(Theme.INK, 165))
+                    setColor(Theme.INK)
                 }
                 addView(list)
             }, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f))
@@ -115,7 +170,6 @@ class ShopView(activity: Activity, kit: UiKit, onClose: () -> Unit) : Page(activ
         for (u in Progress.perks) {
             list.addView(perkCard(u), LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(12f) })
         }
-        if (first) { first = false; Anim.stagger(list, dpf(36f), 120, 45) }
         popped?.let { u -> // the segment just bought swells and settles
             val bar = bars[u.key] ?: return@let
             bar.popIndex = Progress.level(u) - 1
@@ -126,6 +180,76 @@ class ShopView(activity: Activity, kit: UiKit, onClose: () -> Unit) : Page(activ
                 start()
             }
         }
+    }
+
+    /** An opaque sheet rises from the bottom; the header waits for the menu title to clear. */
+    override fun animateEntrance() {
+        // Rasterize the cards before changing the GL scene; slide a cached layer, not dozens of labels.
+        preparePanelLayer()
+        Stage.shopProgress = 0f
+        Stage.mode = Stage.SHOP
+        alpha = 1f
+        place(0f)
+        navigate(1f) {}
+    }
+
+    private fun place(value: Float) {
+        progress = value
+        Stage.shopProgress = value
+        val travel = (height - paddingTop - content.top - dp(showroomDp)).coerceAtLeast(0)
+        content.translationY = travel * (1f - value)
+        val header = ((value - 0.65f) / 0.35f).coerceIn(0f, 1f)
+        topBar.alpha = header
+        topBar.translationY = -dpf(12f) * (1f - header)
+        onProgress(value)
+        Anim.repaint(this)
+    }
+
+    private fun navigate(target: Float, onFinished: () -> Unit) {
+        navigation?.cancel()
+        preparePanelLayer()
+        navigation = ValueAnimator.ofFloat(progress, target).apply {
+            duration = ((if (target == 1f) 340 else 380) * kotlin.math.abs(target - progress)).toLong().coerceAtLeast(1)
+            interpolator = if (target == 1f) PathInterpolator(0.2f, 0f, 0f, 1f) else PathInterpolator(0.4f, 0f, 0.2f, 1f)
+            addUpdateListener { place(it.animatedValue as Float) }
+            addListener(object : AnimatorListenerAdapter() {
+                private var cancelled = false
+                override fun onAnimationCancel(animation: Animator) { cancelled = true }
+                override fun onAnimationEnd(animation: Animator) {
+                    if (!cancelled) {
+                        content.setLayerType(View.LAYER_TYPE_NONE, null)
+                        onFinished()
+                    }
+                }
+            })
+            start()
+        }
+    }
+
+    private fun preparePanelLayer() {
+        if (content.width > 0 && content.height > 0 && content.layerType != View.LAYER_TYPE_HARDWARE) {
+            content.setLayerType(View.LAYER_TYPE_HARDWARE, null)
+            content.buildLayer()
+        }
+    }
+
+    override fun animateExit(onFinished: () -> Unit) {
+        cubeGesture = false
+        Stage.shopPlayRequests.set(0)
+        balanceCount?.cancel()
+        kit.labelOf(balance).text = Progress.coins.toString()
+        navigate(0f) {
+            Stage.mode = Stage.NONE
+            onFinished()
+        }
+    }
+
+    override fun onDetachedFromWindow() {
+        Stage.shopPlayRequests.set(0)
+        navigation?.cancel()
+        balanceCount?.cancel()
+        if (Stage.mode == Stage.SHOP) Stage.mode = Stage.NONE
+        super.onDetachedFromWindow()
     }
 
     private fun heading(t: String) = kit.stageText(t, 13f, Theme.alpha(Theme.WHITE, 230), weight = 700, gravity = Gravity.START, stroke = 1.5f).apply { letterSpacing = 0.16f }
@@ -281,7 +405,7 @@ class ShopView(activity: Activity, kit: UiKit, onClose: () -> Unit) : Page(activ
         val can = price <= Progress.coins
         lateinit var btn: CandyButton
         btn = kit.button(kit.coins(price, 15f), if (can) Theme.GOLD else Theme.alpha(Theme.WHITE, 46), UiKit.Size.SMALL) {
-            if (paying) return@button
+            if (paying || closing || progress < 1f) return@button
             val before = Progress.coins
             if (!buy()) { broke(); return@button }
             pay(btn, before, key, u, demo)
@@ -311,7 +435,7 @@ class ShopView(activity: Activity, kit: UiKit, onClose: () -> Unit) : Page(activ
             nowViews[key]?.let { Anim.popIn(it, 0, 0.6f, 360) }
             nextViews[key]?.let { Anim.slideIn(it, 60, dpf(30f), 320) }
         })
-        Anim.countTo(kit.labelOf(balance), before, Progress.coins, ms)
+        balanceCount = Anim.countTo(kit.labelOf(balance), before, Progress.coins, ms)
     }
 
     private fun broke() {
@@ -320,7 +444,6 @@ class ShopView(activity: Activity, kit: UiKit, onClose: () -> Unit) : Page(activ
     }
 
     override fun onBack() {
-        Stage.mode = Stage.NONE
         close()
     }
 }

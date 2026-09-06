@@ -31,6 +31,15 @@ object Stage {
     const val DEMO_REVIVE = 9
 
     @Volatile var mode = NONE
+    /** Shop navigation's single UI-driven clock: 0 = menu, 1 = showroom. */
+    @Volatile var shopProgress = 0f
+    const val SHOP_TAP = 1
+    const val SHOP_LEFT = 2
+    const val SHOP_RIGHT = 3
+    const val SHOP_UP = 4
+    const val SHOP_DOWN = 5
+    /** A hidden showroom gesture; these never purchase, equip, or award anything. */
+    val shopPlayRequests = AtomicInteger(0)
 
     /** The pause menu is up: the game renders its last frame and integrates nothing. */
     @Volatile var paused = false
@@ -68,6 +77,8 @@ object Stage {
 
     fun reset() {
         mode = NONE
+        shopProgress = 0f
+        shopPlayRequests.set(0)
         paused = false
         endRun = false
         openRequests.set(0)

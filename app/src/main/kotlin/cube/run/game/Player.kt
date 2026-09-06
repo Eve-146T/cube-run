@@ -9,6 +9,8 @@ import com.badlogic.gdx.graphics.g3d.ModelInstance
 import com.badlogic.gdx.graphics.g3d.attributes.BlendingAttribute
 import com.badlogic.gdx.graphics.g3d.attributes.ColorAttribute
 import com.badlogic.gdx.math.Vector3
+import com.badlogic.gdx.math.Matrix4
+import com.badlogic.gdx.math.Quaternion
 import cube.run.core.Gdx3DGame
 import cube.run.core.Haptics
 import cube.run.core.SoundFx
@@ -268,7 +270,7 @@ class Player(private val game: Gdx3DGame, private val rnd: Random) {
             .rotate(Vector3.X, -roll)
             .scale(breathe, 1f / breathe, breathe)
             .scale(0.9f * (1f + sq + duck * 0.35f - st * 0.5f), 0.9f * (1f - sq + st) * (1f - duck * 0.5f), 0.9f * (1f + sq + duck * 0.1f - st * 0.5f))
-        val pulse = 0.9f * (1.18f + 0.06f * sin(time * 8f))
+        val pulse = glowScale(time)
         shellBlend.opacity = ((0.22f + 0.08f * sin(time * 6f)) * skin.glow).coerceAtMost(0.75f)
         shellInst.transform.setToTranslation(px + nudge, py - duY, 0f)
             .rotate(Vector3.Y, idleYaw * idleMix).rotate(Vector3.Z, tilt).rotate(Vector3.X, -roll)
@@ -304,13 +306,67 @@ class Player(private val game: Gdx3DGame, private val rnd: Random) {
         val yaw = time * spin + extraYaw
         val sc = 0.9f * scale
         inst.transform.setToTranslation(x, yy, 0f).rotate(Vector3.Y, yaw).rotate(Vector3.X, 12f).scale(sc, sc, sc)
-        val pulse = sc * (1.18f + 0.06f * sin(time * 8f))
+        val pulse = glowScale(time) * scale
         shellBlend.opacity = ((0.22f + 0.08f * sin(time * 6f)) * skin.glow).coerceAtMost(0.75f)
         shellInst.transform.setToTranslation(x, yy, 0f).rotate(Vector3.Y, yaw).rotate(Vector3.X, 12f).scale(pulse, pulse, pulse)
         px = x; py = yy
     }
 
     private val liftM = com.badlogic.gdx.math.Matrix4()
+
+    private val menuBody = Matrix4()
+    private val menuShell = Matrix4()
+    private var menuX = 0f
+    private var menuY = 0f
+    private var menuYaw = 0f
+    private var menuSpin = 0f
+    private val posePosition = Vector3()
+    private val poseTarget = Vector3()
+    private val poseScale = Vector3()
+    private val poseTargetScale = Vector3()
+    private val poseRotation = Quaternion()
+    private val poseTargetRotation = Quaternion()
+    private val spinRotation = Quaternion()
+
+    /** Preserve the exact idle pose (including a hop) for the shop's reversible camera move. */
+    fun saveMenuPose() {
+        menuBody.set(inst.transform); menuShell.set(shellInst.transform)
+        menuX = px; menuY = py
+        menuYaw = idleYaw * idleMix
+        menuSpin = 0f
+    }
+
+    private fun glowScale(time: Float) = 0.9f * (1.18f + 0.06f * sin(time * 8f))
+
+    fun restoreMenuPose(time: Float) {
+        blendFromMenu(0f, menuSpin, time)
+        px = menuX; py = menuY
+        // Carry the shop's rotation forward into idle instead of snapping to an old saved heading.
+        idleYaw = menuYaw + menuSpin
+        idleMix = 1f
+    }
+
+    fun blendFromMenu(amount: Float, spinDegrees: Float, time: Float) {
+        menuSpin = spinDegrees
+        blendPose(menuBody, inst.transform, amount)
+        // Keep the glow on its live clock on BOTH ends of the interpolation. The captured pose
+        // supplies position/rotation, not an old pulse size that would snap when idle resumes.
+        blendPose(menuShell, shellInst.transform, amount, glowScale(time))
+        inst.transform.getTranslation(posePosition)
+        px = posePosition.x; py = posePosition.y
+    }
+
+    private fun blendPose(from: Matrix4, target: Matrix4, amount: Float, liveScale: Float? = null) {
+        from.getTranslation(posePosition); target.getTranslation(poseTarget)
+        from.getScale(poseScale); target.getScale(poseTargetScale)
+        if (liveScale != null) poseScale.set(liveScale, liveScale, liveScale)
+        from.getRotation(poseRotation, true); target.getRotation(poseTargetRotation, true)
+        // The target has only shop tilt. Match its yaw to the original pose before blending tilt;
+        // apply the unwrapped rightward spin afterward, so shortest-arc slerp cannot reverse it.
+        poseTargetRotation.mulLeft(spinRotation.set(Vector3.Y, menuYaw))
+        poseRotation.slerp(poseTargetRotation, amount).mulLeft(spinRotation.set(Vector3.Y, menuSpin)).nor()
+        target.set(posePosition.lerp(poseTarget, amount), poseRotation, poseScale.lerp(poseTargetScale, amount))
+    }
 
     /** Draw the cube; [ground] lifts everything by the rolling terrain under it. */
     fun render(batch: ModelBatch, env: Environment, ground: Float = 0f) {
