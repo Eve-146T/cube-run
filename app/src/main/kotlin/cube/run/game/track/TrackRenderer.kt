@@ -60,7 +60,7 @@ class TrackRenderer(private val game: Gdx3DGame) {
                     ob.type == ObType.PLAT -> renderPlatform(ob, r.z, fog, p)
                     ob.type == ObType.PAD -> renderPad(ob, r.z, fog, time, p)
                     ob.anim == ObAnim.PISTON && ob.sy < 0.03f -> {} // sunk into the floor
-                    ob.pit -> renderPit(ob, r.z, fog, time, p)
+                    ob.pit -> renderPit(ob, r.z, fog, time, p, r.visualPhase)
                     ob.anim == ObAnim.PENDULUM -> {
                         box(ob.x, ob.cy, r.z, ob.sx, ob.sy, ob.sz, ob.col, fog, p, false)
                         game.worldBox(ob.x * 0.5f, ob.top + 1.1f, r.z, abs(ob.x) + 0.16f, 0.16f, 0.16f, rod, fog) // the rod up to the beam
@@ -81,7 +81,7 @@ class TrackRenderer(private val game: Gdx3DGame) {
                 val cz = r.z + c.dz
                 val y = c.y + 0.06f * sin(time * 4f + c.dz * 0.9f)
                 val fog = Fog.at(cz)
-                val yaw = coinYaw + cz * 14f
+                val yaw = coinYaw + (r.visualPhase + c.dz) * 14f
                 game.worldCoin(c.x, y, cz, 0.36f * p, 0.14f, yaw, coinCol, fog)
                 game.worldCoin(c.x, y, cz, 0.23f * p, 0.2f, yaw, coinFace, fog)
             }
@@ -142,12 +142,12 @@ class TrackRenderer(private val game: Gdx3DGame) {
      * DECO half of the pair, the slab the SOLID one (drawn lower than it
      * collides, so it reads as a hole rather than a block).
      */
-    private fun renderPit(ob: Ob, z: Float, fog: Float, time: Float, p: Float) {
+    private fun renderPit(ob: Ob, z: Float, fog: Float, time: Float, p: Float, phase: Float) {
         if (ob.type == ObType.DECO) { game.worldBox(ob.x, -0.01f, z, ob.sx * p, 0.06f, ob.sz, ob.col, fog); return } // the lip: top at 0.02
         game.worldBox(ob.x, -0.1f, z, ob.sx * p, 0.26f, ob.sz, ob.col, fog)                                        // the void: top at 0.03, black
         hsvInto(tmpCol, 270f, 0.6f, 0.18f)
         for (i in 0 until 4) { // motes rising out of the dark
-            val k = ((time * 0.7f + i * 0.25f + z * 0.05f) % 1f)
+            val k = ((time * 0.7f + i * 0.25f + phase) % 1f + 1f) % 1f
             val mx = ob.x + (i - 1.5f) * ob.sx * 0.22f + 0.15f * sin(time * 3f + i)
             val s = 0.1f * (1f - k)
             game.worldBoxSpin(mx, 0.1f + k * 0.9f, z + (i % 2 - 0.5f) * 0.5f, s, s, s, time * 90f + i * 50f, tmpCol, fog)
@@ -172,7 +172,7 @@ class TrackRenderer(private val game: Gdx3DGame) {
     private fun renderPickup(r: Row, yaw: Float, time: Float, p: Float) {
         val cz = r.z + Row.PICKUP_DZ
         val x = r.pickupX
-        val y = 0.85f + 0.1f * sin(time * 3f + cz)
+        val y = 0.85f + 0.1f * sin(time * 3f + r.visualPhase)
         val fog = Fog.at(cz)
         val s = p
         when (r.pickup) {
@@ -194,7 +194,7 @@ class TrackRenderer(private val game: Gdx3DGame) {
                 game.worldBoxSpin(x, y + 0.45f, cz, 0.2f * s, 0.2f * s, 0.2f * s, yaw, Color.WHITE, fog)
             }
             Pickup.JET -> { // twin blue tanks with flickering flames
-                val flick = 0.18f + 0.1f * abs(sin(time * 21f + cz))
+                val flick = 0.18f + 0.1f * abs(sin(time * 21f + r.visualPhase))
                 spinPart(x, cz, -0.2f * s, y + 0.1f, 0.3f * s, 0.8f * s, 0.3f * s, yaw, jetCol, fog)
                 spinPart(x, cz, 0.2f * s, y + 0.1f, 0.3f * s, 0.8f * s, 0.3f * s, yaw, jetCol, fog)
                 spinPart(x, cz, -0.2f * s, y - 0.42f, 0.2f * s, flick, 0.2f * s, yaw, flameCol, fog)

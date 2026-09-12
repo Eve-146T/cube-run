@@ -74,6 +74,8 @@ class Ob(
  * a jetpack flight ends before they arrive.
  */
 class Coin(var x: Float, var y: Float, val dz: Float, val restY: Float = y) {
+    /** Authored lane before magnet attraction; also used by the demo controller. */
+    val restX = x
     var taken = false
     /** Slid past the cube uncollected: still drawn (it glides by), but it no longer counts or pulls. */
     var missed = false
@@ -81,6 +83,8 @@ class Coin(var x: Float, var y: Float, val dz: Float, val restY: Float = y) {
 
 /** One row of the lane-walk: obstacles, optional coins and pickup, scoring state. */
 class Row(var z: Float, val obs: ArrayList<Ob>) {
+    /** Stable per-row phase: scrolling must never accelerate pickup animation. */
+    val visualPhase = z % 6.2831855f
     var laneCount = 3            // geometry when generated, even before its portal is crossed
     var safeLane = 1              // the walk lane when this row spawned
     fun safeX(): Float = if (laneCount == 5) (safeLane - 2) * Lanes.NORMAL_W else (safeLane - 1) * Lanes.w

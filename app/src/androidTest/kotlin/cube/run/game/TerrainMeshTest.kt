@@ -31,7 +31,7 @@ class TerrainMeshTest {
                 try {
                     for (amplitude in listOf(0f, 0.2f, 1.25f)) for (phase in 0..20) {
                         batch.terrain = TerrainHeight { z -> amplitude * sin(z * 0.24f + phase * 0.3f) }
-                        batch.begin()
+                        batch.begin(instanced = false) // inspect CPU vertices; GPU equivalence has a framebuffer test
                         batch.box(0f, -0.14f, 0f, 1.7f, 0.26f, 3f, Color.WHITE, followTerrain = true)
                         batch.box(0f, -0.14f, 3f, 1.7f, 0.26f, 3f, Color.WHITE, followTerrain = true)
                         batch.box(0f, 1f, 0f, 1.5f, 2f, 0.9f, Color.WHITE)
@@ -50,11 +50,11 @@ class TerrainMeshTest {
                     var samples = 0
                     var height = 1f
                     batch.terrain = TerrainHeight { samples++; height }
-                    batch.begin()
+                    batch.begin(instanced = false) // inspect CPU vertices; GPU equivalence has a framebuffer test
                     repeat(3) { batch.box(it.toFloat(), 0f, 0f, 1f, 1f, 3f, Color.WHITE, followTerrain = true) }
                     assertEquals("Adjacent lanes share their two terrain samples", 2, samples)
                     height = 2f
-                    batch.begin()
+                    batch.begin(instanced = false) // inspect CPU vertices; GPU equivalence has a framebuffer test
                     batch.box(0f, 0f, 0f, 1f, 1f, 3f, Color.WHITE, followTerrain = true)
                     assertEquals("A new frame must resample the scrolling hill", 4, samples)
                     val verts = WorldBoxBatch::class.java.getDeclaredField("verts").apply { isAccessible = true }.get(batch) as FloatArray

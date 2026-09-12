@@ -64,6 +64,9 @@ abstract class Gdx3DGame(val session: GameSession) : ApplicationAdapter(), Touch
     /** Total elapsed seconds. */
     var time = 0f
         private set
+    private var preciseTime = 0.0
+    private val frameStepper = FrameStepper()
+    private var resumed = true
 
     val sw: Int get() = Gdx.graphics.width
     val sh: Int get() = Gdx.graphics.height
@@ -160,16 +163,24 @@ abstract class Gdx3DGame(val session: GameSession) : ApplicationAdapter(), Touch
 
     override fun render() {
         perf.beginFrame()
-        val raw = if (paused()) 0f else min(Gdx.graphics.deltaTime, 0.035f)
-        // slow motion: ease toward the requested scale while it lasts, then back to real time
-        if (slowLeft > 0f) slowLeft = max(0f, slowLeft - raw)
-        val target = if (slowLeft > 0f) slowScale else 1f
-        timeScale += (target - timeScale) * min(1f, raw * (if (target < timeScale) 30f else 7f))
-        val dt = raw * timeScale
-        time += dt
+        val raw = if (resumed) 0f else Gdx.graphics.rawDeltaTime
+        resumed = false
+        var dt = 0f
         val sim0 = System.nanoTime()
-        tick(dt)
-        shards.update(dt)
+        frameStepper.advance(raw, paused()) { slice ->
+            // Intentional effect slow motion is separate from renderer stalls.
+            if (slowLeft > 0f) slowLeft = max(0f, slowLeft - slice)
+            val target = if (slowLeft > 0f) slowScale else 1f
+            timeScale += (target - timeScale) * min(1f, slice * (if (target < timeScale) 30f else 7f))
+            val simDt = slice * timeScale
+            // Keep long runs from accumulating Float rounding error. The public
+            // float remains compatible with the renderers and test clock setup.
+            if (time != preciseTime.toFloat()) preciseTime = time.toDouble()
+            preciseTime += simDt.toDouble(); time = preciseTime.toFloat()
+            tick(simDt)
+            shards.update(simDt)
+            dt += simDt
+        }
         perf.addSim(System.nanoTime() - sim0)
 
         Gdx.gl.glViewport(0, 0, sw, sh)
@@ -254,6 +265,9 @@ abstract class Gdx3DGame(val session: GameSession) : ApplicationAdapter(), Touch
 
         perf.endFrame(shards.count)
     }
+
+    override fun resume() { resumed = true; frameStepper.reset() }
+    override fun pause() { resumed = true; frameStepper.reset() }
 
     // ----------------------------------------------------------------- juice
 

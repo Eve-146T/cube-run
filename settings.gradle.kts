@@ -13,3 +13,5 @@ dependencyResolutionManagement {
 }
 rootProject.name = "cube-run"
 include(":app")
+include(":bot")
+project(":bot").projectDir = file("tools/bot")

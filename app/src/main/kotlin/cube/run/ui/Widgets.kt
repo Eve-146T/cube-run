@@ -449,8 +449,8 @@ class BoostArrows(ctx: Context, private val dpf: (Float) -> Float) : View(ctx) {
     private var popAnim: android.animation.ValueAnimator? = null
     var taps = 0
         set(v) {
-            if (v > field) { // one more lit: pop it
-                popIndex = v - 1; pop = 1f
+            if (v != field && v > 0) { // the second lap recolors the same five arrows
+                popIndex = (v - 1) % 5; pop = 1f
                 popAnim?.cancel()
                 popAnim = android.animation.ValueAnimator.ofFloat(1f, 0f).apply {
                     duration = 320; interpolator = Anim.spring
@@ -477,10 +477,10 @@ class BoostArrows(ctx: Context, private val dpf: (Float) -> Float) : View(ctx) {
 
     override fun onDraw(canvas: Canvas) {
         val w = width.toFloat(); val h = height.toFloat()
-        val gap = h / max
+        val gap = h / 5
         val cw = w * 0.34f; val ch = gap * 0.34f // leaves room for the press/pulse scale inside the view
         line.strokeWidth = dpf(3.5f)
-        for (i in 0 until max) {
+        for (i in 0 until 5) {
             val lit = i < taps
             val yBase = h - gap * (i + 0.5f) + ch * 0.5f
             val cx = w / 2f
@@ -496,7 +496,8 @@ class BoostArrows(ctx: Context, private val dpf: (Float) -> Float) : View(ctx) {
             path.close()
             if (lit) {
                 val wave = 0.5f + 0.5f * kotlin.math.sin(shimmer - i * 0.9f)
-                fill.color = Theme.lerp(Theme.ORANGE, Theme.YELLOW, wave)
+                fill.color = if (taps > 5 && i < taps - 5) Theme.lerp(0xFF287BE8.toInt(), Theme.SKY, wave)
+                    else Theme.lerp(Theme.ORANGE, Theme.YELLOW, wave)
                 canvas.drawPath(path, fill)
                 line.color = Theme.INK
                 canvas.drawPath(path, line)

@@ -185,11 +185,22 @@ class Hud(private val activity: Activity) : FrameLayout(activity) {
     }
 
     private var bubbleStock = 0
+    private var bubbleCooldown = 0
+
+    fun setBubbleCooldown(seconds: Int) {
+        bubbleCooldown = seconds
+        refreshBubbleLabel()
+    }
+
+    private fun refreshBubbleLabel() {
+        kit.labelOf(bubbles).text = if (bubbleCooldown > 0) "${bubbleCooldown}s" else "×$bubbleStock"
+        bubbles.alpha = if (bubbleCooldown > 0) .65f else 1f
+        bubbles.visibility = if ((bubbleStock > 0 || bubbleCooldown > 0) && runStarted) VISIBLE else GONE
+    }
 
     fun setBubbles(n: Int) {
         bubbleStock = n
-        kit.labelOf(bubbles).text = "×$n"
-        bubbles.visibility = if (n > 0 && runStarted) VISIBLE else GONE
+        refreshBubbleLabel()
         menu.refresh()
     }
 
@@ -205,8 +216,8 @@ class Hud(private val activity: Activity) : FrameLayout(activity) {
             val b = boost ?: BoostArrows(activity, ::dpf).also { b ->
                 b.max = max
                 b.setOnClickListener {
-                    if (b.taps >= b.max) return@setOnClickListener
-                    b.taps++
+                    if (b.max <= 5 && b.taps >= b.max) return@setOnClickListener
+                    b.taps = if (b.max > 5) b.taps % 10 + 1 else b.taps + 1
                     Stage.boostRequests.incrementAndGet()
                     SoundFx.play("tap", rate = 1.1f + b.taps * 0.1f); Haptics.click()
                 }

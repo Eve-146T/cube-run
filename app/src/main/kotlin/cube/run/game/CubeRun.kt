@@ -4,6 +4,7 @@ import com.badlogic.gdx.graphics.Color
 import com.badlogic.gdx.graphics.g3d.Environment
 import com.badlogic.gdx.graphics.g3d.ModelBatch
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer
+import cube.run.BuildConfig
 import cube.run.core.Gdx3DGame
 import cube.run.core.GameSession
 import cube.run.core.Stage
@@ -64,6 +65,7 @@ class CubeRun(session: GameSession, private val autoStart: Boolean = false) : Gd
     private val debris = Debris(this)
     private val player = Player(this, rnd)
     private val bubble = Bubble(this)
+    private var shownBubbleCooldown = 0
     private val powerUps = PowerUps()
     private val difficulty = Difficulty()
     private val fire = FireBoost(this, difficulty)
@@ -162,6 +164,7 @@ class CubeRun(session: GameSession, private val autoStart: Boolean = false) : Gd
         }
         track.portalEvery = if (Settings.devMode) 28 else 110 - 14 * Progress.level(Progress.PORTALS) // dev: portals galore too
         powerUps.reset(); jetGrace = 0f
+        bubble.reset(); shownBubbleCooldown = 0; session.setBubbleCooldown(0)
         bubble.duration = Progress.BUBBLE.duration(Progress.bubbleLevel)
         difficulty.reset()
         curTier = difficulty.tier()
@@ -185,8 +188,13 @@ class CubeRun(session: GameSession, private val autoStart: Boolean = false) : Gd
         rig.punch(0.8f)
     }
 
+    // Instrumentation installs this only for protected performance runs. Release
+    // builds always use the normal fatal-collision path, even if reflection sets it.
+    private var testCrashObserver: (() -> Unit)? = null
+
     private fun crash() {
         if (dead) return
+        if (BuildConfig.DEBUG && testCrashObserver != null) { testCrashObserver!!.invoke(); return }
         if (Progress.useRevive()) { secondWind(); return }
         dead = true
         player.setFlying(false)
@@ -315,7 +323,7 @@ class CubeRun(session: GameSession, private val autoStart: Boolean = false) : Gd
 
     /** Try to spend a stocked bubble (double tap). Returns true when one went up. */
     private fun tryBubble(): Boolean {
-        if (!live() || bubble.active) return false
+        if (!live() || !bubble.ready) return false
         if (!Progress.useBubble()) { fx.emptyStock(); return false }
         session.setBubbles(Progress.bubbles)
         bubble.activate(player.px, player.py)
@@ -497,6 +505,8 @@ class CubeRun(session: GameSession, private val autoStart: Boolean = false) : Gd
             }
         }
         bubble.update(dt, time, player.px + player.nudge, player.py + Terrain.y(0f))
+        val cooldown = kotlin.math.ceil(bubble.cooldownLeft).toInt()
+        if (cooldown != shownBubbleCooldown) { shownBubbleCooldown = cooldown; session.setBubbleCooldown(cooldown) }
 
         // ---- obstacle rows: move, collide, score; coins: magnet + collect; pickups
         track.scroll(mv, time, dt)
@@ -637,8 +647,8 @@ class CubeRun(session: GameSession, private val autoStart: Boolean = false) : Gd
             if (r.pickup != Pickup.BUBBLE) continue
             val cz = r.z + Row.PICKUP_DZ
             if (cz < -Fog.end) continue
-            val s = 1.25f + 0.06f * sin(time * 5f + cz)
-            bubbles.draw(cam, r.pickupX, 0.95f + 0.12f * sin(time * 3f + cz), cz, s, s, s, time * 50f, time, 170f, 270f, 0.6f, 2.4f, 0.12f, 1f - Fog.at(cz), BubbleSkins.IRIS)
+            val s = 1.25f + 0.06f * sin(time * 5f + r.visualPhase)
+            bubbles.draw(cam, r.pickupX, 0.95f + 0.12f * sin(time * 3f + r.visualPhase), cz, s, s, s, time * 50f, time, 170f, 270f, 0.6f, 2.4f, 0.12f, 1f - Fog.at(cz), BubbleSkins.IRIS)
         }
     }
 }

@@ -26,7 +26,10 @@ class Difficulty {
     fun ramp(dt: Float) { if (diff < 1f) diff = min(1f, diff + dt / rampSeconds) }
 
     /** Jump straight to [d] if that's higher than where we are (fire boost). */
-    fun boostTo(d: Float) { if (d > diff) diff = d }
+    fun boostTo(d: Float) { if (d > diff) diff = d.coerceAtMost(1f) }
+
+    /** Dev boost cycling can return to the first boost without restarting a section. */
+    fun setDevBoost(d: Float) { diff = d.coerceIn(startDiff, 1f) }
 
     /** Speed for the current level: linear up to the blue line, diminishing returns beyond it. */
     fun speed(): Float =

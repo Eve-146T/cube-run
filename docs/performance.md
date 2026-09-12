@@ -200,3 +200,126 @@ tested debug APK remains installed.
 - Measurements use the normal debug APK with sound and haptics enabled. Root was
   used for CPU sampling and backing up / restoring the test phone's preferences;
   CPU/GPU governors, display resolution and quality settings were not changed.
+
+## 2.2 candidate: elapsed time, 90 Hz and GPU geometry
+
+This local pass requests the best same-resolution display mode up to 90 Hz through
+[Android's Surface frame-rate API](https://developer.android.com/media/optimize/performance/frame-rate).
+It does not change global display settings. The old 35 ms delta clamp discarded
+elapsed time during stalls. `FrameStepper` now consumes raw elapsed time in small
+collision-safe slices, retains excess debt after long stalls, and clears debt on
+pause/resume. Deliberate impact slow motion remains separate. Actual-game tests
+at 90/60/30/20/8 rendered FPS all cover 300 units in ten seconds at capped speed
+and consume ten seconds of a power-up timer. Normal running already caps at
+30 units/s; jetpack speed caps at 52.5. Development boosts now cycle through ten.
+
+Pickup bobbing, spinning, flame and bubble pulse phases no longer depend on the
+row's scrolling position. Their animation rates therefore stay stable as travel
+speed rises. A double accumulator also avoids accumulating Float clock error
+through long runs.
+
+World boxes and shards now use GLES 3 instancing: static geometry stays on the
+GPU, while each visible object uploads a compact transform/color record. Face
+lighting and packed-color quantization match the previous appearance. The GLES 2
+fallback keeps CPU batching, face compaction and cached orientations. No particle
+pool, draw distance, resolution, antialiasing or object detail was reduced.
+Framebuffer tests compare both optimized CPU and GPU paths with the unculled CPU
+reference across twelve camera/hill and twelve tumbling-particle frames.
+
+### Pixel 7a
+
+Android 17, 1080×2400, normal debug APK, USB charging at **4% battery** during the
+baseline and this pass. Do not extrapolate one device's battery/thermal policy to
+other phones. All figures below are unprofiled runs in Lava Caves. Profiling is
+run separately because even sampling materially changes timings.
+
+| Scenario | Before: GL CPU p50 / p95 (ms) | Candidate: GL CPU p50 / p95 (ms) | Candidate frames / measured seconds | Frame p95 / p99 / max (ms) |
+| --- | --- | --- | --- | --- |
+| Five opening boosts | 15.65 / 17.92 | 7.81 / 9.83 | 3609 / 40 | 12.79 / 13.95 / 21.88 |
+| Dense Second Wind every 2 s | 16.88 / 28.62 | 8.34 / 9.85 | 3612 / 40 | 12.62 / 14.31 / 17.95 |
+| Jetpack, 52.5 units/s | — | 7.80 / 8.63 | 3615 / 40 | 12.72 / 13.52 / 16.39 |
+| Five-lane bonus | — | 7.73 / 8.66 | 3613 / 40 | 12.69 / 14.47 / 27.40 |
+| Hills | — | 7.98 / 10.64 | 3612 / 40 | 12.53 / 13.56 / 16.04 |
+| Advanced clock/distance | — | 7.88 / 8.89 | 3615 / 40 | 12.61 / 13.30 / 16.96 |
+
+The first two baseline windows measured 62.7 and 50.2 FPS; the candidate sustains
+about 90 FPS in all six windows. This is not a claim that every frame meets
+11.1 ms: one five-lane frame exceeded 25 ms, and smaller scheduling outliers
+remain. GL-thread CPU p95 is below the 90 Hz budget in every listed scenario.
+Dense smash execution is 3.15 ms median / 3.55 ms maximum. Resident rows remain
+bounded at 19 or fewer. These renderer comparisons used the static protected
+harness before the playing-bot default was added. Generated content varies;
+the dense obstacle fixture is fixed. Raw artifacts: `captures/performance-pass/`
+`pixel-baseline` and `pixel-final-gpu`.
+
+### Playing-bot performance tests
+
+The harness now shares `LiveBotDriver` with normal demos. It sends real Android
+flicks, pursues original coin lanes even with a magnet, and plans surviving routes.
+A debug-only crash observer protects long test runs without spending Second Wind
+stock. Each continuous fatal collision episode increments `protectedHits` and
+shows a red warning. A regression proves collisions still reach the observer and
+that removing it immediately restores normal collision/stock behavior. Release
+builds cannot enable this protection. Normal bot demos keep fatal collisions.
+
+`RunPerformanceTest` defaults to the playing bot; `-e bot false` selects the
+labeled static rendering reference. Dense bot fixtures distribute their coin
+lines across lanes. Logs distinguish `bot=true/false`; `RUN_BOT` reports actions
+and acknowledgements. Planner work runs off the GL thread but shares the process
+heap, so its substantial search allocations and GC are included in bot-enabled
+runs. Do not compare their allocation totals with game-only rendering totals.
+
+At normal Motorola clocks, 35-second cave phases (30 seconds measured) gave:
+
+| Bot scenario | GL CPU p50 / p95 (ms) | Frame p95 / p99 / max (ms) | Frames | Protected collisions |
+| --- | --- | --- | ---: | ---: |
+| Five boosts | 5.67 / 8.02 | 18.84 / 20.29 / 24.76 | 1796 | 0 |
+| Dense Second Wind | 6.62 / 9.42 | 19.10 / 20.53 / 23.04 | 1796 | 0 |
+
+Both sustained about 59.9 FPS, with no frames over 25 ms. These are controller
+runs, not guarantees that the bot survives every generated course unaided.
+
+### Motorola with reduced CPU clocks
+
+The measured CPU ceilings were **1,036.8 MHz / 1,094.4 MHz** (policy0 /
+policy4), about 57% / 61% of their normal 1,804.8 MHz maximum. Readbacks of
+both limits and actual current frequencies were sampled throughout each run;
+all samples inside the comparison windows stayed at or below those ceilings.
+Normal power services, governors, GPU settings and thermal protection remained
+active for these measurements. Original limits were restored and verified.
+
+Each phase measured twenty seconds after five seconds of warm-up:
+
+| Scenario | Baseline GL CPU p50 / p95 (ms) | Candidate with playing bot p50 / p95 (ms) | Candidate frame p95 / p99 / max (ms) | Protected collisions |
+| --- | --- | --- | --- | ---: |
+| Five boosts | 9.47 / 10.91 | 7.74 / 10.02 | 19.02 / 22.66 / 26.86 | 2 |
+| Advanced time/distance | 8.33 / 10.43 | 6.20 / 8.11 | 18.68 / 20.96 / 28.08 | 3 |
+| Dense Second Wind | 10.75 / 14.04 | 7.37 / 9.05 | 18.59 / 20.90 / 25.73 | 0 |
+
+Every window measured 1,198 frames (about 59.9 FPS). The candidate includes the
+playing bot's additional CPU and GC work; the baseline is the earlier static
+harness, so these are not identical-controller comparisons. The bot's protected
+collisions were logged and displayed, not counted as successful unaided play.
+Artifacts include raw frame logs, epoch timestamps, sampled clocks and restoration
+readbacks in `moto-60pct-baseline` and `moto-60pct-current`.
+
+Earlier attempts at lower limits were overridden by automatic boosts; another
+attempt temporarily suspending power hints timed out. Those trials are excluded.
+The timeout watchdog restored both power services, the input-boost setting and
+clock limits. Subsequent successful measurements left those services active.
+
+The Pixel was disconnected by the user after its completed six-scenario run;
+remaining validation uses the Motorola. The candidate remains local and unpushed.
+
+Final candidate validation: **45 Motorola regression tests passed**, including
+GPU/CPU framebuffer equivalence, terrain mesh continuity, frame-rate-independent
+distance/timers, economy pity persistence, bubble cooldown, dev boost cycling,
+collision observer behavior, shop rendering, UI animations and real bot-model
+parity. Debug/test and normal unsigned release builds passed. Lint reports zero
+errors and only the existing target-SDK advisory. Release DEX contains no bot or
+instrumentation controller. Both phones' original preferences were restored and
+verified; Motorola CPU limits, boost settings and power services were restored.
+
+Permanent-upgrade prices, mystery-box rewards and their 15–25-hour target model
+are documented in [progression.md](progression.md). The candidate identifies as
+version 2.2 / code 9; no main-game release tag or Git push is part of this pass.

@@ -21,6 +21,7 @@ interface GameSession {
 
     /** Bubble shields left in stock (shown as a HUD hint). */
     fun setBubbles(v: Int) {}
+    fun setBubbleCooldown(seconds: Int) {}
 
     /** Mystery boxes collected so far this run (opened on the run-over screens). */
     fun setBoxes(v: Int) {}

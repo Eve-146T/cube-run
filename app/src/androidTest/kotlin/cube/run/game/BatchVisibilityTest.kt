@@ -13,6 +13,8 @@ import com.badlogic.gdx.utils.ScreenUtils
 import cube.run.GameActivity
 import cube.run.core.gfx.BoxMeshKit
 import cube.run.core.gfx.PrismBatch
+import cube.run.core.gfx.ShardSystem
+import com.badlogic.gdx.math.Vector3
 import cube.run.core.gfx.TerrainHeight
 import cube.run.core.gfx.WorldBoxBatch
 import java.util.concurrent.CountDownLatch
@@ -24,6 +26,49 @@ import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
 class BatchVisibilityTest {
+    @Test fun particleCullingPreservesBlendingAndTumblingPixels() {
+        ActivityScenario.launch(GameActivity::class.java).use { scenario ->
+            scenario.onActivity { it.setShowWhenLocked(true); it.setTurnScreenOn(true) }
+            val done = CountDownLatch(1)
+            var failure: Throwable? = null
+            Gdx.app.postRunnable {
+                try {
+                    val kit = BoxMeshKit(ModelBuilder())
+                    val shards = ShardSystem(kit)
+                    val target = FrameBuffer(Pixmap.Format.RGBA8888, 160, 320, true)
+                    val camera = PerspectiveCamera(67f, 160f, 320f).apply { near = .5f; far = 65f }
+                    try {
+                        for (i in 0 until 8) shards.burst(Vector3((i % 3 - 1) * 5f, 3f, -i * 3f),
+                            if (i % 2 == 0) Color.CORAL else Color.SKY, 30, 5f, 1f, 8f, gravity = 1f)
+                        for (phase in 0 until 12) {
+                            shards.update(.035f)
+                            camera.position.set((phase % 3 - 1) * 4f, 1f + phase % 4, 6f)
+                            camera.up.set(0f, 1f, 0f); camera.lookAt(0f, 0f, -22f); camera.update()
+                            fun draw(cull: Boolean, instanced: Boolean = cull): ByteArray {
+                                target.begin()
+                                try {
+                                    Gdx.gl.glDepthMask(true)
+                                    Gdx.gl.glClearColor(0f, 0f, 0f, 1f)
+                                    Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT or GL20.GL_DEPTH_BUFFER_BIT)
+                                    shards.render(camera, cull, instanced)
+                                    return ScreenUtils.getFrameBufferPixels(0, 0, 160, 320, false)
+                                } finally { target.end() }
+                            }
+                            val reference = draw(false)
+                            assertTrue("Particle fixture must be visible", reference.indices.any {
+                                it % 4 != 3 && reference[it].toInt() != 0
+                            })
+                            assertArrayEquals("Particle CPU culling changed", reference, draw(true, false))
+                            assertArrayEquals("Particle pixels changed at phase $phase", reference, draw(true))
+                        }
+                    } finally { target.dispose(); shards.dispose(); kit.dispose() }
+                } catch (t: Throwable) { failure = t } finally { done.countDown() }
+            }
+            assertTrue("Particle regression timed out", done.await(30, TimeUnit.SECONDS))
+            failure?.let { throw it }
+        }
+    }
+
     @Test fun cullingPreservesPixelsAcrossCameraEdgesRotationsAndHills() {
         ActivityScenario.launch(GameActivity::class.java).use { scenario ->
             scenario.onActivity { it.setShowWhenLocked(true); it.setTurnScreenOn(true) }
@@ -50,8 +95,8 @@ class BatchVisibilityTest {
                             camera.update()
                             val terrain = TerrainHeight { z -> sin(z * 0.24f + phase) * (phase % 3) }
                             boxes.terrain = terrain; coins.terrain = terrain
-                            fun draw(cull: Boolean): ByteArray {
-                                boxes.begin(if (cull) camera else null)
+                            fun draw(cull: Boolean, instanced: Boolean = cull): ByteArray {
+                                boxes.begin(if (cull) camera else null, instanced = instanced)
                                 coins.begin(if (cull) camera else null)
                                 // Near/behind camera, both screen edges and beyond the far plane.
                                 for (row in -2..24) {
@@ -83,6 +128,7 @@ class BatchVisibilityTest {
                             val reference = draw(false)
                             val allBoxes = boxCount.getInt(boxes)
                             val allCoins = coinCount.getInt(coins)
+                            assertArrayEquals("CPU fallback changed at phase $phase", reference, draw(true, false))
                             val culled = draw(true)
                             assertTrue("Fixture must render visible objects", reference.indices.any {
                                 it % 4 != 3 && reference[it].toInt() != 0

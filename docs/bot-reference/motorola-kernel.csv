@@ -1,0 +1,6 @@
+requested_gestures_s,sent,recognized,inject_rejections,wrong_direction,actual_send_rate,latency_p50_ms,latency_p95_ms,max_gestures_per_gl_frame
+10,20,20,0,0,10.168012868864851,62,66,1
+30,60,60,0,0,30.165427369604764,39,40,1
+60,120,120,0,0,60.16134647446448,20,22,1
+120,240,240,0,0,120.1380360805578,15,23,3
+240,480,480,0,0,240.13397963219404,12,21,6

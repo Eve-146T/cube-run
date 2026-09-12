@@ -1,0 +1,59 @@
+id,name,tier,rating_at_30,perfect_highest_all_pass,perfect_first_not_solved,pro_cadence_highest_all_pass,pro_robust_highest_all_pass,pro_peak_gestures_s_at_30,pro_jitter_16ms_survival_at_30,relaxed_jitter_50ms_survival_at_30
+-5,VALLEY GATES,0,3 Skilled,90.0,,90.0,90.0,4,1.0,1.0
+-4,CREST HOP,0,2 Moderate,90.0,,90.0,90.0,3,1.0,0.972
+-3,RIDGE WEAVE,0,3 Skilled,90.0,82.5,55.0,45.0,3,1.0,0.778
+-2,WARM-UP,0,1 Gentle,90.0,,90.0,90.0,0,1.0,1.0
+-1,BREATHER,0,1 Gentle,90.0,,90.0,90.0,0,1.0,1.0
+0,FIRST STEPS,0,3 Skilled,87.5,90.0,50.0,37.5,5,1.0,0.5
+1,WEAVE,0,1 Gentle,90.0,,90.0,90.0,0,1.0,1.0
+2,HOP,0,3 Skilled,90.0,,70.0,47.5,3,1.0,0.889
+3,SLALOM,1,3 Skilled,85.0,75.0,50.0,37.5,5,1.0,0.0
+5,LEAP & WEAVE,1,4 Expert timing,90.0,,55.0,32.5,5,0.917,0.292
+6,CLOSING GATES,1,3 Skilled,90.0,,37.5,30.0,3,1.0,0.806
+7,DUCK & DODGE,1,3 Skilled,90.0,,65.0,37.5,5,1.0,0.667
+8,GAUNTLET,2,5 Very tight,90.0,,60.0,37.5,5,0.778,0.639
+10,STORM,2,3 Skilled,90.0,,65.0,47.5,4,1.0,0.25
+11,TRAPS,2,3 Skilled,70.0,75.0,35.0,30.0,4,1.0,0.042
+12,HURDLES,0,2 Moderate,90.0,,90.0,52.5,2,1.0,1.0
+13,STAIRCASE,1,5 Very tight,90.0,,52.5,37.5,5,0.764,0.722
+15,SKYLIGHTS,1,2 Moderate,90.0,,90.0,90.0,2,1.0,1.0
+16,THE WAVE,2,3 Skilled,60.0,65.0,60.0,42.5,4,1.0,0.333
+17,TUNNEL,2,4 Expert timing,90.0,,90.0,80.0,4,0.861,0.583
+19,PEEKABOO,2,3 Skilled,90.0,,90.0,90.0,4,1.0,0.833
+20,PINCER,3,2 Moderate,90.0,,90.0,90.0,2,1.0,1.0
+21,GATEKEEPER,3,3 Skilled,90.0,,70.0,47.5,4,1.0,0.667
+23,BLENDER,3,3 Skilled,90.0,,90.0,35.0,4,1.0,0.764
+24,TAR PITS,1,2 Moderate,90.0,,90.0,85.0,3,1.0,1.0
+25,PUMP HOUSE,1,2 Moderate,90.0,,90.0,55.0,3,1.0,1.0
+26,STOMP,2,2 Moderate,90.0,,90.0,90.0,2,1.0,1.0
+27,SWEEPERS,2,2 Moderate,90.0,,90.0,55.0,3,1.0,1.0
+28,CHASM RUN,2,5 Very tight,90.0,,90.0,47.5,6,0.681,0.167
+29,MACHINE ROOM,3,3 Skilled,90.0,,90.0,70.0,4,1.0,0.833
+30,HELLRIDE,3,4 Expert timing,90.0,,90.0,82.5,4,0.903,0.806
+32,HIGH ROAD,1,2 Moderate,90.0,,90.0,90.0,1,1.0,1.0
+33,ROOFTOPS,2,2 Moderate,90.0,,90.0,80.0,3,1.0,0.931
+34,OVERPASS,2,2 Moderate,90.0,,90.0,90.0,1,1.0,1.0
+35,TRAIN YARD,3,2 Moderate,90.0,,90.0,85.0,1,1.0,1.0
+38,RAMP UP,1,3 Skilled,90.0,,70.0,32.5,4,1.0,1.0
+40,SKYBRIDGE,2,2 Moderate,90.0,,90.0,90.0,1,1.0,1.0
+42,TRAPDOORS,2,2 Moderate,90.0,,90.0,90.0,3,1.0,1.0
+43,CRUSH HOUR,3,2 Moderate,90.0,,90.0,90.0,3,1.0,1.0
+44,ROOF RUNNER,3,2 Moderate,90.0,,90.0,90.0,1,1.0,1.0
+45,LEAPFROG,3,3 Skilled,90.0,21.6,90.0,55.0,4,1.0,0.875
+46,FINALE,3,3 Skilled,90.0,,90.0,90.0,4,1.0,0.444
+47,GOLD RUSH,1,2 Moderate,90.0,,90.0,90.0,1,1.0,1.0
+48,LOW BRIDGE,1,4 Expert timing,90.0,,90.0,52.5,4,0.931,0.639
+50,TREASURY,2,2 Moderate,90.0,75.0,82.5,50.0,2,1.0,1.0
+52,TAR & FEATHER,2,2 Moderate,90.0,,90.0,70.0,3,1.0,0.972
+53,COIN CANYON,3,2 Moderate,90.0,,90.0,90.0,1,1.0,1.0
+55,GAUNTLET II,3,2 Moderate,90.0,,82.5,70.0,3,1.0,1.0
+56,MOTHERLODE,3,1 Gentle,90.0,,90.0,90.0,0,1.0,1.0
+57,SPRINGBOARD,0,2 Moderate,50.0,52.5,50.0,50.0,2,1.0,1.0
+60,SWING SET,1,3 Skilled,90.0,,90.0,40.0,4,1.0,1.0
+61,BOUNCE HOUSE,1,2 Moderate,50.0,52.5,50.0,50.0,3,1.0,0.972
+62,HIGH JUMP,1,2 Moderate,50.0,52.5,50.0,50.0,3,1.0,1.0
+65,TRAMPOLINE,2,2 Moderate,50.0,52.5,50.0,50.0,1,1.0,1.0
+66,ROOF HOP,2,2 Moderate,90.0,,85.0,60.0,2,1.0,1.0
+68,PENDULUMS,2,3 Skilled,90.0,,90.0,90.0,4,1.0,0.931
+70,BIG AIR,3,3 Skilled,50.0,52.5,50.0,50.0,4,1.0,1.0
+72,GRANDFATHER,3,2 Moderate,90.0,,90.0,90.0,2,1.0,1.0

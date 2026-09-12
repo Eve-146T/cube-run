@@ -2,6 +2,8 @@ package cube.run.game
 
 import android.content.Intent
 import android.os.Debug
+import cube.run.bot.LiveBotDriver
+import java.util.concurrent.atomic.AtomicBoolean
 import android.os.SystemClock
 import android.util.Log
 import androidx.test.core.app.ActivityScenario
@@ -27,20 +29,52 @@ import org.junit.runner.RunWith
 /** On-device, vsync-paced stress runs. No purchased stock or saved scores are consumed. */
 @RunWith(AndroidJUnit4::class)
 class RunPerformanceTest {
+    private lateinit var badge: android.widget.TextView
+    private var botEnabled = true
+    private var statusGeneration = 0
+
+    private fun showStatus(mode: String, hits: Int, hit: Boolean = false) {
+        badge.post {
+            val generation = ++statusGeneration
+            badge.text = if (hit) "COLLISION · TEST PROTECTION SAVED THE BOT ($hits)"
+                else if (botEnabled) "BOT PERFORMANCE TEST · PROTECTED · $mode · hits $hits"
+                else "STATIC PERFORMANCE TEST · IMMUNITY · $mode"
+            badge.setBackgroundColor(if (hit) 0xEEAA2935.toInt() else 0xDD161322.toInt())
+            if (hit) badge.postDelayed({ if (generation == statusGeneration) showStatus(mode, hits) }, 1500)
+        }
+    }
+
     private fun field(type: Class<*>, name: String) = type.getDeclaredField(name).apply { isAccessible = true }
 
     @Test fun highSpeedAndSecondWind() {
         val args = InstrumentationRegistry.getArguments()
+        botEnabled = args.getString("bot") != "false"
         val intent = Intent(ApplicationProvider.getApplicationContext(), GameActivity::class.java)
             .putExtra("world", args.getString("world")?.toInt() ?: -1)
         ActivityScenario.launch<GameActivity>(intent).use { scenario ->
-            scenario.onActivity { it.setShowWhenLocked(true); it.setTurnScreenOn(true) }
+            scenario.onActivity {
+                it.setShowWhenLocked(true); it.setTurnScreenOn(true)
+                badge = android.widget.TextView(it).apply {
+                    text = if (botEnabled) "BOT PERFORMANCE TEST · PROTECTED" else "STATIC PERFORMANCE TEST · IMMUNITY"
+                    setTextColor(android.graphics.Color.WHITE); setBackgroundColor(0xDD161322.toInt())
+                    textSize = 14f; setPadding(16, 8, 16, 8)
+                }
+                it.addContentView(badge, android.widget.FrameLayout.LayoutParams(-2, -2).apply {
+                    gravity = android.view.Gravity.BOTTOM or android.view.Gravity.CENTER_HORIZONTAL
+                })
+            }
             val ready = CountDownLatch(1)
             Gdx.app.postRunnable { ready.countDown() }
             assertTrue("Game surface did not start", ready.await(20, TimeUnit.SECONDS))
             SystemClock.sleep(2000)
             val seconds = (args.getString("seconds")?.toInt() ?: 25).coerceIn(10, 600)
-            for (mode in (args.getString("modes") ?: "cruise,hills,second-wind").split(',')) benchmark(mode, seconds)
+            val profile = args.getString("profile") == "true"
+            if (profile) Debug.startMethodTracingSampling(java.io.File(
+                androidx.test.platform.app.InstrumentationRegistry.getInstrumentation().targetContext.getExternalFilesDir(null),
+                "performance.trace").absolutePath, 32 * 1024 * 1024, 10_000)
+            try {
+                for (mode in (args.getString("modes") ?: "cruise,hills,second-wind").split(',')) benchmark(mode, seconds)
+            } finally { if (profile) Debug.stopMethodTracing() }
         }
     }
 
@@ -67,6 +101,9 @@ class RunPerformanceTest {
         val slot = field(perf.javaClass, "curSlot")
         val secondWind = CubeRun::class.java.getDeclaredMethod("secondWind").apply { isAccessible = true }
         val factory = ObstacleFactory(Random(42))
+        val collisionSeen = AtomicBoolean()
+        var previousHit = false
+        var protectedHits = 0
         var start = 0L
         var previous = 0L
         var previousCpu = 0L
@@ -115,8 +152,12 @@ class RunPerformanceTest {
                         start = now
                         nextBurst = now
                     }
+                    val hit = collisionSeen.getAndSet(false)
+                    if (hit && !previousHit) { protectedHits++; showStatus(mode, protectedHits, hit = true)
+                        Log.w("RUN_BENCH", "$mode protected collision episode $protectedHits") }
+                    previousHit = hit
                     val elapsed = (now - start) / 1e9
-                    grace.setFloat(game, 100f) // render real obstacles without ending the unattended run
+                    if (!botEnabled) grace.setFloat(game, 100f) // render real obstacles without ending the unattended run
                     if (elapsed >= 5 && previous != 0L) {
                         frames.add((now - previous) / 1e6f)
                         cpu.add(samples[slot.getInt(perf)])
@@ -141,7 +182,8 @@ class RunPerformanceTest {
                                 factory.pillar(1.7f, rowIndex * 19f),
                             )).apply {
                                 pop = 1f
-                                coins = arrayListOf(Coin(0f, 0.5f, -2f), Coin(0f, 0.5f, -4f))
+                                val lane = if (botEnabled) (rowIndex % 3 - 1) * 1.7f else 0f
+                                coins = arrayListOf(Coin(lane, 0.5f, -2f), Coin(lane, 0.5f, -4f))
                             })
                         }
                         val before = System.nanoTime()
@@ -158,16 +200,34 @@ class RunPerformanceTest {
                         val gc = Debug.getRuntimeStat("art.gc.gc-count").toLong() - collections
                         Log.i("RUN_BENCH", "$mode frames=${frames.size} frame=${stats(frames)} cpu=${stats(cpu)} threadCpu=${stats(threadCpu)} " +
                             "over25=${frames.count { it > 25f }} over50=${frames.count { it > 50f }} " +
-                            "burst=${stats(bursts)} bursts=$count maxRows=$maxRows maxSpeed=$maxSpeed allocBytes=$allocated gc=$gc")
+                            "bot=$botEnabled protectedHits=$protectedHits burst=${stats(bursts)} bursts=$count maxRows=$maxRows maxSpeed=$maxSpeed allocBytes=$allocated gc=$gc")
                         assertTrue("Track rows grew without bound: $maxRows", maxRows < 100)
+                        Stage.paused = true
                         done.countDown()
                     }
                 } catch (t: Throwable) { failure = t; done.countDown() }
             }
         }
-        Gdx.app.postRunnable(callback)
-        assertTrue("$mode timed out", done.await(seconds + 20L, TimeUnit.SECONDS))
-        failure?.let { throw it }
+        val observer = field(CubeRun::class.java, "testCrashObserver")
+        showStatus(mode, 0)
+        LiveBotDriver.gl {
+            if (botEnabled) {
+                grace.setFloat(game, 0f)
+                observer.set(game, { collisionSeen.set(true); Unit })
+            }
+        }
+        try {
+            Gdx.app.postRunnable(callback)
+            if (botEnabled) LiveBotDriver().use { bot ->
+                val deadline = SystemClock.uptimeMillis() + (seconds + 20L) * 1000L
+                bot.drive({ done.count > 0 && SystemClock.uptimeMillis() < deadline })
+                Log.i("RUN_BOT", "$mode ${bot.summary()} protectedHits=$protectedHits")
+                assertTrue("Performance bot stopped unexpectedly", bot.alive)
+            }
+            assertTrue("$mode timed out", done.await(if (botEnabled) 1L else seconds + 20L, TimeUnit.SECONDS))
+            failure?.let { throw it }
+        } finally { LiveBotDriver.gl { observer.set(game, null); Stage.paused = true } }
+
     }
 
     private fun stats(values: List<Float>): String {

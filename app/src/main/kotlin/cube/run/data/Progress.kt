@@ -2,6 +2,9 @@ package cube.run.data
 
 import android.content.Context
 import android.content.SharedPreferences
+import kotlin.math.pow
+import kotlin.math.roundToInt
+import kotlin.random.Random
 
 /**
  * Persistent meta-progression: the coin bank, permanent upgrade levels, the
@@ -17,10 +20,10 @@ object Progress {
      * A permanent upgrade: the duration of one power-up, bought one level at a
      * time up to [MAX_LEVEL]. Each level just adds [step] seconds to [base].
      */
-    class Upgrade(val key: String, val name: String, val base: Float, val step: Float, val max: Int = MAX_LEVEL, val basePrice: Int = 80) {
+    class Upgrade(val key: String, val name: String, val base: Float, val step: Float, val max: Int = MAX_LEVEL, val basePrice: Int = 750) {
         fun duration(level: Int): Float = base + step * level.coerceIn(0, max)
-        /** Price of buying [level] + 1. Escalates gently. */
-        fun price(level: Int): Int = basePrice + (basePrice * 9 / 16) * level + 8 * level * level
+        /** Long-term progression: late levels take sustained play, rounded to 50 coins. */
+        fun price(level: Int): Int = (basePrice * (level.coerceIn(0, max - 1) + 1.0).pow(1.65) / 50).roundToInt() * 50
     }
 
     const val MAX_LEVEL = 10
@@ -32,13 +35,13 @@ object Progress {
     val upgrades = listOf(BUBBLE, MAGNET, MULT, JET)
     // ---- perks: each level changes a rule of the run (see CubeRun)
     /** Every run starts under a bubble for a few seconds (3 s + 1.5 s per level; 0 = none). */
-    val SAFESTART = Upgrade("perk_safestart", "Safe start", 0f, 1f, max = 5, basePrice = 150)
+    val SAFESTART = Upgrade("perk_safestart", "Safe start", 0f, 1f, max = 5, basePrice = 1500)
     /** Coins are worth +20% per level. */
-    val COINVALUE = Upgrade("perk_coinvalue", "Rich coins", 1f, 0.2f, max = 10, basePrice = 120)
+    val COINVALUE = Upgrade("perk_coinvalue", "Rich coins", 1f, 0.2f, max = 10, basePrice = 2400)
     /** Portals open more often. */
-    val PORTALS = Upgrade("perk_portals", "Portal luck", 0f, 1f, max = 5, basePrice = 200)
+    val PORTALS = Upgrade("perk_portals", "Portal luck", 0f, 1f, max = 5, basePrice = 1500)
     /** Mystery boxes turn up more often. */
-    val LUCKYBOX = Upgrade("perk_luckybox", "Lucky boxes", 0f, 1f, max = 5, basePrice = 180)
+    val LUCKYBOX = Upgrade("perk_luckybox", "Lucky boxes", 0f, 1f, max = 5, basePrice = 1500)
     val perks = listOf(SAFESTART, COINVALUE, PORTALS, LUCKYBOX)
 
     /** Seconds of free bubble at the start of a run. */
@@ -57,7 +60,7 @@ object Progress {
             const val SHARDS = 3
         }
         /** Big coin hauls, skins and big shard drops are the "rare" pulls. */
-        val rare: Boolean get() = kind == SKIN || (kind == COINS && amount >= 100) || (kind == SHARDS && amount >= 20)
+        val rare: Boolean get() = kind == SKIN || (kind == COINS && amount >= 2000) || (kind == SHARDS && amount >= 20)
     }
 
     /** A bubble shield: activate in-run with a double tap, absorbs one crash. */
@@ -103,6 +106,7 @@ object Progress {
         private set
     @Volatile var boxesOpened: Int = 0
         private set
+    private var boxCoinStreak = 0
 
     fun init(ctx: Context) {
         prefs = ctx.applicationContext.getSharedPreferences("progress", Context.MODE_PRIVATE)
@@ -125,6 +129,7 @@ object Progress {
         totalCoins = prefs.getInt("total_coins", 0)
         runs = prefs.getInt("runs", 0)
         boxesOpened = prefs.getInt("boxes_opened", 0)
+        boxCoinStreak = prefs.getInt("box_coin_streak", 0).coerceIn(0, 2)
         if (skin !in Skins.all.indices || !owns(Wardrobe.CUBE, skin)) skin = 0
         if (bubbleSkin !in BubbleSkins.all.indices || !owns(Wardrobe.BUBBLE, bubbleSkin)) bubbleSkin = 0
         if (trail !in Trails.all.indices || !owns(Wardrobe.TRAIL, trail)) trail = 0
@@ -149,8 +154,8 @@ object Progress {
 
     fun enterDev() {
         if (prefs.contains(DEV_BANK)) return
-        prefs.edit().putInt(DEV_BANK, coins).putInt("coins", 999_999).apply()
-        coins = 999_999
+        prefs.edit().putInt(DEV_BANK, coins).putInt("coins", 9_999_999).apply()
+        coins = 9_999_999
     }
 
     fun leaveDev() {
@@ -291,41 +296,33 @@ object Progress {
     // ------------------------------------------------------------- boxes
 
     /** Open a mystery box: roll a reward and bank it immediately. */
-    fun openBox(): BoxReward {
+    fun openBox(random: Random = Random.Default): BoxReward {
         boxesOpened += 1
-        prefs.edit().putInt("boxes_opened", boxesOpened).apply()
-        val r = Math.random()
-        // a wardrobe item, when there is one left to win
-        if (r < 0.10) {
-            val cats = Wardrobe.cats.filter { unowned(it).isNotEmpty() }
-            if (cats.isNotEmpty()) {
-                val cat = cats[(Math.random() * cats.size).toInt()]
-                val pool = unowned(cat)
-                val id = pool[(Math.random() * pool.size).toInt()]
-                grant(cat, id)
-                return BoxReward(BoxReward.SKIN, 1, cat, id)
-            }
-        }
-        // shards, while a shard skin is still locked: 1 to 30 of one kind, small drops far more often than big ones
-        if (r < (if (Settings.devMode) 0.7 else 0.34)) { // dev: shards most of the time, so the drop can be looked at
-            val kinds = Shards.all.filter { k -> Skins.forShard(k.id)?.let { !owns(Wardrobe.CUBE, it.id) } ?: false }
-            if (kinds.isNotEmpty()) {
-                val kind = kinds[(Math.random() * kinds.size).toInt()]
-                val roll = Math.random()
-                val n = 1 + (roll * roll * 29.99).toInt()
-                addShards(kind.id, n)
-                return BoxReward(BoxReward.SHARDS, n, id = kind.id)
-            }
-        }
+        // Disjoint rolls: the old shard branch swallowed the entire bubble range.
+        // After two coin boxes the next pull is guaranteed to be something else.
+        val kind = BoxLoot.kind(random.nextFloat(), boxCoinStreak)
+        val cats = if (kind == BoxReward.SKIN) Wardrobe.cats.filter { unowned(it).isNotEmpty() } else emptyList()
+        val shards = if (kind == BoxReward.SHARDS || kind == BoxReward.SKIN && cats.isEmpty())
+            Shards.all.filter { k -> Skins.forShard(k.id)?.let { !owns(Wardrobe.CUBE, it.id) } ?: false } else emptyList()
         val reward = when {
-            r < 0.24 -> BoxReward(BoxReward.BUBBLE, 1)
-            r < 0.48 -> BoxReward(BoxReward.COINS, 100 + (Math.random() * 101).toInt())   // 100..200
-            else -> BoxReward(BoxReward.COINS, 25 + (Math.random() * 51).toInt())         // 25..75
+            kind == BoxReward.SKIN && cats.isNotEmpty() -> {
+                val cat = cats.random(random); val id = unowned(cat).random(random)
+                grant(cat, id); BoxReward(BoxReward.SKIN, 1, cat, id)
+            }
+            shards.isNotEmpty() -> {
+                val shard = shards.random(random); val n = random.nextInt(5, 31)
+                addShards(shard.id, n); BoxReward(BoxReward.SHARDS, n, id = shard.id)
+            }
+            kind == BoxReward.COINS -> BoxReward(BoxReward.COINS,
+                if (random.nextInt(5) == 0) random.nextInt(2000, 3001) else random.nextInt(500, 1001))
+            else -> BoxReward(BoxReward.BUBBLE, random.nextInt(3, 6))
         }
+        boxCoinStreak = if (reward.kind == BoxReward.COINS) boxCoinStreak + 1 else 0
+        prefs.edit().putInt("boxes_opened", boxesOpened).putInt("box_coin_streak", boxCoinStreak).apply()
         if (reward.kind == BoxReward.BUBBLE) {
             bubbles += reward.amount
             prefs.edit().putInt("bubbles", bubbles).apply()
-        } else {
+        } else if (reward.kind == BoxReward.COINS) {
             addCoins(reward.amount)
         }
         return reward

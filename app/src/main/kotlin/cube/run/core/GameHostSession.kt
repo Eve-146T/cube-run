@@ -48,6 +48,8 @@ class GameHostSession(
         ui { chrome.setBubbles(v) }
     }
 
+    override fun setBubbleCooldown(seconds: Int) { ui { chrome.setBubbleCooldown(seconds) } }
+
     override fun setBoxes(v: Int) {
         if (over.get()) return
         boxesV.set(v)

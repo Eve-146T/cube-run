@@ -2,6 +2,9 @@ package cube.run
 
 import android.os.Bundle
 import android.view.WindowManager
+import android.view.Surface
+import android.view.SurfaceHolder
+import android.view.SurfaceView
 import android.widget.FrameLayout
 import com.badlogic.gdx.backends.android.AndroidApplication
 import com.badlogic.gdx.backends.android.AndroidApplicationConfiguration
@@ -40,11 +43,29 @@ class GameActivity : AndroidApplication() {
             useImmersiveMode = true
             useAccelerometer = false
             useCompass = false
+            useGL30 = true // libGDX falls back to GLES 2 where GLES 3 is unavailable
             numSamples = 2
             r = 8; g = 8; b = 8; a = 8
             depth = 24 // 16-bit z-fights at the far end of the long draw distance
         }
         val gameView = initializeForView(game, config)
+        // Explicitly request the game's render cadence; Android can still lower
+        // it for battery/thermal policy. Never change the user's display settings.
+        @Suppress("DEPRECATION")
+        val display = windowManager.defaultDisplay
+        val mode = display.supportedModes.filter {
+            it.physicalWidth == display.mode.physicalWidth && it.physicalHeight == display.mode.physicalHeight && it.refreshRate <= 90.5f
+        }.maxByOrNull { it.refreshRate } ?: display.mode
+        window.attributes = window.attributes.apply { preferredRefreshRate = mode.refreshRate }
+        (gameView as? SurfaceView)?.holder?.addCallback(object : SurfaceHolder.Callback {
+            override fun surfaceCreated(holder: SurfaceHolder) = requestRate(holder)
+            override fun surfaceChanged(holder: SurfaceHolder, format: Int, width: Int, height: Int) = requestRate(holder)
+            override fun surfaceDestroyed(holder: SurfaceHolder) {}
+            private fun requestRate(holder: SurfaceHolder) {
+                if (android.os.Build.VERSION.SDK_INT >= 30 && holder.surface.isValid)
+                    holder.surface.setFrameRate(mode.refreshRate, Surface.FRAME_RATE_COMPATIBILITY_DEFAULT)
+            }
+        })
 
         val root = FrameLayout(this)
         root.addView(gameView, FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT)

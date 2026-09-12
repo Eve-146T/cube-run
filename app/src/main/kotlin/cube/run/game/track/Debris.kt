@@ -11,10 +11,10 @@ import kotlin.math.max
  */
 class Debris(private val game: Gdx3DGame) {
 
-    private class Chunk(val col: Color) {
-        var x = 0f; var y = 0f; var z = 0f
-        var vx = 0f; var vy = 0f; var vz = 0f
-        var s = 0.3f; var yaw = 0f; var spin = 0f; var life = 0f
+    private class Chunk(@JvmField val col: Color) {
+        @JvmField var x = 0f; @JvmField var y = 0f; @JvmField var z = 0f
+        @JvmField var vx = 0f; @JvmField var vy = 0f; @JvmField var vz = 0f
+        @JvmField var s = 0.3f; @JvmField var yaw = 0f; @JvmField var spin = 0f; @JvmField var life = 0f
     }
 
     private val pool = Array(120) { Chunk(Color()) }

@@ -29,6 +29,11 @@ class Bubble(private val game: Gdx3DGame) {
     var duration = 10f
     val active: Boolean get() = timer.active
     val timeLeft: Float get() = timer.left
+    var cooldownLeft = 0f
+        private set
+    val ready: Boolean get() = !active && cooldownLeft <= 0f
+
+    fun reset() { timer.stop(); cooldownLeft = 0f; shock = 0f }
 
     var skin: BubbleSkins.BubbleSkin = BubbleSkins.get(0)
         private set
@@ -66,6 +71,7 @@ class Bubble(private val game: Gdx3DGame) {
 
     fun pop(px: Float, py: Float) {
         timer.stop()
+        cooldownLeft = 10f
         shock = 1f; shockHue = skin.hue
         x = px; y = py
         SoundFx.play("pop", rate = 0.55f)
@@ -78,12 +84,14 @@ class Bubble(private val game: Gdx3DGame) {
 
     /** Tick the timer; keeps the sphere around the player. Returns true on the frame it runs out. */
     fun update(dt: Float, time: Float, px: Float, py: Float): Boolean {
+        cooldownLeft = max(0f, cooldownLeft - dt)
         shock = max(0f, shock - dt * 2.2f)
         x = px; y = py + 0.1f
         yaw = time * 40f
         if (!active) return false
         age += dt
         if (timer.tick(dt)) { // ran out quietly
+            cooldownLeft = 10f
             SoundFx.play("pop", rate = 0.7f, vol = 0.6f)
             game.burst3d(tmp.set(px, py, 0f), burstCol(), n = 16, speed = 4f, size = 0.1f, life = 0.6f)
             return true

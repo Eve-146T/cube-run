@@ -77,6 +77,31 @@ class SmashRegressionTest {
         }
     }
 
+    @Test fun protectedTestReportsRealCollisionsAndNeverSpendsReviveStock() = withGame { game ->
+        Stage.paused = false; game.onDown(360f, 760f); Stage.paused = true
+        (field(CubeRun::class.java, "bubble").get(game) as Bubble).reset()
+        val track = field(CubeRun::class.java, "track").get(game) as Track
+        track.rows.clear(); track.rows.add(Row(0f, arrayListOf(obstacle(ObType.SOLID))))
+        val observer = field(CubeRun::class.java, "testCrashObserver")
+        val revives = Progress.revives; var hits = 0
+        try {
+            field(Progress::class.java, "revives").setInt(Progress, 2)
+            observer.set(game, { hits++; Unit })
+            game.tick(0f)
+            assertEquals(1, hits); assertEquals(2, Progress.revives)
+            assertFalse(field(CubeRun::class.java, "dead").getBoolean(game))
+            assertEquals(1, track.rows.first().obs.size)
+            observer.set(game, null)
+            game.tick(0f)
+            assertEquals("Normal collision behavior must return immediately", 1, Progress.revives)
+            assertTrue(track.rows.first().obs.isEmpty())
+        } finally {
+            observer.set(game, null); field(Progress::class.java, "revives").setInt(Progress, revives)
+            val prefs = field(Progress::class.java, "prefs").get(Progress) as android.content.SharedPreferences
+            assertTrue(prefs.edit().putInt("revives", revives).commit())
+        }
+    }
+
     @Test fun oversizedAndRepeatedBurstsStayBoundedAndReturnAllParticlesToPool() = withGame { game ->
         val shards = field(Gdx3DGame::class.java, "shards").get(game) as ShardSystem
         repeat(20) { game.burst3d(Vector3(), Color.CYAN, n = 100_000) }

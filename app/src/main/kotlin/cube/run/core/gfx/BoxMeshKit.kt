@@ -29,20 +29,20 @@ import kotlin.math.max
 class BoxMeshKit(mb: ModelBuilder) : Disposable {
 
     /** Template vertex count (24) and index count (36) per box. */
-    val vertsPerBox: Int
-    val idxPerBox: Int
+    @JvmField val vertsPerBox: Int
+    @JvmField val idxPerBox: Int
     /** Per template vertex: corner index (0..7) / face index (0..5). */
-    val cornerOf: IntArray
-    val faceOf: IntArray
+    @JvmField val cornerOf: IntArray
+    @JvmField val faceOf: IntArray
     private val tplIdx: ShortArray
 
     /** The 8 corners of a unit cube (±0.5), xyz triples. */
-    val cornerLocal = floatArrayOf(
+    @JvmField val cornerLocal = floatArrayOf(
         -.5f, -.5f, -.5f, .5f, -.5f, -.5f, -.5f, .5f, -.5f, .5f, .5f, -.5f,
         -.5f, -.5f, .5f, .5f, -.5f, .5f, -.5f, .5f, .5f, .5f, .5f, .5f,
     )
     /** The 6 face normals: +X -X +Y -Y +Z -Z. */
-    val faceNrm = floatArrayOf(
+    @JvmField val faceNrm = floatArrayOf(
         1f, 0f, 0f, -1f, 0f, 0f, 0f, 1f, 0f, 0f, -1f, 0f, 0f, 0f, 1f, 0f, 0f, -1f,
     )
 
@@ -81,6 +81,10 @@ class BoxMeshKit(mb: ModelBuilder) : Disposable {
         }
         tplIdx = ShortArray(m0.numIndices)          // 36
         m0.getIndices(tplIdx)
+        // Face compaction reuses this repeating quad index pattern.
+        check(vCount == 24 && tplIdx.size == 36)
+        for (face in 0 until 6) for (k in 0 until 6)
+            check(tplIdx[face * 6 + k].toInt() - face * 4 == tplIdx[k].toInt())
         vertsPerBox = vCount
         idxPerBox = tplIdx.size
         tpl.dispose()
@@ -118,6 +122,24 @@ class BoxMeshKit(mb: ModelBuilder) : Disposable {
         out[off] = ambR + d1 * l1R + d2 * l2R
         out[off + 1] = ambG + d1 * l1G + d2 * l2G
         out[off + 2] = ambB + d1 * l1B + d2 * l2B
+    }
+
+    internal fun setLightUniforms(target: ShaderProgram) {
+        target.setUniformf("u_toL1", toL1); target.setUniformf("u_toL2", toL2)
+        target.setUniformf("u_ambient", ambR, ambG, ambB)
+        target.setUniformf("u_light1", l1R, l1G, l1B); target.setUniformf("u_light2", l2R, l2G, l2B)
+    }
+
+    internal fun newUnitMesh(): Mesh {
+        val mesh = Mesh(true, vertsPerBox, idxPerBox,
+            VertexAttribute(Usage.Position, 3, "a_position"), VertexAttribute(Usage.Normal, 3, "a_normal"))
+        val data = FloatArray(vertsPerBox * 6)
+        for (v in 0 until vertsPerBox) {
+            val ci = cornerOf[v] * 3; val fi = faceOf[v] * 3
+            for (axis in 0 until 3) { data[v * 6 + axis] = cornerLocal[ci + axis]; data[v * 6 + 3 + axis] = faceNrm[fi + axis] }
+        }
+        mesh.setVertices(data); mesh.setIndices(tplIdx)
+        return mesh
     }
 
     /** A dynamic mesh holding [boxes] copies of the unit-cube template (pos + packed colour). */

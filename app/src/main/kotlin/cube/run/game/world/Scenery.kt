@@ -29,10 +29,10 @@ object Fog {
  */
 class Scenery(private val game: Gdx3DGame, private val rnd: Random) {
 
-    private class Tile(val col: Color, val col2: Color, val ground: Color, var z: Float, val parity: Int)
-    private class Post(val col: Color, val col2: Color, val col3: Color, var z: Float, var x: Float, var style: Int, var h: Float, var seed: Float, var kind: Int)
-    private class Streak(var x: Float, var y: Float, var z: Float, var len: Float)
-    private class Gate(var z: Float, val col: Color, var passed: Boolean = false, var held: Boolean = false, val start: Boolean = false)
+    private class Tile(@JvmField val col: Color, @JvmField val col2: Color, @JvmField val ground: Color, @JvmField var z: Float, @JvmField val parity: Int)
+    private class Post(@JvmField val col: Color, @JvmField val col2: Color, @JvmField val col3: Color, @JvmField var z: Float, @JvmField var x: Float, @JvmField var style: Int, @JvmField var h: Float, @JvmField var seed: Float, @JvmField var kind: Int)
+    private class Streak(@JvmField var x: Float, @JvmField var y: Float, @JvmField var z: Float, @JvmField var len: Float)
+    private class Gate(@JvmField var z: Float, @JvmField val col: Color, @JvmField var passed: Boolean = false, @JvmField var held: Boolean = false, @JvmField val start: Boolean = false)
 
     private val tileD = 3f
     private val tileRows = 40       // floor reaches past the fog wall (8 - 39*3 = -109)
