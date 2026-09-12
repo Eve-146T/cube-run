@@ -71,6 +71,8 @@ class Player(private val game: Gdx3DGame, private val rnd: Random) {
     private var squash = 0f         // landing squash timer
     private var duckT = 0f          // remaining roll/duck window (seconds)
     private var slamming = false    // a mid-air slam is in progress (auto-crouches on landing)
+    private var coyoteLeft = 0f     // only a walked-off edge grants another takeoff
+    private var jumpBuffer = 0f     // remember a slightly early landing swipe
     private var trailT = 0f
     private var trailK = 0          // emission counter (trail colour rules)
     private var stretch = 0f        // vertical stretch after a bounce launch
@@ -147,6 +149,7 @@ class Player(private val game: Gdx3DGame, private val rnd: Random) {
 
     fun setFlying(on: Boolean) {
         if (flying == on) return
+        clearJumpInput()
         flying = on
         duckT = 0f
         flyY = FLY_Y
@@ -156,11 +159,21 @@ class Player(private val game: Gdx3DGame, private val rnd: Random) {
     /** Put the cube on a platform of height [h] (bubble save after a side hit). */
     fun forceGround(h: Float) {
         py = ground + h; air = false; vy = 0f
+        clearJumpInput()
     }
 
     fun jump() {
-        if (air || flying || hover) return
+        if (flying || hover) return
+        if (air && coyoteLeft <= 0f) { jumpBuffer = 0.1f; return }
+        takeOff()
+    }
+
+    fun clearJumpInput() { coyoteLeft = 0f; jumpBuffer = 0f }
+
+    private fun takeOff() {
+        clearJumpInput()
         air = true; vy = 8.4f
+        slamming = false
         duckT = 0f // jumping cancels a roll
         SoundFx.play("whoosh", rate = 1.3f)
         Haptics.click()
@@ -184,12 +197,14 @@ class Player(private val game: Gdx3DGame, private val rnd: Random) {
 
     /** A bounce pad: launched high, stretched tall, whatever you were doing. */
     fun launch(v: Float) {
+        clearJumpInput()
         air = true; vy = v; duckT = 0f; slamming = false
         stretch = 1f
     }
 
     /** Context-sensitive DOWN: slam when airborne, roll under when grounded. */
     fun downAction() {
+        clearJumpInput() // a newer DOWN replaces a pending UP
         if (flying || hover) return
         if (air) {
             if (vy > -12f) { // slam back down fast
@@ -217,13 +232,17 @@ class Player(private val game: Gdx3DGame, private val rnd: Random) {
         if (wantedSkin() != curSkinId) applySkin(baseHue, time) // a wardrobe change shows up live
         this.trail = Trails.get(wantedTrail())
         var event = EV_NONE
+        coyoteLeft = max(0f, coyoteLeft - dt)
+        jumpBuffer = max(0f, jumpBuffer - dt)
         val gy = ground + groundH
         px += (laneX(lane) - px) * min(1f, dt * (if (hover) 4.5f else 13f)) // eased lane snap (a lazy drift in zero-g)
         nudge *= max(0f, 1f - 10f * dt)
         if (hover) {
+            clearJumpInput()
             py += (HOVER_Y + 0.15f * sin(time * 2.2f) - py) * min(1f, dt * 3f)
             air = false; vy = 0f
         } else if (flying) {
+            clearJumpInput()
             py += (flyY - py) * min(1f, dt * (if (flyY < FLY_Y) 7f else 4f)) // quick to climb, tight on the glide down
         } else if (air) {
             vy -= 26f * dt
@@ -236,12 +255,14 @@ class Player(private val game: Gdx3DGame, private val rnd: Random) {
                 squash = 1f
                 if (slamming) { slamming = false; duckT = 0.5f } // slam → auto-crouch on landing
                 event = EV_LANDED
+                if (jumpBuffer > 0f) takeOff()
             }
         } else if (gy > py + 0.001f) {
             // the ground rose: a ramp lifts you a little each frame; a whole platform side is a wall
             if (gy - py > 0.45f) event = EV_SIDE_HIT else py = gy
         } else if (gy < py - 0.02f) {
             air = true; vy = 0f // walked off an edge
+            coyoteLeft = 0.1f
         }
         squash = max(0f, squash - dt * 5f)
         stretch = max(0f, stretch - dt * 2.2f)

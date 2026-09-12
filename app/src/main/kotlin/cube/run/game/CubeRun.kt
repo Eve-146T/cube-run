@@ -144,7 +144,10 @@ class CubeRun(session: GameSession, private val autoStart: Boolean = false) : Gd
 
     private fun live() = started && !dead && !session.isOver
 
-    override fun paused(): Boolean = Stage.paused
+    override fun paused(): Boolean {
+        if (Stage.paused) player.clearJumpInput()
+        return Stage.paused
+    }
 
     private fun start() {
         if (started || session.isOver) return
@@ -364,7 +367,7 @@ class CubeRun(session: GameSession, private val autoStart: Boolean = false) : Gd
     override fun smoothSwipeEnabled(): Boolean = Settings.smoothControl
 
     override fun onSwipe(dir: Int) {
-        if (session.isOver || dead) return
+        if (session.isOver || dead || Stage.paused || gift.active || showcase.active) return
         if (!started) start()
         when (dir) {
             LEFT, RIGHT -> {

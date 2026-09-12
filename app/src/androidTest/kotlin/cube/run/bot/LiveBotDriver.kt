@@ -37,13 +37,17 @@ internal class LiveBotDriver : AutoCloseable {
                 override fun onUp(x: Float, y: Float) = game.onUp(x, y)
                 override fun onTap(x: Float, y: Float) = game.onTap(x, y)
                 override fun onSwipe(dir: Int) {
+                    val jumpPlayer = if (dir == TouchInput.UP && pending.get() == dir + 1)
+                        value<Player>(game, "player") else null
+                    val beforeVy = jumpPlayer?.let { value<Float>(it, "vy") }
                     if (pending.get() == dir + 1) {
                         val latency = SystemClock.uptimeMillis() - sentAt.get()
                         delivery.set((delivery.get() * 3 + latency) / 4)
-                        if (dir == TouchInput.UP && value<Player>(game, "player").air) ignoredJumps.incrementAndGet()
                         acknowledged.incrementAndGet(); pending.set(0)
                     }
                     game.onSwipe(dir)
+                    if (jumpPlayer != null && value<Float>(jumpPlayer, "vy") == beforeVy &&
+                        value<Float>(jumpPlayer, "jumpBuffer") <= 0f) ignoredJumps.incrementAndGet()
                 }
             }, { Gdx.graphics.width }, { game.session.isOver })
         }

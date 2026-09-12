@@ -22,6 +22,7 @@ def main():
     p.add_argument('--duration', type=int, default=8)
     p.add_argument('--fast', action='store_true')
     p.add_argument('--no-build', action='store_true')
+    p.add_argument('--jumps-only', action='store_true', help='Record platform-edge and landing acceptance (2.0 or newer)')
     args = p.parse_args()
     if not 4 <= args.count <= 256 or not 8 <= args.duration <= 200: p.error('count must be 4..256 and duration 8..200 ms')
     out = args.output.resolve(); out.mkdir(parents=True, exist_ok=True)
@@ -34,7 +35,7 @@ def main():
     native = out/'touch_probe'
     subprocess.run([str(compiler),'-O2','-Wall','-Wextra',str(ROOT/'tools/responsiveness/touch_probe.c'),'-o',str(native)],check=True)
     d = Device(args.device)
-    (out/'run.json').write_text(json.dumps(dict(apk=str(args.apk.resolve()), sha256=hashlib.sha256(args.apk.read_bytes()).hexdigest(), device=args.device, count=args.count, duration=args.duration, fast=args.fast), indent=2)+'\n')
+    (out/'run.json').write_text(json.dumps(dict(apk=str(args.apk.resolve()), sha256=hashlib.sha256(args.apk.read_bytes()).hexdigest(), device=args.device, count=args.count, duration=args.duration, fast=args.fast, jumps_only=args.jumps_only), indent=2)+'\n')
     with d.preserve(out):
         try:
             subprocess.run(d.adb+['install','-r','-d',str(args.apk.resolve())],check=True)
@@ -45,14 +46,16 @@ def main():
             d.shell('su','-c','mkdir -p /data/local/cube-run-responsiveness && cp '+shlex.quote(remote)+' /data/local/cube-run-responsiveness/touch_probe && chmod 755 /data/local/cube-run-responsiveness/touch_probe')
             (out/'device-before.txt').write_text(d.shell('dumpsys','battery',capture_output=True,text=True).stdout)
             (out/'clocks.txt').write_text(d.shell('sh','-c','for p in /sys/devices/system/cpu/cpufreq/policy*; do echo "$p"; cat "$p/scaling_min_freq" "$p/scaling_max_freq" "$p/scaling_governor"; done',capture_output=True,text=True).stdout)
-            d.shell('rm','-f',*[f'/sdcard/Android/data/cube.run/files/{name}' for name in ['response-kernel.csv','response-trials.csv','response-frames.csv','response-summary.txt']])
-            result=d.shell('am','instrument','-w','-e','class','cube.run.response.ResponsivenessProbeTest',
+            names = ['response-jumps.csv'] if args.jumps_only else ['response-kernel.csv','response-trials.csv','response-frames.csv','response-summary.txt']
+            d.shell('rm','-f',*[f'/sdcard/Android/data/cube.run/files/{name}' for name in names])
+            test = 'HistoricalJumpProbeTest' if args.jumps_only else 'ResponsivenessProbeTest'
+            result=d.shell('am','instrument','-w','-e','class',f'cube.run.response.{test}',
                 '-e','count',args.count,'-e','duration',args.duration,'-e','fast',str(args.fast).lower(),
                 'cube.run.test/androidx.test.runner.AndroidJUnitRunner',capture_output=True,text=True)
             (out/'instrumentation.txt').write_text(result.stdout+result.stderr)
             print(result.stdout)
             assert 'OK (' in result.stdout and 'FAILURES!!!' not in result.stdout
-            for name in ['response-kernel.csv','response-trials.csv','response-frames.csv','response-summary.txt']:
+            for name in names:
                 d.pull(name,out)
             (out/'device-after.txt').write_text(d.shell('dumpsys','battery',capture_output=True,text=True).stdout)
         finally:

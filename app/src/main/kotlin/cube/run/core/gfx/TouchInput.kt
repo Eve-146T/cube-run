@@ -45,24 +45,33 @@ class TouchInput(
     private var lastY = 0f
     private var downAt = 0L
     private var swiped = false
-    private val swipeDist get() = screenWidth() * 0.085f
+    private var active = false
+    private val swipeDist get() = screenWidth() * 0.055f
     private val tapSlop get() = screenWidth() * 0.03f
 
     override fun touchDown(x: Int, y: Int, pointer: Int, button: Int): Boolean {
-        if (pointer != 0 || blocked()) return false
+        if (pointer != 0) return false
+        if (blocked()) { active = false; return false }
+        active = true
         downX = x.toFloat(); downY = y.toFloat()
         lastX = downX; lastY = downY
-        downAt = System.currentTimeMillis()
+        downAt = System.nanoTime()
         swiped = false
         listener.onDown(downX, downY)
         return true
     }
 
     override fun touchDragged(x: Int, y: Int, pointer: Int): Boolean {
-        if (pointer != 0 || blocked()) return false
+        if (pointer != 0 || !active) return false
+        if (blocked()) { active = false; return false }
         val fx = x.toFloat(); val fy = y.toFloat()
         listener.onDrag(fx, fy, fx - lastX, fy - lastY)
         lastX = fx; lastY = fy
+        recognizeSwipe(fx, fy)
+        return true
+    }
+
+    private fun recognizeSwipe(fx: Float, fy: Float) {
         // smooth mode: the game interprets the drag positionally (in onDrag).
         // classic mode: a single flick per touch.
         if (!listener.smoothSwipeEnabled() && !swiped) {
@@ -76,18 +85,28 @@ class TouchInput(
                 )
             }
         }
-        return true
     }
 
     override fun touchUp(x: Int, y: Int, pointer: Int, button: Int): Boolean {
-        if (pointer != 0 || blocked()) return false
+        if (pointer != 0 || !active) return false
+        active = false
+        if (blocked()) return false
         val fx = x.toFloat(); val fy = y.toFloat()
+        // A short flick can finish between MOVE samples. Its release still
+        // carries a real position; recognize it once, without turning it into a tap.
+        recognizeSwipe(fx, fy)
         listener.onUp(fx, fy)
         if (!swiped && abs(fx - downX) < tapSlop && abs(fy - downY) < tapSlop &&
-            System.currentTimeMillis() - downAt < 350
+            System.nanoTime() - downAt < 350_000_000L
         ) {
             listener.onTap(fx, fy)
         }
+        return true
+    }
+
+    override fun touchCancelled(x: Int, y: Int, pointer: Int, button: Int): Boolean {
+        if (pointer != 0) return false
+        active = false
         return true
     }
 }

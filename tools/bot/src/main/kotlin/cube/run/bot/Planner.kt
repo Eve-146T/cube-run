@@ -26,7 +26,7 @@ class Planner(private val beam: Int = 96, private val inputEvery: Int = 1, priva
             for (n in nodes) for (a in 0..4) {
                 if (a != 0 && (n.cooldown > 0 ||
                     a == Action.LEFT && n.body.lane == 0 || a == Action.RIGHT && n.body.lane == t.course.lanes - 1 ||
-                    a == Action.JUMP && (n.body.air || n.body.flying || n.body.hover) ||
+                    a == Action.JUMP && (n.body.air && n.body.coyoteLeft <= 0f || n.body.flying || n.body.hover) ||
                     a == Action.DOWN && (n.body.flying || n.body.hover || n.body.duckT > .28f))) continue
                 val b = n.body.copy()
                 expanded++
@@ -88,6 +88,8 @@ class Planner(private val beam: Int = 96, private val inputEvery: Int = 1, priva
         add((b.duckT * 20).roundToInt(), 16)
         add(cooldown, 64)
         add(if (b.air) 1 else 0, 2); add(if (b.slam) 1 else 0, 2)
+        add((b.coyoteLeft * 100).roundToInt(), 16)
+        add((b.jumpBuffer * 100).roundToInt(), 16)
         return k xor (b.pads * -7046029254386353131L)
     }
 }

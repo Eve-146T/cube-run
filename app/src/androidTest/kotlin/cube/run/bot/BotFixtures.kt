@@ -58,10 +58,12 @@ internal object BotFixtures {
     }
 
     fun body(p: Player) = Body(p.lane, p.px, p.py, value(p, "vy"), p.air, p.duck,
-        value(p, "duckT"), value(p, "slamming"), p.flying, p.flyY, p.hover)
+        value(p, "duckT"), value(p, "slamming"), p.flying, p.flyY, p.hover,
+        coyoteLeft = value(p, "coyoteLeft"), jumpBuffer = value(p, "jumpBuffer"))
     fun restore(p: Player, b: Body) {
         for ((name, v) in mapOf("lane" to b.lane, "px" to b.x, "py" to b.y, "vy" to b.vy,
             "air" to b.air, "duck" to b.duck, "duckT" to b.duckT, "slamming" to b.slam,
-            "flying" to b.flying, "flyY" to b.flyY, "hover" to b.hover)) field(Player::class.java, name).set(p, v)
+            "flying" to b.flying, "flyY" to b.flyY, "hover" to b.hover,
+            "coyoteLeft" to b.coyoteLeft, "jumpBuffer" to b.jumpBuffer)) field(Player::class.java, name).set(p, v)
     }
 }

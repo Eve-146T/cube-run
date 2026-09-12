@@ -5,10 +5,12 @@ import android.view.WindowManager
 import android.view.Surface
 import android.view.SurfaceHolder
 import android.view.SurfaceView
+import android.view.MotionEvent
 import android.widget.FrameLayout
 import com.badlogic.gdx.backends.android.AndroidApplication
 import com.badlogic.gdx.backends.android.AndroidApplicationConfiguration
 import cube.run.core.GameHostSession
+import cube.run.core.Stage
 import cube.run.data.Progress
 import cube.run.data.Scores
 import cube.run.data.Settings
@@ -19,6 +21,7 @@ import cube.run.ui.Hud
 class GameActivity : AndroidApplication() {
 
     private lateinit var hud: Hud
+    private var gameSurface: SurfaceView? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -49,6 +52,7 @@ class GameActivity : AndroidApplication() {
             depth = 24 // 16-bit z-fights at the far end of the long draw distance
         }
         val gameView = initializeForView(game, config)
+        gameSurface = gameView as? SurfaceView
         // Explicitly request the game's render cadence; Android can still lower
         // it for battery/thermal policy. Never change the user's display settings.
         @Suppress("DEPRECATION")
@@ -93,6 +97,15 @@ class GameActivity : AndroidApplication() {
     override fun onWindowFocusChanged(hasFocus: Boolean) {
         super.onWindowFocusChanged(hasFocus)
         if (hasFocus) goFullscreen()
+    }
+
+    override fun dispatchTouchEvent(event: MotionEvent): Boolean {
+        // Discrete flicks need the first threshold crossing, not resampled drag
+        // positions. Keep Android's normal batching for smooth positional control.
+        if (event.actionMasked == MotionEvent.ACTION_DOWN && !Settings.smoothControl &&
+            Stage.mode == Stage.NONE && !Stage.paused)
+            gameSurface?.requestUnbufferedDispatch(event)
+        return super.dispatchTouchEvent(event)
     }
 
     /** Leaving the app mid-run (home, a call) pauses it: the run resumes from the pause card. */

@@ -34,7 +34,9 @@ class BotReplayTest {
                 try {
                     Settings.setSoundEnabled(false); Settings.setHapticsEnabled(false)
                     field(Progress::class.java, "revives").setInt(Progress, 0)
-                    Stage.paused = true
+                    // The entire replay runs inside one GL callback, so no render
+                    // update can interleave. Inputs now correctly ignore a paused run.
+                    Stage.paused = false
                     val game = Gdx.app.applicationListener as CubeRun
                     field(CubeRun::class.java, "started").setBoolean(game, true)
                     field(CubeRun::class.java, "jetGrace").setFloat(game, 0f)

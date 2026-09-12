@@ -94,6 +94,8 @@ class BotModelTest {
                             assertEquals("y $label", player.py, model.y, .0001f)
                             assertEquals("duck $label", player.duck, model.duck, .0001f)
                             assertEquals("air $label", player.air, model.air)
+                            assertEquals("edge grace $label", value<Float>(player, "coyoteLeft"), model.coyoteLeft, .0001f)
+                            assertEquals("jump buffer $label", value<Float>(player, "jumpBuffer"), model.jumpBuffer, .0001f)
                             checked++
                         }
                     }

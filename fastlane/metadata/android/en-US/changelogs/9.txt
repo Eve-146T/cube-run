@@ -1,0 +1,1 @@
+Faster high-speed and Second Wind rendering, steadier game timing during lag, and 90 Hz support on compatible displays. More responsive flicks, a short grace period for platform jumps, and buffered landing jumps. Rebalanced upgrade prices and mystery-box rewards. Bubble shields now have a 10-second cooldown. Dev mode supports up to ten starting boosts.

@@ -9,7 +9,8 @@ data class Body(var lane: Int = 1, var x: Float = 0f, var y: Float = .45f,
     var vy: Float = 0f, var air: Boolean = false, var duck: Float = 0f,
     var duckT: Float = 0f, var slam: Boolean = false, var flying: Boolean = false,
     var flyY: Float = 5.2f, var hover: Boolean = false, var pads: Long = 0L,
-    var flightLeft: Float = Float.POSITIVE_INFINITY)
+    var flightLeft: Float = Float.POSITIVE_INFINITY,
+    var coyoteLeft: Float = 0f, var jumpBuffer: Float = 0f)
 
 data class Obstacle(val x: Float, val cy: Float, val sy: Float, val halfW: Float,
     val type: Int, val depth: Float, val ramp: Float, val sliding: Boolean,
@@ -28,12 +29,20 @@ object Action {
         when (action) {
             LEFT -> b.lane = max(0, b.lane - 1)
             RIGHT -> b.lane = min(lanes - 1, b.lane + 1)
-            JUMP -> if (!b.air && !b.flying && !b.hover) { b.air = true; b.vy = 8.4f; b.duckT = 0f }
+            JUMP -> if (!b.flying && !b.hover) {
+                if (b.air && b.coyoteLeft <= 0f) b.jumpBuffer = .1f
+                else takeOff(b)
+            }
             DOWN -> if (!b.flying && !b.hover) {
+                b.coyoteLeft = 0f; b.jumpBuffer = 0f
                 if (b.air) { if (b.vy > -12f) { b.vy = -19f; b.slam = true } }
                 else b.duckT = .5f
             }
         }
+    }
+    fun takeOff(b: Body) {
+        b.air = true; b.vy = 8.4f; b.duckT = 0f; b.slam = false
+        b.coyoteLeft = 0f; b.jumpBuffer = 0f
     }
 }
 
@@ -92,7 +101,10 @@ class Timeline(val course: Course, val speed: Float, val dt: Float = 1f / 60f,
         Action.apply(b, action, course.lanes)
         if (b.flying && b.flightLeft.isFinite()) {
             b.flightLeft = max(0f, b.flightLeft - dt)
-            if (b.flightLeft == 0f) { b.flying = false; b.air = true; b.vy = 0f; b.flyY = 5.2f }
+            if (b.flightLeft == 0f) {
+                b.flying = false; b.air = true; b.vy = 0f; b.flyY = 5.2f
+                b.coyoteLeft = 0f; b.jumpBuffer = 0f
+            }
             else b.flyY = if (b.flightLeft < 1.4f) .45f + (5.2f - .45f) * (b.flightLeft / 1.4f) else 5.2f
         }
         val f = frames[frame]
@@ -104,6 +116,9 @@ class Timeline(val course: Course, val speed: Float, val dt: Float = 1f / 60f,
         }
         b.x += ((b.lane - (course.lanes - 1) / 2f) * course.width - b.x) * min(1f, dt * if (b.hover) 4.5f else 13f)
         val gy = .45f + ground
+        b.coyoteLeft = max(0f, b.coyoteLeft - dt)
+        b.jumpBuffer = max(0f, b.jumpBuffer - dt)
+        if (b.hover || b.flying) { b.coyoteLeft = 0f; b.jumpBuffer = 0f }
         when {
             b.hover -> { b.y += (1.4f + .15f * sin(f.time * 2.2f) - b.y) * min(1f, dt * 3f); b.air = false; b.vy = 0f }
             b.flying -> b.y += (b.flyY - b.y) * min(1f, dt * if (b.flyY < 5.2f) 7f else 4f)
@@ -112,10 +127,11 @@ class Timeline(val course: Course, val speed: Float, val dt: Float = 1f / 60f,
                 if (b.y <= gy && b.vy <= 0f) {
                     b.y = gy; b.air = false; b.vy = 0f
                     if (b.slam) { b.slam = false; b.duckT = .5f }
+                    if (b.jumpBuffer > 0f) Action.takeOff(b)
                 }
             }
             gy > b.y + .001f -> { if (gy - b.y > .45f) return false else b.y = gy }
-            gy < b.y - .02f -> { b.air = true; b.vy = 0f }
+            gy < b.y - .02f -> { b.air = true; b.vy = 0f; b.coyoteLeft = .1f }
         }
         b.duckT = max(0f, b.duckT - dt)
         b.duck += ((if (b.duckT > 0 && !b.air) 1f else 0f) - b.duck) * min(1f, dt * 18f)
@@ -123,6 +139,7 @@ class Timeline(val course: Course, val speed: Float, val dt: Float = 1f / 60f,
             if (o.type == 3 && !o.used && b.pads and (1L shl o.pad) == 0L && !b.air && !b.flying &&
                 abs(o.rowZ) < .75f && abs(b.x - o.x) < .85f) {
                 b.pads = b.pads or (1L shl o.pad); b.air = true; b.vy = 12.5f; b.duckT = 0f; b.slam = false
+                b.coyoteLeft = 0f; b.jumpBuffer = 0f
             }
             // Expand the z test to cover a swept frame: high speed must not win by tunnelling.
             val crossed = if (conservative) o.rowZ >= -.82f && o.rowZ - speed * dt <= .82f else abs(o.rowZ) < .82f
