@@ -1,0 +1,1 @@
+Smoother high-speed runs and Second Wind smashes, with less memory churn and faster effects. Improved terrain rendering and score animations.
