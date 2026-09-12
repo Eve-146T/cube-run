@@ -31,7 +31,8 @@ class WorldBoxBatch(private val kit: BoxMeshKit, private val maxBoxes: Int = 900
     /** Distance-haze target colour (set per frame to match the sky). */
     val fogColor = Color(0.1f, 0.1f, 0.2f, 1f)
     /** Ground height added to every box's y by its z (the rolling-hills bonus); null = flat. */
-    var terrain: ((Float) -> Float)? = null
+    var terrain: TerrainHeight? = null
+        set(value) { field = value; groundZ = Float.NaN }
     /** Applied when geometry is queued, so scenery can dissolve independently of stage particles. */
     var opacity = 1f
     private var translucent = false
@@ -43,6 +44,11 @@ class WorldBoxBatch(private val kit: BoxMeshKit, private val maxBoxes: Int = 900
     private val spinLight = FloatArray(18)     // same, for the last spin yaw (cached)
     private val slopeLight = FloatArray(18)    // terrain-following floor faces
     private var spinCacheYaw = Float.NaN
+    private var groundZ = Float.NaN
+    private var groundDepth = Float.NaN
+    private var groundBack = 0f
+    private var groundFront = 0f
+    private var cachedSlope = Float.NaN
     private val packed = FloatArray(6)         // scratch: per-face packed colour
     private val corners = FloatArray(24)       // scratch: 8 transformed corners
 
@@ -53,23 +59,38 @@ class WorldBoxBatch(private val kit: BoxMeshKit, private val maxBoxes: Int = 900
         }
     }
 
-    fun begin() { count = 0; translucent = false }
+    fun begin() { count = 0; translucent = false; groundZ = Float.NaN }
 
     /** Queue one axis-aligned box (centre position, full sizes). [fog] 0..1 blends toward [fogColor]. */
     fun box(x: Float, y0: Float, z: Float, sx: Float, sy: Float, sz: Float, col: Color, fog: Float = 0f, followTerrain: Boolean = false) {
         if (count >= maxBoxes) return
         // Ground pieces meet at the SAME sampled height along each shared edge.
         // Rigid obstacles still translate as a whole at their centre.
-        val back = terrain?.invoke(if (followTerrain) z - sz / 2f else z) ?: 0f
-        val front = if (followTerrain) terrain?.invoke(z + sz / 2f) ?: 0f else back
+        val back: Float
+        val front: Float
+        if (followTerrain) {
+            // Lanes, kerbs and land share the same two heights within a tile row.
+            if (z != groundZ || sz != groundDepth) {
+                groundZ = z; groundDepth = sz
+                groundBack = terrain?.invoke(z - sz / 2f) ?: 0f
+                groundFront = terrain?.invoke(z + sz / 2f) ?: 0f
+            }
+            back = groundBack; front = groundFront
+        } else {
+            back = terrain?.invoke(z) ?: 0f
+            front = back
+        }
         val slope = if (sz > 0f) (front - back) / sz else 0f
         val light = if (slope == 0f) axisLight else slopeLight.also {
-            val normalScale = 1f / sqrt(1f + slope * slope)
-            for (f in 0 until 6) {
-                val fi = f * 3
-                val nx = kit.faceNrm[fi]; val ny = kit.faceNrm[fi + 1]; val nz = kit.faceNrm[fi + 2]
-                val scale = if (ny == 0f) 1f else normalScale
-                kit.lightFace(nx * scale, ny * scale, (nz - slope * ny) * scale, it, fi)
+            if (slope != cachedSlope) {
+                cachedSlope = slope
+                val normalScale = 1f / sqrt(1f + slope * slope)
+                for (f in 0 until 6) {
+                    val fi = f * 3
+                    val nx = kit.faceNrm[fi]; val ny = kit.faceNrm[fi + 1]; val nz = kit.faceNrm[fi + 2]
+                    val scale = if (ny == 0f) 1f else normalScale
+                    kit.lightFace(nx * scale, ny * scale, (nz - slope * ny) * scale, it, fi)
+                }
             }
         }
         packFaces(col, fog, light)

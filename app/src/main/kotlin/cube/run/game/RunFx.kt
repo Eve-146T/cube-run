@@ -62,16 +62,18 @@ class RunFx(private val game: Gdx3DGame, private val rnd: Random) {
         game.flash(Color.WHITE, 0.2f)
     }
 
-    /** The bubble smashed [row] and a breather zone ahead ([zoneRows]). */
-    fun smash(row: Row, zoneRows: List<Row>) {
+    /** Visuals for one shattered row. Distant rows dissolve with a smaller burst. */
+    fun smashRow(row: Row, impact: Boolean) {
         for (ob in row.obs) {
             if (ob.type != ObType.SOLID) continue
-            game.burst3d(tmp.set(ob.x, ob.cy, row.z), ob.col, n = 14, speed = 9f, size = 0.24f, life = 0.9f)
+            game.burst3d(tmp.set(ob.x, ob.cy, row.z), ob.col,
+                n = if (impact) 14 else 4, speed = if (impact) 9f else 3f,
+                size = if (impact) 0.24f else 0.14f, life = if (impact) 0.9f else 0.6f)
         }
-        for (r in zoneRows) for (ob in r.obs) {
-            if (ob.type != ObType.SOLID) continue
-            game.burst3d(tmp.set(ob.x, ob.cy, r.z), ob.col, n = 4, speed = 3f, size = 0.14f, life = 0.6f)
-        }
+    }
+
+    /** One impact per collision, regardless of how many rows the recovery zone clears. */
+    fun smashFeedback() {
         SoundFx.play("boom", rate = 1.4f, vol = 0.7f)
         SoundFx.play("perfect", rate = 1.2f)
         Haptics.heavy()

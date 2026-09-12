@@ -197,8 +197,10 @@ class CubeRun(session: GameSession, private val autoStart: Boolean = false) : Gd
     /** A second wind: the crash becomes a smash — the row shatters, a bubble goes up, the run goes on. */
     private fun secondWind() {
         val zone = -(spd * 2.5f) - 4f
-        val ahead = track.rows.filter { it.z > zone && it.z < 1.2f && it.obs.isNotEmpty() }
-        for (r in ahead) { fx.smash(r, emptyList()); for (ob in r.obs) if (ob.type == ObType.SOLID) debris.smash(ob, r.z); r.obs.removeAll { it.type == ObType.SOLID } }
+        for (r in track.rows) {
+            if (r.z > zone && r.z < 1.2f && r.obs.isNotEmpty()) shatter(r, impact = r.z > -8f)
+        }
+        fx.smashFeedback()
         bubble.duration = 3f
         bubble.activate(player.px, player.py)
         bubble.duration = Progress.BUBBLE.duration(Progress.bubbleLevel)
@@ -227,15 +229,20 @@ class CubeRun(session: GameSession, private val autoStart: Boolean = false) : Gd
      */
     private fun smash(row: Row) {
         val zone = -(spd * 2.2f) - 4f // ≈ 2 s of clean track
-        val ahead = track.rows.filter { it !== row && it.z > zone && it.z < 0f && it.obs.isNotEmpty() }
-        fx.smash(row, ahead)
-        for (ob in row.obs) if (ob.type == ObType.SOLID) debris.smash(ob, row.z)
-        for (r in ahead) for (ob in r.obs) if (ob.type == ObType.SOLID) debris.smash(ob, r.z)
-        row.obs.removeAll { it.type == ObType.SOLID }
-        for (r in ahead) r.obs.removeAll { it.type == ObType.SOLID }
+        shatter(row, impact = true)
+        for (r in track.rows) {
+            if (r !== row && r.z > zone && r.z < 0f && r.obs.isNotEmpty()) shatter(r, impact = false)
+        }
+        fx.smashFeedback()
         bubble.pop(player.px, player.py)
         rig.punch(0.6f)
         session.addScore(3)
+    }
+
+    private fun shatter(row: Row, impact: Boolean) {
+        fx.smashRow(row, impact)
+        for (ob in row.obs) if (ob.type == ObType.SOLID) debris.smash(ob, row.z)
+        row.obs.removeAll { it.type == ObType.SOLID }
     }
 
     private fun scoreRow(row: Row) {

@@ -8,6 +8,7 @@ import com.badlogic.gdx.graphics.g3d.utils.ModelBuilder
 import cube.run.GameActivity
 import cube.run.core.gfx.BoxMeshKit
 import cube.run.core.gfx.WorldBoxBatch
+import cube.run.core.gfx.TerrainHeight
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import kotlin.math.abs
@@ -20,6 +21,7 @@ import org.junit.runner.RunWith
 class TerrainMeshTest {
     @Test fun groundEdgesMeetAcrossHillsWhileObstaclesStayRigid() {
         val scenario = ActivityScenario.launch(GameActivity::class.java)
+        scenario.onActivity { it.setShowWhenLocked(true); it.setTurnScreenOn(true) }
         val done = CountDownLatch(1)
         var failure: Throwable? = null
         Gdx.app.postRunnable {
@@ -28,7 +30,7 @@ class TerrainMeshTest {
                 val batch = WorldBoxBatch(kit, 3)
                 try {
                     for (amplitude in listOf(0f, 0.2f, 1.25f)) for (phase in 0..20) {
-                        batch.terrain = { z -> amplitude * sin(z * 0.24f + phase * 0.3f) }
+                        batch.terrain = TerrainHeight { z -> amplitude * sin(z * 0.24f + phase * 0.3f) }
                         batch.begin()
                         batch.box(0f, -0.14f, 0f, 1.7f, 0.26f, 3f, Color.WHITE, followTerrain = true)
                         batch.box(0f, -0.14f, 3f, 1.7f, 0.26f, 3f, Color.WHITE, followTerrain = true)
@@ -45,6 +47,18 @@ class TerrainMeshTest {
                         assertEquals(2f, heights.max() - heights.min(), 0.00001f)
                         assertEquals(2, heights.distinct().size)
                     }
+                    var samples = 0
+                    var height = 1f
+                    batch.terrain = TerrainHeight { samples++; height }
+                    batch.begin()
+                    repeat(3) { batch.box(it.toFloat(), 0f, 0f, 1f, 1f, 3f, Color.WHITE, followTerrain = true) }
+                    assertEquals("Adjacent lanes share their two terrain samples", 2, samples)
+                    height = 2f
+                    batch.begin()
+                    batch.box(0f, 0f, 0f, 1f, 1f, 3f, Color.WHITE, followTerrain = true)
+                    assertEquals("A new frame must resample the scrolling hill", 4, samples)
+                    val verts = WorldBoxBatch::class.java.getDeclaredField("verts").apply { isAccessible = true }.get(batch) as FloatArray
+                    assertTrue((0 until kit.vertsPerBox).all { verts[it * 4 + 1] in 1.5f..2.5f })
                 } finally { batch.dispose(); kit.dispose() }
             } catch (t: Throwable) { failure = t } finally { done.countDown() }
         }

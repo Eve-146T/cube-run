@@ -27,7 +27,7 @@ class PrismBatch(private val kit: BoxMeshKit, private val sides: Int = 12, priva
     /** Distance-haze target colour (set per frame to match the sky). */
     val fogColor = Color(0.1f, 0.1f, 0.2f, 1f)
     /** Ground height added to every coin's y by its z (the rolling-hills bonus); null = flat. */
-    var terrain: ((Float) -> Float)? = null
+    var terrain: TerrainHeight? = null
     var opacity = 1f
     private var translucent = false
 

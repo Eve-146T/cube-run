@@ -21,6 +21,7 @@ import cube.run.core.gfx.PrismBatch
 import cube.run.core.gfx.PerfMonitor
 import cube.run.core.gfx.ShardSystem
 import cube.run.core.gfx.TouchInput
+import cube.run.core.gfx.TerrainHeight
 import cube.run.core.gfx.TouchListener
 import cube.run.core.gfx.WorldBoxBatch
 import kotlin.math.max
@@ -328,7 +329,7 @@ abstract class Gdx3DGame(val session: GameSession) : ApplicationAdapter(), Touch
     fun setWorldOpacity(amount: Float) { world.opacity = amount; coins.opacity = amount }
 
     /** Ground height by z added to everything in the batched passes (null = flat). */
-    fun setTerrain(f: ((Float) -> Float)?) { world.terrain = f; coins.terrain = f }
+    fun setTerrain(f: TerrainHeight?) { world.terrain = f; coins.terrain = f }
 
     /** Queue one coin (an octagonal prism) for the batched coin pass. */
     fun worldCoin(x: Float, y: Float, z: Float, r: Float, t: Float, yawDeg: Float, col: Color, fog: Float = 0f) =

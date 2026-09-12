@@ -34,6 +34,7 @@ class ShardSystem(private val kit: BoxMeshKit, private val maxShards: Int = 240)
     private val rnd = Random(System.nanoTime())
     private val live = ArrayList<Shard>(maxShards)      // active (updated + rendered)
     private val pool = ArrayList<Shard>(maxShards)      // free list — reused across bursts
+    private var recycle = 0
     private val mesh = kit.newBatchMesh(maxShards)
     private val verts = FloatArray(maxShards * kit.vertsPerBox * 4)
     private val wc = FloatArray(24)     // scratch: 8 transformed corners (xyz)
@@ -49,16 +50,24 @@ class ShardSystem(private val kit: BoxMeshKit, private val maxShards: Int = 240)
         repeat(maxShards) { pool.add(Shard()) }
     }
 
-    /** Take a free shard: from the pool, or a fresh one until the cap, else recycle oldest. */
+    /** Reuse a pooled shard, or rotate through the full live set without shifting the array. */
     private fun obtain(): Shard = when {
         pool.isNotEmpty() -> pool.removeAt(pool.size - 1)
-        live.size < maxShards -> Shard()
-        else -> live.removeAt(0) // at cap: retire the oldest, re-seed it below
+        else -> {
+            recycle %= live.size
+            val s = live[recycle]
+            val last = live.size - 1
+            live[recycle] = live[last]
+            live.removeAt(last)
+            recycle++
+            s
+        }
     }
 
     /** A shard explosion at a world position. */
     fun burst(at: Vector3, color: Color, n: Int, speed: Float, size: Float, life: Float, gravity: Float = 14f, biasZ: Float = 0f) {
-        repeat(n) {
+        // A huge burst cannot display more than the pool: don't seed shards only to overwrite them.
+        repeat(n.coerceIn(0, maxShards)) {
             val s = obtain()
             s.color.set(color)
             s.gravity = gravity

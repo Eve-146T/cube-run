@@ -35,6 +35,7 @@ class AnimationRegressionTest {
     @Before fun launch() {
         scenario = ActivityScenario.launch(GameActivity::class.java)
         ui {
+            it.setShowWhenLocked(true); it.setTurnScreenOn(true)
             activity = it
             kit = UiKit(it)
             host = FrameLayout(it).apply { clipChildren = false }
@@ -111,6 +112,21 @@ class AnimationRegressionTest {
         ui { Anim.pulse(value) }
         waitFor(750)
         ui { settled(value) }
+    }
+
+    @Test fun repeatedPulsesReleaseTheirTemporaryHardwareLayer() {
+        lateinit var value: TextView
+        ui { value = kit.stageText("12345", 60f); attach(value) }
+        repeat(5) { index ->
+            ui { value.text = (12345 + index).toString(); Anim.pulse(value, duration = 160) }
+            waitFor(40)
+        }
+        waitFor(350)
+        ui {
+            settled(value)
+            assertEquals("A finished pulse must release its cached layer", View.LAYER_TYPE_NONE, value.layerType)
+            assertEquals("12349", value.text.toString())
+        }
     }
 
     @Test fun exitCancelsDelayedEntranceAndCannotBeUndoneByItsEndAction() {

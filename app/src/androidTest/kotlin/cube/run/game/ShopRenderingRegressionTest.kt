@@ -33,6 +33,7 @@ class ShopRenderingRegressionTest {
         previousWorld = Settings.testWorld
         val intent = Intent(ApplicationProvider.getApplicationContext(), GameActivity::class.java).putExtra("world", 4)
         scenario = ActivityScenario.launch(intent)
+        scenario.onActivity { it.setShowWhenLocked(true); it.setTurnScreenOn(true) }
         SystemClock.sleep(800)
     }
 

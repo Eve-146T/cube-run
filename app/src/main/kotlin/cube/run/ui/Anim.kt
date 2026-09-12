@@ -103,7 +103,14 @@ object Anim {
         // Replace only scale: cancelling the whole animator would strand an
         // in-flight entrance's alpha/translation at an intermediate value.
         v.scaleX = amount; v.scaleY = amount
-        v.animate().scaleX(1f).scaleY(1f).setStartDelay(0).setDuration(duration).setInterpolator(ease).setUpdateListener { repaint(v) }.start()
+        // Cache the outlined digits/pill for the pulse. Invalidating the view itself every
+        // frame re-rasterizes the text as scores and coins arrive faster late in a run.
+        val animator = v.animate()
+        // Repeating withLayer while a pulse is running captures HARDWARE as the restore
+        // type, leaking that layer after the last pulse. Let its original cleanup own it.
+        if (v.layerType == View.LAYER_TYPE_NONE) animator.withLayer()
+        animator.scaleX(1f).scaleY(1f).setStartDelay(0).setDuration(duration).setInterpolator(ease)
+            .setUpdateListener { v.rootView?.invalidate() }.start()
     }
 
     /** A sideways "no". */
