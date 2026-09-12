@@ -92,6 +92,8 @@ at least eight 60 Hz frames between gestures (7.5 gestures/s); relaxed uses twel
 solver has advance knowledge, like a memorized run. Successful plans are centered
 within verified timing windows, then individually jittered by ±16.7 or ±50 ms.
 
+The checked-in reference predates the responsiveness pass's 100 ms jump grace and landing buffer. Its 696 successful routes were replayed after those changes with zero failures, but the full difficulty/speed survey has not been rerun. Treat its limits as historical reference, not updated impossibility bounds. See [responsiveness.md](responsiveness.md).
+
 The checked-in reference contains **24,012 trials**: 58 patterns × six variants ×
 23 speeds × three input profiles. All 1,044 trials at speed 30 passed. To reproduce
 the refined speed grid, add this argument to `survey`:
