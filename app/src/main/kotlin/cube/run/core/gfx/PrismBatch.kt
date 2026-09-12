@@ -9,6 +9,7 @@ import com.badlogic.gdx.graphics.VertexAttribute
 import com.badlogic.gdx.graphics.VertexAttributes.Usage
 import com.badlogic.gdx.utils.Disposable
 import kotlin.math.cos
+import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.sin
@@ -36,7 +37,13 @@ class PrismBatch(private val kit: BoxMeshKit, private val sides: Int = 12, priva
     private val mesh: Mesh
     private val verts = FloatArray(max * vertsPer * 4)
     private var count = 0
-    private val light = FloatArray(3)
+    private val visibility = BatchVisibility()
+    private val light = FloatArray((sides + 2) * 3)
+    private var lightYaw = Float.NaN
+    private var spinCos = 1f
+    private var spinSin = 0f
+    private var glintFront = 1f
+    private var glintBack = 1f
     // unit polygon (radius 1) corner directions
     private val cx = FloatArray(sides)
     private val cy = FloatArray(sides)
@@ -70,16 +77,19 @@ class PrismBatch(private val kit: BoxMeshKit, private val sides: Int = 12, priva
         mesh.setIndices(idx)
     }
 
-    fun begin() { count = 0; translucent = false }
+    fun begin(camera: Camera? = null) {
+        count = 0; translucent = false
+        visibility.begin(camera)
+    }
 
-    private fun packed(col: Color, k: Float, fog: Float, lx: Float, ly: Float, lz: Float, floor: Float): Float {
+    private fun packed(col: Color, k: Float, fog: Float, face: Int, floor: Float): Float {
         if (opacity < 1f) translucent = true
-        kit.lightFace(lx, ly, lz, light, 0)
+        val off = face * 3
         val keep = 1f - fog
         return Color.toFloatBits(
-            min(1f, col.r * k * max(floor, light[0])) * keep + fogColor.r * fog,
-            min(1f, col.g * k * max(floor, light[1])) * keep + fogColor.g * fog,
-            min(1f, col.b * k * max(floor, light[2])) * keep + fogColor.b * fog,
+            min(1f, col.r * k * max(floor, light[off])) * keep + fogColor.r * fog,
+            min(1f, col.g * k * max(floor, light[off + 1])) * keep + fogColor.g * fog,
+            min(1f, col.b * k * max(floor, light[off + 2])) * keep + fogColor.b * fog,
             opacity,
         )
     }
@@ -92,14 +102,28 @@ class PrismBatch(private val kit: BoxMeshKit, private val sides: Int = 12, priva
     fun coin(x: Float, y0: Float, z: Float, r: Float, t: Float, yawDeg: Float, col: Color, fog: Float = 0f) {
         if (count >= max) return
         val y = y0 + (terrain?.invoke(z) ?: 0f)
-        val rad = yawDeg * (Math.PI.toFloat() / 180f)
-        val c = cos(rad); val s = sin(rad)
+        // The gold rim and raised heart share an orientation, regardless of size or fog.
+        if (yawDeg != lightYaw) {
+            lightYaw = yawDeg
+            val rad = yawDeg * (Math.PI.toFloat() / 180f)
+            spinCos = cos(rad); spinSin = sin(rad)
+            for (k in 0 until sides) {
+                kit.lightFace(nx[k] * spinCos, ny[k], -nx[k] * spinSin, light, k * 3)
+            }
+            kit.lightFace(spinSin, 0f, spinCos, light, sides * 3)
+            kit.lightFace(-spinSin, 0f, -spinCos, light, (sides + 1) * 3)
+            glintFront = 0.86f + 0.5f * glint(spinSin, spinCos)
+            glintBack = 0.86f + 0.5f * glint(-spinSin, -spinCos)
+        }
+        val c = spinCos; val s = spinSin
         val hz = t / 2f
+        if (!visibility.visible(x, y, z, abs(c * r) + abs(s * hz), abs(r),
+                abs(s * r) + abs(c * hz))) return
         var w = count * vertsPer * 4
         // local (lx, ly, lz) -> world: (x + lx*c + lz*s, y + ly, z - lx*s + lz*c)
         for (k in 0 until sides) {
             val k1 = (k + 1) % sides
-            val sideCol = packed(col, 0.74f, fog, nx[k] * c, ny[k], -nx[k] * s, 0.55f)
+            val sideCol = packed(col, 0.74f, fog, k, 0.55f)
             val ax = cx[k] * r; val ay = cy[k] * r
             val bx = cx[k1] * r; val by = cy[k1] * r
             // front-k, front-k1, back-k1, back-k
@@ -109,15 +133,12 @@ class PrismBatch(private val kit: BoxMeshKit, private val sides: Int = 12, priva
             verts[w++] = x + ax * c - hz * s; verts[w++] = y + ay; verts[w++] = z - ax * s - hz * c; verts[w++] = sideCol
         }
         // the faces: true normal (front = +Z spun), a bright floor, and a glint when it swings through the light
-        val fx = s; val fz = c
-        val glintF = 0.86f + 0.5f * glint(fx, fz)
-        val frontCol = packed(col, glintF, fog, fx, 0f, fz, 0.8f)
+        val frontCol = packed(col, glintFront, fog, sides, 0.8f)
         for (k in 0 until sides) {
             val ax = cx[k] * r; val ay = cy[k] * r
             verts[w++] = x + ax * c + hz * s; verts[w++] = y + ay; verts[w++] = z - ax * s + hz * c; verts[w++] = frontCol
         }
-        val glintB = 0.86f + 0.5f * glint(-fx, -fz)
-        val backCol = packed(col, glintB, fog, -fx, 0f, -fz, 0.8f)
+        val backCol = packed(col, glintBack, fog, sides + 1, 0.8f)
         for (k in 0 until sides) {
             val ax = cx[k] * r; val ay = cy[k] * r
             verts[w++] = x + ax * c - hz * s; verts[w++] = y + ay; verts[w++] = z - ax * s - hz * c; verts[w++] = backCol

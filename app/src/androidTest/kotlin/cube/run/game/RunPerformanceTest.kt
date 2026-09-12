@@ -30,29 +30,33 @@ class RunPerformanceTest {
     private fun field(type: Class<*>, name: String) = type.getDeclaredField(name).apply { isAccessible = true }
 
     @Test fun highSpeedAndSecondWind() {
+        val args = InstrumentationRegistry.getArguments()
         val intent = Intent(ApplicationProvider.getApplicationContext(), GameActivity::class.java)
+            .putExtra("world", args.getString("world")?.toInt() ?: -1)
         ActivityScenario.launch<GameActivity>(intent).use { scenario ->
             scenario.onActivity { it.setShowWhenLocked(true); it.setTurnScreenOn(true) }
             val ready = CountDownLatch(1)
             Gdx.app.postRunnable { ready.countDown() }
             assertTrue("Game surface did not start", ready.await(20, TimeUnit.SECONDS))
             SystemClock.sleep(2000)
-            val args = InstrumentationRegistry.getArguments()
             val seconds = (args.getString("seconds")?.toInt() ?: 25).coerceIn(10, 600)
             for (mode in (args.getString("modes") ?: "cruise,hills,second-wind").split(',')) benchmark(mode, seconds)
         }
     }
 
     private fun benchmark(mode: String, seconds: Int) {
-        require(mode in listOf("cruise", "hills", "second-wind", "jet", "wide", "late"))
+        require(mode in listOf("cruise", "hills", "second-wind", "jet", "wide", "late", "five-boosts"))
         val done = CountDownLatch(1)
         var failure: Throwable? = null
         val frames = ArrayList<Float>(seconds * 65)
         val cpu = ArrayList<Float>(seconds * 65)
+        val threadCpu = ArrayList<Float>(seconds * 65)
         val bursts = ArrayList<Float>(20)
         val game = Gdx.app.applicationListener as CubeRun
         val track = field(CubeRun::class.java, "track").get(game) as Track
         val difficulty = field(CubeRun::class.java, "difficulty").get(game) as Difficulty
+        val fire = field(CubeRun::class.java, "fire").get(game) as FireBoost
+        val boostTaps = field(FireBoost::class.java, "taps")
         val player = field(CubeRun::class.java, "player").get(game) as Player
         val powers = field(CubeRun::class.java, "powerUps").get(game) as PowerUps
         val grace = field(CubeRun::class.java, "jetGrace")
@@ -65,6 +69,7 @@ class RunPerformanceTest {
         val factory = ObstacleFactory(Random(42))
         var start = 0L
         var previous = 0L
+        var previousCpu = 0L
         var nextBurst = 0L
         var count = 0
         var maxRows = 0
@@ -75,11 +80,15 @@ class RunPerformanceTest {
             override fun run() {
                 try {
                     val now = System.nanoTime()
+                    val nowCpu = Debug.threadCpuTimeNanos()
                     if (start == 0L) {
                         Stage.paused = false
                         game.onDown(360f, 760f)
-                        difficulty.boostTo(1f)
-                        field(CubeRun::class.java, "runT").setFloat(game, 10f)
+                        if (mode == "five-boosts") Stage.boostRequests.set(5)
+                        else {
+                            difficulty.boostTo(1f)
+                            field(CubeRun::class.java, "runT").setFloat(game, 10f)
+                        }
                         game.session.setScore(10000)
                         track.portalEvery = Int.MAX_VALUE
                         powers.reset()
@@ -111,12 +120,15 @@ class RunPerformanceTest {
                     if (elapsed >= 5 && previous != 0L) {
                         frames.add((now - previous) / 1e6f)
                         cpu.add(samples[slot.getInt(perf)])
+                        threadCpu.add((nowCpu - previousCpu) / 1e6f)
                     }
                     if (elapsed >= 5 && allocations == 0L) {
+                        if (mode == "five-boosts") assertEquals("All five opening boosts must apply", 5, boostTaps.getInt(fire))
                         allocations = Debug.getRuntimeStat("art.gc.bytes-allocated").toLong()
                         collections = Debug.getRuntimeStat("art.gc.gc-count").toLong()
                     }
                     previous = now
+                    previousCpu = nowCpu
                     maxRows = maxOf(maxRows, track.rows.size)
                     maxSpeed = maxOf(maxSpeed, speed.getFloat(game))
                     if (mode == "second-wind" && now >= nextBurst) {
@@ -144,7 +156,7 @@ class RunPerformanceTest {
                     else {
                         val allocated = Debug.getRuntimeStat("art.gc.bytes-allocated").toLong() - allocations
                         val gc = Debug.getRuntimeStat("art.gc.gc-count").toLong() - collections
-                        Log.i("RUN_BENCH", "$mode frames=${frames.size} frame=${stats(frames)} cpu=${stats(cpu)} " +
+                        Log.i("RUN_BENCH", "$mode frames=${frames.size} frame=${stats(frames)} cpu=${stats(cpu)} threadCpu=${stats(threadCpu)} " +
                             "over25=${frames.count { it > 25f }} over50=${frames.count { it > 50f }} " +
                             "burst=${stats(bursts)} bursts=$count maxRows=$maxRows maxSpeed=$maxSpeed allocBytes=$allocated gc=$gc")
                         assertTrue("Track rows grew without bound: $maxRows", maxRows < 100)

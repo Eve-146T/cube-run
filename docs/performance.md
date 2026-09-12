@@ -29,7 +29,7 @@ enters that path through an actual collision and verifies stock consumption,
 clearance bounds and non-solid obstacles.
 
 Each phase excludes five seconds of warm-up. `RUN_BENCH` records frame interval
-and frame-build wall-time p50/p95/p99/max, frames over 25/50 ms, burst execution
+and frame-build wall-time p50/p95/p99/max, render-thread CPU time, frames over 25/50 ms, burst execution
 times, maximum resident rows, speed, ART allocations and GC count. Frame-build
 wall time includes driver waits; it is not a pure CPU utilization measurement.
 Normal generated sections vary between runs; the dense smash fixture is fixed.
@@ -116,6 +116,75 @@ frame intervals. Those diagnostic windows are excluded from the clean figures
 above. Repeating Second Wind without those probes removed the large outlier.
 Read logcat during timing runs; collect screenshots, heap diagnostics and CPU
 profiles separately.
+
+## Continued work after 2.1
+
+Version 2.1 (`v2.1`, commit `11e3539`) contains the first optimization pass above.
+The following work remains on `performance` for the next release:
+
+- World boxes and coin prisms reject conservative bounds outside the camera
+  before assembling and uploading vertices. Ground bounds include both hill
+  heights, and spun shapes include their rotated extents. No draw distance or
+  geometry detail is reduced.
+- A fixed 512-entry orientation cache shares box trigonometry and face lighting
+  across frames, especially for the cave's crystal clusters. Collisions replace
+  one entry; memory use cannot grow with distance.
+- The outer coin and its raised heart share trigonometry, face lighting and glint
+  calculations. Each still uses its own dimensions, color, fog and opacity.
+
+The new `five-boosts` mode sends all five requests through the real opening boost
+path and verifies that all five applied. It retains normal difficulty progression.
+Use `-e world 2` to hold Lava Caves, `1` for Neon City, or `5` for Deep Space.
+`threadCpu` reports `Debug.threadCpuTimeNanos()` deltas between GL callbacks; it
+excludes driver/scheduler waits but includes the benchmark callback itself.
+
+Thirty-second measurement windows in Lava Caves (35 seconds including warm-up):
+
+| Build / scenario | GL-thread CPU p50 / p95 (ms) | Frame p95 / p99 / max (ms) | Frames >25 ms |
+| --- | --- | --- | ---: |
+| 2.1, five boosts | 9.33 / 11.19 | 18.81 / 20.06 / 23.26 | 0 / 1796 |
+| Continued optimization, five boosts | 8.82 / 10.95 | 18.98 / 20.58 / 26.91 | 2 / 1796 |
+| 2.1, maximum-speed cruise | 7.71 / 9.30 | 18.81 / 19.91 / 27.52 | 1 / 1795 |
+| Continued optimization, maximum-speed cruise | 7.23 / 9.20 | 18.97 / 21.94 / 30.55 | 2 / 1796 |
+
+Median render-thread CPU fell about 5–6% in these runs. Frame timing remains
+vsync-limited with variable outliers; these results do not establish a reduction
+in worst-case latency. Procedurally generated content differs between runs.
+Culling alone was roughly neutral in median CPU time; the lower CPU medians
+were recorded after adding the lighting caches.
+
+`BatchVisibilityTest` compares exact framebuffer bytes at twelve camera/hill
+positions. The reference disables culling and recomputes orientation lighting
+for every object; the optimized render must match with caches and culling on.
+The fixture covers screen edges, behind-camera and far-plane rejection, rotated
+boxes, sloped ground, and paired coins with different sizes, colors and fog.
+
+The final renderer passed all **34 device regression tests**, plus debug/test
+APK builds, the normal release build, and lint (only the existing target-SDK
+advisory). A two-minute five-boost cave run measured **6,883 frames** after
+warm-up: p95 / p99 / max **19.07 / 21.63 / 24.87 ms**, no frames over 25 ms,
+no GC, and at most 18 track rows. It reached 40.7 units/s after a generated
+pickup. Sound, haptics, display resolution and device governors were unchanged.
+
+The following two-minute dense Second Wind phase measured **6,884 frames**:
+p95 / p99 / max **19.20 / 20.63 / 23.59 ms**, no frames over 25 ms, one GC,
+and at most 18 track rows. It executed **60 Second Winds**; measured burst
+execution was **4.01 ms median / 5.86 ms maximum**.
+
+Additional final checks (each window excludes five seconds of warm-up):
+
+| World / scenario | Measured frames | Frame p95 / p99 / max (ms) | Frames >25 ms | GC |
+| --- | ---: | --- | ---: | ---: |
+| Neon City, five boosts (45 s) | 2395 | 18.98 / 20.95 / 25.13 | 1 | 0 |
+| Deep Space, jet (35 s) | 1797 | 19.33 / 23.73 / 28.28 | 11 | 0 |
+| Deep Space, five lanes (35 s) | 1793 | 19.05 / 21.13 / 27.83 | 5 | 0 |
+| Deep Space, hills (35 s) | 1796 | 18.83 / 20.00 / 27.51 | 1 | 0 |
+| Deep Space, advanced time/distance (35 s) | 1796 | 18.94 / 21.79 / 29.19 | 2 | 0 |
+
+All additional phases passed, with no frames over 50 ms and at most 18 resident
+track rows. The jet phase reached 52.5 units/s. The phone's progress, scores and
+settings were restored from the pre-test backup and verified by SHA-256; the
+tested debug APK remains installed.
 
 ## Regression validation
 

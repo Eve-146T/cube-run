@@ -211,8 +211,8 @@ abstract class Gdx3DGame(val session: GameSession) : ApplicationAdapter(), Touch
         shapes.end()
         Gdx.gl.glDepthMask(true)
         Gdx.gl.glDisable(GL20.GL_BLEND)
-        world.begin()
-        coins.begin()
+        world.begin(cam)
+        coins.begin(cam)
         renderWorldBatched()
         world.render(cam)           // opaque pass: 1 draw call for every world box
         coins.render(cam)           // + 1 for every coin

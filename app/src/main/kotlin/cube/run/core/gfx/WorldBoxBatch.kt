@@ -6,6 +6,7 @@ import com.badlogic.gdx.graphics.Color
 import com.badlogic.gdx.graphics.GL20
 import com.badlogic.gdx.utils.Disposable
 import kotlin.math.cos
+import kotlin.math.abs
 import kotlin.math.min
 import kotlin.math.sin
 import kotlin.math.sqrt
@@ -40,10 +41,15 @@ class WorldBoxBatch(private val kit: BoxMeshKit, private val maxBoxes: Int = 900
     private val mesh = kit.newBatchMesh(maxBoxes)
     private val verts = FloatArray(maxBoxes * kit.vertsPerBox * 4)
     private var count = 0
+    private val visibility = BatchVisibility()
     private val axisLight = FloatArray(18)     // 6 axis-aligned faces × rgb Lambert factor (constant)
-    private val spinLight = FloatArray(18)     // same, for the last spin yaw (cached)
+    // Static crystal clusters reuse their orientations over many frames. A bounded,
+    // direct-mapped cache avoids solving all six face lights again on every visit.
+    private val spinYaw = FloatArray(512) { Float.NaN }
+    private val spinLight = FloatArray(512 * 18)
+    private val spinCos = FloatArray(512)
+    private val spinSin = FloatArray(512)
     private val slopeLight = FloatArray(18)    // terrain-following floor faces
-    private var spinCacheYaw = Float.NaN
     private var groundZ = Float.NaN
     private var groundDepth = Float.NaN
     private var groundBack = 0f
@@ -59,7 +65,10 @@ class WorldBoxBatch(private val kit: BoxMeshKit, private val maxBoxes: Int = 900
         }
     }
 
-    fun begin() { count = 0; translucent = false; groundZ = Float.NaN }
+    fun begin(camera: Camera? = null) {
+        count = 0; translucent = false; groundZ = Float.NaN
+        visibility.begin(camera)
+    }
 
     /** Queue one axis-aligned box (centre position, full sizes). [fog] 0..1 blends toward [fogColor]. */
     fun box(x: Float, y0: Float, z: Float, sx: Float, sy: Float, sz: Float, col: Color, fog: Float = 0f, followTerrain: Boolean = false) {
@@ -80,6 +89,8 @@ class WorldBoxBatch(private val kit: BoxMeshKit, private val maxBoxes: Int = 900
             back = terrain?.invoke(z) ?: 0f
             front = back
         }
+        if (!visibility.visible(x, y0 + (front + back) * 0.5f, z,
+                abs(sx) * 0.5f, (abs(sy) + abs(front - back)) * 0.5f, abs(sz) * 0.5f)) return
         val slope = if (sz > 0f) (front - back) / sz else 0f
         val light = if (slope == 0f) axisLight else slopeLight.also {
             if (slope != cachedSlope) {
@@ -108,24 +119,31 @@ class WorldBoxBatch(private val kit: BoxMeshKit, private val maxBoxes: Int = 900
 
     /**
      * Like [box] but rotated [yawDeg] about its own vertical axis (coins, pickups).
-     * The face lighting is re-solved only when the yaw changes between calls, so a
-     * field of coins spinning in lockstep costs about the same as static boxes.
+     * Orientations share cached trigonometry and face lighting across calls and
+     * frames; changing color, fog, size or terrain does not invalidate the light.
      */
     fun boxSpin(x: Float, y0: Float, z: Float, sx: Float, sy: Float, sz: Float, yawDeg: Float, col: Color, fog: Float = 0f) {
         if (count >= maxBoxes) return
         val y = y0 + (terrain?.invoke(z) ?: 0f)
-        val rad = yawDeg * (Math.PI.toFloat() / 180f)
-        val c = cos(rad); val s = sin(rad)
-        if (yawDeg != spinCacheYaw) {
-            spinCacheYaw = yawDeg
+        val bits = yawDeg.toRawBits()
+        val slot = ((bits * -1640531527) ushr 23)
+        val lightOffset = slot * 18
+        if (yawDeg != spinYaw[slot]) {
+            spinYaw[slot] = yawDeg
+            val rad = yawDeg * (Math.PI.toFloat() / 180f)
+            val c = cos(rad); val s = sin(rad)
+            spinCos[slot] = c; spinSin[slot] = s
             val fn = kit.faceNrm
             for (f in 0 until 6) {
                 val fi = f * 3
                 val nx = fn[fi]; val ny = fn[fi + 1]; val nz = fn[fi + 2]
-                kit.lightFace(nx * c + nz * s, ny, -nx * s + nz * c, spinLight, fi)
+                kit.lightFace(nx * c + nz * s, ny, -nx * s + nz * c, spinLight, lightOffset + fi)
             }
         }
-        packFaces(col, fog, spinLight)
+        val c = spinCos[slot]; val s = spinSin[slot]
+        if (!visibility.visible(x, y, z, (abs(c * sx) + abs(s * sz)) * 0.5f,
+                abs(sy) * 0.5f, (abs(s * sx) + abs(c * sz)) * 0.5f)) return
+        packFaces(col, fog, spinLight, lightOffset)
         val cl = kit.cornerLocal
         for (k in 0 until 8) {
             val ci = k * 3
@@ -145,12 +163,12 @@ class WorldBoxBatch(private val kit: BoxMeshKit, private val maxBoxes: Int = 900
         count++
     }
 
-    private fun packFaces(col: Color, fog: Float, light: FloatArray) {
+    private fun packFaces(col: Color, fog: Float, light: FloatArray, offset: Int = 0) {
         if (opacity < 1f) translucent = true
         val keep = 1f - fog
         val fr = fogColor.r * fog; val fg = fogColor.g * fog; val fb = fogColor.b * fog
         for (f in 0 until 6) {
-            val fi = f * 3
+            val fi = offset + f * 3
             packed[f] = Color.toFloatBits(
                 min(1f, col.r * light[fi]) * keep + fr,
                 min(1f, col.g * light[fi + 1]) * keep + fg,
