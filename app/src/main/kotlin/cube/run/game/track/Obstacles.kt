@@ -44,10 +44,10 @@ object Pickup {
  * bar when your rolled head ducks under it — one rule for everything.
  */
 class Ob(
-    val col: Color, var x: Float, var cy: Float, val halfW: Float,
+    val col: Color, var x: Float, var cy: Float, var halfW: Float,
     val type: Int,
-    val sx: Float, var sy: Float, val sz: Float,
-    val sliding: Boolean = false, val slideTo: Float = 0f, val slideRate: Float = 2f,
+    var sx: Float, var sy: Float, val sz: Float,
+    val sliding: Boolean = false, var slideTo: Float = 0f, val slideRate: Float = 2f,
     val anim: Int = ObAnim.NONE, val phase: Float = 0f,
     /** Platforms only: length of the rising ramp at the front (0 = flat continuation). */
     val ramp: Float = 0f,
@@ -75,19 +75,35 @@ class Ob(
  */
 class Coin(var x: Float, var y: Float, val dz: Float, val restY: Float = y) {
     /** Authored lane before magnet attraction; also used by the demo controller. */
-    val restX = x
+    var restX = x
     var taken = false
     /** Slid past the cube uncollected: still drawn (it glides by), but it no longer counts or pulls. */
     var missed = false
 }
 
 /** One row of the lane-walk: obstacles, optional coins and pickup, scoring state. */
-class Row(var z: Float, val obs: ArrayList<Ob>) {
+class Row(var z: Float, val obs: ArrayList<Ob>, initialLaneWidth: Float = Lanes.NORMAL_W) {
     /** Stable per-row phase: scrolling must never accelerate pickup animation. */
     val visualPhase = z % 6.2831855f
     var laneCount = 3            // geometry when generated, even before its portal is crossed
+    var laneWidth = initialLaneWidth
+        private set
     var safeLane = 1              // the walk lane when this row spawned
-    fun safeX(): Float = if (laneCount == 5) (safeLane - 2) * Lanes.NORMAL_W else (safeLane - 1) * Lanes.w
+    fun safeX(): Float = (safeLane - (laneCount - 1) / 2f) * laneWidth
+
+    /** Move geometry and collision together, including rows prefetched before a portal. */
+    fun alignLaneSpacing(width: Float) {
+        val target = if (laneCount == 5) Lanes.NORMAL_W else width
+        if (laneWidth == target) return
+        val scale = target / laneWidth
+        for (ob in obs) {
+            ob.x *= scale; ob.slideTo *= scale
+            ob.sx *= scale; ob.halfW *= scale
+        }
+        coins?.let { for (c in it) { c.x *= scale; c.restX *= scale } }
+        pickupX *= scale
+        laneWidth = target
+    }
     var scored = false
     var minClear = 99f            // tightest clearance seen while crossing (near-miss detect)
     var coins: ArrayList<Coin>? = null
@@ -135,7 +151,7 @@ class ObstacleFactory(private val rnd: Random) {
     }
 
     /** Lane x in the three-lane language sections are written in (the road may be wider or stretched right now). */
-    fun laneX(l: Int) = (l - 1) * Lanes.w
+    fun laneX(l: Int) = (l - 1) * Lanes.NORMAL_W
 
     private fun hsv(h: Float, s: Float, v: Float) = hsvInto(Color(), h, s, v)
 

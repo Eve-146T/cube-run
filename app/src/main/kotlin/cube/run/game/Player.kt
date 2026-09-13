@@ -236,13 +236,15 @@ class Player(private val game: Gdx3DGame, private val rnd: Random) {
         val gy = ground + groundH
         px += (laneX(lane) - px) * min(1f, dt * (if (hover) 4.5f else 13f)) // eased lane snap (a lazy drift in zero-g)
         nudge *= max(0f, 1f - 10f * dt)
-        if (hover) {
+        // A portal changes the underlying world, not an active jetpack's altitude.
+        // Keep hover set so flight expiry naturally returns to the floating road.
+        if (flying) {
+            clearJumpInput()
+            py += (flyY - py) * min(1f, dt * (if (flyY < FLY_Y) 7f else 4f)) // quick to climb, tight on the glide down
+        } else if (hover) {
             clearJumpInput()
             py += (HOVER_Y + 0.15f * sin(time * 2.2f) - py) * min(1f, dt * 3f)
             air = false; vy = 0f
-        } else if (flying) {
-            clearJumpInput()
-            py += (flyY - py) * min(1f, dt * (if (flyY < FLY_Y) 7f else 4f)) // quick to climb, tight on the glide down
         } else if (air) {
             vy -= 26f * dt
             py += vy * dt

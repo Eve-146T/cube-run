@@ -36,5 +36,16 @@ fun selfTest() {
     val empty = Timeline(coins, 12f)
     check(empty.step(flight, 0, 0) && flight.flying)
     check(empty.step(flight, 1, 0) && !flight.flying && flight.air && flight.vy < 0)
-    println("Bot self-tests passed: unreachable states, held inputs, stride reconstruction, safe/fatal loot, timing centering, flight expiry, fixture codec")
+    for (hz in listOf(60, 90)) {
+        val floatCourse = Course(3, "jet in Zero-G", 0, 0, false, 1, emptyList(), width = 2.6f)
+        val timeline = Timeline(floatCourse, 30f, dt = 1f / hz, seconds = 5f)
+        val body = Body(y = 1.4f, hover = true, flying = true, flightLeft = 3f)
+        for (frame in timeline.frames.indices) {
+            check(timeline.step(body, frame, Action.NONE))
+            if (frame == hz) check(body.y > 5f) { "Zero-G overrides the jetpack at $hz Hz: ${body.y}" }
+            if (body.flying) check(body.flyY >= 1.4f) { "Jet glide aims below the hover floor" }
+        }
+        check(!body.flying && body.hover && kotlin.math.abs(body.y - 1.4f) < .2f)
+    }
+    println("Bot self-tests passed: unreachable states, held inputs, stride reconstruction, safe/fatal loot, timing centering, flight expiry, Zero-G jet priority/glide, fixture codec")
 }

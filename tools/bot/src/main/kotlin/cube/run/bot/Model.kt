@@ -105,7 +105,10 @@ class Timeline(val course: Course, val speed: Float, val dt: Float = 1f / 60f,
                 b.flying = false; b.air = true; b.vy = 0f; b.flyY = 5.2f
                 b.coyoteLeft = 0f; b.jumpBuffer = 0f
             }
-            else b.flyY = if (b.flightLeft < 1.4f) .45f + (5.2f - .45f) * (b.flightLeft / 1.4f) else 5.2f
+            else {
+                val landingY = if (b.hover) 1.4f else .45f
+                b.flyY = if (b.flightLeft < 1.4f) landingY + (5.2f - landingY) * (b.flightLeft / 1.4f) else 5.2f
+            }
         }
         val f = frames[frame]
         var ground = 0f
@@ -120,8 +123,8 @@ class Timeline(val course: Course, val speed: Float, val dt: Float = 1f / 60f,
         b.jumpBuffer = max(0f, b.jumpBuffer - dt)
         if (b.hover || b.flying) { b.coyoteLeft = 0f; b.jumpBuffer = 0f }
         when {
-            b.hover -> { b.y += (1.4f + .15f * sin(f.time * 2.2f) - b.y) * min(1f, dt * 3f); b.air = false; b.vy = 0f }
             b.flying -> b.y += (b.flyY - b.y) * min(1f, dt * if (b.flyY < 5.2f) 7f else 4f)
+            b.hover -> { b.y += (1.4f + .15f * sin(f.time * 2.2f) - b.y) * min(1f, dt * 3f); b.air = false; b.vy = 0f }
             b.air -> {
                 b.vy -= 26f * dt; b.y += b.vy * dt
                 if (b.y <= gy && b.vy <= 0f) {

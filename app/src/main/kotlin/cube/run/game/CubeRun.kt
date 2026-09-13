@@ -172,10 +172,9 @@ class CubeRun(session: GameSession, private val autoStart: Boolean = false) : Gd
         difficulty.reset()
         curTier = difficulty.tier()
         track.tier = curTier
-        track.reset(coinTrailChance = 0.2f, hue = worldHue())
-        if (Settings.devMode && Settings.testBonusNow >= 0) { // debug: begin inside a bonus world
-            val oldCount = Lanes.count
-            track.forceBonus(Settings.testBonusNow)
+        val oldCount = Lanes.count
+        track.reset(coinTrailChance = 0.2f, hue = worldHue(), initialBonus = if (Settings.testScenario < 0 && Settings.devMode) Settings.testBonusNow else Bonus.NONE)
+        if (Settings.testScenario < 0 && Settings.devMode && Settings.testBonusNow >= 0) { // debug: begin inside a bonus world
             bonus = Settings.testBonusNow
             player.remapLane(oldCount, Lanes.count)
             Terrain.set(bonus == Bonus.HILLS)
@@ -298,7 +297,7 @@ class CubeRun(session: GameSession, private val autoStart: Boolean = false) : Gd
             Pickup.MAGNET -> { powerUps.magnet.start(Progress.MAGNET.duration(Progress.magnetLevel)); fx.pickup(trackArt.colorOf(kind), row.pickupX, cz) }
             Pickup.MULT -> { powerUps.mult.start(Progress.MULT.duration(Progress.multLevel)); fx.pickup(trackArt.colorOf(kind), row.pickupX, cz) }
             Pickup.JET -> {
-                val dur = Progress.JET.duration(Progress.jetLevel)
+                val dur = if (cube.run.game.track.TestWorlds.byId(Settings.testScenario) != null) cube.run.game.track.TestWorlds.JET_SECONDS else Progress.JET.duration(Progress.jetLevel)
                 powerUps.jet.start(dur)
                 player.setFlying(true)
                 track.airCoins = true
@@ -455,6 +454,7 @@ class CubeRun(session: GameSession, private val autoStart: Boolean = false) : Gd
         val mv = spd * dt
         dist += mv
         Lanes.tick(dt)
+        track.alignLaneSpacing()
         Terrain.scroll(mv, dt)
         // the Kaleidoscope: the sky and the road never hold a colour; the camera sways
         kaleido += ((if (bonus == Bonus.KALEIDO) 1f else 0f) - kaleido) * min(1f, dt * 1.5f)
@@ -495,7 +495,8 @@ class CubeRun(session: GameSession, private val autoStart: Boolean = false) : Gd
             else if (player.flying) { // keep the landing point current; glide down through the last seconds
                 val left = powerUps.jet.left
                 aimJetCoins(left, spd)
-                player.flyY = if (left < jetGlide) player.ground + (Player.FLY_Y - player.ground) * (left / jetGlide) else Player.FLY_Y
+                val landingY = if (bonus == Bonus.FLOAT) Player.HOVER_Y else player.ground
+                player.flyY = if (left < jetGlide) landingY + (Player.FLY_Y - landingY) * (left / jetGlide) else Player.FLY_Y
             }
         }
 

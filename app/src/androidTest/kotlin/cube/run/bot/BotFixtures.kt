@@ -51,7 +51,8 @@ internal object BotFixtures {
         Row(r.z, ArrayList(r.obstacles.map { o ->
             Ob(Color.WHITE, o.x, o.cy, o.halfW, o.type, o.halfW * 2f, o.sy, o.depth,
                 o.sliding, o.slideTo, o.slideRate, o.anim, o.phase, o.ramp).apply { used = o.used }
-        })).apply {
+        }), course.width).apply {
+            laneCount = course.lanes
             pop = 1f
             coins = ArrayList(r.goodies.filter { it.value == 1f }.map { Coin(it.x, it.y, it.dz) })
         }

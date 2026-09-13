@@ -46,6 +46,8 @@ object Settings {
      * loop. Process-scoped on purpose (RESTART relaunches in-process), never persisted.
      */
     @Volatile var testSection: Int = -1
+    /** Fixed human-test course chosen from the section grid; process-scoped. */
+    @Volatile var testScenario: Int = -1
 
     /** Debug: when ≥ 0 every portal opens to this bonus world. Process-scoped. */
     @Volatile var testBonus: Int = -1

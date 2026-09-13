@@ -30,6 +30,7 @@ class GameActivity : AndroidApplication() {
         // Debug builds only: adb shortcuts for testing individual sections and worlds.
         if (BuildConfig.DEBUG) {
             if (intent.getBooleanExtra("dev", false) && !Settings.devMode) { Settings.setDevMode(true); Progress.enterDev() }
+            intent.getIntExtra("scenario", -2).let { if (it >= -1) Settings.testScenario = it }
             intent.getIntExtra("section", -2).let { if (it >= -1) Settings.testSection = it }
             intent.getIntExtra("bonus", -2).let { if (it >= -1) Settings.testBonus = it }
             intent.getIntExtra("world", -2).let { if (it >= -1) Settings.testWorld = it }

@@ -44,6 +44,8 @@ class Track(private val rnd: Random, private val fx: ObstacleFactory) {
 
     // ---- lane-walk / director state ----
     private val pendingSteps = ArrayDeque<Int>()
+    private var testWorld: TestWorlds.World? = null
+    private var testCue = 0
     private var curSafe = 1         // the lane currently guaranteed safe (the walk position)
     private var prevKind = -1       // last spawned step code (drives recovery spacing)
     private var mirror = false
@@ -100,7 +102,7 @@ class Track(private val rnd: Random, private val fx: ObstacleFactory) {
     private fun ml(l: Int) = if (mirror) 2 - l else l
 
     /** Start a run: wipe the walk and prefill the track. */
-    fun reset(coinTrailChance: Float, hue: Float) {
+    fun reset(coinTrailChance: Float, hue: Float, initialBonus: Int = Bonus.NONE) {
         rows.clear()
         pendingSteps.clear()
         introServed = false; sectsSinceBreather = 0; lastSectId = -99
@@ -109,7 +111,15 @@ class Track(private val rnd: Random, private val fx: ObstacleFactory) {
         rowsSincePickup = 0; pickupSpacing = 12; pickupBag.clear(); airCoins = false
         runScore = 0; jetOffers = 0; boxOffers = 0
         bonus = Bonus.NONE; bonusRowsLeft = 0; rowsSincePortal = 0; portalPending = Bonus.NONE
-        this.coinTrailChance = coinTrailChance
+        testWorld = TestWorlds.byId(Settings.testScenario); testCue = 0
+        this.coinTrailChance = if (testWorld != null) 1f else coinTrailChance
+        if (initialBonus != Bonus.NONE) forceBonus(initialBonus)
+        if (testWorld != null) {
+            var z = -24f; var last = z
+            while (z > spawnZ) { spawnTestRow(z, hue); last = z; z -= nextTestGap() }
+            spawnAcc = last - spawnZ
+            return
+        }
         var z = -38f
         var zLast = z
         while (z > spawnZ) {
@@ -124,6 +134,13 @@ class Track(private val rnd: Random, private val fx: ObstacleFactory) {
 
     /** Steady-state spawning: after the world moved [mv], spawn whatever rows are due. */
     fun spawn(mv: Float, hue: Float, score: Int) {
+        if (testWorld != null) {
+            spawnAcc += mv
+            while (spawnAcc >= nextTestGap()) {
+                spawnAcc -= nextTestGap(); spawnTestRow(spawnZ, hue)
+            }
+            return
+        }
         runScore = score
         spawnAcc += mv
         while (true) {
@@ -138,11 +155,26 @@ class Track(private val rnd: Random, private val fx: ObstacleFactory) {
         }
     }
 
+    private fun nextTestGap() = testWorld!!.cues[testCue].gap
+
+    private fun spawnTestRow(z: Float, hue: Float) {
+        val cues = testWorld!!.cues
+        val cue = cues[testCue]
+        testCue = (testCue + 1) % cues.size
+        mirror = false
+        if (cue.code == Step.PORTAL) portalPending = if (cue.exit) -2 else cue.world
+        spawnStep(cue.code, z, hue)
+        val row = rows.last()
+        row.pickup = cue.pickup
+        row.pickupX = row.safeX()
+    }
+
     /** Move every row toward the player, stream it in, advance the animated obstacles, drop rows that passed. */
     fun scroll(mv: Float, time: Float, dt: Float) {
         var i = rows.size - 1
         while (i >= 0) {
             val row = rows[i]
+            row.alignLaneSpacing(Lanes.w)
             row.z += mv
             if (row.popStart < 0f) { if (row.z > Row.POP_Z) row.popStart = time }
             if (row.popStart >= 0f && row.pop < 1f) { // spring in with a little overshoot
@@ -158,19 +190,21 @@ class Track(private val rnd: Random, private val fx: ObstacleFactory) {
                         ob.sy = max(0f, h)
                         ob.cy = ob.sy / 2f
                     }
-                    ObAnim.SWEEP -> ob.x = sin(time * 2.3f + ob.phase) * Lanes.w * 1.15f
+                    ObAnim.SWEEP -> ob.x = sin(time * 2.3f + ob.phase) * row.laneWidth * 1.15f
                     ObAnim.STOMP -> { // hangs high most of the cycle, drops fast, lifts again
                         val s = 0.5f + 0.5f * sin(time * 2.6f + ob.phase)
                         val bottom = 0.03f + 1.75f * sqrt(s)
                         ob.cy = bottom + 0.5f
                     }
-                    ObAnim.PENDULUM -> ob.x = sin(time * 2.4f + ob.phase) * Lanes.w * 1.15f
+                    ObAnim.PENDULUM -> ob.x = sin(time * 2.4f + ob.phase) * row.laneWidth * 1.15f
                 }
             }
             if (row.z > 12f) rows.removeAt(i)
             i--
         }
     }
+
+    fun alignLaneSpacing() { for (row in rows) row.alignLaneSpacing(Lanes.w) }
 
     // ------------------------------------------------------------- portals
 
@@ -221,6 +255,7 @@ class Track(private val rnd: Random, private val fx: ObstacleFactory) {
             else -> dodgeGap
         }
         return when {
+            code == Step.PORTAL || prevKind == Step.PORTAL || bonus == Bonus.FLOAT -> max(recover, 12f)
             code == Step.EM -> max(recover, breatherGap)
             code == Step.WIDE || bonus == Bonus.HILLS -> max(recover, jumpRecoverGap)
             else -> recover
@@ -232,7 +267,7 @@ class Track(private val rnd: Random, private val fx: ObstacleFactory) {
 
     /** Intro first, an occasional breather, else a weighted pick from the unlocked tiers (bonus worlds have their own pools). */
     private fun pickSection(): Sect {
-        Sections.byId(Settings.testSection)?.let { return it }
+        Sections.byId(Settings.testSection)?.takeIf { bonus != Bonus.FLOAT || it in Sections.floatPool }?.let { return it }
         if (Settings.devMode && bonus == Bonus.NONE) return Sections.devPool[devSectIdx++ % Sections.devPool.size]
         if (!introServed) { introServed = true; return Sections.intro }
         sectsSinceBreather++
@@ -243,7 +278,7 @@ class Track(private val rnd: Random, private val fx: ObstacleFactory) {
             Bonus.KALEIDO -> Sections.lib.filter { it.tier <= max(1, tier) && it.id != lastSectId }
             else -> Sections.lib.filter { it.tier <= tier && it.id != lastSectId }
         }
-        if (pool.isEmpty()) pool = Sections.lib.filter { it.tier <= tier }
+        if (pool.isEmpty()) pool = if (bonus == Bonus.FLOAT) Sections.floatPool else Sections.lib.filter { it.tier <= tier }
         var total = 0f; for (s in pool) total += s.weight
         var r = rnd.nextFloat() * total
         var chosen = pool[pool.size - 1]
@@ -289,7 +324,7 @@ class Track(private val rnd: Random, private val fx: ObstacleFactory) {
             row.safeLane = curSafe
             rows.add(row)
             rowsSpawned++; rowsSincePickup++
-            prevKind = Step.EM
+            prevKind = Step.PORTAL
             return
         }
         if (code == Step.WIDE) { // a single clear lane sweeps across all five; every third row holds for a beat
@@ -361,7 +396,7 @@ class Track(private val rnd: Random, private val fx: ObstacleFactory) {
                 for (b in 0..2) {
                     if (b == safe) continue
                     val side = if (b > safe) 1f else -1f
-                    obs.add(fx.pillar(fx.laneX(b) + side * Lanes.w * 1.6f, hue, sliding = true, slideTo = fx.laneX(b), slideRate = 2.6f))
+                    obs.add(fx.pillar(fx.laneX(b) + side * Lanes.NORMAL_W * 1.6f, hue, sliding = true, slideTo = fx.laneX(b), slideRate = 2.6f))
                 }
             }
             code in 110..112 -> { // stompers: the walk lane is clear, the other two get slamming blocks
@@ -391,6 +426,7 @@ class Track(private val rnd: Random, private val fx: ObstacleFactory) {
         row.safeLane = curSafe
         layCoins(row, code, platLane)
         layPickup(row, code)
+        row.alignLaneSpacing(Lanes.w)
         prevPlatLane = platLane
         rows.add(row)
         rowsSpawned++
@@ -457,7 +493,7 @@ class Track(private val rnd: Random, private val fx: ObstacleFactory) {
         if (airCoins) { // jetpack: a line every row — cruising, gliding down, or already on the ground
             for (k in 0 until 3) {
                 val dz = -1.6f - k * 1.5f
-                coins.add(Coin(x, jetY(row.z + dz, 0.5f), dz, restY = 0.5f))
+                coins.add(Coin(x, jetY(row.z + dz, 0.5f + hover), dz, restY = 0.5f + hover))
             }
             row.coins = coins
             return
