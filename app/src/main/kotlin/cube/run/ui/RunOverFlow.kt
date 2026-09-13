@@ -190,7 +190,7 @@ class RunOverFlow(
         }
         card.addView(stats, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(4f) })
         column.addView(card, LinearLayout.LayoutParams(dp(300f), LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(12f) })
-        later(700) { if (counting) coinAnim = Anim.countUp(coinText, coins, 900, tickEvery = 2) { "+$it" } }
+        later(700) { if (counting) coinAnim = Anim.countUp(coinText, coins, 900) { "+$it" } }
         later(1700) { counting = false }
         later(1350) { if (counting) slamStamp() }
 

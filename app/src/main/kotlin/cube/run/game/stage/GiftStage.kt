@@ -104,9 +104,8 @@ class GiftStage(private val game: Gdx3DGame) {
                 yaw += 35f * dt
                 if (drop == 0f && Stage.openRequests.getAndSet(0) > 0) shake()
             }
-            SHAKE -> { // rattles harder and harder, ticking up, then bursts
+            SHAKE -> { // rattles harder and harder, then bursts
                 yaw += sin(t * 55f) * (200f + 700f * t) * dt
-                if ((t * 12f).toInt() != ((t - dt) * 12f).toInt()) SoundFx.play("tick", rate = 1f + t * 0.8f, vol = 0.5f)
                 if (t > 0.85f) burst()
             }
             OPENED -> { // the prize turns where the box was; the next request sends it off and drops the next box

@@ -136,7 +136,6 @@ class Player(private val game: Gdx3DGame, private val rnd: Random) {
         if (t == lane) return false
         lane = t
         SoundFx.play("whoosh", rate = 0.95f + rnd.nextFloat() * 0.15f)
-        SoundFx.play("tick", rate = 1.4f, vol = 0.5f)
         Haptics.tick()
         return true
     }

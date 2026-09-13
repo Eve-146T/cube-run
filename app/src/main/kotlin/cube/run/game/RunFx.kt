@@ -80,8 +80,7 @@ class RunFx(private val game: Gdx3DGame, private val rnd: Random) {
         game.flash(Color.WHITE, 0.2f)
     }
 
-    fun rowPassed(rowsPassed: Int) {
-        SoundFx.play("tick", rate = 1f + (rowsPassed % 15) * 0.025f, vol = 0.8f)
+    fun rowPassed() {
         Haptics.tick()
     }
 
@@ -154,7 +153,6 @@ class RunFx(private val game: Gdx3DGame, private val rnd: Random) {
     fun styleTap(combo: Int, px: Float, py: Float) {
         val rate = (0.85f + 0.16f * combo).coerceAtMost(2f)
         SoundFx.play("pop", rate = rate)
-        SoundFx.play("tick", rate = (1f + 0.1f * combo).coerceAtMost(1.6f), vol = 0.3f)
         Haptics.tick()
         val hue = 290f + combo * 16f
         game.flash(hsvInto(tmpCol, hue, 0.5f, 1f), 0.05f)

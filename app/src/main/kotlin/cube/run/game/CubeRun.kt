@@ -260,7 +260,7 @@ class CubeRun(session: GameSession, private val autoStart: Boolean = false) : Gd
         rowsPassed++
         val x2 = powerUps.mult.active
         session.addScore(if (x2) 2 else 1)
-        fx.rowPassed(rowsPassed)
+        fx.rowPassed()
         if (row.minClear < 0.34f) { // shaved it — reward a close dodge with an air-rush
             session.addScore(if (x2) nearMissBonus * 2 else nearMissBonus)
             fx.nearMiss(player.px, player.py)

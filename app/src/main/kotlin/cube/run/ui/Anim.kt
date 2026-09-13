@@ -6,7 +6,6 @@ import android.view.ViewGroup
 import android.view.animation.DecelerateInterpolator
 import android.view.animation.OvershootInterpolator
 import android.widget.TextView
-import cube.run.core.SoundFx
 
 /**
  * The motion vocabulary. Every screen uses the same handful of moves so the
@@ -161,19 +160,17 @@ object Anim {
         }
 
     /**
-     * Count [t] from 0 to [to] with rising ticks. [format] renders a value.
+     * Count [t] from 0 to [to]. [format] renders a value.
      * Returns the animator (null when there is nothing to count).
      */
-    fun countUp(t: TextView, to: Int, ms: Long, tickEvery: Int = 4, format: (Int) -> String = { it.toString() }): ValueAnimator? {
+    fun countUp(t: TextView, to: Int, ms: Long, format: (Int) -> String = { it.toString() }): ValueAnimator? {
         if (to <= 0) { t.text = format(0); return null }
-        var lastTick = -1
         return ValueAnimator.ofInt(0, to).apply {
             duration = ms
             interpolator = DecelerateInterpolator(1.4f)
             addUpdateListener { a ->
                 val v = a.animatedValue as Int
                 t.text = format(v)
-                if (v / tickEvery != lastTick) { lastTick = v / tickEvery; SoundFx.play("tick", rate = 1.2f + 0.6f * v / to, vol = 0.35f) }
             }
             start()
         }

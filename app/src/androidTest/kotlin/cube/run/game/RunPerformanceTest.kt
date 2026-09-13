@@ -31,6 +31,9 @@ import org.junit.runner.RunWith
 class RunPerformanceTest {
     private lateinit var badge: android.widget.TextView
     private var botEnabled = true
+    private var audioMode: String? = null
+    private val audioEvents = java.util.concurrent.ConcurrentLinkedQueue<String>()
+    private val frameEvents = ArrayList<String>()
     private var statusGeneration = 0
 
     private fun showStatus(mode: String, hits: Int, hit: Boolean = false) {
@@ -49,9 +52,20 @@ class RunPerformanceTest {
     @Test fun highSpeedAndSecondWind() {
         val args = InstrumentationRegistry.getArguments()
         botEnabled = args.getString("bot") != "false"
+        audioMode = args.getString("audio")
+        val oldSound = cube.run.data.Settings.soundEnabled
+        val oldHaptics = cube.run.data.Settings.hapticsEnabled
+        audioMode?.let { mode ->
+            require(mode in listOf("on", "off", "no-tick"))
+            cube.run.data.Settings.setSoundEnabled(mode != "off")
+            cube.run.data.Settings.setHapticsEnabled(false)
+            cube.run.core.SoundFx.testMutedName = if (mode == "no-tick") "tick" else null
+            cube.run.core.SoundFx.testObserver = { name, start, end, stream -> audioEvents.add("$name,$start,$end,$stream"); Unit }
+        }
         val intent = Intent(ApplicationProvider.getApplicationContext(), GameActivity::class.java)
             .putExtra("world", args.getString("world")?.toInt() ?: -1)
-        ActivityScenario.launch<GameActivity>(intent).use { scenario ->
+        if (audioMode != null) intent.putExtra("section", args.getString("section")?.toInt() ?: 8).putExtra("dev", false)
+        try { ActivityScenario.launch<GameActivity>(intent).use { scenario ->
             scenario.onActivity {
                 it.setShowWhenLocked(true); it.setTurnScreenOn(true)
                 badge = android.widget.TextView(it).apply {
@@ -75,6 +89,14 @@ class RunPerformanceTest {
             try {
                 for (mode in (args.getString("modes") ?: "cruise,hills,second-wind").split(',')) benchmark(mode, seconds)
             } finally { if (profile) Debug.stopMethodTracing() }
+        } } finally {
+            cube.run.core.SoundFx.testObserver = null; cube.run.core.SoundFx.testMutedName = null
+            if (audioMode != null) {
+                cube.run.data.Settings.setSoundEnabled(oldSound); cube.run.data.Settings.setHapticsEnabled(oldHaptics)
+                val dir = InstrumentationRegistry.getInstrumentation().targetContext.getExternalFilesDir(null)!!
+                java.io.File(dir, "sound-events.csv").writeText("name,start_ns,end_ns,stream_id\n" + audioEvents.joinToString("\n"))
+                java.io.File(dir, "sound-frames.csv").writeText("end_ns,frame_ms,render_ms,thread_cpu_ms\n" + frameEvents.joinToString("\n"))
+            }
         }
     }
 
@@ -120,6 +142,10 @@ class RunPerformanceTest {
                     val nowCpu = Debug.threadCpuTimeNanos()
                     if (start == 0L) {
                         Stage.paused = false
+                        if (audioMode != null) {
+                            field(Track::class.java, "rnd").set(track, Random(73))
+                            field(Track::class.java, "fx").set(track, ObstacleFactory(Random(73)))
+                        }
                         game.onDown(360f, 760f)
                         if (mode == "five-boosts") Stage.boostRequests.set(5)
                         else {
@@ -162,6 +188,7 @@ class RunPerformanceTest {
                         frames.add((now - previous) / 1e6f)
                         cpu.add(samples[slot.getInt(perf)])
                         threadCpu.add((nowCpu - previousCpu) / 1e6f)
+                        if (audioMode != null) frameEvents.add("$now,${frames.last()},${cpu.last()},${threadCpu.last()}")
                     }
                     if (elapsed >= 5 && allocations == 0L) {
                         if (mode == "five-boosts") assertEquals("All five opening boosts must apply", 5, boostTaps.getInt(fire))
@@ -217,6 +244,14 @@ class RunPerformanceTest {
             }
         }
         try {
+            if (audioMode != null) {
+                // Load and JIT the planner before the unprotected opening starts.
+                for (id in listOf(0, 23, 57)) {
+                    val course = cube.run.bot.BotFixtures.generate(cube.run.game.track.Sections.byId(id)!!, 73, false, 1, 0f)
+                    cube.run.bot.Planner(24, 6, stride = 3).solve(cube.run.bot.Timeline(course, 30f, seconds = 1.5f))
+                }
+                Lanes.reset()
+            }
             Gdx.app.postRunnable(callback)
             if (botEnabled) LiveBotDriver().use { bot ->
                 val deadline = SystemClock.uptimeMillis() + (seconds + 20L) * 1000L

@@ -19,10 +19,13 @@ import kotlin.random.Random
  * Procedurally synthesized sound effects, shared by every game.
  *
  * Available sound names (pitch-shift with `rate` 0.5..2.0 for variety):
- *  tap, tick, blip, pop, place, perfect, combo, success, fail,
+ *  tap, blip, pop, place, perfect, combo, success, fail,
  *  whoosh, boom, coin, rise, slide
  */
 object SoundFx {
+    // Investigation hooks: inactive in ordinary runs and release builds.
+    @Volatile var testMutedName: String? = null
+    @Volatile var testObserver: ((String, Long, Long, Int) -> Unit)? = null
     private const val SR = 44100
     private var pool: SoundPool? = null
     private val ids = HashMap<String, Int>()
@@ -57,16 +60,19 @@ object SoundFx {
 
     fun play(name: String, rate: Float = 1f, vol: Float = 1f) {
         if (!ready || !Settings.soundEnabled) return
+        if (cube.run.BuildConfig.DEBUG && name == testMutedName) return
         val id = ids[name] ?: return
         val v = vol.coerceIn(0f, 1f)
-        pool?.play(id, v, v, 1, 0, rate.coerceIn(0.5f, 2f))
+        val observer = if (cube.run.BuildConfig.DEBUG) testObserver else null
+        val before = if (observer != null) System.nanoTime() else 0L
+        val stream = pool?.play(id, v, v, 1, 0, rate.coerceIn(0.5f, 2f)) ?: 0
+        if (observer != null) observer(name, before, System.nanoTime(), stream)
     }
 
     // ------------------------------------------------------------------ synth
 
     private fun synthAll(): List<Pair<String, ShortArray>> = listOf(
         "tap" to synth(40) { t, p -> sin(t * 1150.0 * TAU) * decay(p, 5.0) },
-        "tick" to synth(20) { t, p -> sin(t * 2300.0 * TAU) * decay(p, 6.0) },
         "blip" to synth(70) { t, p -> square(t * (640.0 + 420.0 * p)) * 0.5 * decay(p, 3.0) },
         "pop" to synth(70) { t, p -> sin(t * (380.0 + 1500.0 * p * p) * TAU) * decay(p, 4.0) },
         "place" to synth(90) { t, p ->
