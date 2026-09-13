@@ -9,8 +9,8 @@ import org.junit.Test
 
 class TestWorldsTest {
     @Test fun presetsHaveBalancedPortalsAndHoverCompatibleRows() {
-        assertEquals(8, TestWorlds.all.size)
-        assertEquals(8, TestWorlds.all.map { it.id }.distinct().size)
+        assertEquals(7, TestWorlds.all.size)
+        assertEquals(7, TestWorlds.all.map { it.id }.distinct().size)
         for (world in TestWorlds.all) {
             var bonus = Bonus.NONE
             for (cue in world.cues) {

@@ -1,0 +1,5 @@
+Removed repetitive click sounds for a smoother-feeling run.
+Fixed jetpacks being pulled down in Zero-G and returning to the wrong height when flight ends.
+Fixed Zero-G lane alignment so obstacles, coins and collision gaps follow the widening road.
+Improved spacing around portals.
+Dev controls and section testing remain hidden in release builds.

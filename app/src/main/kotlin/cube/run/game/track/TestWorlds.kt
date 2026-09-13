@@ -37,11 +37,6 @@ object TestWorlds {
         World(6, "WIDE ROAD TRANSITIONS", "Follow five lanes, then return to three.", "3 LANES  →  5  →  3", buildList {
             add(Cue()); add(portal(Bonus.WIDE)); repeat(42) { add(Cue(Step.WIDE)) }
             add(portal(Bonus.WIDE, true)); addAll(road(listOf(1, 0, 1, 2, 1))); add(Cue(gap = 20f))
-        }),
-        World(7, "ROLLING HILLS", "Jump, duck and collect coins over the hills.", "FLAT  →  HILLS  →  FLAT", buildList {
-            add(Cue()); add(portal(Bonus.HILLS))
-            repeat(3) { addAll(listOf(Cue(Step.CF), Cue(Step.JP), Cue(Step.dg(1)), Cue(Step.DK))) }
-            add(portal(Bonus.HILLS, true)); add(Cue(gap = 20f))
         })
     )
     fun byId(id: Int) = all.firstOrNull { it.id == id }
