@@ -9,29 +9,33 @@ import org.junit.Test
 import kotlin.random.Random
 
 class PillTestWorldTest {
-    @Test fun normalRunsKeepRedPillsRareWithoutRemovingCommonPickups() {
+    @Test fun normalAndDevRunsKeepRedPillsThirtyTimesRarerThanMagnets() {
         val previous = Settings.testPillWorld
         val section = Settings.testSection
         val dev = Settings.devMode
         try {
-            Settings.testPillWorld = false; Settings.testSection = -1; Settings.setDevMode(false)
-            Lanes.reset()
-            val track = Track(Random(771), ObstacleFactory(Random(89)))
-            track.reset(.2f, 250f)
-            track.rows.clear()
-            var pills = 0; var magnets = 0; var multipliers = 0
-            repeat(30000) {
-                track.spawn(20f, 250f, 10000, .5f)
-                for (row in track.rows) when (row.pickup) {
-                    Pickup.RED_PILL -> pills++
-                    Pickup.MAGNET -> magnets++
-                    Pickup.MULT -> multipliers++
-                }
+            Settings.testPillWorld = false; Settings.testSection = -1
+            for (developerMode in listOf(false, true)) {
+                Settings.setDevMode(developerMode)
+                Lanes.reset()
+                val track = Track(Random(771), ObstacleFactory(Random(89)))
+                track.reset(.2f, 250f)
                 track.rows.clear()
+                var pills = 0; var magnets = 0; var multipliers = 0
+                repeat(30000) {
+                    track.spawn(20f, 250f, 10000, .5f)
+                    for (row in track.rows) when (row.pickup) {
+                        Pickup.RED_PILL -> pills++
+                        Pickup.MAGNET -> magnets++
+                        Pickup.MULT -> multipliers++
+                    }
+                    track.rows.clear()
+                }
+                assertTrue("Pills still occur naturally", pills > 5)
+                assertTrue("Pills are far rarer than common power-ups: $pills / $magnets", pills < magnets / 15)
+                assertTrue("The normal shuffled bag remains balanced", kotlin.math.abs(magnets-multipliers) <= 1)
+                android.util.Log.i("PILL_RARITY", "dev=$developerMode magnets=$magnets redPills=$pills ratio=${magnets.toFloat()/pills}")
             }
-            assertTrue("Pills still occur naturally", pills > 5)
-            assertTrue("Pills are far rarer than common power-ups: $pills / $magnets", pills < magnets / 15)
-            assertTrue("The normal shuffled bag remains balanced", kotlin.math.abs(magnets-multipliers) <= 1)
         } finally {
             Settings.testPillWorld = previous; Settings.testSection = section; Settings.setDevMode(dev); Lanes.reset()
         }

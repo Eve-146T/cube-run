@@ -219,6 +219,9 @@ class CubeRun(session: GameSession, private val autoStart: Boolean = false, priv
     // Instrumentation installs this only for protected performance runs. Release
     // builds always use the normal fatal-collision path, even if reflection sets it.
     private var testCrashObserver: (() -> Unit)? = null
+    // Observation only: counts contacts even when a legitimately collected shield saves them.
+    internal var pilotContacts = 0
+        private set
 
     private fun crash() {
         if (dead) return
@@ -263,6 +266,7 @@ class CubeRun(session: GameSession, private val autoStart: Boolean = false, priv
 
     /** Ran into the side of a platform: fatal, or the bubble hoists you onto it. */
     private fun sideHit(groundH: Float) {
+        if (idlePilot.active) pilotContacts++
         if (!bubble.active) {
             if (groundObstacle?.let { phase(it) } == true) return
             crash(); return
@@ -490,7 +494,9 @@ class CubeRun(session: GameSession, private val autoStart: Boolean = false, priv
         }
         // Player/track still describe the start of this simulation slice.
         if (idlePilot.active && live()) idlePilot.drive(time - dt, spd, timeScale, track,
-            player.pilotBody(powerUps.jet.left), ::onSwipe)
+            player.pilotBody(powerUps.jet.left).apply { landingGrace = jetGrace },
+            if (runT >= 1.5f) cube.run.bot.JetMotion(difficulty.speed() * runSkin.speedMultiplier,
+                jetBoost, if (player.flying) powerUps.jet.left else 0f) else null, ::onSwipe)
         if (Stage.endRun) { Stage.endRun = false; if (live()) crash() } // dev tool: END RUN from the pause card
 
         if (started && !dead) {
@@ -616,6 +622,7 @@ class CubeRun(session: GameSession, private val autoStart: Boolean = false, priv
                     val vert = max(cubeBottom - ob.top, ob.bottom - headY)              // over / under it: the vertical gap (positive = clear)
                     row.minClear = min(row.minClear, vert)
                     if (abs(row.z) < 0.82f && vert < -0.02f) {
+                        if (idlePilot.active) pilotContacts++
                         if (!bubble.active && phase(ob)) continue
                         hit(row); break
                     }

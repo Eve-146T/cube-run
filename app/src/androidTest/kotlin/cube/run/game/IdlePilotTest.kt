@@ -65,6 +65,32 @@ class IdlePilotTest {
         } finally { old.close(); current.close() }
     }
 
+    @Test fun retimedCommittedGestureRunsOnceAndUpdatesThePlanningSnapshot() {
+        Stage.reset(); Settings.setDevMode(true); Lanes.reset()
+        IdlePilot().use { pilot ->
+            pilot.start(0f)
+            field(pilot, "lanes").setInt(pilot, Lanes.count)
+            val first = IdlePilot.Event(1, 0f, cube.run.bot.Action.RIGHT)
+            val plan = cube.run.bot.Plan(true, IntArray(90), 90, 0f, 0, 0)
+            val old = IdlePilot.Decision(0f, 1f/60f, plan, .01f, 12, listOf(first))
+            val replacement = old.copy(events = listOf(first.copy(at = .002f),
+                IdlePilot.Event(2, .12f, cube.run.bot.Action.LEFT)))
+            field(pilot, "decision").set(pilot, old)
+            field(pilot, "pending").set(pilot, java.util.concurrent.CompletableFuture.completedFuture(replacement))
+            val random = kotlin.random.Random(3)
+            val track = cube.run.game.track.Track(random, cube.run.game.track.ObstacleFactory(random))
+            val body = cube.run.bot.Body(lane = 0, x = -1.7f)
+            val inputs = arrayListOf<Int>()
+            pilot.drive(.001f, 30f, 1f, track, body) { inputs.add(it) }
+            assertEquals("A search in this slice must see the lane we just selected", 1, body.lane)
+            pilot.drive(.11f, 30f, 1f, track, body) { inputs.add(it) }
+            assertEquals("The retimed prefix must not repeat RIGHT", listOf(1), inputs)
+            pilot.drive(.121f, 30f, 1f, track, body) { inputs.add(it) }
+            assertEquals("LEFT must execute on time, without a repeated input consuming its cooldown", listOf(1, 0), inputs)
+            assertEquals(0, body.lane)
+        }
+    }
+
     @Test fun startsBoostsFiveTimesAndHandsTheSameRunToRealTouch() {
         Settings.setDevMode(true)
         Settings.testSection = 56 // Coin-only section: the injected barrier below is the test's obstacle.

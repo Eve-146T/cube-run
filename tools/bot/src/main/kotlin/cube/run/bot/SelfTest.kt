@@ -22,6 +22,25 @@ fun selfTest() {
         check(events.zipWithNext().all { it.second - it.first >= 6 })
     }
     val bytes = ByteArrayOutputStream()
+    val padReturn = Course(4, "late springboard return", 0, 0, false, 0, listOf(
+        BotRow(-5.1688857f, listOf(Obstacle(.85f, 1.1f, 2.2f, 1.6f, 0, 1f, 0f, false, 0f, 0f, 0, 0f))),
+        BotRow(-11.269015f, listOf(Obstacle(0f, .07f, .14f, .7f, 3, 1f, 0f, false, 0f, 0f, 0, 0f))),
+        BotRow(-17.96551f, listOf(Obstacle(0f, .675f, 1.35f, 2.85f, 0, 1f, 0f, false, 0f, 0f, 0, 0f)))))
+    val returning = Body(lane = 0, x = -.3714964f, y = 3.1976452f, vy = -2.803528f, air = true)
+    val padTimeline = Timeline(padReturn, 30f, seconds = .7f, safetyMargin = .10f)
+    check(!replay(padTimeline, IntArray(42).apply { this[20] = Action.RIGHT }, returning)) {
+        "A last-frame springboard edge catch must not be treated as a reliable launch"
+    }
+    check(replay(padTimeline, IntArray(42).apply { this[16] = Action.RIGHT }, returning)) {
+        "Returning to the springboard interior in time remains possible"
+    }
+    val prefixTimeline = Timeline(coins, 12f, seconds = 1.5f)
+    val prefix = IntArray(9).apply { this[7] = Action.RIGHT }
+    val prefixPlan = Planner(24, 6, 3).solve(prefixTimeline, holdFrames = 9, heldActions = prefix)
+    check(prefixPlan.survived && prefixPlan.actions.take(9) == prefix.toList())
+    val centeredPrefix = centerFirst(prefixTimeline, prefixPlan, Body(), 9, 6)
+    check(centeredPrefix.actions.take(9) == prefix.toList())
+    check(centeredPrefix.actions.indices.filter { centeredPrefix.actions[it] != 0 }.zipWithNext().all { (a, b) -> b-a >= 6 })
     val bait = Course(2, "fatal loot", 0, 0, false, 1, listOf(BotRow(-8f,
         listOf(Obstacle(0f, 4f, 8f, .5f, 0, 1f, 0f, false, 0f, 0f, 0, 0f)),
         listOf(Goodie(0f, .45f, 0f, 10000f)))))
@@ -47,5 +66,5 @@ fun selfTest() {
         }
         check(!body.flying && body.hover && kotlin.math.abs(body.y - 1.4f) < .2f)
     }
-    println("Bot self-tests passed: unreachable states, held inputs, stride reconstruction, safe/fatal loot, timing centering, flight expiry, Zero-G jet priority/glide, fixture codec")
+    println("Bot self-tests passed: unreachable states, committed input handoff, springboard interior, stride reconstruction, safe/fatal loot, timing centering, flight expiry, Zero-G jet priority/glide, fixture codec")
 }

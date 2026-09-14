@@ -10,7 +10,21 @@ data class Body(var lane: Int = 1, var x: Float = 0f, var y: Float = .45f,
     var duckT: Float = 0f, var slam: Boolean = false, var flying: Boolean = false,
     var flyY: Float = 5.2f, var hover: Boolean = false, var pads: Long = 0L,
     var flightLeft: Float = Float.POSITIVE_INFINITY,
-    var coyoteLeft: Float = 0f, var jumpBuffer: Float = 0f)
+    var coyoteLeft: Float = 0f, var jumpBuffer: Float = 0f,
+    var landingGrace: Float = 0f)
+
+/** Existing jetpack acceleration/deceleration; this predicts movement, never changes it. */
+data class JetMotion(val groundSpeed: Float, val boost: Float, val flightLeft: Float) {
+    fun movements(dt: Float, count: Int): FloatArray {
+        var current = boost
+        var left = flightLeft
+        return FloatArray(count) {
+            current += ((if (left > 0f) 1f else 0f) - current) * min(1f, dt * 2f)
+            left = max(0f, left-dt)
+            groundSpeed * (1f + .75f * current) * dt
+        }
+    }
+}
 
 data class Obstacle(val x: Float, val cy: Float, val sy: Float, val halfW: Float,
     val type: Int, val depth: Float, val ramp: Float, val sliding: Boolean,
@@ -49,15 +63,19 @@ object Action {
 data class FrameOb(val x: Float, val bottom: Float, val top: Float, val halfW: Float,
     val type: Int, val rowZ: Float, val depth: Float, val ramp: Float, val pad: Int,
     val used: Boolean)
-data class Frame(val before: List<FrameOb>, val after: List<FrameOb>, val goods: List<Goodie>, val time: Float)
+data class Frame(val before: List<FrameOb>, val after: List<FrameOb>, val goods: List<Goodie>, val time: Float, val movement: Float)
 
 /** Precompute obstacle motion once, independently of candidate player trajectories. */
 class Timeline(val course: Course, val speed: Float, val dt: Float = 1f / 60f,
     seconds: Float = (-course.rows.minOf { it.z } + 9f) / speed,
-    val conservative: Boolean = true, val safetyMargin: Float = 0f) {
+    val conservative: Boolean = true, val safetyMargin: Float = 0f, motion: JetMotion? = null) {
     val frames: List<Frame>
     init {
         require(speed > 0 && dt > 0)
+        val count = ceil(seconds / dt).toInt()
+        val movements = motion?.movements(dt, count) ?: FloatArray(count) { speed * dt }
+        val distances = FloatArray(count+1)
+        for (i in movements.indices) distances[i+1] = distances[i] + movements[i]
         val xs = course.rows.flatMap { it.obstacles }.map { it.x }.toFloatArray()
         val zs = course.rows.map { it.z }.toFloatArray()
         fun positions(frame: Int, update: Boolean): List<FrameOb> {
@@ -65,7 +83,8 @@ class Timeline(val course: Course, val speed: Float, val dt: Float = 1f / 60f,
             var index = 0
             var pad = 0
             val time = course.phase + (frame + 1) * dt
-            if (update) for (i in zs.indices) zs[i] += speed * dt
+            val movement = movements.getOrElse(frame) { speed * dt }
+            if (update) for (i in zs.indices) zs[i] += movement
             for ((ri, row) in course.rows.withIndex()) for (o in row.obstacles) {
                 val z = zs[ri]
                 if (update && o.sliding && z > -26f) xs[index] += (o.slideTo - xs[index]) * min(1f, dt * o.slideRate)
@@ -78,32 +97,34 @@ class Timeline(val course: Course, val speed: Float, val dt: Float = 1f / 60f,
                 }
                 if (o.type == 3) require(pad < 63) { "Split courses with more than 63 pads" }
                 val padId = if (o.type == 3) pad++ else -1
-                if (z in -2f..(max(7f, o.depth) + speed * dt)) out.add(FrameOb(x, bottom, top, o.halfW,
+                if (z in -2f..(max(7f, o.depth) + movement)) out.add(FrameOb(x, bottom, top, o.halfW,
                     o.type, z, o.depth, o.ramp, padId, o.used))
                 index++
             }
             return out
         }
         var previous = positions(-1, false)
-        frames = List(ceil(seconds / dt).toInt()) { frame ->
+        frames = List(count) { frame ->
             val next = positions(frame, true)
             val goods = ArrayList<Goodie>()
             for (r in course.rows) for (g in r.goodies) {
-                val oldZ = r.z + g.dz + frame * speed * dt
-                if (oldZ <= 0 && oldZ + speed * dt > 0) goods.add(g)
+                val oldZ = r.z + g.dz + distances[frame]
+                if (oldZ <= 0 && oldZ + movements[frame] > 0) goods.add(g)
             }
-            Frame(previous, next, goods, course.phase + (frame + 1) * dt).also { previous = next }
+            Frame(previous, next, goods, course.phase + (frame + 1) * dt, movements[frame]).also { previous = next }
         }
     }
 
     /** Returns false on a fatal collision; pickups never buy permission to hit an obstacle. */
     fun step(b: Body, frame: Int, action: Int): Boolean {
         Action.apply(b, action, course.lanes)
+        b.landingGrace = max(0f, b.landingGrace-dt)
         if (b.flying && b.flightLeft.isFinite()) {
             b.flightLeft = max(0f, b.flightLeft - dt)
             if (b.flightLeft == 0f) {
                 b.flying = false; b.air = true; b.vy = 0f; b.flyY = 5.2f
                 b.coyoteLeft = 0f; b.jumpBuffer = 0f
+                b.landingGrace = 1.2f
             }
             else {
                 val landingY = if (b.hover) 1.4f else .45f
@@ -140,13 +161,15 @@ class Timeline(val course: Course, val speed: Float, val dt: Float = 1f / 60f,
         b.duck += ((if (b.duckT > 0 && !b.air) 1f else 0f) - b.duck) * min(1f, dt * 18f)
         for (o in f.after) {
             if (o.type == 3 && !o.used && b.pads and (1L shl o.pad) == 0L && !b.air && !b.flying &&
-                abs(o.rowZ) < .75f && abs(b.x - o.x) < .85f) {
+                // A plan must reach the pad's interior. A last-frame edge catch is
+                // not reliable when Android delivers input between simulation slices.
+                abs(o.rowZ) < .75f - safetyMargin && abs(b.x - o.x) < .85f - safetyMargin * 2f) {
                 b.pads = b.pads or (1L shl o.pad); b.air = true; b.vy = 12.5f; b.duckT = 0f; b.slam = false
                 b.coyoteLeft = 0f; b.jumpBuffer = 0f
             }
             // Expand the z test to cover a swept frame: high speed must not win by tunnelling.
-            val crossed = if (conservative) o.rowZ >= -.82f && o.rowZ - speed * dt <= .82f else abs(o.rowZ) < .82f
-            if (!b.flying && o.type == 0 && crossed && abs(b.x - o.x) < o.halfW + .36f + safetyMargin &&
+            val crossed = if (conservative) o.rowZ >= -.82f && o.rowZ - f.movement <= .82f else abs(o.rowZ) < .82f
+            if (!b.flying && b.landingGrace <= 0f && o.type == 0 && crossed && abs(b.x - o.x) < o.halfW + .36f + safetyMargin &&
                 max(b.y - .45f - o.top, o.bottom - (b.y + .45f - b.duck * .72f)) < safetyMargin - .02f) return false
         }
         return true

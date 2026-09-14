@@ -11,7 +11,7 @@ import java.util.concurrent.atomic.AtomicInteger
 class GameHostSession(
     private val activity: Activity,
     private val id: String,
-    private val chrome: Hud,
+    private var chrome: Hud? = null,
 ) : GameSession {
 
     private val scoreV = AtomicInteger(0)
@@ -25,51 +25,51 @@ class GameHostSession(
     override fun setScore(v: Int) {
         if (over.get()) return
         scoreV.set(v)
-        ui { chrome.setScore(v) }
+        ui { it.setScore(v) }
     }
 
     override fun addScore(d: Int) {
         if (over.get()) return
         val v = scoreV.addAndGet(d)
-        ui { chrome.setScore(v) }
+        ui { it.setScore(v) }
     }
 
     override fun runStarted() {
-        ui { chrome.hideOptions() }
+        ui { it.hideOptions() }
     }
 
     override fun setCoins(v: Int) {
         if (over.get()) return
         coinsV.set(v)
-        ui { chrome.setRunCoins(v) }
+        ui { it.setRunCoins(v) }
     }
 
     override fun setBubbles(v: Int) {
-        ui { chrome.setBubbles(v) }
+        ui { it.setBubbles(v) }
     }
 
-    override fun setBubbleCooldown(seconds: Int) { ui { chrome.setBubbleCooldown(seconds) } }
+    override fun setBubbleCooldown(seconds: Int) { ui { it.setBubbleCooldown(seconds) } }
 
     override fun setBoxes(v: Int) {
         if (over.get()) return
         boxesV.set(v)
-        ui { chrome.setBoxes(v) }
+        ui { it.setBoxes(v) }
     }
 
     override fun setWorld(name: String) {
-        ui { chrome.setWorld(name) }
+        ui { it.setWorld(name) }
     }
 
     override fun setBoost(open: Boolean, taps: Int, max: Int) {
-        ui { chrome.setBoost(open, taps, max) }
+        ui { it.setBoost(open, taps, max) }
     }
 
     override fun setBonus(id: Int) {
-        ui { chrome.setBonus(id) }
+        ui { it.setBonus(id) }
     }
 
     override fun boxOpened(kind: Int, amount: Int, cat: Int, id: Int) {
-        ui { chrome.onBoxOpened(kind, amount, cat, id) }
+        ui { it.onBoxOpened(kind, amount, cat, id) }
     }
 
     override fun gameOver() {
@@ -88,8 +88,20 @@ class GameHostSession(
             SoundFx.play("fail")
             Haptics.fail()
         }
-        ui { chrome.showRunOver(finalScore, prevBest, isNew, runCoins, boxes) }
+        ui { it.showRunOver(finalScore, prevBest, isNew, runCoins, boxes) }
     }
 
-    private fun ui(block: () -> Unit) = activity.runOnUiThread(block)
+    private val waiting = ArrayList<(Hud) -> Unit>()
+
+    /** Attach after the first cube frame; keep every initial score/stock update in order. */
+    fun attach(hud: Hud) {
+        chrome = hud
+        waiting.forEach { it(hud) }
+        waiting.clear()
+    }
+
+    private fun ui(block: (Hud) -> Unit) = activity.runOnUiThread {
+        val hud = chrome
+        if (hud == null) waiting.add(block) else block(hud)
+    }
 }

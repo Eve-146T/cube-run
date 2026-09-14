@@ -31,30 +31,29 @@ object SoundFx {
     private val ids = HashMap<String, Int>()
     @Volatile private var ready = false
 
-    fun init(ctx: Context) {
-        if (pool != null) return
-        val attrs = AudioAttributes.Builder()
-            .setUsage(AudioAttributes.USAGE_GAME)
-            .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
-            .build()
-        val p = SoundPool.Builder().setMaxStreams(12).setAudioAttributes(attrs).build()
-        pool = p
-        val dir = File(ctx.cacheDir, "sfx").apply { mkdirs() }
-        thread(name = "sfx-synth") {
-            val sounds = synthAll()
-            val expected = sounds.size
+    private var initializing = false
+    @Synchronized fun init(ctx: Context) {
+        if (initializing) return
+        initializing = true
+        thread(name = "sfx-load") {
+            android.os.Process.setThreadPriority(android.os.Process.THREAD_PRIORITY_BACKGROUND)
+            val attrs = AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_GAME)
+                .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION).build()
+            val p = SoundPool.Builder().setMaxStreams(12).setAudioAttributes(attrs).build()
+            pool = p
+            val dir = File(ctx.cacheDir, "sfx").apply { mkdirs() }
+            val names = listOf("tap", "blip", "pop", "place", "perfect", "combo", "success", "fail", "whoosh", "boom", "coin", "rise", "slide")
+            fun file(name: String) = File(dir, if (name == "coin") "coin-chime-v2.wav" else "$name.wav")
+            // Installed games already have these WAVs. Do not synthesize all samples again.
+            if (names.any { !file(it).exists() || file(it).length() == 0L }) {
+                for ((name, pcm) in synthAll()) if (!file(name).exists() || file(name).length() == 0L) file(name).writeBytes(wav(pcm))
+            }
             val loaded = java.util.concurrent.atomic.AtomicInteger(0)
-            // ready only once SoundPool reports every sample decoded — play() of
-            // an undecoded sample is a silent no-op.
-            p.setOnLoadCompleteListener { _, _, _ ->
-                if (loaded.incrementAndGet() >= expected) ready = true
-            }
-            for ((name, pcm) in sounds) {
-                // Version the changed chime so installed games replace their cached quiet sample.
-                val f = File(dir, if (name == "coin") "coin-chime-v2.wav" else "$name.wav")
-                if (!f.exists() || f.length() == 0L) f.writeBytes(wav(pcm))
-                ids[name] = p.load(f.path, 1)
-            }
+            val submitted = java.util.concurrent.atomic.AtomicBoolean(false)
+            fun publish() { if (submitted.get() && loaded.get() >= names.size) ready = true }
+            p.setOnLoadCompleteListener { _, _, _ -> loaded.incrementAndGet(); publish() }
+            for (name in names) ids[name] = p.load(file(name).path, 1)
+            submitted.set(true); publish()
         }
     }
 

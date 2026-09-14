@@ -1,7 +1,8 @@
 # Section test bot
 
-Everything stays local. The bot lives in `tools/bot` and `app/src/androidTest`;
-it is an Android **test dependency only**, absent from the release application.
+The shared planning model lives in `tools/bot`. The application uses it for the
+dev-mode idle player; Android input probes and section surveys live in
+`app/src/androidTest`.
 There are no Git push, remote upload, purchasing, or publishing commands in the tool.
 
 The bot has two uses:
@@ -162,12 +163,12 @@ The helper and wrapper are removed after the command.
 The [section review page](section-review.html) contains the 58 authored/generated
 patterns, visual previews, bot reference ratings and separate player feedback for
 each section/boost combination. Rebuild it with `uv run --no-project
-tools/section-review/build.py`. It stores drafts locally, exports JSON, and sends
+tools/section-review/build.py`. It stores drafts locally, imports and exports JSON, and sends
 feedback to the local drop service only when the player clicks Send feedback.
 
 `--boosts` accepts 0–10. Values above five explicitly enable development mode;
 the game keeps five arrows and changes them from orange to blue for boosts 6–10.
-Normal play still caps opening boosts at five. The live bot now plans toward each
+Normal play starts with five opening boosts; Even Faster Starts upgrades unlock six through ten. The live bot now plans toward each
 coin's original lane even while a magnet pulls its displayed position toward the
 player. A fixture verifies that this produces the expected lane-change gesture.
 
@@ -205,3 +206,47 @@ Tested on 2026-09-12 against game revision `3d8a951` in the local `performance`
 worktree. The generated trials, fixture binary, replay inputs, device logs and
 recordings are retained under `captures/bot`; compact reference tables live in
 `docs/bot-reference`.
+
+## Dev-mode idle player
+
+After two untouched minutes on the home screen with dev mode enabled, `IdlePilot`
+starts a run, presses the regular speed control five times, and uses the ordinary
+swipe callbacks. Touch immediately hands the same run to the player. It never
+changes obstacles, collision rules, paid stock, or player movement.
+
+Its worker replans while the previous verified input sequence continues. New
+searches simulate that committed prefix, including inputs issued in their starting
+slice. Prefix events retain stable identities and absolute delivery times: a
+replacement cannot repeat or drop a gesture because its timing moved slightly.
+The planner leaves extra clearance around obstacles and aims for the interior
+of springboards to account for variable frame timing. Timing refinement respects
+the last committed gesture's cooldown. Jet predictions follow the real acceleration,
+slowdown and existing landing grace; the model is checked against actual game
+physics at 60 and 90 Hz.
+
+The opt-in `IdlePilotSoakTest` exercises this actual controller, with normal death
+handling. A collision fails the test even if a bubble or cosmetic could save it.
+`-e fast true` selects the normal maximum difficulty; `-e speedy true` also equips
+Speedy Cube for its real 30% speed increase. Collected jetpacks work normally.
+
+```sh
+adb -s SERIAL shell am instrument -w \
+  -e class cube.run.game.IdlePilotSoakTest -e soak true \
+  -e seconds 180 -e fast true -e speedy true \
+  cube.run.test/androidx.test.runner.AndroidJUnitRunner
+```
+
+The test writes `idle-pilot-soak.csv` and `idle-pilot-soak-result.txt` in the app's
+external files directory. Back up the phone's shared preferences before
+instrumentation and restore them afterward, as for the other bot tools.
+
+Validation on the Moto, 2026-09-14: the final Speedy Cube maximum-difficulty
+trial passed five minutes with zero contacts across 3,497 samples, reaching
+68.25 during natural jetpack flight. An earlier maximum-difficulty
+Classic run passed three minutes. The faster trials exposed and led to fixes for
+input handoff, stale state and jet landing predictions; failed trials were kept
+as diagnostics. Eight focused bot/startup/rarity tests and eighteen jet-physics,
+rebalancing and wardrobe checks passed. Debug assembly, host bot checks and lint
+passed (zero lint errors, two existing warnings). Original device preferences
+were restored and verified byte for byte. These are finite randomized trials,
+not a proof of endless survival.

@@ -59,8 +59,9 @@ abstract class Gdx3DGame(val session: GameSession) : ApplicationAdapter(), Touch
     private lateinit var matrixWires: MatrixWireBatch
     private lateinit var capsules: CapsuleBatch
     /** The soap-bubble shader (blended pass; use from [renderBlended]). */
-    lateinit var bubbles: BubbleRenderer
-        private set
+    private var bubbleRenderer: BubbleRenderer? = null
+    private var disposed = false
+    val bubbles: BubbleRenderer get() = bubbleRenderer ?: BubbleRenderer(mb).also { bubbleRenderer = it }
     private lateinit var shards: ShardSystem
     private lateinit var perf: PerfMonitor
     val mb = ModelBuilder()
@@ -146,6 +147,7 @@ abstract class Gdx3DGame(val session: GameSession) : ApplicationAdapter(), Touch
     // ----------------------------------------------------------------- setup
 
     override fun create() {
+        LaunchTrace.mark("gl create")
         cam = PerspectiveCamera(60f, sw.toFloat(), sh.toFloat()).apply {
             position.set(7f, 7f, 7f)
             lookAt(0f, 0f, 0f)
@@ -154,6 +156,7 @@ abstract class Gdx3DGame(val session: GameSession) : ApplicationAdapter(), Touch
             update()
         }
         kit = BoxMeshKit(mb)
+        LaunchTrace.mark("box kit")
         env = kit.environment()
         batch = ModelBatch()
         shapes = ShapeRenderer()
@@ -161,11 +164,12 @@ abstract class Gdx3DGame(val session: GameSession) : ApplicationAdapter(), Touch
         world = WorldBoxBatch(kit, wires = matrixWires)
         coins = PrismBatch(kit, wires = matrixWires)
         capsules = CapsuleBatch(kit)
-        bubbles = BubbleRenderer(mb)
+        LaunchTrace.mark("batches ready")
         shards = ShardSystem(kit)
         perf = PerfMonitor(showFps, perfLog)
         Gdx.input.inputProcessor = TouchInput(this, { sw }, { session.isOver || paused() || Stage.mode != Stage.NONE })
         init()
+        LaunchTrace.mark("game ready")
     }
 
     // ----------------------------------------------------------------- frame
@@ -277,7 +281,11 @@ abstract class Gdx3DGame(val session: GameSession) : ApplicationAdapter(), Touch
         Gdx.gl.glEnable(GL20.GL_DEPTH_TEST)
 
         perf.endFrame(shards.count)
-        onFirstFrame?.let { onFirstFrame = null; it() }
+        onFirstFrame?.let {
+            onFirstFrame = null; LaunchTrace.mark("first frame"); it()
+            // Compile during the opening's still pose, after the cube is already visible.
+            Gdx.app.postRunnable { if (!disposed) { bubbles; LaunchTrace.mark("bubble ready") } }
+        }
     }
 
     override fun resume() { resumed = true; frameStepper.reset() }
@@ -403,6 +411,7 @@ abstract class Gdx3DGame(val session: GameSession) : ApplicationAdapter(), Touch
     fun gdxHsv(h: Float, s: Float = 0.75f, v: Float = 1f): Color = hsvInto(Color(), h, s, v)
 
     override fun dispose() {
+        disposed = true
         batch.dispose()
         shapes.dispose()
         shards.dispose()
@@ -410,7 +419,7 @@ abstract class Gdx3DGame(val session: GameSession) : ApplicationAdapter(), Touch
         coins.dispose()
         matrixWires.dispose()
         capsules.dispose()
-        bubbles.dispose()
+        bubbleRenderer?.dispose()
         kit.dispose()
         owned.forEach { it.dispose() }
         owned.clear()

@@ -13,14 +13,20 @@ class Planner(private val beam: Int = 96, private val inputEvery: Int = 1, priva
         val reward: Float, val gestures: Int, val rank: Float, val cost: Float = 0f)
 
     fun solve(t: Timeline, initial: Body = Body(lane = t.course.entry,
-        x = (t.course.entry - (t.course.lanes - 1) / 2f) * t.course.width), holdFrames: Int = 0): Plan {
+        x = (t.course.entry - (t.course.lanes - 1) / 2f) * t.course.width), holdFrames: Int = 0, heldActions: IntArray = IntArray(0), initialCooldown: Int = 0): Plan {
         var expanded = 0L
         val held = initial.copy()
         val hold = holdFrames.coerceIn(0, t.frames.size)
-        for (frame in 0 until hold) if (!t.step(held, frame, 0)) return Plan(false, IntArray(0), frame, 0f, 0, 0)
-        var nodes = listOf(Node(held, null, 0, 0, 0f, 0, 0f))
+        var cooldown = initialCooldown
+        for (frame in 0 until hold) {
+            val action = heldActions.getOrElse(frame) { Action.NONE }
+            if (!t.step(held, frame, action)) return Plan(false, IntArray(0), frame, 0f, 0, 0)
+            cooldown = max(0, (if (action == Action.NONE) cooldown else inputEvery)-1)
+        }
+        var nodes = listOf(Node(held, null, 0, cooldown, 0f, 0, 0f))
         var reached = hold
         for (frame in hold until t.frames.size step stride) {
+            if (Thread.currentThread().isInterrupted) throw InterruptedException("Superseded bot plan")
             val end = min(frame + stride, t.frames.size)
             val candidates = HashMap<Long, Node>(beam * 4)
             for (n in nodes) for (a in 0..4) {
@@ -68,6 +74,7 @@ class Planner(private val beam: Int = 96, private val inputEvery: Int = 1, priva
         }
         val best = nodes.maxBy { it.rank }
         val actions = IntArray(reached)
+        heldActions.copyInto(actions, endIndex = min(hold, min(heldActions.size, actions.size)))
         var n: Node? = best
         if (reached > hold) for (i in (hold + (reached - hold - 1) / stride * stride) downTo hold step stride) {
             actions[i] = n!!.action; n = n.previous
@@ -104,12 +111,12 @@ fun replay(t: Timeline, actions: IntArray, initial: Body = Body(lane = t.course.
 fun centerFirst(t: Timeline, plan: Plan, initial: Body, minimum: Int, cadence: Int): Plan {
     if (!plan.survived) return plan
     val actions = plan.actions.copyOf()
-    val first = actions.indexOfFirst { it != 0 }
-    if (first < 0) return plan
+    val first = (minimum until actions.size).firstOrNull { actions[it] != 0 } ?: return plan
+    val previous = (0 until first).lastOrNull { actions[it] != 0 }
     val next = (first + 1 until actions.size).firstOrNull { actions[it] != 0 } ?: (actions.size + cadence - 1)
     val action = actions[first]; actions[first] = 0
     var start = -1; var bestStart = first; var bestEnd = first
-    for (at in max(minimum, first - 12)..min(first + 6, next - cadence)) {
+    for (at in max(max(minimum, first - 12), previous?.plus(cadence) ?: 0)..min(first + 6, next - cadence)) {
         actions[at] = action
         val safe = replay(t, actions, initial)
         actions[at] = 0

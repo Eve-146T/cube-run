@@ -323,3 +323,16 @@ verified; Motorola CPU limits, boost settings and power services were restored.
 Permanent-upgrade prices, mystery-box rewards and their 15–25-hour target model
 are documented in [progression.md](progression.md). The candidate identifies as
 version 2.2 / code 9; no main-game release tag or Git push is part of this pass.
+
+## Cube-opening startup, 2026-09-14
+
+The opening still uses the equipped game cube. HUD construction and bubble-shader
+preparation now follow the first cube frame, and sound loading reuses cached WAVs
+without synthesizing them again. Initial HUD updates queue until attachment;
+disposed games cannot run a delayed shader warmup.
+
+One instrumented cold-launch comparison on the Moto measured app start to first
+cube frame at 743 ms before and 610 ms afterward. Android's cold-launch TotalTime
+was 932 ms before and 822 ms afterward. These are individual measurements, not
+repeat-run medians. Launch, background/resume, rapid closing and recreation checks
+passed, along with existing gesture and wardrobe checks.

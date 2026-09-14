@@ -26,6 +26,7 @@ class GameActivity : AndroidApplication() {
     private var backCallback: android.window.OnBackInvokedCallback? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        cube.run.core.LaunchTrace.mark("activity start")
         super.onCreate(savedInstanceState)
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
 
@@ -39,9 +40,7 @@ class GameActivity : AndroidApplication() {
             intent.getIntExtra("boxes", -1).let { if (it >= 0) Settings.testBoxes = it }
             intent.getIntExtra("bonusnow", -2).let { if (it >= -1) Settings.testBonusNow = it }
         }
-        hud = Hud(this)
-        hud.setBest(Scores.best(SCORE_ID))
-        val session = GameHostSession(this, SCORE_ID, hud)
+        val session = GameHostSession(this, SCORE_ID)
         // RESTART relaunches with this extra: the run begins on the first frame, no "tap to start"
         val launchOpening = !intent.hasExtra(Hud.EXTRA_AUTOSTART) && savedInstanceState == null
         val game = CubeRun(session, autoStart = intent.getBooleanExtra(Hud.EXTRA_AUTOSTART, false),
@@ -51,19 +50,18 @@ class GameActivity : AndroidApplication() {
             importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
             setOnClickListener { com.badlogic.gdx.Gdx.app.postRunnable { game.finishOpening() } }
         } else null
+        var openingAmount = if (launchOpening) 0f else 1f
         if (launchOpening) {
-            hud.alpha = 0f
             game.onOpeningProgress = { amount -> runOnUiThread {
-                hud.alpha = amount
-                hud.translationY = (1f-amount)*18f*resources.displayMetrics.density
-                if (amount >= 1f) (openingTouch?.parent as? FrameLayout)?.removeView(openingTouch)
+                openingAmount = amount
+                if (::hud.isInitialized) {
+                    hud.alpha = amount
+                    hud.translationY = (1f-amount)*18f*resources.displayMetrics.density
+                    if (amount >= 1f) (openingTouch?.parent as? FrameLayout)?.removeView(openingTouch)
+                }
             } }
-        }
-        if (android.os.Build.VERSION.SDK_INT >= 31) {
-            var ready = false
-            var splash: android.window.SplashScreenView? = null
-            game.onFirstFrame = { runOnUiThread { ready = true; splash?.remove(); splash = null } }
-            splashScreen.setOnExitAnimationListener { if (ready) it.remove() else splash = it }
+        } else {
+            hud = Hud(this); hud.setBest(Scores.best(SCORE_ID)); session.attach(hud)
         }
 
         val config = AndroidApplicationConfiguration().apply {
@@ -75,7 +73,9 @@ class GameActivity : AndroidApplication() {
             r = 8; g = 8; b = 8; a = 8
             depth = 24 // 16-bit z-fights at the far end of the long draw distance
         }
+        cube.run.core.LaunchTrace.mark("gdx host begin")
         val gameView = initializeForView(game, config)
+        cube.run.core.LaunchTrace.mark("gdx host ready")
         gameSurface = gameView as? SurfaceView
         // Explicitly request the game's render cadence; Android can still lower
         // it for battery/thermal policy. Never change the user's display settings.
@@ -97,19 +97,42 @@ class GameActivity : AndroidApplication() {
 
         val root = FrameLayout(this).apply { setBackgroundColor(0xFF14102E.toInt()) }
         root.addView(gameView, FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT)
-        root.addView(hud, FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT)
+        if (::hud.isInitialized) root.addView(hud, FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT)
         openingTouch?.let { root.addView(it, FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT) }
+        var firstFrameReady = false
+        var removeSplash: (() -> Unit)? = null
+        if (android.os.Build.VERSION.SDK_INT >= 31) {
+            splashScreen.setOnExitAnimationListener { splash ->
+                if (firstFrameReady) splash.remove() else removeSplash = { splash.remove() }
+            }
+        }
+        game.onFirstFrame = { runOnUiThread {
+            firstFrameReady = true; removeSplash?.invoke(); removeSplash = null
+            if (launchOpening) root.postDelayed({
+                if (!isFinishing && !isDestroyed && !::hud.isInitialized) {
+                    cube.run.core.LaunchTrace.mark("hud begin")
+                    hud = Hud(this); hud.setBest(Scores.best(SCORE_ID))
+                    hud.alpha = openingAmount
+                    hud.translationY = (1f-openingAmount)*18f*resources.displayMetrics.density
+                    root.addView(hud, 1, FrameLayout.LayoutParams(-1, -1))
+                    session.attach(hud)
+                    if (openingAmount >= 1f) openingTouch?.let { root.removeView(it) }
+                    cube.run.core.LaunchTrace.mark("hud ready")
+                }
+            }, 40L)
+        } }
         setContentView(root)
+        cube.run.core.LaunchTrace.mark("content attached")
         goFullscreen()
         if (android.os.Build.VERSION.SDK_INT >= 33) {
-            backCallback = android.window.OnBackInvokedCallback { hud.navigateBack() }.also {
+            backCallback = android.window.OnBackInvokedCallback { if (::hud.isInitialized) hud.navigateBack() }.also {
                 onBackInvokedDispatcher.registerOnBackInvokedCallback(android.window.OnBackInvokedDispatcher.PRIORITY_DEFAULT, it)
             }
         }
     }
 
     @Deprecated("Legacy Back dispatch")
-    override fun onBackPressed() { hud.navigateBack() }
+    override fun onBackPressed() { if (::hud.isInitialized) hud.navigateBack() }
 
     override fun onDestroy() {
         if (android.os.Build.VERSION.SDK_INT >= 33) backCallback?.let { onBackInvokedDispatcher.unregisterOnBackInvokedCallback(it) }
@@ -153,7 +176,7 @@ class GameActivity : AndroidApplication() {
     /** Leaving the app mid-run (home, a call) pauses it: the run resumes from the pause card. */
     override fun onPause() {
         Stage.userInteraction()
-        hud.autoPause()
+        if (::hud.isInitialized) hud.autoPause()
         super.onPause()
     }
 
