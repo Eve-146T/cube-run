@@ -23,8 +23,10 @@ def preview(code):
     if 130 <= code <= 132: others(code-130,1); row[code-130] = 9
     return row
 
+# Match the selectable in-game catalog, excluding internal intro/bonus patterns.
+catalog = source.split('val lib = listOf(', 1)[1].split('\n    )', 1)[0]
 sections = []
-for m in re.finditer(r'Sect\((-?\d+),\s*(\d+),\s*[\d.]+f,\s*"([^"]+)",\s*intArrayOf\((.*?)\)\s*(?:,\s*mirrorable\s*=\s*false)?\),?\s*(?://[^\n]*)?$', source, re.MULTILINE):
+for m in re.finditer(r'Sect\((-?\d+),\s*(\d+),\s*[\d.]+f,\s*"([^"]+)",\s*intArrayOf\((.*?)\)\s*(?:,\s*mirrorable\s*=\s*false)?\),?\s*(?://[^\n]*)?$', catalog, re.MULTILINE):
     ident, tier, name, steps = m.groups()
     parsed = []
     for step in steps.split(','):
@@ -33,9 +35,20 @@ for m in re.finditer(r'Sect\((-?\d+),\s*(\d+),\s*[\d.]+f,\s*"([^"]+)",\s*intArra
         parsed.append(base[call[1]] + int(call[2]) if call else codes[step])
     ident = int(ident)
     sections.append(dict(id=ident,tier=int(tier),name=name,rows=[preview(s) for s in parsed],bot=ratings.get(ident)))
-assert len(sections)==58 and len({s['id'] for s in sections})==58
-sections.sort(key=lambda s:(s['id']<0,s['id']))
+assert sections and len(sections) == len(re.findall(r'\bSect\(', catalog))
+assert len({s['id'] for s in sections}) == len(sections)
+# SectionsView presents tiers in order, then IDs within each tier.
+sections.sort(key=lambda s:(s['tier'],s['id']))
 template = (Path(__file__).parent/'template.html').read_text()
-output = root/'docs/section-review.html'
-output.write_text(template.replace('/*SECTION_DATA*/[]',json.dumps(sections,separators=(',',':')).replace('</','<\\/')))
-print(output)
+def write_page(path, data, page_template):
+    encoded = json.dumps(data, separators=(',', ':')).replace('</', '<\\/')
+    path.write_text(page_template.replace('/*SECTION_DATA*/[]', encoded))
+    print(f'{path}: {len(data)} sections')
+
+write_page(root/'docs/section-review.html', sections, template)
+# Keep the existing cleanup link's drafts and original feedback available while
+# generating its current catalog from exactly the same game source.
+previous = {r['id']: r for r in json.loads((Path(__file__).parent/'previous-ratings.json').read_text())}
+cleanup = [dict(s, previous=[previous[s['id']]] if s['id'] in previous else []) for s in sections]
+cleanup_template = template.replace('cube-run-section-review-v1', 'cube-run-section-review-cleanup-worlds-v1')
+write_page(root/'docs/section-review-cleanup.html', cleanup, cleanup_template)

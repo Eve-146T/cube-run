@@ -160,10 +160,11 @@ The helper and wrapper are removed after the command.
 
 ## Review page and current controls
 
-The [section review page](section-review.html) contains the 58 authored/generated
-patterns, visual previews, bot reference ratings and separate player feedback for
+The [section review page](section-review.html) contains the 53 selectable in-game
+patterns in the same tier/ID order as the section grid, visual previews, bot reference ratings and separate player feedback for
 each section/boost combination. Rebuild it with `uv run --no-project
-tools/section-review/build.py`. It stores drafts locally, imports and exports JSON, and sends
+tools/section-review/build.py`; this regenerates both published rater variants from
+the current game catalog. It stores drafts locally, imports and exports JSON, and sends
 feedback to the local drop service only when the player clicks Send feedback.
 
 `--boosts` accepts 0–10. Values above five explicitly enable development mode;
