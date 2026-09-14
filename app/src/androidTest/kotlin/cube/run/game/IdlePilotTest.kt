@@ -15,7 +15,11 @@ import java.util.concurrent.TimeUnit
 
 class IdlePilotTest {
     private val originalDev = Settings.devMode
-    @After fun reset() { Settings.setDevMode(originalDev); Stage.userInteraction(); Stage.paused = false }
+    private val originalSection = Settings.testSection
+    @After fun reset() {
+        Settings.setDevMode(originalDev); Settings.testSection = originalSection
+        Stage.userInteraction(); Stage.paused = false
+    }
     private fun field(owner: Any, name: String) = owner.javaClass.getDeclaredField(name).apply { isAccessible = true }
     private fun gl(action: (CubeRun) -> Unit) {
         val done = CountDownLatch(1); var failure: Throwable? = null
@@ -63,6 +67,8 @@ class IdlePilotTest {
 
     @Test fun startsBoostsFiveTimesAndHandsTheSameRunToRealTouch() {
         Settings.setDevMode(true)
+        Settings.testSection = 56 // Coin-only section: the injected barrier below is the test's obstacle.
+
         ActivityScenario.launch(GameActivity::class.java).use { scenario ->
             scenario.onActivity { it.setShowWhenLocked(true); it.setTurnScreenOn(true) }
             SystemClock.sleep(700)
@@ -82,22 +88,36 @@ class IdlePilotTest {
                 time = game.time
             }
             var laneBefore = 0
+            var hits = 0
+            lateinit var barrier: cube.run.game.track.Row
             gl { game ->
                 val player = field(game, "player").get(game) as Player
                 laneBefore = player.lane
                 val track = field(game, "track").get(game) as cube.run.game.track.Track
                 track.rows.clear()
-                track.rows.add(cube.run.game.track.Row(-12f, arrayListOf(
+                field(game, "runSkin").set(game, cube.run.data.Skins.get(0))
+                (field(game, "bubble").get(game) as Bubble).reset()
+                field(game, "testCrashObserver").set(game, { hits++ })
+                barrier = cube.run.game.track.Row(-24f, arrayListOf(
                     cube.run.game.track.Ob(com.badlogic.gdx.graphics.Color.WHITE, Lanes.x(laneBefore), 4f,
                         .6f, cube.run.game.track.ObType.SOLID, 1.2f, 8f, 1f)
-                ), Lanes.w))
+                ), Lanes.w)
+                track.rows.add(barrier)
                 // The fixture replaced the entire visible course; discard its old prediction.
                 (field(game, "idlePilot").get(game) as IdlePilot).replan()
             }
-            SystemClock.sleep(700)
+            var steered = false
+            repeat(14) {
+                SystemClock.sleep(100)
+                gl { game ->
+                    val player = field(game, "player").get(game) as Player
+                    if (player.lane != laneBefore) steered = true
+                }
+            }
             gl { game ->
-                val player = field(game, "player").get(game) as Player
-                assertNotEquals("The live planner steers around a blocking obstacle", laneBefore, player.lane)
+                assertTrue("The live planner steers around a blocking obstacle", steered)
+                assertTrue("The entire barrier passed the player", barrier.z > 1.2f)
+                assertEquals("No collision, phase or revival needed", 0, hits)
                 assertFalse("Bot survives the obstacle", field(game, "dead").getBoolean(game))
             }
             scenario.onActivity {

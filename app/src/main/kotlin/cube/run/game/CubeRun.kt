@@ -475,7 +475,8 @@ class CubeRun(session: GameSession, private val autoStart: Boolean = false, priv
             start()
             if (idleBotStart && Settings.devMode && Stage.interactions.get() == initialInteraction) idlePilot.start(time)
         }
-        if (idlePilot.active && live()) idlePilot.drive(time, spd, timeScale, track,
+        // Player/track still describe the start of this simulation slice.
+        if (idlePilot.active && live()) idlePilot.drive(time - dt, spd, timeScale, track,
             player.pilotBody(powerUps.jet.left), ::onSwipe)
         if (Stage.endRun) { Stage.endRun = false; if (live()) crash() } // dev tool: END RUN from the pause card
 
