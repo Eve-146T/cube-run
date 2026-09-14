@@ -30,6 +30,7 @@ object Pickup {
     const val BOX = 2     // a mystery box, opened on the run-over screens (rare)
     const val MAGNET = 3  // timed: a huge coin magnet
     const val MULT = 4    // timed: 2× score
+    const val RED_PILL = 6 // timed: black world with luminous green geometry edges
     const val JET = 5     // timed: fly above everything along an air coin line
 }
 

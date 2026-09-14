@@ -37,7 +37,7 @@ class PowerUps {
     fun reset() { magnet.stop(); mult.stop(); jet.stop() }
 
     /** Every running timer as a rounded draining bar with a dark lip, stacked bottom-centre; the last seconds flicker. */
-    fun drawBars(shapes: ShapeRenderer, w: Float, h: Float, time: Float, shield: Timer?) {
+    fun drawBars(shapes: ShapeRenderer, w: Float, h: Float, time: Float, shield: Timer?, matrix: Timer? = null) {
         var row = 0
         fun bar(t: Timer) {
             if (!t.active) return
@@ -61,6 +61,7 @@ class PowerUps {
         bar(magnet)
         bar(mult)
         bar(jet)
+        matrix?.let { bar(it) }
     }
 
     /** A rounded horizontal bar from circles + a rect (ShapeRenderer has no round rects). */

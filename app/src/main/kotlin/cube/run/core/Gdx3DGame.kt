@@ -15,6 +15,8 @@ import com.badlogic.gdx.graphics.g3d.utils.ModelBuilder
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer
 import com.badlogic.gdx.math.Matrix4
 import com.badlogic.gdx.math.Vector3
+import cube.run.core.gfx.MatrixWireBatch
+import cube.run.core.gfx.CapsuleBatch
 import cube.run.core.gfx.BoxMeshKit
 import cube.run.core.gfx.BubbleRenderer
 import cube.run.core.gfx.PrismBatch
@@ -51,6 +53,8 @@ abstract class Gdx3DGame(val session: GameSession) : ApplicationAdapter(), Touch
     private lateinit var kit: BoxMeshKit
     private lateinit var world: WorldBoxBatch
     private lateinit var coins: PrismBatch
+    private lateinit var matrixWires: MatrixWireBatch
+    private lateinit var capsules: CapsuleBatch
     /** The soap-bubble shader (blended pass; use from [renderBlended]). */
     lateinit var bubbles: BubbleRenderer
         private set
@@ -150,8 +154,10 @@ abstract class Gdx3DGame(val session: GameSession) : ApplicationAdapter(), Touch
         env = kit.environment()
         batch = ModelBatch()
         shapes = ShapeRenderer()
-        world = WorldBoxBatch(kit)
-        coins = PrismBatch(kit)
+        matrixWires = MatrixWireBatch(kit)
+        world = WorldBoxBatch(kit, wires = matrixWires)
+        coins = PrismBatch(kit, wires = matrixWires)
+        capsules = CapsuleBatch(kit)
         bubbles = BubbleRenderer(mb)
         shards = ShardSystem(kit)
         perf = PerfMonitor(showFps, perfLog)
@@ -222,11 +228,15 @@ abstract class Gdx3DGame(val session: GameSession) : ApplicationAdapter(), Touch
         shapes.end()
         Gdx.gl.glDepthMask(true)
         Gdx.gl.glDisable(GL20.GL_BLEND)
+        matrixWires.begin()
+        capsules.begin()
         world.begin(cam)
         coins.begin(cam)
         renderWorldBatched()
         world.render(cam)           // opaque pass: 1 draw call for every world box
         coins.render(cam)           // + 1 for every coin
+        matrixWires.render(cam)
+        capsules.render(cam)
         // unlit blended shapes in the world (sunbursts): behind whatever the ModelBatch draws next
         Gdx.gl.glEnable(GL20.GL_DEPTH_TEST)
         Gdx.gl.glDepthMask(false)
@@ -343,7 +353,13 @@ abstract class Gdx3DGame(val session: GameSession) : ApplicationAdapter(), Touch
     fun setWorldOpacity(amount: Float) { world.opacity = amount; coins.opacity = amount }
 
     /** Ground height by z added to everything in the batched passes (null = flat). */
-    fun setTerrain(f: TerrainHeight?) { world.terrain = f; coins.terrain = f }
+    fun setTerrain(f: TerrainHeight?) { world.terrain = f; coins.terrain = f; capsules.terrain = f }
+
+    fun setMatrixAmount(amount: Float) { matrixWires.amount = amount }
+
+    fun worldPill(x: Float, y: Float, z: Float, scale: Float, yaw: Float, fog: Float) {
+        capsules.pill(x, y, z, scale, yaw, fog, fogColor)
+    }
 
     /** Queue one coin (an octagonal prism) for the batched coin pass. */
     fun worldCoin(x: Float, y: Float, z: Float, r: Float, t: Float, yawDeg: Float, col: Color, fog: Float = 0f) =
@@ -388,6 +404,8 @@ abstract class Gdx3DGame(val session: GameSession) : ApplicationAdapter(), Touch
         shards.dispose()
         world.dispose()
         coins.dispose()
+        matrixWires.dispose()
+        capsules.dispose()
         bubbles.dispose()
         kit.dispose()
         owned.forEach { it.dispose() }

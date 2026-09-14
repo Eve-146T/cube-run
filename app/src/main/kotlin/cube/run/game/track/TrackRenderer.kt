@@ -176,6 +176,7 @@ class TrackRenderer(private val game: Gdx3DGame) {
         val fog = Fog.at(cz)
         val s = p
         when (r.pickup) {
+            Pickup.RED_PILL -> game.worldPill(x, y + .1f, cz, s, 22f * sin(time * 1.6f + r.visualPhase), fog)
             Pickup.BOX -> { // a spinning gift: purple cube with a gold ribbon
                 game.worldBoxSpin(x, y, cz, 0.62f * s, 0.62f * s, 0.62f * s, yaw * 0.5f, boxCol, fog)
                 game.worldBoxSpin(x, y, cz, 0.66f * s, 0.16f * s, 0.66f * s, yaw * 0.5f, bandCol, fog)
@@ -206,6 +207,7 @@ class TrackRenderer(private val game: Gdx3DGame) {
     /** Colours for the pickup bursts. */
     fun colorOf(kind: Int): Color = when (kind) {
         Pickup.BOX -> boxCol
+        Pickup.RED_PILL -> magnetCol
         Pickup.MAGNET -> magnetCol
         Pickup.MULT -> multCol
         Pickup.JET -> jetCol

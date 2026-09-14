@@ -73,6 +73,7 @@ class CubeRun(session: GameSession, private val autoStart: Boolean = false, priv
     private val bubble = Bubble(this)
     private var shownBubbleCooldown = 0
     private val powerUps = PowerUps()
+    private val redPill = RedPill()
     private val difficulty = Difficulty()
     private val fire = FireBoost(this, difficulty)
     private val scenery = Scenery(this, rnd)
@@ -181,7 +182,7 @@ class CubeRun(session: GameSession, private val autoStart: Boolean = false, priv
             else -> Bonus.unlocked(Scores.best("cuberun")).map { it.id }
         }
         track.portalEvery = if (Settings.devMode) 28 else 110 - 14 * Progress.level(Progress.PORTALS) // dev: portals galore too
-        powerUps.reset(); jetGrace = 0f
+        powerUps.reset(); redPill.reset(); jetGrace = 0f
         bubble.reset(); shownBubbleCooldown = 0; session.setBubbleCooldown(0)
         bubble.duration = Progress.BUBBLE.duration(Progress.bubbleLevel)
         difficulty.reset()
@@ -325,6 +326,11 @@ class CubeRun(session: GameSession, private val autoStart: Boolean = false, priv
             }
             Pickup.MAGNET -> { powerUps.magnet.start(Progress.MAGNET.duration(Progress.magnetLevel)); fx.pickup(trackArt.colorOf(kind), row.pickupX, cz) }
             Pickup.MULT -> { powerUps.mult.start(Progress.MULT.duration(Progress.multLevel)); fx.pickup(trackArt.colorOf(kind), row.pickupX, cz) }
+            Pickup.RED_PILL -> {
+                redPill.collect()
+                fx.pickup(trackArt.colorOf(kind), row.pickupX, cz)
+                rig.punch(.5f)
+            }
             Pickup.JET -> {
                 val dur = Progress.JET.duration(Progress.jetLevel)
                 powerUps.jet.start(dur)
@@ -528,6 +534,10 @@ class CubeRun(session: GameSession, private val autoStart: Boolean = false, priv
         }
         if (live()) track.spawn(mv, worldHue(), session.score)
 
+        redPill.tick(dt, started && !dead)
+        bgTop.lerp(Color.BLACK, redPill.blend)
+        bgBottom.lerp(Color.BLACK, redPill.blend)
+
         // ---- timed power-ups
         if (started && !dead) {
             powerUps.magnet.tick(dt)
@@ -643,10 +653,11 @@ class CubeRun(session: GameSession, private val autoStart: Boolean = false, priv
 
     override fun renderHud(shapes: ShapeRenderer, w: Float, h: Float) {
         if (gift.active || showcase.active || dead || Stage.paused) return
-        powerUps.drawBars(shapes, w, h, time, if (bubble.active) bubble.timer else null)
+        powerUps.drawBars(shapes, w, h, time, if (bubble.active) bubble.timer else null, redPill.timer)
     }
 
     override fun renderWorldBatched() {
+        setMatrixAmount(if (gift.active || showcase.active) 0f else redPill.blend)
         if (gift.active) { fogColor.set(bgBottom); syncFog(); gift.render(time); return }
         if (showcase.active) {
             if (showcase.shop && showcase.menuVisibility > 0f) {

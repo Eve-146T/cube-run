@@ -23,7 +23,7 @@ import kotlin.math.sin
  * swing through the key light — so a spinning coin sparkles instead of
  * going dull.
  */
-class PrismBatch(private val kit: BoxMeshKit, private val sides: Int = 12, private val max: Int = 520) : Disposable {
+class PrismBatch(private val kit: BoxMeshKit, private val sides: Int = 12, private val max: Int = 520, private val wires: MatrixWireBatch? = null) : Disposable {
 
     /** Distance-haze target colour (set per frame to match the sky). */
     val fogColor = Color(0.1f, 0.1f, 0.2f, 1f)
@@ -85,7 +85,7 @@ class PrismBatch(private val kit: BoxMeshKit, private val sides: Int = 12, priva
     private fun packed(col: Color, k: Float, fog: Float, face: Int, floor: Float): Float {
         if (opacity < 1f) translucent = true
         val off = face * 3
-        val keep = 1f - fog
+        val keep = (1f - fog) * (1f - (wires?.amount ?: 0f))
         return Color.toFloatBits(
             min(1f, col.r * k * max(floor, light[off])) * keep + fogColor.r * fog,
             min(1f, col.g * k * max(floor, light[off + 1])) * keep + fogColor.g * fog,
@@ -143,6 +143,15 @@ class PrismBatch(private val kit: BoxMeshKit, private val sides: Int = 12, priva
             val ax = cx[k] * r; val ay = cy[k] * r
             verts[w++] = x + ax * c - hz * s; verts[w++] = y + ay; verts[w++] = z - ax * s - hz * c; verts[w++] = backCol
         }
+        if (wires != null && wires.amount > 0f) {
+            val color = wires.color(fog, opacity)
+            val base = count * vertsPer * 4
+            for (k in 0 until sides) {
+                val a = base + k * 16
+                fun edge(i: Int, j: Int) = wires.edge(verts[a+i], verts[a+i+1], verts[a+i+2], verts[a+j], verts[a+j+1], verts[a+j+2], color)
+                edge(0, 4); edge(8, 12); edge(0, 12)
+            }
+        }
         count++
     }
 
@@ -167,7 +176,9 @@ class PrismBatch(private val kit: BoxMeshKit, private val sides: Int = 12, priva
         } else Gdx.gl.glDisable(GL20.GL_BLEND)
         kit.shader.bind()
         kit.shader.setUniformMatrix("u_projViewTrans", cam.combined)
+        if ((wires?.amount ?: 0f) > 0f) { Gdx.gl.glEnable(GL20.GL_POLYGON_OFFSET_FILL); Gdx.gl.glPolygonOffset(1f, 1f) }
         mesh.render(kit.shader, GL20.GL_TRIANGLES, 0, n * idxPer)
+        Gdx.gl.glDisable(GL20.GL_POLYGON_OFFSET_FILL)
         Gdx.gl.glDisable(GL20.GL_CULL_FACE)
         Gdx.gl.glDisable(GL20.GL_DEPTH_TEST)
         Gdx.gl.glDisable(GL20.GL_BLEND)

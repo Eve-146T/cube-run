@@ -20,7 +20,7 @@ import kotlin.math.sqrt
  * Both paths preserve terrain deformation, fog, opacity and original geometry.
  * Queue gameplay-critical boxes first: calls past [maxBoxes] are dropped.
  */
-class WorldBoxBatch(private val kit: BoxMeshKit, private val maxBoxes: Int = 900) : Disposable {
+class WorldBoxBatch(private val kit: BoxMeshKit, private val maxBoxes: Int = 900, private val wires: MatrixWireBatch? = null) : Disposable {
 
     /** Distance-haze target colour (set per frame to match the sky). */
     val fogColor = Color(0.1f, 0.1f, 0.2f, 1f)
@@ -91,6 +91,7 @@ class WorldBoxBatch(private val kit: BoxMeshKit, private val maxBoxes: Int = 900
         }
         if (!visibility.visible(x, y0 + (front + back) * 0.5f, z,
                 abs(sx) * 0.5f, (abs(sy) + abs(front - back)) * 0.5f, abs(sz) * 0.5f)) return
+        wires?.box(x, y0, z, sx, sy, sz, 1f, 0f, back, front, fog, opacity)
         if (useInstances && sx > 0f && sy > 0f && sz > 0f) {
             if (opacity < 1f) translucent = true
             instances!!.add(x, y0, z, sx, sy, sz, 1f, 0f, back, front, col, fog, fogColor, opacity)
@@ -161,6 +162,7 @@ class WorldBoxBatch(private val kit: BoxMeshKit, private val maxBoxes: Int = 900
         if (!visibility.visible(x, y, z, (abs(c * sx) + abs(s * sz)) * 0.5f,
                 abs(sy) * 0.5f, (abs(s * sx) + abs(c * sz)) * 0.5f)) return
         if (opacity < 1f) translucent = true
+        wires?.box(x, y, z, sx, sy, sz, c, s, 0f, 0f, fog, opacity)
         if (useInstances && sx > 0f && sy > 0f && sz > 0f) {
             instances!!.add(x, y, z, sx, sy, sz, c, s, 0f, 0f, col, fog, fogColor, opacity)
             count++
@@ -210,7 +212,8 @@ class WorldBoxBatch(private val kit: BoxMeshKit, private val maxBoxes: Int = 900
     }
 
     private fun packFace(col: Color, fog: Float, light: FloatArray, fi: Int): Float {
-        val keep = 1f - fog
+        val normal = 1f - (wires?.amount ?: 0f)
+        val keep = (1f - fog) * normal
         val fr = fogColor.r * fog; val fg = fogColor.g * fog; val fb = fogColor.b * fog
         return Color.toFloatBits(
                 min(1f, col.r * light[fi]) * keep + fr,
@@ -222,7 +225,7 @@ class WorldBoxBatch(private val kit: BoxMeshKit, private val maxBoxes: Int = 900
 
     /** One opaque, depth-written draw call for every queued box. */
     fun render(cam: Camera) {
-        if (useInstances) instances!!.render(cam, translucent)
+        if (useInstances) instances!!.render(cam, translucent, wires?.amount ?: 0f)
         val n = faces
         if (n == 0) return
         mesh.setVertices(verts, 0, n * 16)
@@ -235,7 +238,11 @@ class WorldBoxBatch(private val kit: BoxMeshKit, private val maxBoxes: Int = 900
         } else Gdx.gl.glDisable(GL20.GL_BLEND)
         kit.shader.bind()
         kit.shader.setUniformMatrix("u_projViewTrans", cam.combined)
+        if ((wires?.amount ?: 0f) > 0f) {
+            Gdx.gl.glEnable(GL20.GL_POLYGON_OFFSET_FILL); Gdx.gl.glPolygonOffset(1f, 1f)
+        }
         mesh.render(kit.shader, GL20.GL_TRIANGLES, 0, n * 6)
+        Gdx.gl.glDisable(GL20.GL_POLYGON_OFFSET_FILL)
         // ModelBatch.begin() resets its own state; restore the shared baseline anyway.
         Gdx.gl.glDisable(GL20.GL_CULL_FACE)
         Gdx.gl.glDisable(GL20.GL_DEPTH_TEST)
