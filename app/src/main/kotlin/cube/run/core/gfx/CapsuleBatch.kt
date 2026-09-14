@@ -12,7 +12,7 @@ import kotlin.math.cos
 import kotlin.math.sin
 import kotlin.math.min
 
-/** Rounded capsule with a genuine centre seam: one red hemisphere/body, one white. */
+/** Faceted capsule with a genuine centre seam: one red hemisphere/body, one white. */
 class CapsuleBatch(private val kit: BoxMeshKit) : Disposable {
     var terrain: TerrainHeight? = null
     private val template: FloatArray
@@ -23,27 +23,35 @@ class CapsuleBatch(private val kit: BoxMeshKit) : Disposable {
 
     init {
         val rings = ArrayList<Pair<Float, Float>>()
-        for (i in 0..5) {
-            val a = i * Math.PI.toFloat() / 10f
+        for (i in 0..3) {
+            val a = i * Math.PI.toFloat() / 6f
             rings.add((-.3f - .28f * cos(a)) to (.28f * sin(a)))
         }
         rings.add(0f to .28f); rings.add(.3f to .28f)
-        for (i in 1..5) {
-            val a = i * Math.PI.toFloat() / 10f
+        for (i in 1..3) {
+            val a = i * Math.PI.toFloat() / 6f
             rings.add((.3f + .28f * sin(a)) to (.28f * cos(a)))
         }
         val raw = ArrayList<Float>()
         fun vertex(r: Int, sector: Int, red: Boolean) {
             val (x, radius) = rings[r]
-            val a = sector * (Math.PI.toFloat() / 8f)
+            val a = sector * (Math.PI.toFloat() / 4f)
             val y = radius * cos(a); val z = radius * sin(a)
             val nx = when { x < -.3f -> (x + .3f) / .28f; x > .3f -> (x - .3f) / .28f; else -> 0f }
             raw.addAll(listOf(x, y, z, nx, y / .28f, z / .28f, if (red) 1f else 0f))
         }
-        for (r in 0 until rings.lastIndex) for (j in 0 until 16) {
+        for (r in 0 until rings.lastIndex) for (j in 0 until 8) {
             val red = rings[r + 1].first <= 0f
             vertex(r,j,red); vertex(r+1,j+1,red); vertex(r+1,j,red)
             vertex(r,j,red); vertex(r,j+1,red); vertex(r+1,j+1,red)
+        }
+        // Flat face lighting matches the chunky coins and obstacles around it.
+        for (i in raw.indices step 21) {
+            val ax = raw[i+7]-raw[i]; val ay = raw[i+8]-raw[i+1]; val az = raw[i+9]-raw[i+2]
+            val bx = raw[i+14]-raw[i]; val by = raw[i+15]-raw[i+1]; val bz = raw[i+16]-raw[i+2]
+            val nx = ay*bz-az*by; val ny = az*bx-ax*bz; val nz = ax*by-ay*bx
+            val len = kotlin.math.sqrt(nx*nx+ny*ny+nz*nz).coerceAtLeast(.00001f)
+            for (v in 0..2) { raw[i+v*7+3]=nx/len; raw[i+v*7+4]=ny/len; raw[i+v*7+5]=nz/len }
         }
         template = raw.toFloatArray()
         val capacity = template.size / 7 * 12
@@ -61,16 +69,20 @@ class CapsuleBatch(private val kit: BoxMeshKit) : Disposable {
         for (i in template.indices step 7) {
             val px = template[i]; val py = template[i+1]; val pz = template[i+2]
             val nx = template[i+3]; val ny = template[i+4]; val nz = template[i+5]
-            kit.lightFace(nx*c+nz*s, ny, -nx*s+nz*c, light, 0)
+            // Tip the long axis 45 degrees, then rotate the entire pickup about Y.
+            val tip = .70710678f
+            val tx = (px-py)*tip; val ty = (px+py)*tip
+            val tnx = (nx-ny)*tip; val tny = (nx+ny)*tip
+            kit.lightFace(tnx*c+nz*s, tny, -tnx*s+nz*c, light, 0)
             val red = template[i+6] > .5f
             val keep = 1f-fog
             val color = Color.toFloatBits(
                 min(1f, light[0] * (if (red) .96f else .97f)) * keep + sky.r*fog,
                 min(1f, light[1] * (if (red) .06f else .97f)) * keep + sky.g*fog,
                 min(1f, light[2] * (if (red) .12f else 1f)) * keep + sky.b*fog, 1f)
-            vertices[used++] = x + (px*c+pz*s) * scale
-            vertices[used++] = y + py * scale
-            vertices[used++] = z + (-px*s+pz*c) * scale
+            vertices[used++] = x + (tx*c+pz*s) * scale
+            vertices[used++] = y + ty * scale
+            vertices[used++] = z + (-tx*s+pz*c) * scale
             vertices[used++] = color
         }
     }

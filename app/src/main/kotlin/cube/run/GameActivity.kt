@@ -16,6 +16,7 @@ import cube.run.data.Scores
 import cube.run.data.Settings
 import cube.run.game.CubeRun
 import cube.run.ui.Hud
+import cube.run.ui.OpeningView
 
 /** Single-game launcher host: builds the HUD over the libGDX surface and runs Cube Run. */
 class GameActivity : AndroidApplication() {
@@ -31,7 +32,8 @@ class GameActivity : AndroidApplication() {
         // Debug builds only: adb shortcuts for testing individual sections and worlds.
         if (BuildConfig.DEBUG) {
             if (intent.getBooleanExtra("dev", false) && !Settings.devMode) { Settings.setDevMode(true); Progress.enterDev() }
-            intent.getIntExtra("section", -2).let { if (it >= -1) Settings.testSection = it }
+            intent.getIntExtra("section", -2).let { if (it >= -1) { Settings.testSection = it; Settings.testPillWorld = false } }
+            if (intent.hasExtra("pillworld")) Settings.testPillWorld = intent.getBooleanExtra("pillworld", false)
             intent.getIntExtra("bonus", -2).let { if (it >= -1) Settings.testBonus = it }
             intent.getIntExtra("world", -2).let { if (it >= -1) Settings.testWorld = it }
             intent.getIntExtra("boxes", -1).let { if (it >= 0) Settings.testBoxes = it }
@@ -42,6 +44,13 @@ class GameActivity : AndroidApplication() {
         val session = GameHostSession(this, SCORE_ID, hud)
         // RESTART relaunches with this extra: the run begins on the first frame, no "tap to start"
         val game = CubeRun(session, autoStart = intent.getBooleanExtra(Hud.EXTRA_AUTOSTART, false), idleBotStart = intent.getBooleanExtra(Hud.EXTRA_IDLE_BOT, false))
+
+        val opening = if (!intent.hasExtra(Hud.EXTRA_AUTOSTART) && savedInstanceState == null) OpeningView(this) else null
+        game.onFirstFrame = { runOnUiThread { opening?.reveal() } }
+        if (android.os.Build.VERSION.SDK_INT >= 31) {
+            // The native launch mark matches our overlay; the portal supplies the exit motion.
+            splashScreen.setOnExitAnimationListener { it.remove() }
+        }
 
         val config = AndroidApplicationConfiguration().apply {
             useImmersiveMode = true
@@ -75,6 +84,7 @@ class GameActivity : AndroidApplication() {
         val root = FrameLayout(this)
         root.addView(gameView, FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT)
         root.addView(hud, FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT)
+        opening?.let { root.addView(it, FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT) }
         setContentView(root)
         goFullscreen()
         if (android.os.Build.VERSION.SDK_INT >= 33) {

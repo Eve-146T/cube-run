@@ -51,6 +51,7 @@ class WorldRunner(private val game: Gdx3DGame, private val scenery: Scenery, pri
     fun reset() {
         order = ArrayList(Worlds.all.indices.shuffled(rnd)) // a different first world every launch
         if (cube.run.data.Settings.testWorld >= 0) { order.remove(cube.run.data.Settings.testWorld); order.add(0, cube.run.data.Settings.testWorld) }
+        if (cube.run.data.Settings.testPillWorld) { order.remove(1); order.add(0, 1) }
         world = Worlds.get(order.removeAt(0))
         spawnWorld = world
         visited = 1

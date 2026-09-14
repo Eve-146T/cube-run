@@ -190,7 +190,7 @@ class CubeRun(session: GameSession, private val autoStart: Boolean = false, priv
         track.tier = curTier
         val oldCount = Lanes.count
         track.reset(coinTrailChance = 0.2f, hue = worldHue(), initialBonus = if (Settings.devMode) Settings.testBonusNow else Bonus.NONE)
-        if (Settings.devMode && Settings.testBonusNow >= 0) { // debug: begin inside a bonus world
+        if (!track.isPillTest && Settings.devMode && Settings.testBonusNow >= 0) { // debug: begin inside a bonus world
             bonus = Settings.testBonusNow
             player.remapLane(oldCount, Lanes.count)
             Terrain.set(bonus == Bonus.HILLS)
@@ -294,7 +294,7 @@ class CubeRun(session: GameSession, private val autoStart: Boolean = false, priv
             session.addScore(if (x2) nearMissBonus * 2 else nearMissBonus)
             fx.nearMiss(player.px, player.py)
         }
-        worlds.onRow(rowsPassed)
+        if (!track.isPillTest) worlds.onRow(rowsPassed)
     }
 
     private fun collectCoin(coin: Coin, cz: Float) {
@@ -533,7 +533,7 @@ class CubeRun(session: GameSession, private val autoStart: Boolean = false, priv
             Scenery.PASSED_WORLD -> worlds.gatePassed()?.let { fx.worldGate(worlds.gateColor()); rig.punch(0.7f); session.setWorld(it.name) }
             Scenery.PASSED_START -> { fx.startGate(player.trailCol()); rig.punch(0.9f) }
         }
-        if (live()) track.spawn(mv, worldHue(), session.score)
+        if (live()) track.spawn(mv, worldHue(), session.score, dt)
 
         redPill.tick(dt, started && !dead)
         bgTop.lerp(Color.BLACK, redPill.blend)

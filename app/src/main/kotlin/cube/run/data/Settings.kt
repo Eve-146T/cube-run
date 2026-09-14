@@ -55,6 +55,7 @@ object Settings {
     @Volatile var testBonusNow = -1
     /** Debug: mystery boxes the next run starts with (dev mode only), so the box stage is one END RUN away. */
     @Volatile var testBoxes = 0
+    @Volatile var testPillWorld = false
     @Volatile var testWorld: Int = -1
 
     fun init(ctx: Context) {

@@ -34,6 +34,8 @@ private var devSectIdx = 0
 class Track(private val rnd: Random, private val fx: ObstacleFactory) {
 
     val rows = ArrayList<Row>()
+    private var pillWorld: PillTestWorld? = null
+    val isPillTest: Boolean get() = pillWorld != null
 
     // row spacing (world units). Tight by default = dense; wider after a jump so you can land.
     private val dodgeGap = 6.5f
@@ -110,6 +112,8 @@ class Track(private val rnd: Random, private val fx: ObstacleFactory) {
         runScore = 0; jetOffers = 0; boxOffers = 0
         bonus = Bonus.NONE; bonusRowsLeft = 0; rowsSincePortal = 0; portalPending = Bonus.NONE
         this.coinTrailChance = coinTrailChance
+        pillWorld = if (Settings.testPillWorld) PillTestWorld(fx) else null
+        pillWorld?.let { it.reset(rows, hue); return }
         if (initialBonus != Bonus.NONE) forceBonus(initialBonus)
         var z = -38f
         var zLast = z
@@ -124,7 +128,8 @@ class Track(private val rnd: Random, private val fx: ObstacleFactory) {
     }
 
     /** Steady-state spawning: after the world moved [mv], spawn whatever rows are due. */
-    fun spawn(mv: Float, hue: Float, score: Int) {
+    fun spawn(mv: Float, hue: Float, score: Int, dt: Float = 0f) {
+        pillWorld?.let { it.spawn(rows, mv, dt, hue); return }
         runScore = score
         spawnAcc += mv
         while (true) {

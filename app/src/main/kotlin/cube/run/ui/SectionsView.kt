@@ -128,13 +128,14 @@ class SectionsView(activity: Activity, kit: UiKit, onClose: () -> Unit) : Page(a
     private fun renderStatus() {
         status.removeAllViews()
         val chosen = Sections.byId(Settings.testSection)
-        if (chosen != null) {
+        if (chosen != null || Settings.testPillWorld) {
             status.addView(LinearLayout(activity).apply {
                 orientation = LinearLayout.VERTICAL
-                addView(kit.text("TESTING ${chosen.name}", 14f, Theme.INK, 700, Gravity.START))
-                addView(kit.text("The run plays only this section, on loop. No pickups.", 12f, Theme.INK_SOFT, 500, Gravity.START))
+                addView(kit.text(if (Settings.testPillWorld) "RED PILL TEST" else "TESTING ${chosen!!.name}", 14f, Theme.INK, 700, Gravity.START))
+                addView(kit.text(if (Settings.testPillWorld) "Pills on loop. Clear middle lane." else "The run plays only this section, on loop. No pickups.", 12f, Theme.INK_SOFT, 500, Gravity.START))
             }, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
             status.addView(kit.button("PLAY NORMALLY", Theme.PLAY, UiKit.Size.SMALL) {
+                Settings.testPillWorld = false
                 Settings.testSection = -1
                 Settings.testBonus = -1; Settings.testBonusNow = -1
                 render()
@@ -147,6 +148,16 @@ class SectionsView(activity: Activity, kit: UiKit, onClose: () -> Unit) : Page(a
 
     private fun renderGrid() {
         grid.removeAllViews()
+        grid.addView(kit.text("TEST WORLDS", 12f, Theme.INK_SOFT, 700, Gravity.START).apply {
+            setPadding(dp(6f), dp(10f), dp(6f), dp(8f))
+        })
+        grid.addView(kit.button("RED PILL", Theme.MINT, UiKit.Size.NORMAL) {
+            Settings.testPillWorld = true
+            Settings.testSection = -1; Settings.testBonus = -1; Settings.testBonusNow = -1
+            close()
+        }, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+            setMargins(dp(4f), 0, dp(4f), dp(16f))
+        })
         val all = Sections.lib.sortedWith(compareBy({ it.tier }, { it.id }))
         var row: LinearLayout? = null
         for ((i, s) in all.withIndex()) {
@@ -174,6 +185,7 @@ class SectionsView(activity: Activity, kit: UiKit, onClose: () -> Unit) : Page(a
             LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(5f) })
         addView(kit.text("tier ${s.tier} · ${s.steps.size} rows", 9f, Theme.MUTED, 500))
         setOnClickListener {
+            Settings.testPillWorld = false
             Settings.testSection = s.id
             SoundFx.play("tap"); Haptics.click()
             close()

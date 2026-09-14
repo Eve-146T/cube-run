@@ -46,6 +46,9 @@ import kotlin.random.Random
  */
 abstract class Gdx3DGame(val session: GameSession) : ApplicationAdapter(), TouchListener {
 
+    /** Consumed on the GL thread after the first complete frame. */
+    var onFirstFrame: (() -> Unit)? = null
+
     lateinit var cam: PerspectiveCamera
     lateinit var env: Environment
     private lateinit var batch: ModelBatch
@@ -274,6 +277,7 @@ abstract class Gdx3DGame(val session: GameSession) : ApplicationAdapter(), Touch
         Gdx.gl.glEnable(GL20.GL_DEPTH_TEST)
 
         perf.endFrame(shards.count)
+        onFirstFrame?.let { onFirstFrame = null; it() }
     }
 
     override fun resume() { resumed = true; frameStepper.reset() }
