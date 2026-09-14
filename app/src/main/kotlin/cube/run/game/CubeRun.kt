@@ -59,7 +59,11 @@ import kotlin.random.Random
  * obstacle; coins and mystery boxes are handed to the session and banked at
  * game over.
  */
-class CubeRun(session: GameSession, private val autoStart: Boolean = false, private val idleBotStart: Boolean = false) : Gdx3DGame(session) {
+class CubeRun(session: GameSession, private val autoStart: Boolean = false, private val idleBotStart: Boolean = false, launchOpening: Boolean = false) : Gdx3DGame(session) {
+
+    private val opening = CubeOpening(launchOpening)
+    var onOpeningProgress: ((Float) -> Unit)? = null
+    fun finishOpening() { opening.finish() }
 
     private val tmpCol = Color()
     private val phasePosition = Vector3()
@@ -150,6 +154,11 @@ class CubeRun(session: GameSession, private val autoStart: Boolean = false, priv
         cam.position.set(0f, 3.7f, 6.4f)
         cam.lookAt(0f, 1.0f, -8f)
         cam.update()
+        if (opening.active) {
+            player.update(0f, 0f, time, worldHue(), trail = false, groundH = 0f)
+            opening.pose(player, cam)
+            bgTop.set(CubeOpening.INK); bgBottom.set(CubeOpening.INK)
+        }
         session.setBubbles(Progress.bubbles)
         session.setWorld(worlds.world.name)
     }
@@ -165,6 +174,7 @@ class CubeRun(session: GameSession, private val autoStart: Boolean = false, priv
 
     private fun start() {
         if (started || session.isOver) return
+        opening.finish()
         started = true
         runSkin = Skins.get(Progress.skin)
         phaseUsed = false; phasedObstacle = null; lastTapT = -9f
@@ -441,6 +451,9 @@ class CubeRun(session: GameSession, private val autoStart: Boolean = false, priv
     }
 
     override fun tick(dt: Float) {
+        opening.tick(dt)
+        onOpeningProgress?.invoke(opening.uiAmount)
+        if (!opening.active) onOpeningProgress = null
         if (idlePilot.ready(dt, !started && Stage.homeScreen && Stage.mode == Stage.NONE && !session.isOver)) {
             start()
             idlePilot.start(time)
@@ -491,7 +504,7 @@ class CubeRun(session: GameSession, private val autoStart: Boolean = false, priv
         } else if (!started) {
             spd = 0f // nothing moves before the run: the cube waits at the line
             player.idle(dt)
-            introT += dt
+            introT = if (opening.active) 1.8f else introT + dt
             val k = min(1f, introT / 1.8f).let { it * it * it * (it * (it * 6f - 15f) + 10f) }
             rig.intro = -2.2f + 2.2f * k // the menu shot swoops in from high and far back and settles
         } else {
@@ -538,6 +551,10 @@ class CubeRun(session: GameSession, private val autoStart: Boolean = false, priv
         redPill.tick(dt, started && !dead)
         bgTop.lerp(Color.BLACK, redPill.blend)
         bgBottom.lerp(Color.BLACK, redPill.blend)
+        if (opening.active) {
+            bgTop.lerp(CubeOpening.INK, 1f-opening.worldAmount)
+            bgBottom.lerp(CubeOpening.INK, 1f-opening.worldAmount)
+        }
 
         // ---- timed power-ups
         if (started && !dead) {
@@ -570,6 +587,7 @@ class CubeRun(session: GameSession, private val autoStart: Boolean = false, priv
         collide(dt)
 
         rig.chase(dt, player.px, player.py, player.ground, deathT, spd)
+        if (opening.active) opening.pose(player, cam)
     }
 
     /** One pass over the rows: obstacles (box overlap), pads, pickups, coins, scoring. */
@@ -669,7 +687,9 @@ class CubeRun(session: GameSession, private val autoStart: Boolean = false, priv
             fogColor.set(bgBottom); syncFog(); showcase.render(time)
             return
         }
-        renderTrackScene()
+        setWorldOpacity(opening.worldAmount)
+        if (opening.worldAmount > .001f) renderTrackScene()
+        setWorldOpacity(1f)
     }
 
     private fun renderTrackScene() {

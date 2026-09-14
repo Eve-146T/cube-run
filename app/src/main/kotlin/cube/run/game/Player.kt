@@ -406,6 +406,13 @@ class Player(private val game: Gdx3DGame, private val rnd: Random) {
         target.set(posePosition.lerp(poseTarget, amount), poseRotation, poseScale.lerp(poseTargetScale, amount))
     }
 
+    /** Apply launch motion to the live idle pose; the same body and shell stay on screen. */
+    fun openingPose(turn: Float, tilt: Float, size: Float, squash: Float) {
+        val width = size*(1f+squash*.5f); val height = size*(1f-squash)
+        inst.transform.rotate(Vector3.Y, turn).rotate(Vector3.Z, tilt).scale(width, height, width)
+        shellInst.transform.rotate(Vector3.Y, turn).rotate(Vector3.Z, tilt).scale(width, height, width)
+    }
+
     /** Draw the cube; [ground] lifts everything by the rolling terrain under it. */
     fun render(batch: ModelBatch, env: Environment, ground: Float = 0f) {
         if (ground != 0f) {

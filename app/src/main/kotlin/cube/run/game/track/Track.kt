@@ -515,6 +515,7 @@ class Track(private val rnd: Random, private val fx: ObstacleFactory) {
     /**
      * Regular pickups on the walk lane. A shuffled bag prevents any one kind
      * from disappearing for a whole run; Lucky Box adds boxes to each bag.
+     * Red Pill slots only materialize 1 in 30 times outside developer mode.
      */
     private fun layPickup(row: Row, code: Int) {
         if (noPickups() || Step.isPlatform(code) || Step.isPad(code) || code == Step.TW || bonus == Bonus.FLOAT) return
@@ -532,6 +533,7 @@ class Track(private val rnd: Random, private val fx: ObstacleFactory) {
         // Empty slots still consume the normal spacing: neither gated nor
         // skipped rare pickups turn into extra magnets, multipliers or bubbles.
         row.pickup = when (kind) {
+            Pickup.RED_PILL -> if (galore || rnd.nextInt(30) == 0) kind else Pickup.NONE
             Pickup.JET -> if (runScore >= 100 && ++jetOffers % 2 == 0) kind else Pickup.NONE
             Pickup.BOX -> if (runScore >= 100 && ++boxOffers % 2 == 0) kind else Pickup.NONE
             else -> kind

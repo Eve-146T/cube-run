@@ -16,7 +16,7 @@ import cube.run.data.Scores
 import cube.run.data.Settings
 import cube.run.game.CubeRun
 import cube.run.ui.Hud
-import cube.run.ui.OpeningView
+import android.view.View
 
 /** Single-game launcher host: builds the HUD over the libGDX surface and runs Cube Run. */
 class GameActivity : AndroidApplication() {
@@ -43,13 +43,27 @@ class GameActivity : AndroidApplication() {
         hud.setBest(Scores.best(SCORE_ID))
         val session = GameHostSession(this, SCORE_ID, hud)
         // RESTART relaunches with this extra: the run begins on the first frame, no "tap to start"
-        val game = CubeRun(session, autoStart = intent.getBooleanExtra(Hud.EXTRA_AUTOSTART, false), idleBotStart = intent.getBooleanExtra(Hud.EXTRA_IDLE_BOT, false))
-
-        val opening = if (!intent.hasExtra(Hud.EXTRA_AUTOSTART) && savedInstanceState == null) OpeningView(this) else null
-        game.onFirstFrame = { runOnUiThread { opening?.reveal() } }
+        val launchOpening = !intent.hasExtra(Hud.EXTRA_AUTOSTART) && savedInstanceState == null
+        val game = CubeRun(session, autoStart = intent.getBooleanExtra(Hud.EXTRA_AUTOSTART, false),
+            idleBotStart = intent.getBooleanExtra(Hud.EXTRA_IDLE_BOT, false), launchOpening = launchOpening)
+        val openingTouch = if (launchOpening) View(this).apply {
+            isClickable = true
+            importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
+            setOnClickListener { com.badlogic.gdx.Gdx.app.postRunnable { game.finishOpening() } }
+        } else null
+        if (launchOpening) {
+            hud.alpha = 0f
+            game.onOpeningProgress = { amount -> runOnUiThread {
+                hud.alpha = amount
+                hud.translationY = (1f-amount)*18f*resources.displayMetrics.density
+                if (amount >= 1f) (openingTouch?.parent as? FrameLayout)?.removeView(openingTouch)
+            } }
+        }
         if (android.os.Build.VERSION.SDK_INT >= 31) {
-            // The native launch mark matches our overlay; the portal supplies the exit motion.
-            splashScreen.setOnExitAnimationListener { it.remove() }
+            var ready = false
+            var splash: android.window.SplashScreenView? = null
+            game.onFirstFrame = { runOnUiThread { ready = true; splash?.remove(); splash = null } }
+            splashScreen.setOnExitAnimationListener { if (ready) it.remove() else splash = it }
         }
 
         val config = AndroidApplicationConfiguration().apply {
@@ -81,10 +95,10 @@ class GameActivity : AndroidApplication() {
             }
         })
 
-        val root = FrameLayout(this)
+        val root = FrameLayout(this).apply { setBackgroundColor(0xFF14102E.toInt()) }
         root.addView(gameView, FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT)
         root.addView(hud, FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT)
-        opening?.let { root.addView(it, FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT) }
+        openingTouch?.let { root.addView(it, FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT) }
         setContentView(root)
         goFullscreen()
         if (android.os.Build.VERSION.SDK_INT >= 33) {

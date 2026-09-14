@@ -1,7 +1,6 @@
 <resources>
     <style name="GameTheme" parent="GameThemeBase">
         <item name="android:windowSplashScreenBackground">@color/bg</item>
-        <item name="android:windowSplashScreenAnimatedIcon">@drawable/opening_mark</item>
-        <item name="android:windowSplashScreenIconBackgroundColor">@color/bg</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@android:color/transparent</item>
     </style>
 </resources>
