@@ -30,6 +30,18 @@ object Stage {
     const val DEMO_BOX = 8
     const val DEMO_REVIVE = 9
 
+    /** Any real touch cancels the dev attract run before another bot action can land. */
+    val interactions = AtomicInteger(0)
+    @Volatile var pointerDown = false
+    @Volatile var homeScreen = true
+    @Volatile internal var botOwner: Any? = null
+    val botPlaying get() = botOwner != null
+    fun userInteraction(down: Boolean = false) {
+        pointerDown = down
+        interactions.incrementAndGet()
+        botOwner = null
+    }
+
     @Volatile var mode = NONE
     /** Shop navigation's single UI-driven clock: 0 = menu, 1 = showroom. */
     @Volatile var shopProgress = 0f
@@ -49,6 +61,7 @@ object Stage {
 
     /** Boxes the player has asked to open that the game hasn't started opening yet. */
     val openRequests = AtomicInteger(0)
+    val skipBoxRequests = AtomicInteger(0)
 
     /** Taps on the HUD's boost button the game hasn't applied yet. */
     val boostRequests = AtomicInteger(0)
@@ -76,12 +89,14 @@ object Stage {
     @Volatile var previewTrail = -1
 
     fun reset() {
+        homeScreen = true; botOwner = null; pointerDown = false
         mode = NONE
         shopProgress = 0f
         shopPlayRequests.set(0)
         paused = false
         endRun = false
         openRequests.set(0)
+        skipBoxRequests.set(0)
         boostRequests.set(0)
         demoRequests.set(0)
         previewKicks.set(0)

@@ -8,6 +8,11 @@ import cube.run.BuildConfig
 import cube.run.core.Gdx3DGame
 import cube.run.core.GameSession
 import cube.run.core.Stage
+import cube.run.core.SoundFx
+import cube.run.core.Haptics
+import cube.run.data.Skins
+import cube.run.game.track.Ob
+import com.badlogic.gdx.math.Vector3
 import cube.run.data.Bonus
 import cube.run.data.BubbleSkins
 import cube.run.data.Progress
@@ -54,9 +59,10 @@ import kotlin.random.Random
  * obstacle; coins and mystery boxes are handed to the session and banked at
  * game over.
  */
-class CubeRun(session: GameSession, private val autoStart: Boolean = false) : Gdx3DGame(session) {
+class CubeRun(session: GameSession, private val autoStart: Boolean = false, private val idleBotStart: Boolean = false) : Gdx3DGame(session) {
 
     private val tmpCol = Color()
+    private val phasePosition = Vector3()
 
     private val rnd = Random(System.nanoTime())
     private val obstacles = ObstacleFactory(rnd)
@@ -78,6 +84,8 @@ class CubeRun(session: GameSession, private val autoStart: Boolean = false) : Gd
     private var shopMenuIntroT = 0f
 
     // ---- run state ----
+    private val idlePilot = IdlePilot()
+    private var initialInteraction = 0
     private var started = false
     private var dead = false
     private var spd = 4.5f
@@ -104,6 +112,10 @@ class CubeRun(session: GameSession, private val autoStart: Boolean = false) : Gd
 
     // ---- style points: tap mid-air for an ascending combo (purely for flair) ----
     private var styleCombo = 0
+    private var runSkin = Skins.get(0)
+    private var phaseUsed = false
+    private var phasedObstacle: Ob? = null
+    private var groundObstacle: Ob? = null
     private var lastTapT = -9f       // for double-tap detection (bubble activation)
 
     // ---- goodies ----
@@ -124,6 +136,7 @@ class CubeRun(session: GameSession, private val autoStart: Boolean = false) : Gd
 
     override fun init() {
         Stage.reset()
+        initialInteraction = Stage.interactions.get()
         Lanes.reset(); Terrain.reset()
         setTerrain { z -> Terrain.y(z) }
         worlds.reset()
@@ -145,13 +158,15 @@ class CubeRun(session: GameSession, private val autoStart: Boolean = false) : Gd
     private fun live() = started && !dead && !session.isOver
 
     override fun paused(): Boolean {
-        if (Stage.paused) player.clearJumpInput()
+        if (Stage.paused) { player.clearJumpInput(); idlePilot.stop() }
         return Stage.paused
     }
 
     private fun start() {
         if (started || session.isOver) return
         started = true
+        runSkin = Skins.get(Progress.skin)
+        phaseUsed = false; phasedObstacle = null; lastTapT = -9f
         runT = 0f
         introAtStart = rig.intro
         scenery.release() // the start gate comes at you
@@ -173,8 +188,8 @@ class CubeRun(session: GameSession, private val autoStart: Boolean = false) : Gd
         curTier = difficulty.tier()
         track.tier = curTier
         val oldCount = Lanes.count
-        track.reset(coinTrailChance = 0.2f, hue = worldHue(), initialBonus = if (Settings.testScenario < 0 && Settings.devMode) Settings.testBonusNow else Bonus.NONE)
-        if (Settings.testScenario < 0 && Settings.devMode && Settings.testBonusNow >= 0) { // debug: begin inside a bonus world
+        track.reset(coinTrailChance = 0.2f, hue = worldHue(), initialBonus = if (Settings.devMode) Settings.testBonusNow else Bonus.NONE)
+        if (Settings.devMode && Settings.testBonusNow >= 0) { // debug: begin inside a bonus world
             bonus = Settings.testBonusNow
             player.remapLane(oldCount, Lanes.count)
             Terrain.set(bonus == Bonus.HILLS)
@@ -219,6 +234,17 @@ class CubeRun(session: GameSession, private val autoStart: Boolean = false) : Gd
         flash(Color.WHITE, 0.6f)
     }
 
+    private fun phase(ob: Ob): Boolean {
+        if (phaseUsed || Skins.Ability.PHASE !in runSkin.abilities) return false
+        phaseUsed = true
+        phasedObstacle = ob
+        SoundFx.play("whoosh", rate = 1.4f)
+        Haptics.success()
+        flash(Color.CYAN, 0.25f)
+        burst3d(phasePosition.set(player.px, player.py, 0f), Color.CYAN, n = 20, speed = 3f, size = 0.12f, life = 0.6f)
+        return true
+    }
+
     /** A collision with a row: fatal, unless the bubble is up — then it takes the hit. */
     private fun hit(row: Row) {
         if (bubble.active) smash(row) else crash()
@@ -226,7 +252,10 @@ class CubeRun(session: GameSession, private val autoStart: Boolean = false) : Gd
 
     /** Ran into the side of a platform: fatal, or the bubble hoists you onto it. */
     private fun sideHit(groundH: Float) {
-        if (!bubble.active) { crash(); return }
+        if (!bubble.active) {
+            if (groundObstacle?.let { phase(it) } == true) return
+            crash(); return
+        }
         player.forceGround(groundH)
         bubble.pop(player.px, player.py)
         rig.punch(0.5f)
@@ -297,11 +326,11 @@ class CubeRun(session: GameSession, private val autoStart: Boolean = false) : Gd
             Pickup.MAGNET -> { powerUps.magnet.start(Progress.MAGNET.duration(Progress.magnetLevel)); fx.pickup(trackArt.colorOf(kind), row.pickupX, cz) }
             Pickup.MULT -> { powerUps.mult.start(Progress.MULT.duration(Progress.multLevel)); fx.pickup(trackArt.colorOf(kind), row.pickupX, cz) }
             Pickup.JET -> {
-                val dur = if (cube.run.game.track.TestWorlds.byId(Settings.testScenario) != null) cube.run.game.track.TestWorlds.JET_SECONDS else Progress.JET.duration(Progress.jetLevel)
+                val dur = Progress.JET.duration(Progress.jetLevel)
                 powerUps.jet.start(dur)
                 player.setFlying(true)
                 track.airCoins = true
-                aimJetCoins(dur, difficulty.speed() * (1f + jetSpeedUp)) // where the flight will end, at boosted speed
+                aimJetCoins(dur, difficulty.speed() * runSkin.speedMultiplier * (1f + jetSpeedUp)) // where the flight will end, at boosted speed
                 track.liftCoins()
                 fx.pickup(trackArt.colorOf(kind), row.pickupX, cz)
                 rig.punch(1f)
@@ -326,7 +355,7 @@ class CubeRun(session: GameSession, private val autoStart: Boolean = false) : Gd
     /** Try to spend a stocked bubble (double tap). Returns true when one went up. */
     private fun tryBubble(): Boolean {
         if (!live() || !bubble.ready) return false
-        if (!Progress.useBubble()) { fx.emptyStock(); return false }
+        if (!Progress.useBubble(runSkin.bubbleSaveChance)) { fx.emptyStock(); return false }
         session.setBubbles(Progress.bubbles)
         bubble.activate(player.px, player.py)
         rig.punch(1f)
@@ -336,13 +365,13 @@ class CubeRun(session: GameSession, private val autoStart: Boolean = false) : Gd
     // ---------------------------------------------------------------- input
 
     override fun onDown(x: Float, y: Float) {
+        idlePilot.stop()
         if (gift.active || showcase.active || Stage.paused) return
-        start()
         smoothAnchorX = x; smoothAnchorLane = player.lane; smoothVAccum = 0f
     }
 
     override fun onDrag(x: Float, y: Float, dx: Float, dy: Float) {
-        if (!Settings.smoothControl || !live()) return
+        if (!Settings.smoothControl || !live() || Stage.paused || Stage.mode != Stage.NONE) return
         val laneTravel = sw * (0.32f - 0.20f * Settings.smoothSensitivity) // finger px per lane
         val target = (smoothAnchorLane + ((x - smoothAnchorX) / laneTravel).roundToInt()).coerceIn(0, Lanes.last)
         player.moveToLane(target)
@@ -353,6 +382,8 @@ class CubeRun(session: GameSession, private val autoStart: Boolean = false) : Gd
     }
 
     override fun onTap(x: Float, y: Float) {
+        if (Stage.paused || Stage.mode != Stage.NONE || gift.active || showcase.active) return
+        if (!started) { start(); return }
         if (!live()) return
         if (time - lastTapT < 0.38f) { // a quick double tap pops a bubble shield (anywhere, any time)
             lastTapT = -9f
@@ -367,7 +398,7 @@ class CubeRun(session: GameSession, private val autoStart: Boolean = false) : Gd
 
     override fun onSwipe(dir: Int) {
         if (session.isOver || dead || Stage.paused || gift.active || showcase.active) return
-        if (!started) start()
+        if (!started || Stage.mode != Stage.NONE) return
         when (dir) {
             LEFT, RIGHT -> {
                 val d = if (dir == LEFT) -1 else 1
@@ -388,21 +419,26 @@ class CubeRun(session: GameSession, private val autoStart: Boolean = false) : Gd
     private fun groundAt(px: Float): Float {
         if (player.hover) return 0f
         var h = 0f
+        groundObstacle = null
         for (row in track.rows) {
             if (row.z < 0f || row.z > 6.6f) continue
             for (ob in row.obs) {
-                if (ob.type != ObType.PLAT || abs(px - ob.x) > ob.halfW + 0.3f) continue
+                if (ob === phasedObstacle || ob.type != ObType.PLAT || abs(px - ob.x) > ob.halfW + 0.3f) continue
                 val local = row.z // how far the front has passed the player
                 if (local > ob.sz) continue
                 val top = ob.clear
                 val here = if (ob.ramp > 0f && local < ob.ramp) top * (local / ob.ramp) else top
-                if (here > h) h = here
+                if (here > h) { h = here; groundObstacle = ob }
             }
         }
         return h
     }
 
     override fun tick(dt: Float) {
+        if (idlePilot.ready(dt, !started && Stage.homeScreen && Stage.mode == Stage.NONE && !session.isOver)) {
+            start()
+            idlePilot.start(time)
+        }
         // ---- showcase stages take over the scene when the HUD asks
         if (Stage.mode == Stage.BOX) {
             if (!gift.active) gift.enter(bgTop, bgBottom)
@@ -429,7 +465,12 @@ class CubeRun(session: GameSession, private val autoStart: Boolean = false) : Gd
             skyBlend = if (showcase.shop) 0f else 1f
         }
 
-        if (!started && autoStart && time > 0.05f) start() // RESTART: straight into the run
+        if (!started && autoStart && time > 0.05f) {
+            start()
+            if (idleBotStart && Settings.devMode && Stage.interactions.get() == initialInteraction) idlePilot.start(time)
+        }
+        if (idlePilot.active && live()) idlePilot.drive(time, spd, timeScale, track,
+            player.pilotBody(powerUps.jet.left), ::onSwipe)
         if (Stage.endRun) { Stage.endRun = false; if (live()) crash() } // dev tool: END RUN from the pause card
 
         if (started && !dead) {
@@ -437,7 +478,7 @@ class CubeRun(session: GameSession, private val autoStart: Boolean = false) : Gd
             runT += dt
             val ease = min(1f, runT / 1.5f).let { it * it * it * (it * (it * 6f - 15f) + 10f) } // the start: the road winds up, the camera drops in
             rig.intro = introAtStart + (1f - introAtStart) * ease
-            spd = 4.5f + (difficulty.speed() * (1f + jetSpeedUp * jetBoost) - 4.5f) * ease
+            spd = 4.5f + (difficulty.speed() * runSkin.speedMultiplier * (1f + jetSpeedUp * jetBoost) - 4.5f) * ease
             if (fire.tick(dt, player.px, player.py) > 0) rig.punch(0.45f)
             difficulty.ramp(dt)
         } else if (!started) {
@@ -540,12 +581,15 @@ class CubeRun(session: GameSession, private val autoStart: Boolean = false) : Gd
                         }
                         continue
                     }
-                    if (immune || ob.type != ObType.SOLID) continue
+                    if (immune || ob === phasedObstacle || ob.type != ObType.SOLID) continue
                     val lat = ob.lateral(px)
                     if (lat >= 0f) { row.minClear = min(row.minClear, lat); continue } // beside it: the lateral gap is the clearance
                     val vert = max(cubeBottom - ob.top, ob.bottom - headY)              // over / under it: the vertical gap (positive = clear)
                     row.minClear = min(row.minClear, vert)
-                    if (abs(row.z) < 0.82f && vert < -0.02f) { hit(row); break }
+                    if (abs(row.z) < 0.82f && vert < -0.02f) {
+                        if (!bubble.active && phase(ob)) continue
+                        hit(row); break
+                    }
                 }
             }
             if (started && !dead && row.pickup != Pickup.NONE) { // run into it
@@ -655,4 +699,7 @@ class CubeRun(session: GameSession, private val autoStart: Boolean = false) : Gd
             bubbles.draw(cam, r.pickupX, 0.95f + 0.12f * sin(time * 3f + r.visualPhase), cz, s, s, s, time * 50f, time, 170f, 270f, 0.6f, 2.4f, 0.12f, 1f - Fog.at(cz), BubbleSkins.IRIS)
         }
     }
+    override fun pause() { idlePilot.stop(); super.pause() }
+    override fun dispose() { idlePilot.close(); super.dispose() }
+
 }

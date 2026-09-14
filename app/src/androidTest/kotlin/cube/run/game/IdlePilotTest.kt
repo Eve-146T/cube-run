@@ -1,0 +1,119 @@
+package cube.run.game
+
+import android.os.SystemClock
+import android.view.MotionEvent
+import androidx.test.core.app.ActivityScenario
+import com.badlogic.gdx.Gdx
+import cube.run.GameActivity
+import cube.run.core.Stage
+import cube.run.data.Settings
+import org.junit.After
+import org.junit.Assert.*
+import org.junit.Test
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
+
+class IdlePilotTest {
+    private val originalDev = Settings.devMode
+    @After fun reset() { Settings.setDevMode(originalDev); Stage.userInteraction(); Stage.paused = false }
+    private fun field(owner: Any, name: String) = owner.javaClass.getDeclaredField(name).apply { isAccessible = true }
+    private fun gl(action: (CubeRun) -> Unit) {
+        val done = CountDownLatch(1); var failure: Throwable? = null
+        Gdx.app.postRunnable {
+            try { action(Gdx.app.applicationListener as CubeRun) } catch (t: Throwable) { failure = t } finally { done.countDown() }
+        }
+        assertTrue(done.await(10, TimeUnit.SECONDS)); failure?.let { throw it }
+    }
+
+    @Test fun requiresTwoUninterruptedMinutesInDevHomeScreen() {
+        Stage.reset()
+        IdlePilot().use { pilot ->
+            Settings.setDevMode(false)
+            assertFalse(pilot.ready(200f, true))
+            Settings.setDevMode(true)
+            assertFalse(pilot.ready(119f, true))
+            Stage.userInteraction()
+            assertFalse(pilot.ready(1f, true))
+            assertFalse(pilot.ready(118f, true))
+            assertTrue(pilot.ready(1f, true))
+            assertFalse(pilot.ready(1f, false))
+            assertFalse(pilot.ready(119f, true))
+            Stage.paused = true
+            assertFalse(pilot.ready(10f, true))
+            Stage.paused = false
+            assertFalse(pilot.ready(119f, true))
+            Stage.userInteraction(down = true)
+            assertFalse(pilot.ready(200f, true))
+            Stage.pointerDown = false
+            assertFalse(pilot.ready(119f, true))
+            assertTrue(pilot.ready(1f, true))
+        }
+    }
+
+    @Test fun disposingAnOldRunCannotCancelTheNewPilot() {
+        Stage.reset(); Settings.setDevMode(true)
+        val old = IdlePilot(); val current = IdlePilot()
+        try {
+            old.start(0f); current.start(0f); old.close()
+            assertTrue(current.active)
+            Stage.userInteraction()
+            assertFalse(current.active)
+        } finally { old.close(); current.close() }
+    }
+
+    @Test fun startsBoostsFiveTimesAndHandsTheSameRunToRealTouch() {
+        Settings.setDevMode(true)
+        ActivityScenario.launch(GameActivity::class.java).use { scenario ->
+            scenario.onActivity { it.setShowWhenLocked(true); it.setTurnScreenOn(true) }
+            SystemClock.sleep(700)
+            gl { game ->
+                val pilot = field(game, "idlePilot").get(game) as IdlePilot
+                field(pilot, "idleSeconds").setFloat(pilot, 119.99f)
+            }
+            SystemClock.sleep(4000)
+            var time = 0f
+            gl { game ->
+                val pilot = field(game, "idlePilot").get(game) as IdlePilot
+                assertTrue("Bot starts itself", pilot.active)
+                assertTrue(field(game, "started").getBoolean(game))
+                val fire = field(game, "fire").get(game)!!
+                assertEquals("Exactly five opening boosts", 5, field(fire, "taps").getInt(fire))
+                assertNotNull("Obstacle planning is running", field(pilot, "worker").get(pilot))
+                time = game.time
+            }
+            var laneBefore = 0
+            gl { game ->
+                val player = field(game, "player").get(game) as Player
+                laneBefore = player.lane
+                val track = field(game, "track").get(game) as cube.run.game.track.Track
+                track.rows.clear()
+                track.rows.add(cube.run.game.track.Row(-12f, arrayListOf(
+                    cube.run.game.track.Ob(com.badlogic.gdx.graphics.Color.WHITE, Lanes.x(laneBefore), 4f,
+                        .6f, cube.run.game.track.ObType.SOLID, 1.2f, 8f, 1f)
+                ), Lanes.w))
+                // The fixture replaced the entire visible course; discard its old prediction.
+                (field(game, "idlePilot").get(game) as IdlePilot).replan()
+            }
+            SystemClock.sleep(700)
+            gl { game ->
+                val player = field(game, "player").get(game) as Player
+                assertNotEquals("The live planner steers around a blocking obstacle", laneBefore, player.lane)
+                assertFalse("Bot survives the obstacle", field(game, "dead").getBoolean(game))
+            }
+            scenario.onActivity {
+                val at = SystemClock.uptimeMillis()
+                val down = MotionEvent.obtain(at, at, MotionEvent.ACTION_DOWN, 300f, 650f, 0)
+                val up = MotionEvent.obtain(at, at + 20, MotionEvent.ACTION_UP, 300f, 650f, 0)
+                it.dispatchTouchEvent(down)
+                assertFalse("Touch cancels on the UI thread, before another bot frame", Stage.botPlaying)
+                it.dispatchTouchEvent(up); down.recycle(); up.recycle()
+            }
+            SystemClock.sleep(100)
+            gl { game ->
+                assertFalse((field(game, "idlePilot").get(game) as IdlePilot).active)
+                assertTrue(field(game, "started").getBoolean(game))
+                assertTrue("Takeover keeps the current run", game.time > time)
+            }
+        }
+    }
+}

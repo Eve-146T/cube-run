@@ -17,6 +17,12 @@ object Skins {
     const val WAVE = 5      // hue sways between [hue] and [hue2]
     const val STROBE = 6    // snaps between [hue] and [hue2] on a beat
 
+    enum class Ability(val title: String, val detail: String, val stat: String) {
+        PHASE("Phase", "Allows you to phase through one obstacle per run.", "1 / RUN"),
+        SPEED("Speed", "Makes you 30% faster.", "+30%"),
+        BUBBLE_SAVER("Bubble saver", "35% chance to not consume a bubble.", "35%"),
+    }
+
     class Skin(
         val id: Int,
         val name: String,
@@ -36,7 +42,11 @@ object Skins {
         val shardType: Int = -1,
         /** How many of those shards it takes. */
         val shardsNeeded: Int = 100,
+        val abilities: List<Ability> = emptyList(),
+        val opacity: Float = 1f,
     ) {
+        val speedMultiplier: Float get() = if (Ability.SPEED in abilities) 1.3f else 1f
+        val bubbleSaveChance: Float get() = if (Ability.BUBBLE_SAVER in abilities) 0.35f else 0f
         val shardOnly: Boolean get() = shardType >= 0
         /** Hue in degrees for the body at [t] seconds given the world's [baseHue]. */
         fun hueAt(t: Float, baseHue: Float): Float = when (mode) {
@@ -69,10 +79,10 @@ object Skins {
         Skin(10, "Ocean", 350, WAVE, hue = 195f, hue2 = 235f, sat = 0.8f, value = 0.95f, glow = 1.3f),
         Skin(11, "Toxic", 450, PULSE, hue = 95f, sat = 0.95f, value = 1f, glow = 1.9f, trail = 1.4f),
         Skin(12, "Sunset", 550, WAVE, hue = 20f, hue2 = 320f, sat = 0.85f, value = 1f, trail = 1.4f),
-        Skin(13, "Ghost", 650, PULSE, hue = 220f, sat = 0.08f, value = 0.9f, glow = 2.6f, trail = 0.6f),
+        Skin(13, "Ghost", 650, PULSE, hue = 220f, sat = 0.08f, value = 0.9f, glow = 2.6f, trail = 0.6f, abilities = listOf(Ability.PHASE), opacity = .78f),
         Skin(14, "Strobe", 700, STROBE, hue = 55f, hue2 = 200f, sat = 0.9f, value = 1f, glow = 1.4f, trail = 1.6f, sparkle = true),
         Skin(15, "Coal", 300, EMBER, hue = 24f, sat = 0.9f, value = 0.35f, glow = 1.6f),
-        Skin(16, "Bubblegum", 220, FIXED, hue = 328f, sat = 0.55f, value = 1f, glow = 1.3f),
+        Skin(16, "Bubblegum", 220, FIXED, hue = 328f, sat = 0.55f, value = 1f, glow = 1.3f, abilities = listOf(Ability.BUBBLE_SAVER)),
         Skin(17, "Lemon", 220, FIXED, hue = 58f, sat = 0.8f, value = 1f),
         Skin(18, "Candy", 480, WAVE, hue = 325f, hue2 = 200f, sat = 0.6f, value = 1f, glow = 1.4f, trail = 1.3f),
         Skin(19, "Galaxy", 750, PULSE, hue = 262f, sat = 0.7f, value = 0.6f, glow = 2.4f, sparkle = true, trail = 1.5f),
@@ -80,6 +90,7 @@ object Skins {
         Skin(20, "Inferno", 0, EMBER, hue = 12f, sat = 1f, value = 1f, glow = 2.4f, trail = 2.6f, sparkle = true, shardType = Shards.EMBER),
         Skin(21, "Glacier", 0, WAVE, hue = 185f, hue2 = 225f, sat = 0.55f, value = 1f, glow = 2.6f, trail = 1.8f, sparkle = true, shardType = Shards.FROST),
         Skin(22, "Eclipse", 0, STROBE, hue = 285f, hue2 = 325f, sat = 0.9f, value = 0.55f, glow = 3f, trail = 2.2f, sparkle = true, shardType = Shards.VOID),
+        Skin(23, "Speedy cube", 900, FIXED, hue = 42f, sat = 0.95f, glow = 1.7f, trail = 1.8f, abilities = listOf(Ability.SPEED)),
     )
 
     /** The skin a shard type unlocks. */
@@ -114,6 +125,7 @@ object BubbleSkins {
         val fill: Float = 0.08f,
         /** The pop / activation shards sparkle white. */
         val sparkle: Boolean = false,
+        val abilities: List<Skins.Ability> = emptyList(),
     )
 
     val all: List<BubbleSkin> = listOf(
@@ -162,6 +174,7 @@ object Trails {
         val speed: Float = 1.4f,
         /** Downward pull; negative drifts up (flames, smoke). */
         val gravity: Float = 14f,
+        val abilities: List<Skins.Ability> = emptyList(),
     ) {
         /** Hue for the [k]-th emission at [t]. */
         fun hueAt(t: Float, k: Int): Float = when (mode) {
@@ -183,6 +196,7 @@ object Trails {
         Trail(7, "Stardust", 400, FIXED, hue = 48f, sat = 0.75f, size = 0.06f, life = 1.0f, rate = 18f, speed = 1.0f, gravity = 0f),
         Trail(8, "Bubbles", 350, FIXED, hue = 185f, sat = 0.35f, size = 0.11f, life = 0.9f, rate = 10f, speed = 1.0f, gravity = -4f),
         Trail(9, "Pixie", 550, DUO, hue = 300f, hue2 = 180f, sat = 0.7f, size = 0.07f, life = 0.6f, rate = 26f, speed = 2f, gravity = -2f),
+        Trail(10, "No trail", 150, BODY, rate = 0f, count = 0),
     )
 
     fun get(id: Int): Trail = all.getOrElse(id) { all[0] }
@@ -211,5 +225,10 @@ object Wardrobe {
     fun count(cat: Int): Int = when (cat) { CUBE -> Skins.all.size; BUBBLE -> BubbleSkins.all.size; else -> Trails.all.size }
     fun name(cat: Int, id: Int): String = when (cat) { CUBE -> Skins.get(id).name; BUBBLE -> BubbleSkins.get(id).name; else -> Trails.get(id).name }
     fun price(cat: Int, id: Int): Int = when (cat) { CUBE -> Skins.get(id).price; BUBBLE -> BubbleSkins.get(id).price; else -> Trails.get(id).price }
+    fun abilities(cat: Int, id: Int): List<Skins.Ability> = when (cat) {
+        CUBE -> Skins.get(id).abilities
+        BUBBLE -> BubbleSkins.get(id).abilities
+        else -> Trails.get(id).abilities
+    }
     fun label(cat: Int): String = when (cat) { CUBE -> "CUBE"; BUBBLE -> "BUBBLE"; else -> "TRAIL" }
 }

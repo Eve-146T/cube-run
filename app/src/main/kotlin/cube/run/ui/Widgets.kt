@@ -65,7 +65,7 @@ class CandyPainter(private val radius: Float, private val lip: Float) {
 
 /** Press feedback shared by the candy controls: squash to the lip, spring back (the click still fires). */
 @SuppressLint("ClickableViewAccessibility")
-private fun View.candyTouch(painter: CandyPainter, sound: Boolean = true) {
+private fun View.candyTouch(painter: CandyPainter, sound: Boolean = true): () -> Unit {
     // Press feedback belongs to the drawing, so touching a rising button cannot
     // cancel its entrance, arrow nudge, purchase pulse, or exit.
     var pressAnim: android.animation.ValueAnimator? = null
@@ -96,12 +96,18 @@ private fun View.candyTouch(painter: CandyPainter, sound: Boolean = true) {
         }
         false
     }
+    return {
+        pressAnim?.cancel(); pressAnim = null
+        painter.press = 0f; isPressed = false
+        invalidate()
+    }
 }
 
 /** A chunky candy button: coloured slab, darker lip, gloss; label in the display font. */
 @SuppressLint("ViewConstructor", "ClickableViewAccessibility")
 class CandyButton(ctx: Context, color: Int, label: CharSequence, textSize: Float, private val lipPx: Float, radiusPx: Float) : TextView(ctx) {
     private val painter = CandyPainter(radiusPx, lipPx).also { it.color = color }
+    private var resetPress: () -> Unit = {}
     var color: Int
         get() = painter.color
         set(v) { painter.color = v; setTextColor(Theme.onColor(v)); invalidate() }
@@ -115,10 +121,15 @@ class CandyButton(ctx: Context, color: Int, label: CharSequence, textSize: Float
         setTextColor(Theme.onColor(color))
         isClickable = true
         isFocusable = true
-        candyTouch(painter)
+        resetPress = candyTouch(painter)
     }
 
     fun setLabel(t: CharSequence) { text = t }
+
+    override fun onWindowFocusChanged(hasWindowFocus: Boolean) {
+        super.onWindowFocusChanged(hasWindowFocus)
+        if (!hasWindowFocus) resetPress()
+    }
 
     override fun setPadding(left: Int, top: Int, right: Int, bottom: Int) {
         super.setPadding(left, top, right, bottom + lipPx.toInt())
@@ -138,6 +149,7 @@ class CandyButton(ctx: Context, color: Int, label: CharSequence, textSize: Float
 @SuppressLint("ViewConstructor", "ClickableViewAccessibility")
 class CandyChip(ctx: Context, color: Int, private val lipPx: Float, radiusPx: Float) : ImageView(ctx) {
     private val painter = CandyPainter(radiusPx, lipPx).also { it.color = color }
+    private var resetPress: () -> Unit = {}
     var color: Int
         get() = painter.color
         set(v) { painter.color = v; invalidate() }
@@ -146,10 +158,15 @@ class CandyChip(ctx: Context, color: Int, private val lipPx: Float, radiusPx: Fl
         scaleType = ScaleType.FIT_CENTER
         isClickable = true
         isFocusable = true
-        candyTouch(painter)
+        resetPress = candyTouch(painter)
     }
 
     fun ring(px: Float, color: Int) { painter.ring = px; painter.ringColor = color; invalidate() }
+
+    override fun onWindowFocusChanged(hasWindowFocus: Boolean) {
+        super.onWindowFocusChanged(hasWindowFocus)
+        if (!hasWindowFocus) resetPress()
+    }
 
     override fun setPadding(left: Int, top: Int, right: Int, bottom: Int) {
         super.setPadding(left, top, right, bottom + lipPx.toInt())

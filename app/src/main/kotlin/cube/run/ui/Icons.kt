@@ -146,42 +146,27 @@ class FlameIcon(private val color: Int = Theme.YELLOW) : Icon() {
 
 /** A horseshoe magnet: a fat red U with white tips, ink-outlined like everything on the stage. */
 class MagnetIcon(private val color: Int = Theme.MAGNET) : Icon() {
-    private val path = Path()
+    private val path = Path().apply {
+        moveTo(7f, 7f); lineTo(17f, 7f); lineTo(17f, 26f)
+        cubicTo(17f, 36f, 31f, 36f, 31f, 26f)
+        lineTo(31f, 7f); lineTo(41f, 7f); lineTo(41f, 26f)
+        cubicTo(41f, 49f, 7f, 49f, 7f, 26f); close()
+    }
     override fun draw(canvas: Canvas) {
-        val b = bounds
-        val s = min(b.width(), b.height()).toFloat()
-        val cx = b.exactCenterX(); val cy = b.exactCenterY()
-        val ro = s * 0.44f; val ri = s * 0.18f            // outer / inner radius of the U
-        val legBottom = cy + s * 0.46f
-        val tipTop = cy + s * 0.2f
-        fun u(top: Float) { // the U as one closed path: outer arc, right leg, inner arc back, left leg
-            path.reset()
-            rect.set(cx - ro, cy - s * 0.46f, cx + ro, cy - s * 0.46f + 2 * ro)
-            path.arcTo(rect, 180f, 180f, true)
-            path.lineTo(cx + ro, top)
-            path.lineTo(cx + ri, top)
-            rect.set(cx - ri, cy - s * 0.46f + (ro - ri), cx + ri, cy - s * 0.46f + (ro - ri) + 2 * ri)
-            path.arcTo(rect, 0f, -180f, false)
-            path.lineTo(cx - ro, top)
-            path.close()
-        }
-        paint.strokeJoin = Paint.Join.ROUND
-        u(legBottom)
-        paint.style = Paint.Style.STROKE; paint.strokeWidth = s * 0.12f; paint.color = Theme.INK
-        canvas.drawPath(path, paint)
+        val s = min(bounds.width(), bounds.height()) / 48f
+        canvas.save()
+        canvas.translate(bounds.exactCenterX() - 24f * s, bounds.exactCenterY() - 24f * s)
+        canvas.scale(s, s)
         paint.style = Paint.Style.FILL; paint.color = color
         canvas.drawPath(path, paint)
-        // the white tips
         paint.color = Theme.WHITE
-        canvas.drawRect(cx - ro, tipTop, cx - ri, legBottom, paint)
-        canvas.drawRect(cx + ri, tipTop, cx + ro, legBottom, paint)
-        paint.style = Paint.Style.STROKE; paint.strokeWidth = s * 0.07f; paint.color = Theme.INK
-        canvas.drawLine(cx - ro, tipTop, cx - ri, tipTop, paint)
-        canvas.drawLine(cx + ri, tipTop, cx + ro, tipTop, paint)
+        canvas.drawRect(7f, 7f, 17f, 17f, paint); canvas.drawRect(31f, 7f, 41f, 17f, paint)
+        paint.style = Paint.Style.STROKE; paint.strokeWidth = 2.8f
+        paint.strokeJoin = Paint.Join.ROUND; paint.strokeCap = Paint.Cap.ROUND; paint.color = Theme.INK
+        canvas.drawPath(path, paint)
+        canvas.drawLine(7f, 17f, 17f, 17f, paint); canvas.drawLine(31f, 17f, 41f, 17f, paint)
         paint.style = Paint.Style.FILL
-        paint.color = Theme.alpha(Theme.WHITE, 150) // a gloss on the bend
-        rect.set(cx - s * 0.3f, cy - s * 0.38f, cx - s * 0.08f, cy - s * 0.24f)
-        canvas.drawOval(rect, paint)
+        canvas.restore()
     }
 }
 
@@ -319,27 +304,28 @@ class PortalIcon(private val color: Int = Theme.MINT) : Icon() {
 
 /** A heart with a shine (a second wind). */
 class HeartIcon(private val color: Int = Theme.PINK) : Icon() {
-    private val path = Path()
+    private val path = Path().apply {
+        moveTo(24f, 41f)
+        cubicTo(20f, 37f, 5f, 27f, 5f, 16f)
+        cubicTo(5f, 5f, 18f, 2f, 24f, 12f)
+        cubicTo(30f, 2f, 43f, 5f, 43f, 16f)
+        cubicTo(43f, 27f, 28f, 37f, 24f, 41f); close()
+    }
     override fun draw(canvas: Canvas) {
-        val b = bounds
-        val s = min(b.width(), b.height()).toFloat()
-        val cx = b.exactCenterX(); val cy = b.exactCenterY()
+        val s = min(bounds.width(), bounds.height()) / 48f
+        canvas.save()
+        canvas.translate(bounds.exactCenterX() - 24f * s, bounds.exactCenterY() - 24f * s)
+        canvas.scale(s, s)
+        paint.style = Paint.Style.FILL; paint.color = Theme.darken(color, .3f)
+        canvas.translate(0f, 2f); canvas.drawPath(path, paint); canvas.translate(0f, -2f)
+        paint.color = color; canvas.drawPath(path, paint)
+        paint.style = Paint.Style.STROKE; paint.strokeWidth = 2.8f
+        paint.strokeJoin = Paint.Join.ROUND; paint.strokeCap = Paint.Cap.ROUND; paint.color = Theme.INK
+        canvas.drawPath(path, paint)
+        paint.color = Theme.alpha(Theme.WHITE, 190); paint.strokeWidth = 3f
+        canvas.drawLine(11f, 15f, 15f, 11f, paint)
         paint.style = Paint.Style.FILL
-        fun heart(col: Int, dy: Float, scale: Float) {
-            val w = s * 0.46f * scale; val top = cy - s * 0.28f * scale + dy; val bottom = cy + s * 0.44f * scale + dy
-            path.reset()
-            path.moveTo(cx, bottom)
-            path.cubicTo(cx - w * 1.2f, bottom - (bottom - top) * 0.55f, cx - w * 1.1f, top - s * 0.05f, cx, top + s * 0.12f * scale)
-            path.cubicTo(cx + w * 1.1f, top - s * 0.05f, cx + w * 1.2f, bottom - (bottom - top) * 0.55f, cx, bottom)
-            path.close()
-            paint.color = col
-            canvas.drawPath(path, paint)
-        }
-        heart(Theme.darken(color, 0.35f), s * 0.06f, 1f)
-        heart(color, 0f, 1f)
-        paint.color = Theme.alpha(Theme.WHITE, 170)
-        rect.set(cx - s * 0.34f, cy - s * 0.24f, cx - s * 0.12f, cy - s * 0.04f)
-        canvas.drawOval(rect, paint)
+        canvas.restore()
     }
 }
 

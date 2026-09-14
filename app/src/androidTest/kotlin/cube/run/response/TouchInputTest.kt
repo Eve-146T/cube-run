@@ -71,4 +71,18 @@ class TouchInputTest {
         assertEquals(listOf(TouchInput.UP), l.swipes)
         assertEquals(2, l.drags)
     }
+    @Test fun returningSmoothSwipeAndSmallExcursionsNeverBecomeTaps() {
+        val l = Listener(); val input = TouchInput(l, { 720 }, { false })
+        for (smooth in listOf(false, true)) {
+            l.smooth = smooth
+            input.touchDown(360, 760, 0, 0)
+            input.touchDragged(360, 600, 0)
+            input.touchDragged(360, 760, 0)
+            input.touchUp(360, 760, 0, 0)
+            input.touchDown(360, 760, 0, 0)
+            input.touchDragged(390, 760, 0)
+            input.touchUp(360, 760, 0, 0)
+        }
+        assertEquals(0, l.taps)
+    }
 }

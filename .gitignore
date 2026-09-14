@@ -22,3 +22,6 @@ keystore.properties
 *.aab
 *.keystore
 *.jks
+
+# Local validation scratch files
+.build-tmp/

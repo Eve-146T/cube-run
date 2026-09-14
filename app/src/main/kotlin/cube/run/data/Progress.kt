@@ -42,7 +42,9 @@ object Progress {
     val PORTALS = Upgrade("perk_portals", "Portal luck", 0f, 1f, max = 5, basePrice = 1500)
     /** Mystery boxes turn up more often. */
     val LUCKYBOX = Upgrade("perk_luckybox", "Lucky boxes", 0f, 1f, max = 5, basePrice = 1500)
-    val perks = listOf(SAFESTART, COINVALUE, PORTALS, LUCKYBOX)
+    val FASTERSTART = Upgrade("perk_fasterstart", "Even faster starts", 5f, 1f, max = 5, basePrice = 1500)
+    val perks = listOf(SAFESTART, COINVALUE, PORTALS, LUCKYBOX, FASTERSTART)
+    val maxStartPresses: Int get() = 5 + level(FASTERSTART).coerceIn(0, 5)
 
     /** Seconds of free bubble at the start of a run. */
     val safeStartSeconds: Float get() = level(SAFESTART).let { if (it == 0) 0f else 3f + 1.5f * it }
@@ -65,8 +67,9 @@ object Progress {
 
     /** A bubble shield: activate in-run with a double tap, absorbs one crash. */
     const val BUBBLE_PRICE = 120
-    /** A second wind: the next crash is not the end — you get back up, bubbled, and keep going. One per run. */
-    const val REVIVE_PRICE = 260
+    /** A second wind: the next crash is not the end — you get back up, bubbled, and keep going. Stock capped at three. */
+    const val REVIVE_PRICE = 999
+    const val MAX_REVIVES = 3
 
     @Volatile var coins: Int = 0
         private set
@@ -201,7 +204,7 @@ object Progress {
     }
 
     fun buyRevive(): Boolean {
-        if (!spend(REVIVE_PRICE)) return false
+        if (revives >= MAX_REVIVES || !spend(REVIVE_PRICE)) return false
         revives += 1
         prefs.edit().putInt("revives", revives).apply()
         return true
@@ -229,8 +232,9 @@ object Progress {
     }
 
     /** Consume one stocked bubble (GL thread, on activation). Returns false when empty. */
-    fun useBubble(): Boolean {
+    fun useBubble(saveChance: Float = 0f, random: Random = Random.Default): Boolean {
         if (bubbles <= 0) return false
+        if (saveChance > 0f && random.nextFloat() < saveChance) return true
         bubbles -= 1
         prefs.edit().putInt("bubbles", bubbles).apply()
         return true

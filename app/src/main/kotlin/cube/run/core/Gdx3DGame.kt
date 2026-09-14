@@ -155,7 +155,7 @@ abstract class Gdx3DGame(val session: GameSession) : ApplicationAdapter(), Touch
         bubbles = BubbleRenderer(mb)
         shards = ShardSystem(kit)
         perf = PerfMonitor(showFps, perfLog)
-        Gdx.input.inputProcessor = TouchInput(this, { sw }, { session.isOver })
+        Gdx.input.inputProcessor = TouchInput(this, { sw }, { session.isOver || paused() || Stage.mode != Stage.NONE })
         init()
     }
 

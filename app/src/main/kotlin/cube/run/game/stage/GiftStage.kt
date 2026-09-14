@@ -74,7 +74,6 @@ class GiftStage(private val game: Gdx3DGame) {
         active = true
         phase = IDLE; t = 0f; yaw = 20f; glow = 0f; autoOpen = false; reward = null; prizeUp = 0f
         newBox()
-        Stage.openRequests.set(0)
         hsvInto(bgTop, 265f, 0.55f, 0.28f)
         hsvInto(bgBottom, 250f, 0.6f, 0.06f)
     }
@@ -111,6 +110,16 @@ class GiftStage(private val game: Gdx3DGame) {
             OPENED -> { // the prize turns where the box was; the next request sends it off and drops the next box
                 yaw += 30f * dt
                 if (Stage.openRequests.getAndSet(0) > 0) { phase = IDLE; t = 0f; autoOpen = true; prizeUp = 0.01f; newBox() }
+            }
+        }
+        if (Stage.skipBoxRequests.getAndSet(0) > 0) {
+            when (phase) {
+                IDLE -> if (autoOpen || Stage.openRequests.getAndSet(0) > 0) {
+                    drop = 0f; dropV = 0f; autoOpen = false
+                    shake(); burst(); t = 1f
+                }
+                SHAKE -> { burst(); t = 1f }
+                OPENED -> t = max(t, 1f)
             }
         }
         var i = 0

@@ -62,6 +62,7 @@ class RunOverFlow(
     }
 
     private fun stopEffects() {
+        boxReadyTask?.let { removeCallbacks(it) }; boxReadyTask = null
         pending.forEach { removeCallbacks(it) }
         pending.clear()
         scoreAnim?.cancel(); coinAnim?.cancel()
@@ -243,6 +244,9 @@ class RunOverFlow(
 
     private var boxesLeft = boxes
     private var boxBusy = false
+    private var boxRewardReady = false
+    private var skipBoxAnimation = false
+    private var boxReadyTask: Runnable? = null
     private var rewardCard: LinearLayout? = null
     private var rewardBig: TextView? = null
     private var rewardSub: TextView? = null
@@ -291,6 +295,8 @@ class RunOverFlow(
             addView(boxHint, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(18f) })
         }
         host.addView(bottom, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT).apply { gravity = Gravity.BOTTOM; bottomMargin = dp(32f) })
+        Stage.openRequests.set(0)
+        Stage.skipBoxRequests.set(0)
         Stage.mode = Stage.BOX
         swap(host)
         Anim.popIn(top, 120, 0.6f)
@@ -298,19 +304,27 @@ class RunOverFlow(
 
     /** A tap opens the next box; once the last one is open, a tap moves on. */
     private fun tapBox() {
-        if (boxBusy) return
+        if (boxBusy) {
+            skipBoxAnimation = true
+            Stage.skipBoxRequests.incrementAndGet()
+            if (boxRewardReady) finishBoxAnimation()
+            return
+        }
         if (boxesLeft <= 0) { leave(onMenu); return }
         boxBusy = true
+        boxRewardReady = false; skipBoxAnimation = false
         rewardBeat?.cancel(); rewardBeat = null
         boxesLeft--
-        boxHint?.visibility = INVISIBLE
+        boxHint?.text = "TAP TO SKIP"
+        boxHint?.visibility = VISIBLE
         rewardCard?.move()?.alpha(0f)?.scaleX(0.7f)?.scaleY(0.7f)?.setDuration(150)?.start()
         Stage.openRequests.incrementAndGet() // the game shakes + opens it, then calls onBoxOpened
     }
 
     /** The 3D stage just opened a box: pop the reward card in. */
     fun onBoxOpened(kind: Int, amount: Int, cat: Int, id: Int) {
-        if (leaving) return
+        if (leaving || boxRewardReady) return
+        boxRewardReady = true
         val big = rewardBig ?: return
         val sub = rewardSub ?: return
         big.textSize = 36f
@@ -363,11 +377,22 @@ class RunOverFlow(
             val opened = boxes - boxesLeft - 1
             r.getChildAt(opened)?.move()?.alpha(0.3f)?.scaleX(0.8f)?.scaleY(0.8f)?.setDuration(300)?.start()
         }
-        later(900) {
-            boxBusy = false
-            boxHint?.text = if (boxesLeft > 0) "TAP FOR THE NEXT BOX" else "TAP FOR THE MENU"
-            boxHint?.visibility = VISIBLE
+        if (skipBoxAnimation) finishBoxAnimation()
+        else {
+            boxReadyTask = Runnable { finishBoxAnimation() }.also { postDelayed(it, 900) }
         }
+    }
+
+    private fun finishBoxAnimation() {
+        boxReadyTask?.let { removeCallbacks(it) }; boxReadyTask = null
+        rewardBeat?.cancel(); rewardBeat = null
+        rewardCard?.let { Anim.reset(it) }
+        boxHost?.let { host ->
+            for (i in host.childCount - 1 downTo 0) if (host.getChildAt(i) is CelebrationView) host.removeViewAt(i)
+        }
+        boxBusy = false
+        boxHint?.text = if (boxesLeft > 0) "TAP FOR THE NEXT BOX" else "TAP FOR THE MENU"
+        boxHint?.visibility = VISIBLE
     }
 
     // Start only after all animation handles and result/box state are initialized.

@@ -406,6 +406,7 @@ class AnimationRegressionTest {
         waitFor(650)
         ui { assertTrue(field<ValueAnimator>(flow, "rewardBeat").isStarted) }
         ui {
+            field<View>(flow, "page").performClick() // Open the next box before delivering its reward.
             flow.onBoxOpened(Progress.BoxReward.BUBBLE, 1, 0, 0)
             assertNull(field<ValueAnimator?>(flow, "rewardBeat"))
             assertEquals(36f, field<TextView>(flow, "rewardBig").textSize / activity.resources.displayMetrics.scaledDensity, 0.1f)

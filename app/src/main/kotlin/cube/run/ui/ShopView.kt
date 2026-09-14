@@ -131,6 +131,7 @@ class ShopView(
         Progress.MAGNET -> Stage.DEMO_MAGNET
         Progress.MULT -> Stage.DEMO_MULT
         Progress.JET -> Stage.DEMO_JET
+        Progress.FASTERSTART -> 0
         Progress.SAFESTART -> Stage.DEMO_SAFESTART
         Progress.COINVALUE -> Stage.DEMO_COINS
         Progress.PORTALS -> Stage.DEMO_PORTAL
@@ -160,13 +161,14 @@ class ShopView(
         kit.labelOf(balance).text = Progress.coins.toString()
         list.removeAllViews()
         bars.clear(); cards.clear(); nowViews.clear(); nextViews.clear()
+        list.addView(heading("CONSUMABLES"), LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { leftMargin = dp(8f); bottomMargin = dp(12f) })
         list.addView(bubbleCard(), LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
+        list.addView(reviveCard(), LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(12f) })
         list.addView(heading("POWER-UPS"), LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(22f); leftMargin = dp(8f); bottomMargin = dp(2f) })
         for (u in Progress.upgrades) {
             list.addView(upgradeCard(u), LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(12f) })
         }
         list.addView(heading("PERKS"), LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(22f); leftMargin = dp(8f); bottomMargin = dp(2f) })
-        list.addView(reviveCard(), LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(12f) })
         for (u in Progress.perks) {
             list.addView(perkCard(u), LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(12f) })
         }
@@ -301,7 +303,7 @@ class ShopView(
         }
     }
 
-    private fun bubbleCard(): View = card("bubbles", Theme.BUBBLE, BubbleIcon(Theme.WHITE), "Bubble shield", "Double-tap in a run: takes one hit, smashes the row") {
+    private fun bubbleCard(): View = card("bubbles", Theme.BUBBLE, BubbleIcon(Theme.WHITE), "Bubble shield", "Double-tap to block a hit") {
         addView(LinearLayout(activity).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
@@ -347,6 +349,7 @@ class ShopView(
     }
 
     private fun perkColor(u: Progress.Upgrade): Int = when (u) {
+        Progress.FASTERSTART -> Theme.ORANGE
         Progress.SAFESTART -> Theme.ORANGE
         Progress.COINVALUE -> Theme.GOLD
         Progress.PORTALS -> Theme.MINT
@@ -354,6 +357,7 @@ class ShopView(
     }
 
     private fun perkIcon(u: Progress.Upgrade): Drawable = when (u) {
+        Progress.FASTERSTART -> JetIcon(Theme.WHITE)
         Progress.SAFESTART -> BubbleIcon(Theme.WHITE)
         Progress.COINVALUE -> CoinIcon()
         Progress.PORTALS -> PortalIcon(Theme.WHITE)
@@ -361,6 +365,7 @@ class ShopView(
     }
 
     private fun perkBlurb(u: Progress.Upgrade): String = when (u) {
+        Progress.FASTERSTART -> "More boost presses at the start of every run"
         Progress.SAFESTART -> "Every run begins under a bubble"
         Progress.COINVALUE -> "Every coin is worth more"
         Progress.PORTALS -> "Portals to bonus worlds open sooner"
@@ -368,6 +373,7 @@ class ShopView(
     }
 
     private fun perkValue(u: Progress.Upgrade, lvl: Int): String = when (u) {
+        Progress.FASTERSTART -> "${5 + lvl} taps"
         Progress.SAFESTART -> if (lvl == 0) "none" else "${fmt(3f + 1.5f * lvl)} s"
         Progress.COINVALUE -> "×${fmt(u.duration(lvl))}"
         Progress.PORTALS -> "${110 - 14 * lvl} rows"
@@ -384,13 +390,13 @@ class ShopView(
     }
 
     /** Second wind: a stock of revives. */
-    private fun reviveCard(): View = card("revives", Theme.PINK, HeartIcon(Theme.WHITE), "Second wind", "A crash is not the end: back up, bubbled, still running") {
+    private fun reviveCard(): View = card("revives", Theme.PINK, HeartIcon(Theme.WHITE), "Second wind", "Revive with a bubble") {
         addView(LinearLayout(activity).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
             clipChildren = false; clipToPadding = false
             addView(rack(3, Progress.revives, { HeartIcon(Theme.PINK) }, Theme.lighten(Theme.PINK, 0.4f)).also { nowViews["revives"] = it }, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
-            addView(priceButton(Progress.REVIVE_PRICE, "revives", null, Stage.DEMO_REVIVE) { Progress.buyRevive() },
+            addView(priceButton(if (Progress.revives >= Progress.MAX_REVIVES) null else Progress.REVIVE_PRICE, "revives", null, Stage.DEMO_REVIVE) { Progress.buyRevive() },
                 LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { leftMargin = dp(10f) })
         })
     }

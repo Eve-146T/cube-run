@@ -52,7 +52,7 @@ class InputCapacityTest {
                     Gdx.app.postRunnable {
                         val game = Gdx.app.applicationListener as CubeRun
                         Stage.paused = false
-                        game.onDown(360f, 760f)
+                        game.onTap(360f, 760f)
                         value<Difficulty>(game, "difficulty").boostTo(1f)
                         val listener = object : TouchListener {
                             override fun onDown(x: Float, y: Float) {}

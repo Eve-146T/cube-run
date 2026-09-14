@@ -46,7 +46,8 @@ class SmashRegressionTest {
 
     @Test fun highSpeedCollisionConsumesOneReviveAndPreservesNonSolidsAndOutsideRows() = withGame { game ->
         Stage.paused = false
-        game.onDown(360f, 760f)
+        game.onTap(360f, 760f)
+        field(CubeRun::class.java, "runSkin").set(game, cube.run.data.Skins.get(0))
         Stage.paused = true
         (field(CubeRun::class.java, "difficulty").get(game) as Difficulty).boostTo(1f)
         field(CubeRun::class.java, "runT").setFloat(game, 10f)
@@ -78,7 +79,8 @@ class SmashRegressionTest {
     }
 
     @Test fun protectedTestReportsRealCollisionsAndNeverSpendsReviveStock() = withGame { game ->
-        Stage.paused = false; game.onDown(360f, 760f); Stage.paused = true
+        Stage.paused = false; game.onTap(360f, 760f)
+        field(CubeRun::class.java, "runSkin").set(game, cube.run.data.Skins.get(0)); Stage.paused = true
         (field(CubeRun::class.java, "bubble").get(game) as Bubble).reset()
         val track = field(CubeRun::class.java, "track").get(game) as Track
         track.rows.clear(); track.rows.add(Row(0f, arrayListOf(obstacle(ObType.SOLID))))

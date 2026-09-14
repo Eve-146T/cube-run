@@ -34,7 +34,7 @@ class BotPlayTest {
             val file = File(InstrumentationRegistry.getInstrumentation().targetContext.getExternalFilesDir(null), "bot-play.csv")
             try {
                 LiveBotDriver.gl { game ->
-                    Stage.paused = false; game.onDown(360f, 760f)
+                    Stage.paused = false; game.onTap(360f, 760f)
                     value<Bubble>(game, "bubble").timer.stop()
                     Stage.boostRequests.set(boosts)
                     if (args.getString("magnet") == "true") value<PowerUps>(game, "powerUps").magnet.start(20f)

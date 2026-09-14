@@ -44,8 +44,6 @@ class Track(private val rnd: Random, private val fx: ObstacleFactory) {
 
     // ---- lane-walk / director state ----
     private val pendingSteps = ArrayDeque<Int>()
-    private var testWorld: TestWorlds.World? = null
-    private var testCue = 0
     private var curSafe = 1         // the lane currently guaranteed safe (the walk position)
     private var prevKind = -1       // last spawned step code (drives recovery spacing)
     private var mirror = false
@@ -111,15 +109,8 @@ class Track(private val rnd: Random, private val fx: ObstacleFactory) {
         rowsSincePickup = 0; pickupSpacing = 12; pickupBag.clear(); airCoins = false
         runScore = 0; jetOffers = 0; boxOffers = 0
         bonus = Bonus.NONE; bonusRowsLeft = 0; rowsSincePortal = 0; portalPending = Bonus.NONE
-        testWorld = TestWorlds.byId(Settings.testScenario); testCue = 0
-        this.coinTrailChance = if (testWorld != null) 1f else coinTrailChance
+        this.coinTrailChance = coinTrailChance
         if (initialBonus != Bonus.NONE) forceBonus(initialBonus)
-        if (testWorld != null) {
-            var z = -24f; var last = z
-            while (z > spawnZ) { spawnTestRow(z, hue); last = z; z -= nextTestGap() }
-            spawnAcc = last - spawnZ
-            return
-        }
         var z = -38f
         var zLast = z
         while (z > spawnZ) {
@@ -134,13 +125,6 @@ class Track(private val rnd: Random, private val fx: ObstacleFactory) {
 
     /** Steady-state spawning: after the world moved [mv], spawn whatever rows are due. */
     fun spawn(mv: Float, hue: Float, score: Int) {
-        if (testWorld != null) {
-            spawnAcc += mv
-            while (spawnAcc >= nextTestGap()) {
-                spawnAcc -= nextTestGap(); spawnTestRow(spawnZ, hue)
-            }
-            return
-        }
         runScore = score
         spawnAcc += mv
         while (true) {
@@ -153,20 +137,6 @@ class Track(private val rnd: Random, private val fx: ObstacleFactory) {
                 pendingSteps.removeFirst()
             } else break
         }
-    }
-
-    private fun nextTestGap() = testWorld!!.cues[testCue].gap
-
-    private fun spawnTestRow(z: Float, hue: Float) {
-        val cues = testWorld!!.cues
-        val cue = cues[testCue]
-        testCue = (testCue + 1) % cues.size
-        mirror = false
-        if (cue.code == Step.PORTAL) portalPending = if (cue.exit) -2 else cue.world
-        spawnStep(cue.code, z, hue)
-        val row = rows.last()
-        row.pickup = cue.pickup
-        row.pickupX = row.safeX()
     }
 
     /** Move every row toward the player, stream it in, advance the animated obstacles, drop rows that passed. */

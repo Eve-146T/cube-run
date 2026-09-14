@@ -15,7 +15,6 @@ import cube.run.core.SoundFx
 import cube.run.data.Settings
 import cube.run.game.track.Sect
 import cube.run.game.track.Sections
-import cube.run.game.track.TestWorlds
 
 /**
  * A little map of one section: three lane columns, one row per step, first
@@ -129,39 +128,25 @@ class SectionsView(activity: Activity, kit: UiKit, onClose: () -> Unit) : Page(a
     private fun renderStatus() {
         status.removeAllViews()
         val chosen = Sections.byId(Settings.testSection)
-        val world = TestWorlds.byId(Settings.testScenario)
-        if (chosen != null || world != null) {
+        if (chosen != null) {
             status.addView(LinearLayout(activity).apply {
                 orientation = LinearLayout.VERTICAL
-                addView(kit.text("TESTING ${world?.name ?: chosen!!.name}", 14f, Theme.INK, 700, Gravity.START))
-                addView(kit.text(world?.detail ?: "The run plays only this section, on loop. No pickups.", 12f, Theme.INK_SOFT, 500, Gravity.START))
+                addView(kit.text("TESTING ${chosen.name}", 14f, Theme.INK, 700, Gravity.START))
+                addView(kit.text("The run plays only this section, on loop. No pickups.", 12f, Theme.INK_SOFT, 500, Gravity.START))
             }, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
             status.addView(kit.button("PLAY NORMALLY", Theme.PLAY, UiKit.Size.SMALL) {
-                Settings.testSection = -1; Settings.testScenario = -1
+                Settings.testSection = -1
                 Settings.testBonus = -1; Settings.testBonusNow = -1
                 render()
             }, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { leftMargin = dp(10f) })
         } else {
-            status.addView(kit.text("Choose a test world or a section", 13f, Theme.INK, 600, Gravity.START),
+            status.addView(kit.text("Choose a section", 13f, Theme.INK, 600, Gravity.START),
                 LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
         }
     }
 
     private fun renderGrid() {
         grid.removeAllViews()
-        grid.addView(kit.text("TEST WORLDS", 14f, Theme.INK, 700, Gravity.START).apply {
-            setPadding(dp(4f), dp(8f), dp(4f), dp(6f))
-        })
-        for (pair in TestWorlds.all.chunked(2)) {
-            val line = LinearLayout(activity).apply { orientation = LinearLayout.HORIZONTAL }
-            for (world in pair) line.addView(worldCell(world), LinearLayout.LayoutParams(0, dp(132f), 1f).apply {
-                setMargins(dp(4f), dp(4f), dp(4f), dp(4f))
-            })
-            grid.addView(line)
-        }
-        grid.addView(kit.text("SECTIONS", 14f, Theme.INK, 700, Gravity.START).apply {
-            setPadding(dp(4f), dp(16f), dp(4f), dp(6f))
-        })
         val all = Sections.lib.sortedWith(compareBy({ it.tier }, { it.id }))
         var row: LinearLayout? = null
         for ((i, s) in all.withIndex()) {
@@ -173,26 +158,6 @@ class SectionsView(activity: Activity, kit: UiKit, onClose: () -> Unit) : Page(a
         }
         val last = grid.getChildAt(grid.childCount - 1) as? LinearLayout
         if (last != null) while (last.childCount < 3) last.addView(View(activity), LinearLayout.LayoutParams(0, 1, 1f).apply { setMargins(dp(4f), 0, dp(4f), 0) })
-    }
-
-    private fun worldCell(world: TestWorlds.World): View = LinearLayout(activity).apply {
-        val chosen = Settings.testScenario == world.id
-        orientation = LinearLayout.VERTICAL
-        gravity = Gravity.CENTER_VERTICAL
-        setPadding(dp(10f), dp(8f), dp(10f), dp(8f))
-        isClickable = true
-        contentDescription = "Test world: ${world.name}. ${world.detail}"
-        background = kit.cardDrawable(if (chosen) Theme.lighten(Theme.MINT, 0.6f) else Theme.CARD, if (chosen) Theme.MINT else null, 14f)
-        addView(kit.text(world.route, 11f, Theme.INK_SOFT, 600, Gravity.START))
-        addView(kit.text(world.name, 12f, Theme.INK, 700, Gravity.START).apply {
-            setPadding(0, dp(8f), 0, dp(5f))
-        })
-        addView(kit.text(world.detail, 11f, Theme.MUTED, 500, Gravity.START))
-        setOnClickListener {
-            Settings.testSection = -1; Settings.testScenario = world.id
-            Settings.testBonus = -1; Settings.testBonusNow = -1
-            SoundFx.play("tap"); Haptics.click(); close()
-        }
     }
 
     private fun cell(s: Sect): View = LinearLayout(activity).apply {
@@ -209,7 +174,6 @@ class SectionsView(activity: Activity, kit: UiKit, onClose: () -> Unit) : Page(a
             LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(5f) })
         addView(kit.text("tier ${s.tier} · ${s.steps.size} rows", 9f, Theme.MUTED, 500))
         setOnClickListener {
-            Settings.testScenario = -1
             Settings.testSection = s.id
             SoundFx.play("tap"); Haptics.click()
             close()

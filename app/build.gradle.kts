@@ -83,7 +83,7 @@ android {
 }
 
 dependencies {
-    androidTestImplementation(project(":bot"))
+    implementation(project(":bot"))
     androidTestImplementation("androidx.test.ext:junit:1.3.0")
     androidTestImplementation("androidx.test:runner:1.7.0")
     implementation("com.badlogicgames.gdx:gdx:$gdxVersion")

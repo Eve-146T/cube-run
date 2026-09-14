@@ -46,6 +46,7 @@ class TouchInput(
     private var downAt = 0L
     private var swiped = false
     private var active = false
+    private var moved = false
     private val swipeDist get() = screenWidth() * 0.055f
     private val tapSlop get() = screenWidth() * 0.03f
 
@@ -56,7 +57,7 @@ class TouchInput(
         downX = x.toFloat(); downY = y.toFloat()
         lastX = downX; lastY = downY
         downAt = System.nanoTime()
-        swiped = false
+        swiped = false; moved = false
         listener.onDown(downX, downY)
         return true
     }
@@ -72,6 +73,7 @@ class TouchInput(
     }
 
     private fun recognizeSwipe(fx: Float, fy: Float) {
+        if (abs(fx - downX) >= tapSlop || abs(fy - downY) >= tapSlop) moved = true
         // smooth mode: the game interprets the drag positionally (in onDrag).
         // classic mode: a single flick per touch.
         if (!listener.smoothSwipeEnabled() && !swiped) {
@@ -96,7 +98,7 @@ class TouchInput(
         // carries a real position; recognize it once, without turning it into a tap.
         recognizeSwipe(fx, fy)
         listener.onUp(fx, fy)
-        if (!swiped && abs(fx - downX) < tapSlop && abs(fy - downY) < tapSlop &&
+        if (!moved && !swiped && abs(fx - downX) < tapSlop && abs(fy - downY) < tapSlop &&
             System.nanoTime() - downAt < 350_000_000L
         ) {
             listener.onTap(fx, fy)

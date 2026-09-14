@@ -22,6 +22,7 @@ class GameActivity : AndroidApplication() {
 
     private lateinit var hud: Hud
     private var gameSurface: SurfaceView? = null
+    private var backCallback: android.window.OnBackInvokedCallback? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -30,7 +31,6 @@ class GameActivity : AndroidApplication() {
         // Debug builds only: adb shortcuts for testing individual sections and worlds.
         if (BuildConfig.DEBUG) {
             if (intent.getBooleanExtra("dev", false) && !Settings.devMode) { Settings.setDevMode(true); Progress.enterDev() }
-            intent.getIntExtra("scenario", -2).let { if (it >= -1) Settings.testScenario = it }
             intent.getIntExtra("section", -2).let { if (it >= -1) Settings.testSection = it }
             intent.getIntExtra("bonus", -2).let { if (it >= -1) Settings.testBonus = it }
             intent.getIntExtra("world", -2).let { if (it >= -1) Settings.testWorld = it }
@@ -41,7 +41,7 @@ class GameActivity : AndroidApplication() {
         hud.setBest(Scores.best(SCORE_ID))
         val session = GameHostSession(this, SCORE_ID, hud)
         // RESTART relaunches with this extra: the run begins on the first frame, no "tap to start"
-        val game = CubeRun(session, autoStart = intent.getBooleanExtra(Hud.EXTRA_AUTOSTART, false))
+        val game = CubeRun(session, autoStart = intent.getBooleanExtra(Hud.EXTRA_AUTOSTART, false), idleBotStart = intent.getBooleanExtra(Hud.EXTRA_IDLE_BOT, false))
 
         val config = AndroidApplicationConfiguration().apply {
             useImmersiveMode = true
@@ -77,6 +77,19 @@ class GameActivity : AndroidApplication() {
         root.addView(hud, FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT)
         setContentView(root)
         goFullscreen()
+        if (android.os.Build.VERSION.SDK_INT >= 33) {
+            backCallback = android.window.OnBackInvokedCallback { hud.navigateBack() }.also {
+                onBackInvokedDispatcher.registerOnBackInvokedCallback(android.window.OnBackInvokedDispatcher.PRIORITY_DEFAULT, it)
+            }
+        }
+    }
+
+    @Deprecated("Legacy Back dispatch")
+    override fun onBackPressed() { hud.navigateBack() }
+
+    override fun onDestroy() {
+        if (android.os.Build.VERSION.SDK_INT >= 33) backCallback?.let { onBackInvokedDispatcher.unregisterOnBackInvokedCallback(it) }
+        super.onDestroy()
     }
 
     /** Edge to edge with every system bar hidden (they come back with a swipe and hide again). */
@@ -101,6 +114,10 @@ class GameActivity : AndroidApplication() {
     }
 
     override fun dispatchTouchEvent(event: MotionEvent): Boolean {
+        when (event.actionMasked) {
+            MotionEvent.ACTION_DOWN, MotionEvent.ACTION_POINTER_DOWN -> Stage.userInteraction(down = true)
+            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> Stage.pointerDown = false
+        }
         // Discrete flicks need the first threshold crossing, not resampled drag
         // positions. Keep Android's normal batching for smooth positional control.
         if (event.actionMasked == MotionEvent.ACTION_DOWN && !Settings.smoothControl &&
@@ -111,8 +128,14 @@ class GameActivity : AndroidApplication() {
 
     /** Leaving the app mid-run (home, a call) pauses it: the run resumes from the pause card. */
     override fun onPause() {
-        super.onPause()
+        Stage.userInteraction()
         hud.autoPause()
+        super.onPause()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        goFullscreen()
     }
 
     private companion object {

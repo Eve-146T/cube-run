@@ -4,7 +4,7 @@ import java.io.DataInputStream
 import java.io.DataOutputStream
 import kotlin.math.*
 
-/** Test-only model of Player.update / Track.scroll / CubeRun.collide, checked on Android. */
+/** Shared planning model for the dev idle bot and collision checks on Android. */
 data class Body(var lane: Int = 1, var x: Float = 0f, var y: Float = .45f,
     var vy: Float = 0f, var air: Boolean = false, var duck: Float = 0f,
     var duckT: Float = 0f, var slam: Boolean = false, var flying: Boolean = false,

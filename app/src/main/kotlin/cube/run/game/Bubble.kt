@@ -71,7 +71,7 @@ class Bubble(private val game: Gdx3DGame) {
 
     fun pop(px: Float, py: Float) {
         timer.stop()
-        cooldownLeft = 10f
+        cooldownLeft = 5f
         shock = 1f; shockHue = skin.hue
         x = px; y = py
         SoundFx.play("pop", rate = 0.55f)
@@ -91,7 +91,7 @@ class Bubble(private val game: Gdx3DGame) {
         if (!active) return false
         age += dt
         if (timer.tick(dt)) { // ran out quietly
-            cooldownLeft = 10f
+            cooldownLeft = 5f
             SoundFx.play("pop", rate = 0.7f, vol = 0.6f)
             game.burst3d(tmp.set(px, py, 0f), burstCol(), n = 16, speed = 4f, size = 0.1f, life = 0.6f)
             return true

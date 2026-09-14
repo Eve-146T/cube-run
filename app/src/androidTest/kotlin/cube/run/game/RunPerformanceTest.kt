@@ -146,7 +146,7 @@ class RunPerformanceTest {
                             field(Track::class.java, "rnd").set(track, Random(73))
                             field(Track::class.java, "fx").set(track, ObstacleFactory(Random(73)))
                         }
-                        game.onDown(360f, 760f)
+                        game.onTap(360f, 760f)
                         if (mode == "five-boosts") Stage.boostRequests.set(5)
                         else {
                             difficulty.boostTo(1f)

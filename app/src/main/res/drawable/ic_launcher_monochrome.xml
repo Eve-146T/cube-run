@@ -1,0 +1,10 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp" android:height="108dp" android:viewportWidth="108" android:viewportHeight="108">
+    <!-- Portal ring and emerging cube for Android's themed launcher icons. -->
+    <path android:strokeColor="#FFFFFFFF" android:strokeWidth="4" android:fillColor="#00000000"
+        android:pathData="M61,28 C37,13 18,39 25,66 C31,90 55,94 65,75"/>
+    <path android:fillColor="#FFFFFFFF"
+        android:pathData="M43,40 L67,28 L86,43 L82,70 L59,78 L39,63 Z"/>
+    <path android:strokeColor="#00000000" android:fillColor="#FFFFFFFF"
+        android:pathData="M26,51 L32,47 L37,52 L36,60 L30,63 L25,59 Z M19,61 L23,59 L27,62 L26,67 L22,69 L18,66 Z"/>
+</vector>

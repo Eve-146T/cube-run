@@ -13,14 +13,14 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import cube.run.ui.Anim.move
 
-/** Reads the system bar + cutout insets the same way everywhere. */
+/** Respect permanent cutouts; transient system bars overlay this immersive game without moving controls. */
 fun insetsOf(insets: WindowInsets): IntArray =
     if (Build.VERSION.SDK_INT >= 30) {
-        val all = insets.getInsets(WindowInsets.Type.systemBars() or WindowInsets.Type.displayCutout())
+        val all = insets.getInsetsIgnoringVisibility(WindowInsets.Type.displayCutout())
         intArrayOf(all.left, all.top, all.right, all.bottom)
     } else {
-        @Suppress("DEPRECATION")
-        intArrayOf(insets.systemWindowInsetLeft, insets.systemWindowInsetTop, insets.systemWindowInsetRight, insets.systemWindowInsetBottom)
+        val cutout = insets.displayCutout
+        intArrayOf(cutout?.safeInsetLeft ?: 0, cutout?.safeInsetTop ?: 0, cutout?.safeInsetRight ?: 0, cutout?.safeInsetBottom ?: 0)
     }
 
 /**
@@ -114,6 +114,8 @@ abstract class Page(
     /** The back button. Pages that need to tidy up first override this and call [close]. */
     protected open fun onBack() = close()
 
+    fun navigateBack() = onBack()
+
     fun close() {
         if (closing) return
         closing = true
@@ -137,8 +139,7 @@ abstract class Page(
 }
 
 /**
- * A card floating over a dimmed scene (the pause menu): tap the scrim to
- * dismiss. The card springs up from below; [dismiss] drops it and reports.
+ * A card floating over a dimmed scene (the pause menu). The card springs up from below; [dismiss] drops it and reports.
  */
 @SuppressLint("ViewConstructor", "ClickableViewAccessibility")
 abstract class Sheet(
@@ -163,11 +164,18 @@ abstract class Sheet(
         isClickable = true
         setBackgroundColor(Theme.SCRIM)
         addView(card, LayoutParams(dp(320f), LayoutParams.WRAP_CONTENT).apply { gravity = Gravity.CENTER })
-        setOnClickListener { dismiss() }
+        // The backdrop consumes touches; only explicit controls dismiss the pause.
         alpha = 0f
         move().alpha(1f).setDuration(110).start()
         card.alpha = 0f; card.scaleX = 0.86f; card.scaleY = 0.86f; card.translationY = dpf(24f)
         card.move().alpha(1f).scaleX(1f).scaleY(1f).translationY(0f).setDuration(200).setInterpolator(Anim.springSoft).withEndAction { card.requestLayout() }.start()
+    }
+
+    /** Backgrounding should leave a settled pause card, not replay its entrance on return. */
+    fun settleEntrance() {
+        if (closing) return
+        Anim.reset(this)
+        Anim.reset(card)
     }
 
     fun dismiss() {

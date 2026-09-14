@@ -52,7 +52,8 @@ class TimingAndBalanceTest {
                 try {
                     Settings.setSoundEnabled(false); Settings.setHapticsEnabled(false)
                     val game = Gdx.app.applicationListener as CubeRun
-                    Stage.paused = false; game.onDown(360f, 760f)
+                    Stage.paused = false; game.onTap(360f, 760f)
+                    field(game, "runSkin").set(game, cube.run.data.Skins.get(0)) // timing fixture uses Classic regardless of the saved cosmetic
                     val track = field(game, "track").get(game) as Track
                     val difficulty = field(game, "difficulty").get(game) as Difficulty
                     val powers = field(game, "powerUps").get(game) as PowerUps
@@ -118,7 +119,7 @@ class TimingAndBalanceTest {
         assertEquals(1.7f, coin.restX, 0f)
     }
 
-    @Test fun bubbleCooldownAndDevBoostCycleUseTheRealGame() {
+    @Test fun bubbleCooldownAndPurchasedBoostLimitUseTheRealGame() {
         ActivityScenario.launch(GameActivity::class.java).use { scenario ->
             scenario.onActivity { it.setShowWhenLocked(true); it.setTurnScreenOn(true) }
             val done = CountDownLatch(1); var failure: Throwable? = null
@@ -126,32 +127,32 @@ class TimingAndBalanceTest {
                 val oldDev = Settings.devMode
                 try {
                     val game = Gdx.app.applicationListener as CubeRun
-                    Stage.paused = false; game.onDown(360f, 760f)
+                    Stage.paused = false; game.onTap(360f, 760f)
+                    field(game, "runSkin").set(game, cube.run.data.Skins.get(0)) // timing fixture uses Classic regardless of the saved cosmetic
                     val bubble = field(game, "bubble").get(game) as Bubble
                     bubble.reset(); bubble.duration = .01f; bubble.activate(0f, .45f, quiet = true)
                     bubble.update(.02f, 0f, 0f, .45f)
-                    assertFalse(bubble.ready); assertEquals(10f, bubble.cooldownLeft, .001f)
+                    assertFalse(bubble.ready); assertEquals(5f, bubble.cooldownLeft, .001f)
                     val stock = Progress.bubbles
                     val activate = CubeRun::class.java.getDeclaredMethod("tryBubble").apply { isAccessible = true }
                     assertEquals(false, activate.invoke(game)); assertEquals(stock, Progress.bubbles)
-                    bubble.update(9.9f, 0f, 0f, .45f); assertFalse(bubble.ready)
+                    bubble.update(4.9f, 0f, 0f, .45f); assertFalse(bubble.ready)
                     bubble.update(.11f, 0f, 0f, .45f); assertTrue(bubble.ready)
                     bubble.activate(0f, .45f, quiet = true); bubble.pop(0f, .45f)
-                    assertEquals(10f, bubble.cooldownLeft, .001f)
+                    assertEquals(5f, bubble.cooldownLeft, .001f)
                     bubble.reset(); assertTrue(bubble.ready)
 
                     val difficulty = Difficulty(); val fire = FireBoost(game, difficulty)
-                    Settings.setDevMode(true); fire.reset()
-                    for (n in 1..11) {
-                        Stage.boostRequests.set(1); assertEquals(1, fire.tick(1f, 0f, .45f))
-                        assertEquals((n - 1) % 10 + 1, field(fire, "taps").getInt(fire))
-                        if (n == 5) assertEquals(21.6f, difficulty.speed(), .001f)
-                        if (n == 10) assertEquals(30f, difficulty.speed(), .001f)
-                        if (n == 11) assertTrue(difficulty.speed() < 15f)
+                    for (dev in listOf(false, true)) {
+                        Settings.setDevMode(dev); difficulty.reset(); fire.reset()
+                        Stage.boostRequests.set(50)
+                        assertEquals(Progress.maxStartPresses, fire.tick(1f, 0f, .45f))
+                        val speed = difficulty.speed()
+                        Stage.boostRequests.set(1); assertEquals(0, fire.tick(1f, 0f, .45f))
+                        assertEquals(speed, difficulty.speed(), 0f)
+                        fire.reset(); Stage.boostRequests.set(1)
+                        assertEquals(0, fire.tick(16f, 0f, .45f))
                     }
-                    Settings.setDevMode(false); difficulty.reset(); fire.reset()
-                    Stage.boostRequests.set(10); assertEquals(5, fire.tick(1f, 0f, .45f))
-                    assertEquals(21.6f, difficulty.speed(), .001f)
                 } catch (t: Throwable) { failure = t }
                 finally { Settings.setDevMode(oldDev); Stage.boostRequests.set(0); done.countDown() }
             }

@@ -29,7 +29,7 @@ import kotlin.math.abs
  * a swipe to browse, EQUIP / BUY.
  */
 @SuppressLint("SetTextI18n", "ViewConstructor", "ClickableViewAccessibility")
-class WardrobeView(activity: Activity, kit: UiKit, onClose: () -> Unit) : Page(activity, kit, "WARDROBE", dark = true, onClosed = onClose) {
+class WardrobeView(activity: Activity, kit: UiKit, abilityStyle: Int = 0, shardStyle: Int = 0, onClose: () -> Unit) : Page(activity, kit, "WARDROBE", dark = true, onClosed = onClose) {
 
     private var cat = Wardrobe.CUBE
     private var index = Progress.equipped(cat)
@@ -37,9 +37,9 @@ class WardrobeView(activity: Activity, kit: UiKit, onClose: () -> Unit) : Page(a
     private val tabs = LinearLayout(activity).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER; clipChildren = false; clipToPadding = false }
     private val tabViews = ArrayList<TextView>()
     private val name = kit.stageText("", 32f, stroke = 4f)
-    private val status = kit.stageText("", 15f, Theme.alpha(Theme.WHITE, 220), weight = 600, stroke = 2f)
-    private val shardBar = kit.segments(10).apply { visibility = View.GONE; offColor = Theme.alpha(Theme.WHITE, 60) }
+    private val shardDisplay = ShardDisplay(activity, kit, shardStyle)
     private val dots = LinearLayout(activity).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER }
+    private val abilityDisplay = AbilityDisplay(activity, kit, abilityStyle)
     private val action: CandyButton
     private val left: View
     private val right: View
@@ -73,20 +73,41 @@ class WardrobeView(activity: Activity, kit: UiKit, onClose: () -> Unit) : Page(a
         content.addView(right, FrameLayout.LayoutParams(dp(54f), dp(58f)).apply { gravity = Gravity.CENTER_VERTICAL or Gravity.END; rightMargin = dp(12f) })
 
         // ---- bottom: name, status, dots, action
-        action = kit.button("", Theme.PLAY, UiKit.Size.BIG) { act() }
+        action = kit.button("", Theme.PLAY, UiKit.Size.BIG) { act() }.apply {
+            // Keep the generous height of the former two-line shard unlock button.
+            minimumHeight = dp(34f) + kotlin.math.ceil(paint.fontSpacing + paint.fontMetrics.bottom - paint.fontMetrics.top).toInt()
+            maxLines = 1
+            ellipsize = android.text.TextUtils.TruncateAt.END
+        }
         val bottom = LinearLayout(activity).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER_HORIZONTAL
             clipChildren = false; clipToPadding = false
             addView(name)
-            addView(status, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = -dp(4f) })
-            addView(shardBar, LinearLayout.LayoutParams(dp(180f), dp(10f)).apply { topMargin = dp(8f) })
+            addView(abilityDisplay.inline, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+                topMargin = dp(8f); leftMargin = dp(22f); rightMargin = dp(22f)
+            })
+            addView(shardDisplay.inline, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(8f) })
             addView(dots, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(12f) })
             addView(action, LinearLayout.LayoutParams(dp(230f), LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(18f) })
         }
         content.addView(bottom, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT).apply {
-            gravity = Gravity.BOTTOM; bottomMargin = dp(36f)
+            gravity = Gravity.BOTTOM; bottomMargin = dp(112f)
         })
+        content.addView(shardDisplay.floating, FrameLayout.LayoutParams(-1, -1))
+        content.addView(abilityDisplay.floating, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT).apply {
+            leftMargin = dp(22f); rightMargin = dp(22f)
+            if (abilityStyle == 6) { gravity = Gravity.BOTTOM; bottomMargin = dp(28f) }
+            else { gravity = Gravity.TOP; topMargin = dp(108f) }
+        })
+        if (abilityStyle == 0) tabs.addOnLayoutChangeListener { view, _, _, _, _, _, _, _, _ ->
+            val params = abilityDisplay.floating.layoutParams as FrameLayout.LayoutParams
+            val top = view.bottom + dp(10f)
+            if (params.topMargin != top) {
+                params.topMargin = top
+                abilityDisplay.floating.layoutParams = params
+            }
+        }
         render()
         Anim.stagger(tabs, dpf(16f), 160, 50)
         Anim.popIn(left, 260, 0.5f); Anim.popIn(right, 300, 0.5f)
@@ -156,33 +177,13 @@ class WardrobeView(activity: Activity, kit: UiKit, onClose: () -> Unit) : Page(a
         val shardSkin = if (cat == Wardrobe.CUBE) Skins.get(index).takeIf { it.shardOnly } else null
         kit.labelOf(balance).text = Progress.coins.toString()
         name.text = Wardrobe.name(cat, index).uppercase()
-        shardBar.visibility = View.GONE
-        status.text = when {
-            equipped -> "EQUIPPED"
-            owned -> "OWNED"
-            shardSkin != null -> { // how far the shards have come: "34 / 100 ember shards" + a bar
-                val k = Shards.get(shardSkin.shardType)
-                val have = Progress.shards(k.id)
-                shardBar.visibility = View.VISIBLE
-                shardBar.level = (have * 10 / shardSkin.shardsNeeded).coerceIn(0, 10)
-                shardBar.color = Theme.hsv(k.hue, 0.75f, 1f)
-                "$have / ${shardSkin.shardsNeeded} ${k.name.uppercase()}"
-            }
-            else -> ""
-        }
-        status.setTextColor(when {
-            equipped -> Theme.MINT
-            shardSkin != null && !owned -> Theme.hsv(Shards.get(shardSkin.shardType).hue, 0.6f, 1f)
-            else -> Theme.alpha(Theme.WHITE, 220)
-        })
+        shardDisplay.bind(shardSkin?.takeUnless { owned }, shardSkin?.let { Progress.shards(it.shardType) } ?: 0)
+        action.visibility = if (shardDisplay.showAction) View.VISIBLE else View.INVISIBLE
         val canUnlock = shardSkin != null && Progress.shards(shardSkin.shardType) >= shardSkin.shardsNeeded
         action.setLabel(when {
             equipped -> "EQUIPPED"
             owned -> "EQUIP"
-            shardSkin != null -> android.text.SpannableStringBuilder("UNLOCK  ").also { sb ->
-                val d = ShardIcon(Theme.hsv(Shards.get(shardSkin.shardType).hue, 0.75f, 1f)); val px = kit.dp(24f); d.setBounds(0, 0, px, px)
-                sb.append("\u2009 ", CenteredImageSpan(d), android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE).append(" ${shardSkin.shardsNeeded}")
-            }
+            shardSkin != null -> "UNLOCK"
             else -> android.text.SpannableStringBuilder("BUY ").append(kit.coins(price, 22f))
         })
         action.color = when {
@@ -202,6 +203,7 @@ class WardrobeView(activity: Activity, kit: UiKit, onClose: () -> Unit) : Page(a
                 setStroke(dp(1.5f), Theme.alpha(Theme.WHITE, if (on) 0 else 90))
             }
         }
+        abilityDisplay.bind(Wardrobe.abilities(cat, index), "$cat:$index")
         dots.removeAllViews()
         val n = Wardrobe.count(cat)
         for (i in 0 until n) {
@@ -228,7 +230,7 @@ class WardrobeView(activity: Activity, kit: UiKit, onClose: () -> Unit) : Page(a
                     Stage.previewBuys.incrementAndGet()
                     Anim.pulse(name, 1.25f)
                     render()
-                } else { SoundFx.play("tap", rate = 0.6f); Haptics.tick(); Anim.shake(status, dpf(8f)) }
+                } else { SoundFx.play("tap", rate = 0.6f); Haptics.tick(); Anim.shake(action, dpf(8f)) }
             }
             Progress.buy(cat, index) -> { // paid: coins fly from the balance into the button, then the cube celebrates and it's yours
                 paying = true

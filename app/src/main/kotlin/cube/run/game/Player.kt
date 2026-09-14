@@ -8,6 +8,7 @@ import com.badlogic.gdx.graphics.g3d.ModelBatch
 import com.badlogic.gdx.graphics.g3d.ModelInstance
 import com.badlogic.gdx.graphics.g3d.attributes.BlendingAttribute
 import com.badlogic.gdx.graphics.g3d.attributes.ColorAttribute
+import com.badlogic.gdx.graphics.g3d.attributes.DepthTestAttribute
 import com.badlogic.gdx.math.Vector3
 import com.badlogic.gdx.math.Matrix4
 import com.badlogic.gdx.math.Quaternion
@@ -96,6 +97,10 @@ class Player(private val game: Gdx3DGame, private val rnd: Random) {
     private val tmp = Vector3()
     private val tmpCol = Color()
 
+    internal fun pilotBody(flightLeft: Float) = cube.run.bot.Body(lane, px, py, vy, air, duck,
+        duckT, slamming, flying, flyY, hover, flightLeft = flightLeft,
+        coyoteLeft = coyoteLeft, jumpBuffer = jumpBuffer)
+
     fun laneX(l: Int) = Lanes.x(l)
 
     /** The road changed shape (a portal): keep the cube on a lane that still exists. */
@@ -117,11 +122,16 @@ class Player(private val game: Gdx3DGame, private val rnd: Random) {
         curSkinId = wantedSkin()
         skin = Skins.get(curSkinId)
         inst = ModelInstance(unit)
+        if (skin.opacity < 1f) inst.materials.first().set(
+            BlendingAttribute(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA, skin.opacity),
+            DepthTestAttribute(GL20.GL_LEQUAL, 0f, 1f, false),
+        )
         col = (inst.materials.first().get(ColorAttribute.Diffuse) as ColorAttribute).color
         hsvInto(col, skin.hueAt(time, baseHue), skin.sat, skin.valueAt(time))
         shellInst = ModelInstance(unit) // pulsing translucent "glow" shell
         shellBlend = BlendingAttribute(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA, 0.3f)
         shellInst.materials.first().set(ColorAttribute.createDiffuse(Color(col)), shellBlend)
+        if (skin.opacity < 1f) shellInst.materials.first().set(DepthTestAttribute(GL20.GL_LEQUAL, 0f, 1f, false))
         shellCol = (shellInst.materials.first().get(ColorAttribute.Diffuse) as ColorAttribute).color
     }
 
@@ -293,7 +303,7 @@ class Player(private val game: Gdx3DGame, private val rnd: Random) {
             .scale(breathe, 1f / breathe, breathe)
             .scale(0.9f * (1f + sq + duck * 0.35f - st * 0.5f), 0.9f * (1f - sq + st) * (1f - duck * 0.5f), 0.9f * (1f + sq + duck * 0.1f - st * 0.5f))
         val pulse = glowScale(time)
-        shellBlend.opacity = ((0.22f + 0.08f * sin(time * 6f)) * skin.glow).coerceAtMost(0.75f)
+        shellBlend.opacity = shellOpacity(time)
         shellInst.transform.setToTranslation(px + nudge, py - duY, 0f)
             .rotate(Vector3.Y, idleYaw * idleMix).rotate(Vector3.Z, tilt).rotate(Vector3.X, -roll)
             .scale(pulse, pulse, pulse)
@@ -305,6 +315,7 @@ class Player(private val game: Gdx3DGame, private val rnd: Random) {
     /** Shed the equipped trail behind ([x],[y],[z]); [boost] multiplies the rate (jetpack). */
     fun emitTrail(dt: Float, time: Float, x: Float, y: Float, z: Float, boost: Float = 1f, scale: Float = 1f, stream: Float = 0f) {
         val t = this.trail
+        if (t.rate <= 0f || t.count <= 0) { trailT = 0f; return }
         trailT += dt
         val every = 1f / (t.rate * skin.trail * boost)
         if (trailT < every) return
@@ -312,7 +323,7 @@ class Player(private val game: Gdx3DGame, private val rnd: Random) {
         trailK++
         val c = if (t.mode == Trails.BODY) trailCol() else hsvInto(tmpCol, t.hueAt(time, trailK), t.sat, t.value)
         // shards stream back past the camera ([stream] ≈ half the run speed), so the trail reads as motion
-        game.burst3d(tmp.set(x, y, z), c, n = t.count, speed = t.speed * scale, size = t.size * scale, life = t.life * (1f + (scale - 1f) * 0.5f), gravity = t.gravity, biasZ = stream)
+        game.burst3d(tmp.set(x, y, z), c, n = t.count, speed = t.speed * scale, size = t.size * scale * 1.6f, life = t.life * 1.35f * (1f + (scale - 1f) * 0.5f), gravity = t.gravity, biasZ = stream)
     }
 
     /**
@@ -329,9 +340,14 @@ class Player(private val game: Gdx3DGame, private val rnd: Random) {
         val sc = 0.9f * scale
         inst.transform.setToTranslation(x, yy, 0f).rotate(Vector3.Y, yaw).rotate(Vector3.X, 12f).scale(sc, sc, sc)
         val pulse = glowScale(time) * scale
-        shellBlend.opacity = ((0.22f + 0.08f * sin(time * 6f)) * skin.glow).coerceAtMost(0.75f)
+        shellBlend.opacity = shellOpacity(time)
         shellInst.transform.setToTranslation(x, yy, 0f).rotate(Vector3.Y, yaw).rotate(Vector3.X, 12f).scale(pulse, pulse, pulse)
         px = x; py = yy
+    }
+
+    private fun shellOpacity(time: Float): Float {
+        val glow = ((0.22f + 0.08f * sin(time * 6f)) * skin.glow).coerceAtMost(0.75f)
+        return glow * if (skin.opacity < 1f) 0.35f else 1f
     }
 
     private val liftM = com.badlogic.gdx.math.Matrix4()

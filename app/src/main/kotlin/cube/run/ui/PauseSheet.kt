@@ -11,7 +11,7 @@ import cube.run.data.Settings
  * The pause: a compact candy card over the frozen, dimmed run (the HUD
  * behind it still shows the score and the haul — nothing is repeated
  * here). One big RESUME, RESTART / MENU, and the sound and vibration
- * toggles. Tapping the scrim or the back chip resumes too.
+ * toggles. Only the resume button or back chip resumes.
  */
 @SuppressLint("SetTextI18n", "ViewConstructor")
 class PauseSheet(

@@ -10,6 +10,7 @@ import cube.run.R
 import cube.run.core.Haptics
 import cube.run.core.SoundFx
 import cube.run.core.Stage
+import cube.run.data.Settings
 import cube.run.data.Progress
 import cube.run.ui.Anim.move
 
@@ -39,6 +40,7 @@ class Hud(private val activity: Activity) : FrameLayout(activity) {
     companion object {
         /** Intent extra: begin the run on the first frame (RESTART). */
         const val EXTRA_AUTOSTART = "autostart"
+        const val EXTRA_IDLE_BOT = "idle_bot"
     }
 
     private val kit = UiKit(activity)
@@ -124,15 +126,24 @@ class Hud(private val activity: Activity) : FrameLayout(activity) {
         postDelayed(prepareShop, 900)
     }
 
+    /** System Back only navigates out of the two stores. */
+    fun navigateBack() {
+        if (runStarted || pauseSheet != null || runOver != null) return
+        val current = page
+        if (current is ShopView || current is WardrobeView) current.navigateBack()
+    }
+
     private fun pageOpen() = page != null || runStarted
 
     private fun open(p: Page) {
+        Stage.homeScreen = false
         page = p
         menu.setShown(false)
         addView(p, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
     }
 
     private fun closed() {
+        Stage.homeScreen = true
         page = null
         menu.show()
         setBubbles(Progress.bubbles)
@@ -142,12 +153,14 @@ class Hud(private val activity: Activity) : FrameLayout(activity) {
     private fun newShop() = ShopView(activity, kit, menu.shopBalance, menu::setShopProgress) {
         page = null
         menu.finishShop()
+        Stage.homeScreen = true
         setBubbles(Progress.bubbles)
         scheduleShopPreparation()
     }
 
     private fun openShop() {
         if (pageOpen()) return
+        Stage.homeScreen = false
         removeCallbacks(prepareShop)
         val shop = preparedShop?.takeIf { it.isCurrent() } ?: newShop()
         preparedShop = null
@@ -216,8 +229,8 @@ class Hud(private val activity: Activity) : FrameLayout(activity) {
             val b = boost ?: BoostArrows(activity, ::dpf).also { b ->
                 b.max = max
                 b.setOnClickListener {
-                    if (b.max <= 5 && b.taps >= b.max) return@setOnClickListener
-                    b.taps = if (b.max > 5) b.taps % 10 + 1 else b.taps + 1
+                    if (b.taps >= b.max) return@setOnClickListener
+                    b.taps += 1
                     Stage.boostRequests.incrementAndGet()
                     SoundFx.play("tap", rate = 1.1f + b.taps * 0.1f); Haptics.click()
                 }
@@ -236,6 +249,7 @@ class Hud(private val activity: Activity) : FrameLayout(activity) {
 
     /** A run has begun: the menu drops away, the HUD and the pause chip pop in. */
     fun hideOptions() {
+        Stage.homeScreen = false
         runStarted = true
         page?.let { removeView(it); page = null }
         menu.hide()
@@ -249,7 +263,7 @@ class Hud(private val activity: Activity) : FrameLayout(activity) {
     // ------------------------------------------------------------- pause
 
     /** Freeze the run under the pause card. No-op unless a run is live. */
-    fun pause() {
+    fun pause(animate: Boolean = true) {
         if (!runStarted || runOver != null || pauseSheet != null) return
         Stage.paused = true
         pauseChip.visibility = INVISIBLE
@@ -265,10 +279,11 @@ class Hud(private val activity: Activity) : FrameLayout(activity) {
         )
         pauseSheet = sheet
         addView(sheet, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
+        if (!animate) sheet.settleEntrance()
     }
 
     /** The activity left the foreground mid-run (home, a call): pause so nothing is lost. */
-    fun autoPause() = pause()
+    fun autoPause() { pause(animate = false); pauseSheet?.settleEntrance() }
 
     // ------------------------------------------------------------- run over
 
@@ -280,13 +295,17 @@ class Hud(private val activity: Activity) : FrameLayout(activity) {
      * crossfade the fresh screen over the old one. [autoStart] makes the new
      * run begin at once.
      */
-    private fun relaunch(autoStart: Boolean) {
+    private fun relaunch(autoStart: Boolean, idleBot: Boolean = false) {
         SoundFx.play("whoosh", rate = 0.8f)
-        activity.startActivity(Intent(activity, activity.javaClass).putExtra(EXTRA_AUTOSTART, autoStart))
+        activity.startActivity(Intent(activity, activity.javaClass).putExtra(EXTRA_AUTOSTART, autoStart).putExtra(EXTRA_IDLE_BOT, idleBot))
         activity.finish()
     }
 
     fun showRunOver(score: Int, best: Int, isNewBest: Boolean, coins: Int, boxes: Int) {
+        if (Stage.botPlaying && Settings.devMode) {
+            relaunch(autoStart = true, idleBot = true)
+            return
+        }
         if (runOver != null) return
         topBox.move().alpha(0f).setDuration(200).withEndAction { topBox.visibility = GONE }.start()
         pauseChip.visibility = GONE

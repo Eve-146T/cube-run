@@ -10,7 +10,8 @@
         android:icon="@mipmap/ic_launcher"
         android:roundIcon="@mipmap/ic_launcher"
         android:theme="@style/GameTheme"
-        android:allowBackup="true">
+        android:allowBackup="true"
+        android:enableOnBackInvokedCallback="true">
 
         <activity
             android:name=".GameActivity"

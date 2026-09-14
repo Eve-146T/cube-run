@@ -23,7 +23,7 @@ class JetBonusTest {
                 try {
                     Settings.setSoundEnabled(false); Settings.setHapticsEnabled(false)
                     val game = Gdx.app.applicationListener as CubeRun
-                    Stage.paused = false; game.onDown(360f, 760f)
+                    Stage.paused = false; game.onTap(360f, 760f)
                     val track: Track = value(game, "track")
                     val player: Player = value(game, "player")
                     val powers: PowerUps = value(game, "powerUps")
