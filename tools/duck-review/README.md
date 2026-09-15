@@ -12,7 +12,7 @@ Five native renderer candidates live in `ObstacleCues.kt`:
 4. `ACTION_COLORS`: stable blue/orange action colors plus chevrons across every world palette.
 5. `SHADOW_ARROWS`: chevrons plus a ground footprint for suspended obstacles.
 
-The follow-up `DUCK_ARROWS` candidate is now the worktree default. `DuckArrows.kt`
+The follow-up `DUCK_ARROWS` candidate introduced the smooth arrows. `DuckArrows.kt`
 draws smooth pale chevrons directly on duck-bar faces, with a small bevel tinted
 from the obstacle color. Full bars, segments and pendulums receive down arrows;
 jump obstacles receive no additional markings. These triangles share the existing
@@ -23,7 +23,8 @@ new candidate (capture file prefix `6`).
 ## More duck-only treatments
 
 Five additional candidates keep jump walls unmarked and share the same batched
-triangle renderer. The previous pale chevrons remain the default for comparison:
+triangle renderer. The selected default is `DUCK_INSET`; the previous pale
+chevrons remain the comparison baseline:
 
 | Capture ID | Style | Treatment |
 | --- | --- | --- |
@@ -41,7 +42,7 @@ copy those images under `assets/` beside the page. These are static comparisons;
 high-speed playtesting is still needed to choose a final treatment.
 
 `ORIGINAL` is the comparison baseline. `TrackRenderer.cueStyle` selects the variant;
-the worktree defaults to `DUCK_ARROWS`. All candidates are real rendering
+the worktree defaults to `DUCK_INSET`. All candidates are real rendering
 implementations, not image mockups. No collision dimensions, timing, controls or
 section generation change. Factory-authored cues cover full and partial walls,
 bars, sweepers and pendulums; stompers, pillars, pits and pad-assisted tall walls

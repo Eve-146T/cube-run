@@ -13,7 +13,7 @@ enum class ObstacleCueStyle(val duckOnly: Boolean = false) {
 
 /** Review treatments with no collision objects. Smooth duck arrows use the existing shapes pass. */
 class ObstacleCues(private val game: Gdx3DGame) {
-    var style = ObstacleCueStyle.DUCK_ARROWS
+    var style = ObstacleCueStyle.DUCK_INSET
     private val ink = Color(.065f, .075f, .11f, 1f)
     private val white = Color(.98f, .98f, .94f, 1f)
     private val yellow = Color(1f, .8f, .08f, 1f)

@@ -114,7 +114,7 @@ class DuckBarReviewTest {
                     }
                 } finally {
                     gl { game ->
-                        (field(game, "trackArt").get(game) as TrackRenderer).cueStyle = ObstacleCueStyle.DUCK_ARROWS
+                        (field(game, "trackArt").get(game) as TrackRenderer).cueStyle = ObstacleCueStyle.DUCK_INSET
                         Terrain.reset(); Stage.paused = false
                     }
                 }
