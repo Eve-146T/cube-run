@@ -296,6 +296,7 @@ class Player(private val game: Gdx3DGame, private val rnd: Random) {
         // skin colours are pure functions of time — sampled every frame, no allocation
         hsvInto(col, skin.hueAt(time, baseHue), skin.sat, skin.valueAt(time))
         hsvInto(shellCol, skin.hueAt(time, baseHue), skin.sat * 0.9f, 1f)
+        openingMaterial(skin.opacity, if (skin.id == 13) 1f else 0f)
         val breathe = 1f + 0.03f * idleMix * sin(time * 2.4f)
         inst.transform.setToTranslation(px + nudge, py - squash * 0.08f - duY, 0f)
             .rotate(Vector3.Y, idleYaw * idleMix)
@@ -408,19 +409,37 @@ class Player(private val game: Gdx3DGame, private val rnd: Random) {
     }
 
     /** Absolute transforms shared with the native startup view; no accumulated pose. */
-    fun openingPose(pose: cube.run.intro.OpeningPose, seconds: Float, baseHue: Float, skinAmount: Float = 1f) {
+    fun openingPose(pose: cube.run.intro.OpeningPose, seconds: Float, baseHue: Float, skinAmount: Float = 1f,
+                    launchAppearance: cube.run.intro.LaunchAppearance? = null) {
         idleYaw = 40f*seconds; idleT = seconds; idleMix = 1f
         hsvInto(col, skin.hueAt(seconds, baseHue), skin.sat, skin.valueAt(seconds))
         hsvInto(shellCol, skin.hueAt(seconds, baseHue), skin.sat*.9f, 1f)
-        col.set(1f+(col.r-1f)*skinAmount, .55f+(col.g-.55f)*skinAmount, .78f+(col.b-.78f)*skinAmount, col.a)
-        shellCol.set(1f+(shellCol.r-1f)*skinAmount, .595f+(shellCol.g-.595f)*skinAmount, .802f+(shellCol.b-.802f)*skinAmount, shellCol.a)
+        val source = launchAppearance ?: cube.run.intro.LaunchAppearance.ROSE
+        fun blend(color: Color, shell: Boolean) {
+            val from = source.color(seconds, shell)
+            val r = (from shr 16 and 255)/255f; val g = (from shr 8 and 255)/255f; val b = (from and 255)/255f
+            color.set(r+(color.r-r)*skinAmount, g+(color.g-g)*skinAmount, b+(color.b-b)*skinAmount, color.a)
+        }
+        blend(col, false); blend(shellCol, true)
+        openingMaterial(source.skin.opacity+(skin.opacity-source.skin.opacity)*skinAmount,
+            (if (source.skin.id == 13) 1f-skinAmount else 0f)+(if (skin.id == 13) skinAmount else 0f))
         inst.transform.setToTranslation(0f, .45f, 0f)
             .rotate(Vector3.Y, pose.yaw).rotate(Vector3.Z, pose.tilt)
             .scale(pose.scaleX, pose.scaleY, pose.scaleX)
         shellInst.transform.setToTranslation(0f, .45f, 0f)
             .rotate(Vector3.Y, pose.yaw).rotate(Vector3.Z, pose.tilt)
             .scale(pose.shellScale, pose.shellScale, pose.shellScale)
-        shellBlend.opacity = shellOpacity(seconds)
+        shellBlend.opacity = source.shellOpacity(seconds)+(shellOpacity(seconds)-source.shellOpacity(seconds))*skinAmount
+    }
+
+    private fun openingMaterial(opacity: Float, emission: Float) {
+        val material = inst.materials.first()
+        val blend = material.get(BlendingAttribute.Type) as? BlendingAttribute
+        if (blend != null) blend.opacity = opacity
+        else if (opacity < 1f) material.set(BlendingAttribute(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA, opacity))
+        val emissive = material.get(ColorAttribute.Emissive) as? ColorAttribute
+        if (emissive != null) emissive.color.set(.24f*emission, .25f*emission, .26f*emission, 1f)
+        else if (emission > 0f) material.set(ColorAttribute.createEmissive(.24f*emission, .25f*emission, .26f*emission, 1f))
     }
 
     /** Draw the cube; [ground] lifts everything by the rolling terrain under it. */

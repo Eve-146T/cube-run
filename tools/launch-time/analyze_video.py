@@ -15,8 +15,8 @@ import argparse
 import json
 from pathlib import Path
 import re
-import struct
 import subprocess
+from video_clock import frame_times
 
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('video', type=Path)
@@ -27,14 +27,8 @@ marker = re.search(r'^\s*([\d.]+).*CUBE_LAUNCH: request', trace, re.M)
 if not marker:
     parser.error('Trace is missing the device-clock CUBE_LAUNCH request marker.')
 launch_ms = float(marker[1]) * 1000
-metadata = subprocess.check_output(['ffmpeg', '-v', 'error', '-i', str(args.video),
-                                    '-map', '0:1', '-c', 'copy', '-f', 'data', '-'])
-magic = b'#VV1NSC0PET1ME!#'
-if not metadata.startswith(magic):
-    parser.error('Missing Android screenrecord legacy Winscope metadata track.')
-offset = len(magic)
-count, = struct.unpack_from('<I', metadata, offset)
-timestamps = struct.unpack_from(f'<{count}Q', metadata, offset + 4)
+timestamps = frame_times(args.video)
+count = len(timestamps)
 decoder = subprocess.Popen(['ffmpeg', '-v', 'error', '-i', str(args.video),
                             '-vf', 'scale=216:468', '-fps_mode', 'passthrough', '-enc_time_base', '1:1000000',
                             '-pix_fmt', 'rgb24', '-f', 'rawvideo', '-'], stdout=subprocess.PIPE)
@@ -49,12 +43,12 @@ try:
             break
         if len(frame) != frame_bytes or decoded >= count:
             raise RuntimeError('Decoded frames and timestamp metadata disagree.')
-        timestamp_ms = timestamps[decoded] / 1000
+        timestamp_ms = timestamps[decoded] * 1000
         if timestamp_ms >= launch_ms and first is None:
             bright = sum(max(frame[(y*216+x)*3:(y*216+x)*3+3]) > 60
                          for y in range(195, 273) for x in range(80, 136))
             if bright >= 100:
-                first = {'frame': decoded, 'video_seconds': (timestamps[decoded]-timestamps[0])/1e6,
+                first = {'frame': decoded, 'video_seconds': round(timestamps[decoded]-timestamps[0], 6),
                          'first_cube_after_request_ms': round(timestamp_ms-launch_ms, 2),
                          'previous_frame_after_request_ms': None if previous_ms is None else round(previous_ms-launch_ms, 2),
                          'bright_pixels': bright}

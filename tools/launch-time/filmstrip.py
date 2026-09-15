@@ -3,8 +3,8 @@
 import argparse
 from pathlib import Path
 import re
-import struct
 import subprocess
+from video_clock import frame_times
 
 p = argparse.ArgumentParser(description=__doc__)
 p.add_argument('video', type=Path)
@@ -15,11 +15,8 @@ p.add_argument('--duration', type=float, default=2.5)
 a = p.parse_args()
 a.output.mkdir(parents=True, exist_ok=True)
 request = float(re.search(r'^\s*([\d.]+).*CUBE_LAUNCH: request', a.trace.read_text(), re.M)[1])
-meta = subprocess.check_output(['ffmpeg','-v','error','-i',str(a.video),'-map','0:1','-c','copy','-f','data','-'])
-magic = b'#VV1NSC0PET1ME!#'
-assert meta.startswith(magic)
-count, = struct.unpack_from('<I',meta,len(magic))
-times = [t/1e6-request for t in struct.unpack_from(f'<{count}Q',meta,len(magic)+4)]
+times = [t-request for t in frame_times(a.video)]
+count = len(times)
 chosen = sorted(set(min(range(count),key=lambda i: abs(times[i]-n*a.step)) for n in range(int(a.duration/a.step)+1)))
 process = subprocess.Popen(['ffmpeg','-v','error','-i',str(a.video),'-vf','scale=216:468','-fps_mode','passthrough','-enc_time_base','1:1000000','-pix_fmt','rgb24','-f','rawvideo','-'],stdout=subprocess.PIPE)
 files=[]

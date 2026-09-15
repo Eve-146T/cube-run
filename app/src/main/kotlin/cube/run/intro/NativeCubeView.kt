@@ -30,8 +30,8 @@ class NativeCubeView(context: Context, val clock: OpeningClock, private val skin
     override fun onDraw(canvas: Canvas) {
         if (!drawingCube) return
         clock.start()
-        val t = secondsForTest ?: clock.seconds()
-        val spin = t+clock.leadInSeconds
+        val t = secondsForTest ?: clock.sceneSeconds()
+        val spin = secondsForTest ?: clock.motionSeconds()
         pose.update(t, height/resources.displayMetrics.density, spin)
         canvas.drawColor(OpeningPose.INK)
         val yaw = Math.toRadians(pose.yaw.toDouble()).toFloat()
@@ -39,7 +39,9 @@ class NativeCubeView(context: Context, val clock: OpeningClock, private val skin
         val cy = cos(yaw); val sy = sin(yaw); val ct = cos(tilt); val st = sin(tilt)
         val pitchSin = sin(pose.pitch); val pitchCos = cos(pose.pitch)
         val focal = height/(2f*tan(pose.fov/2f))
-        val opacity = skin.opacity
+        val mix = clock.skinAmount()
+        val source = clock.launchAppearance
+        val opacity = source.skin.opacity+(skin.opacity-source.skin.opacity)*mix
         for (shell in 0..1) {
             val sx = if (shell == 0) pose.scaleX else pose.shellScale
             val sz = sx
@@ -60,13 +62,14 @@ class NativeCubeView(context: Context, val clock: OpeningClock, private val skin
             hsv[1] = skin.sat*(if (shell == 0) 1f else .9f)
             hsv[2] = if (shell == 0) skin.valueAt(spin) else 1f
             val equipped = Color.HSVToColor(hsv)
-            val mix = clock.skinAmount()
+            val from = source.color(spin, shell == 1)
             val base = Color.rgb(
-                (255f+(Color.red(equipped)-255f)*mix).roundToInt(),
-                (255f*(if (shell == 0) .55f else .595f)*(1f-mix)+Color.green(equipped)*mix).roundToInt(),
-                (255f*(if (shell == 0) .78f else .802f)*(1f-mix)+Color.blue(equipped)*mix).roundToInt())
+                (Color.red(from)+(Color.red(equipped)-Color.red(from))*mix).roundToInt(),
+                (Color.green(from)+(Color.green(equipped)-Color.green(from))*mix).roundToInt(),
+                (Color.blue(from)+(Color.blue(equipped)-Color.blue(from))*mix).roundToInt())
+            val targetShell = ((.22f+.08f*sin(spin*6f))*skin.glow).coerceAtMost(.75f)*(if (skin.opacity < 1f) .35f else 1f)
             val alpha = if (shell == 0) opacity else
-                ((.22f+.08f*sin(spin*6f))*skin.glow).coerceAtMost(.75f)*(if (opacity < 1f) .35f else 1f)
+                source.shellOpacity(spin)+(targetShell-source.shellOpacity(spin))*mix
             for (face in 0..5) {
                 val normal = normals[face]
                 val rx = normal[0]*ct-normal[1]*st; val ny = normal[0]*st+normal[1]*ct
@@ -75,9 +78,9 @@ class NativeCubeView(context: Context, val clock: OpeningClock, private val skin
                 if (nx*(-vertices[point])+ny*(pose.cameraY-vertices[point+1])+nz*(pose.cameraZ-vertices[point+2]) <= 0f) continue
                 val l1 = max(0f, (nx*.45f+ny*.85f+nz*.35f)/L1_LENGTH)
                 val l2 = max(0f, (-nx*.6f+ny*.2f-nz*.5f)/L2_LENGTH)
-                val emissive = skin.id == 13 && shell == 0
+                val emissive = if (shell == 1) 0f else (if (source.skin.id == 13) 1f-mix else 0f)+(if (skin.id == 13) mix else 0f)
                 fun channel(value: Int, ambient: Float, light1: Float, light2: Float, emission: Float): Int =
-                    (value*(ambient+l1*light1+l2*light2)+(if (emissive) emission*255f else 0f)).roundToInt().coerceIn(0, 255)
+                    (value*(ambient+l1*light1+l2*light2)+emissive*emission*255f).roundToInt().coerceIn(0, 255)
                 paint.color = Color.argb((alpha*255f).roundToInt(),
                     channel(Color.red(base), .55f, .85f, .25f, .24f),
                     channel(Color.green(base), .55f, .85f, .22f, .25f),

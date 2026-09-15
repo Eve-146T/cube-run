@@ -1,5 +1,9 @@
 # Moving animation at launch
 
+**Follow-up:** [Cube and menu handoff correction](launch-handoff.md) fixes the
+system/native transition and button movement, and adds saved-skin launch themes.
+Measurements below describe the preceding APK, not that follow-up build.
+
 This supersedes the static-cube result in `66f1309` and its reporting correction
 in `d7c1a5f`. Worktree: `optimizing-launchtime`, at
 `~/Worktrees/cube-run/optimizing-launch-time`. Original baseline: `4a314a9`.

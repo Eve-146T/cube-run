@@ -44,12 +44,13 @@ class GameActivity : AndroidApplication() {
         val session = GameHostSession(this, SCORE_ID)
         // RESTART relaunches with this extra: the run begins on the first frame, no "tap to start"
         val launchOpening = !intent.hasExtra(Hud.EXTRA_AUTOSTART) && savedInstanceState == null
-        val clock = if (launchOpening) cube.run.intro.OpeningClock().also { openingClock = it } else null
+        val clock = if (launchOpening) cube.run.intro.OpeningClock(cube.run.intro.LaunchAppearance.saved(this)).also { openingClock = it } else null
         val firstWorld = when {
             Settings.testPillWorld -> 1
             Settings.testWorld >= 0 -> Settings.testWorld
             else -> cube.run.data.Worlds.all.random().id
         }
+        cube.run.intro.LaunchAppearance.remember(this, firstWorld)
         val game = CubeRun(session, autoStart = intent.getBooleanExtra(Hud.EXTRA_AUTOSTART, false),
             idleBotStart = intent.getBooleanExtra(Hud.EXTRA_IDLE_BOT, false), launchOpening = launchOpening,
             openingClock = clock, firstWorld = firstWorld)
@@ -65,8 +66,7 @@ class GameActivity : AndroidApplication() {
             game.onOpeningProgress = { amount -> runOnUiThread {
                 openingAmount = amount
                 if (::hud.isInitialized) {
-                    hud.alpha = amount
-                    hud.translationY = (1f-amount)*18f*resources.displayMetrics.density
+                    hud.setOpeningProgress(amount)
                     if (amount >= 1f) {
                         (openingTouch?.parent as? FrameLayout)?.removeView(openingTouch)
                         if (!finishReported) {
@@ -118,27 +118,61 @@ class GameActivity : AndroidApplication() {
         root.addView(gameView, FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT)
         if (::hud.isInitialized) root.addView(hud, FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT)
         openingTouch?.let { root.addView(it, FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT) }
-        if (android.os.Build.VERSION.SDK_INT >= 31) {
-            splashScreen.setOnExitAnimationListener { splash ->
-                if (launchOpening) splash.iconAnimationStart?.let { clock?.adoptSystemStart(it.toEpochMilli()) }
-                // A normal Android view is already drawing the moving cube; no EGL wait.
-                splash.remove()
-                cube.run.core.LaunchTrace.mark("system splash removed")
-            }
-        }
-        game.onSceneFrame = { runOnUiThread {
-            if (isFinishing || isDestroyed) return@runOnUiThread
+        var splashHandoff = false
+        var sceneReady = false
+        fun revealScene() {
+            if (!sceneReady || splashHandoff || isFinishing || isDestroyed) return
             cube.run.core.LaunchTrace.mark("scene revealed")
             openingTouch?.animate()?.alpha(0f)?.setDuration(50L)?.withEndAction {
                 openingTouch.drawingCube = false
                 openingTouch.alpha = 1f
             }?.start()
+        }
+        if (android.os.Build.VERSION.SDK_INT >= 31) {
+            splashScreen.setOnExitAnimationListener { splash ->
+                val start = splash.iconAnimationStart
+                if (clock == null || openingTouch == null || start == null || clock.sceneSeconds() >= cube.run.intro.OpeningPose.DURATION) {
+                    splash.remove()
+                } else {
+                    splashHandoff = true
+                    openingTouch.animate().cancel()
+                    openingTouch.alpha = 1f
+                    openingTouch.drawingCube = true
+                    clock.adoptSystemStart(start.toEpochMilli(), splash.iconAnimationDuration?.toMillis() ?: 0L)
+                    cube.run.core.LaunchTrace.mark("system handoff begin")
+                    // Removing in the exit callback exposes the PREVIOUS native pose. Wait for
+                    // the matching pose to reach the swapchain, then transfer the visible cube.
+                    val transfer = Runnable {
+                        openingTouch.post {
+                            if (isFinishing || isDestroyed) {
+                                splash.remove()
+                            } else {
+                                cube.run.core.LaunchTrace.mark("system matching frame submitted")
+                                splash.animate().alpha(0f).setDuration(80L).withEndAction {
+                                    splash.remove()
+                                    clock.releaseSystem()
+                                    splashHandoff = false
+                                    cube.run.core.LaunchTrace.mark("system splash removed")
+                                    revealScene()
+                                }.start()
+                            }
+                        }
+                    }
+                    openingTouch.viewTreeObserver.registerFrameCommitCallback(transfer)
+                    openingTouch.invalidate()
+                }
+            }
+        }
+        game.onSceneFrame = { runOnUiThread {
+            if (isFinishing || isDestroyed) return@runOnUiThread
+            sceneReady = true
+            revealScene()
             if (launchOpening) root.postDelayed({
                 if (!isFinishing && !isDestroyed && !::hud.isInitialized) {
                     cube.run.core.LaunchTrace.mark("hud begin")
-                    hud = Hud(this); hud.setBest(Scores.best(SCORE_ID))
-                    hud.alpha = openingAmount
-                    hud.translationY = (1f-openingAmount)*18f*resources.displayMetrics.density
+                    hud = Hud(this, openingEntrance = true); hud.setBest(Scores.best(SCORE_ID))
+                    hud.setOpeningProgress(openingAmount)
+                    root.rootWindowInsets?.let { hud.dispatchApplyWindowInsets(it) }
                     root.addView(hud, 1, FrameLayout.LayoutParams(-1, -1))
                     session.attach(hud)
                     if (openingAmount >= 1f) openingTouch?.let { root.removeView(it) }

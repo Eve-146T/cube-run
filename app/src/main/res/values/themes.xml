@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <style name="GameTheme" parent="GameThemeBase"/>
-    <style name="GameThemeBase" parent="@android:style/Theme.Material.NoActionBar.Fullscreen">
+    <style name="GameThemeBase" parent="LaunchPalette">
         <item name="android:windowBackground">@drawable/launch_background</item>
         <item name="android:windowLayoutInDisplayCutoutMode">shortEdges</item>
         <!-- RESTART relaunches this activity in-task (start + finish, see

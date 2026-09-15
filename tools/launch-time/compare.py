@@ -9,8 +9,8 @@ import argparse
 import json
 from pathlib import Path
 import re
-import struct
 import subprocess
+from video_clock import frame_times
 
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--before', type=Path, required=True)
@@ -25,15 +25,10 @@ def request_offset(directory):
     video = directory / 'launch-2.mp4'
     trace = (directory / 'trace-2.txt').read_text()
     request = float(re.search(r'^\s*([\d.]+).*CUBE_LAUNCH: request', trace, re.M)[1])
-    metadata = subprocess.check_output(['ffmpeg', '-v', 'error', '-i', str(video),
-                                       '-map', '0:1', '-c', 'copy', '-f', 'data', '-'])
-    magic = b'#VV1NSC0PET1ME!#'
-    if not metadata.startswith(magic):
-        raise ValueError('Missing Winscope frame timestamps')
-    first_time, = struct.unpack_from('<Q', metadata, len(magic) + 4)
+    first_time = frame_times(video)[0]
     frames = json.loads(subprocess.check_output(['ffprobe', '-v', 'error', '-select_streams', 'v:0',
                                                 '-show_entries', 'frame=pts_time', '-of', 'json', str(video)]))
-    offset = request - first_time / 1e6 + float(frames['frames'][0]['pts_time'])
+    offset = request - first_time + float(frames['frames'][0]['pts_time'])
     return video, offset
 
 

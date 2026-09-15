@@ -15,6 +15,7 @@ import re
 import statistics
 import subprocess
 import time
+from video_clock import frame_times
 
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--serial', required=True)
@@ -50,9 +51,10 @@ for trial in range(1, args.runs + 1):
     time.sleep(1)
     adb('logcat', '-c')
     recording = None
+    device_recording = f'/sdcard/cube-launch-{os.getpid()}-{trial}.mp4'
     if args.record:
         recording = subprocess.Popen(['adb', '-s', args.serial, 'shell', 'screenrecord',
-                                      '--time-limit', '7', '/sdcard/cube-launch.mp4'],
+                                      '--time-limit', '7', device_recording],
                                      stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         time.sleep(1)
     command = 'log -t CUBE_LAUNCH request; am start -W -n cube.run/.GameActivity'
@@ -73,7 +75,10 @@ for trial in range(1, args.runs + 1):
     print(json.dumps(result), flush=True)
     if recording:
         recording.wait(timeout=10)
-        adb('pull', '/sdcard/cube-launch.mp4', str(args.output / f'launch-{trial}.mp4'))
+        video = args.output / f'launch-{trial}.mp4'
+        adb('pull', device_recording, str(video))
+        frame_times(video)  # Reject missing/mismatched timestamps before publishing a result.
+        adb('shell', 'rm', device_recording)
 
 summary = {}
 for key in ['android_total_ms', 'first frame', 'first frame swapped', 'game ready', 'cube revealed', 'native cube draw', 'scene revealed', 'opening finished']:

@@ -1,0 +1,48 @@
+{
+  "device": {
+    "serial": "emulator-5582",
+    "api": 35,
+    "size": "1080x2340",
+    "density_dpi": 440,
+    "gpu": "host"
+  },
+  "apks": {
+    "before": {
+      "bytes": 11027560,
+      "sha256": "5693963ded5a77547c66f29499bc892ee25bc075b494448a6a07b959175410e8"
+    },
+    "after": {
+      "bytes": 11027560,
+      "sha256": "a21a4c28845b7d78f51fb0ac612d323dbeaefc2b60beea386fb86351d65d9d26"
+    },
+    "release_unsigned": {
+      "bytes": 8884363,
+      "sha256": "a6b075e029ccbc92b908c479ccff2b4a8d4efca375665a35a90e16f18f0528fb"
+    }
+  },
+  "saved_skin": {
+    "id": 2,
+    "name": "Lava",
+    "selection": "Bought and equipped through wardrobe UI; process force-stopped before recording"
+  },
+  "first_cube": {
+    "frame": 8,
+    "video_seconds": 1.0180110000000013,
+    "first_cube_after_request_ms": 154.56,
+    "previous_frame_after_request_ms": 131.22,
+    "bright_pixels": 1338
+  },
+  "menu": {
+    "frame": 76,
+    "seconds": 2.168267,
+    "confirmed_frame": 78,
+    "mean_difference": 0.587,
+    "white_pixels": 183
+  },
+  "clock_validation": {
+    "source": "Embedded original Winscope metadata",
+    "frame_count": 243,
+    "max_interval_discrepancy_ms": 0.103
+  },
+  "trace": "--------- beginning of main\n   744.576 10051 10051 I CUBE_LAUNCH: request\n   744.754 10056 10056 D CUBE_START: 0ms app start\n   744.764 10056 10056 D CUBE_START: 10ms app ready\n   744.787 10056 10056 D CUBE_START: 33ms activity start\n   744.839 10056 10056 D CUBE_START: 85ms gdx host begin\n   744.927 10056 10056 D CUBE_START: 173ms gdx host ready\n   744.928 10056 10056 D CUBE_START: 174ms content attached\n   745.095 10056 10056 D CUBE_START: 341ms native cube draw\n   745.192 10056 10056 D CUBE_START: 438ms native cube motion\n   745.200 10056 10121 D CUBE_START: 446ms gl create\n   745.216 10056 10121 D CUBE_START: 462ms box kit\n   745.246 10056 10121 D CUBE_START: 492ms cube ready\n   745.255 10056 10056 D CUBE_START: 501ms system handoff begin\n   745.268 10056 10056 D CUBE_START: 514ms system matching frame submitted\n   745.278 10056 10121 D CUBE_START: 524ms first frame\n   745.288 10056 10121 D CUBE_START: 534ms first frame swapped\n   745.351 10056 10121 D CUBE_START: 597ms batches ready\n   745.351 10056 10121 D CUBE_START: 597ms game ready\n   745.359 10056 10056 D CUBE_START: 605ms system splash removed\n   745.363 10056 10056 D CUBE_START: 609ms scene revealed\n   745.404 10056 10056 D CUBE_START: 650ms hud begin\n   745.430 10056 10056 D CUBE_START: 676ms hud ready\n   746.674 10056 10056 D CUBE_START: 1920ms opening finished\n"
+}

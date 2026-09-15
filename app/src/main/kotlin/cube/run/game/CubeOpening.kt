@@ -13,13 +13,13 @@ class CubeOpening(enabled: Boolean, private val clock: OpeningClock? = null) {
     var elapsed = if (enabled) 0f else DURATION
         private set
     private val shot = OpeningPose()
-    val motionSeconds: Float get() = elapsed+(clock?.leadInSeconds ?: 0f)
+    val motionSeconds: Float get() = clock?.motionSeconds() ?: elapsed
     val active: Boolean get() = elapsed < DURATION
     val worldAmount: Float get() = OpeningPose.ease((elapsed-.14f)/1.05f)
     val uiAmount: Float get() = OpeningPose.ease((elapsed-.67f)/.9f)
 
     fun tick(dt: Float) {
-        if (active) elapsed = clock?.seconds() ?: (elapsed+dt).coerceAtMost(DURATION)
+        if (active) elapsed = clock?.sceneSeconds() ?: (elapsed+dt).coerceAtMost(DURATION)
     }
     fun finish() { elapsed = DURATION; clock?.finish() }
 
@@ -29,7 +29,7 @@ class CubeOpening(enabled: Boolean, private val clock: OpeningClock? = null) {
         camera.direction.set(0f, sin(shot.pitch), -cos(shot.pitch))
         camera.up.set(0f, 1f, 0f)
         camera.fieldOfView = Math.toDegrees(shot.fov.toDouble()).toFloat()
-        player.openingPose(shot, motionSeconds, worldHue, clock?.skinAmount() ?: 1f)
+        player.openingPose(shot, motionSeconds, worldHue, clock?.skinAmount() ?: 1f, clock?.launchAppearance)
     }
 
     companion object {

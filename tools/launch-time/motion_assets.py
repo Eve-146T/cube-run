@@ -10,6 +10,7 @@ from math import sin, cos, atan2, atan, tan, pi, sqrt
 from pathlib import Path
 import subprocess
 import re
+import colorsys
 
 ROOT = Path(__file__).resolve().parents[2]
 parser = argparse.ArgumentParser(description=__doc__)
@@ -24,7 +25,7 @@ def ease(t):
     return t*t*t*(t*(t*6-15)+10)
 
 
-def frame(t, width=288, height=288, density=1, icon=True):
+def frame(t, width=288, height=288, density=1, icon=True, skin=None, world_hue=0):
     move = 0 if icon else ease(t/1.15)
     yaw = (-125*(1-move)+40*t)*pi/180
     tilt = -12*(1-move)*pi/180
@@ -52,15 +53,29 @@ def frame(t, width=288, height=288, density=1, icon=True):
             depth=dy*sin(pitch)-dz*cos(pitch)
             points.append((width/2+x*focal/depth,height/2-(dy*cos(pitch)+dz*sin(pitch))*focal/depth))
         base=(1,.595,.802) if shell else (1,.55,.78)
+        opacity, glow, emission = 1, 1, (0,0,0)
+        if skin is not None:
+            hue, hue2, mode = skin.get('hue',0), skin.get('hue2',0), skin['mode']
+            if mode == 'COMP': hue = world_hue+180
+            elif mode == 'RAINBOW': hue = t*90
+            elif mode == 'EMBER': hue += 14*sin(t*9)+6*sin(t*23)
+            elif mode == 'WAVE': hue += (hue2-hue)*(.5+.5*sin(t*1.6))
+            elif mode == 'STROBE': hue = hue if sin(t*6)>0 else hue2
+            value = skin.get('value',1)
+            if mode == 'PULSE': value *= .72+.28*(.5+.5*sin(t*5))
+            elif mode == 'EMBER': value *= .85+.15*sin(t*13)
+            base=colorsys.hsv_to_rgb((hue%360)/360,skin.get('sat',.55)*(.9 if shell else 1),1 if shell else value)
+            opacity, glow = skin.get('opacity',1), skin.get('glow',1)
+            if skin['id'] == 13 and not shell: emission=(.24,.25,.26)
         for face,normal in enumerate(NORMALS):
             nx,ny,nz=rotate(*normal)
             px,py,pz=vertices[FACES[face][0]]
             visible=nx*(-px)+ny*(camera_y-py)+nz*(camera_z-pz)>0
-            alpha=(.22+.08*sin(t*6)) if shell else 1
+            alpha=min(.75,(.22+.08*sin(t*6))*glow)*(.35 if opacity<1 else 1) if shell else opacity
             if not visible: alpha=0
             l1=max(0,(nx*.45+ny*.85+nz*.35)/sqrt(.45**2+.85**2+.35**2))
             l2=max(0,(-nx*.6+ny*.2-nz*.5)/sqrt(.6**2+.2**2+.5**2))
-            color='#'+''.join(f'{round(255*min(1,base[i]*(a+l1*b+l2*c))):02X}' for i,(a,b,c) in enumerate(zip((.55,.55,.6),(.85,.85,.8),(.25,.22,.3))))
+            color='#'+''.join(f'{round(255*min(1,base[i]*(a+l1*b+l2*c)+emission[i])):02X}' for i,(a,b,c) in enumerate(zip((.55,.55,.6),(.85,.85,.8),(.25,.22,.3))))
             path='M'+' L'.join(f'{points[i][0]:.3f},{points[i][1]:.3f}' for i in FACES[face])+' Z'
             out.append((path,color,alpha))
     return out
@@ -73,6 +88,29 @@ initial=frame(0)
 vector=['<vector xmlns:android="http://schemas.android.com/apk/res/android" xmlns:tools="http://schemas.android.com/tools" tools:ignore="VectorRaster" android:width="288dp" android:height="288dp" android:viewportWidth="288" android:viewportHeight="288">']
 animated=['<animated-vector xmlns:android="http://schemas.android.com/apk/res/android" android:drawable="@drawable/launch_cube_animated_base">']
 samples=[frame(i/60) for i in range(61)]
+# Keep one animated vector and one set of geometry paths. Only its paint values
+# vary by persisted theme; parse the game's skin table so new colours cannot drift.
+skins=[]
+for match in re.finditer(r'^        Skin\((\d+), "[^"]+", \d+, (\w+)(.*)$', (ROOT/'app/src/main/kotlin/cube/run/data/Skins.kt').read_text(), re.M):
+    skin={'id':int(match[1]), 'mode':match[2]}
+    skin.update({key:float(value) for key,value in re.findall(r'(hue2?|sat|value|glow|opacity) = ([\d.]+)f',match[3])})
+    skins.append(skin)
+world_hues=[float(h) for h in re.findall(r'World\(\d+, "[^"]+", ([\d.]+)f', (ROOT/'app/src/main/kotlin/cube/run/data/Worlds.kt').read_text())]
+palettes=[('LaunchPalette', None, 0)] + [(f'LaunchSkin{s["id"]}',s,world_hues[0]) for s in skins] + [(f'LaunchWorld{i}',skins[0],h) for i,h in enumerate(world_hues) if i>0]
+palette_frames=[[frame(i/30,skin=skin,world_hue=hue) for i in range(31)] for _,skin,hue in palettes]
+paint_attrs={}
+paint_values={}
+
+def paint_attr(face,index,i):
+    # Alpha curves are shared by several faces; reuse identical theme values
+    # without lowering the sample rate or changing a single rendered colour.
+    values=tuple(f'{frames[i][face][index]:.4f}' if index==2 else frames[i][face][index] for frames in palette_frames)
+    key=(index,values)
+    if key not in paint_values:
+        name=f'launch_{face}_{"color" if index==1 else "alpha"}_{i}'
+        paint_values[key]=name
+        paint_attrs[name]=(index,values)
+    return paint_values[key]
 # The entire moving shell must fit, including pulse peaks between path segments.
 for sample in samples:
     for path, _, alpha in sample:
@@ -82,7 +120,7 @@ for sample in samples:
 
 for face,(path,color,alpha) in enumerate(initial):
     if not any(sample[face][2] > 0 for sample in samples): continue
-    vector.append(f'<path android:name="face{face}" android:fillColor="{color}" android:fillAlpha="{alpha:.4f}" android:pathData="{path}"/>')
+    vector.append(f'<path android:name="face{face}" android:fillColor="?attr/{paint_attr(face,1,0)}" android:fillAlpha="?attr/{paint_attr(face,2,0)}" android:pathData="{path}"/>')
     animated.append(f'<target android:name="face{face}" android:animation="@animator/launch_face_{face}"/>')
     # Android's inflater only loads float/int/color keyframes. Path morphs need
     # valueFrom/valueTo animators, grouped sequentially (not path keyframes).
@@ -98,15 +136,30 @@ for face,(path,color,alpha) in enumerate(initial):
             animator.append('<objectAnimator android:duration="1000" android:interpolator="@android:interpolator/linear">')
             animator.append(f'<propertyValuesHolder android:propertyName="{property_name}" android:valueType="{value_type}">')
             for i in range(31):
-                value=samples[i*2][face][index]
-                if index==2: value=f'{value:.4f}'
-                animator.append(f'<keyframe android:fraction="{i/30:.6f}" android:value="{value}"/>')
+                attr=paint_attr(face,index,i)
+                animator.append(f'<keyframe android:fraction="{i/30:.6f}" android:value="?attr/{attr}"/>')
             animator.extend(['</propertyValuesHolder>','</objectAnimator>'])
     animator.append('</set>')
     (res/f'animator/launch_face_{face}.xml').write_text('\n'.join(animator)+'\n')
 vector.append('</vector>');animated.append('</animated-vector>')
 (res/'drawable/launch_cube_animated_base.xml').write_text('\n'.join(vector)+'\n')
 (res/'drawable/launch_cube_motion.xml').write_text('\n'.join(animated)+'\n')
+themes=['<!-- Generated by tools/launch-time/motion_assets.py. Geometry is shared across all palettes. -->','<resources>']
+for attr,(index,_) in paint_attrs.items():
+    themes.append(f'<attr name="{attr}" format="{"color" if index==1 else "float"}"/>')
+for palette,(name,skin,hue) in enumerate(palettes):
+    parent='@android:style/Theme.Material.NoActionBar.Fullscreen' if skin is None else 'GameTheme'
+    themes.append(f'<style name="{name}" parent="{parent}">')
+    for attr,(_,values) in paint_attrs.items():
+        if palette==0 or values[palette] != values[0]:
+            themes.append(f'<item name="{attr}">{values[palette]}</item>')
+    themes.append('</style>')
+themes.append('</resources>')
+(res/'values/launch_palettes.xml').write_text('\n'.join(themes)+'\n')
+theme_ids='// Generated by tools/launch-time/motion_assets.py.\npackage cube.run.intro\n\nimport cube.run.R\n\ninternal object LaunchThemes {\n'
+theme_ids+='    val skins = intArrayOf('+', '.join(f'R.style.LaunchSkin{s["id"]}' for s in skins)+')\n'
+theme_ids+='    val worlds = intArrayOf('+', '.join(f'R.style.LaunchWorld{i}' for i in range(1,len(world_hues)))+')\n}\n'
+(ROOT/'app/src/main/kotlin/cube/run/intro/LaunchThemes.kt').write_text(theme_ids)
 
 if args.video:
     directory=ROOT/'.build-tmp/video-frames'
