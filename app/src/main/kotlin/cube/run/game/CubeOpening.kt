@@ -4,6 +4,9 @@ import com.badlogic.gdx.graphics.Color
 import com.badlogic.gdx.graphics.PerspectiveCamera
 import com.badlogic.gdx.math.Vector3
 import kotlin.math.sin
+import kotlin.math.atan
+import kotlin.math.tan
+import com.badlogic.gdx.Gdx
 
 /** One continuous shot: the equipped cube goes from centre stage to the idle menu. */
 class CubeOpening(enabled: Boolean) {
@@ -27,7 +30,11 @@ class CubeOpening(enabled: Boolean) {
         camera.position.set(0f, 2.6f, 6.8f).lerp(endPosition, move)
         camera.direction.set(startDirection).slerp(endDirection, move)
         camera.up.set(Vector3.Y)
-        camera.fieldOfView = 40f+(camera.fieldOfView-40f)*move
+        // Android's starting-window drawable has fixed dp dimensions. Match its
+        // projection on every screen, then blend into the normal chase camera.
+        val heightDp = camera.viewportHeight / Gdx.graphics.density
+        val launchFov = Math.toDegrees(2.0 * atan(tan(Math.toRadians(20.0)) * heightDp / 640.0)).toFloat()
+        camera.fieldOfView = launchFov+(camera.fieldOfView-launchFov)*move
         val settle = ((elapsed-1.22f)/.53f).coerceIn(0f, 1f)
         val squash = .12f*sin(settle*Math.PI.toFloat()*2f)*(1f-settle)
         player.openingPose(-125f*(1f-move), -12f*(1f-move), .82f+.18f*move, squash)

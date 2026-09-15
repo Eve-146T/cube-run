@@ -48,6 +48,9 @@ class GameActivity : AndroidApplication() {
         val openingTouch = if (launchOpening) View(this).apply {
             isClickable = true
             importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
+            // Keep the starting pose visible while SurfaceView acquires its first
+            // buffer, including on Android 9–11 where there is no SplashScreen API.
+            setBackgroundResource(R.drawable.launch_background)
             setOnClickListener { com.badlogic.gdx.Gdx.app.postRunnable { game.finishOpening() } }
         } else null
         var openingAmount = if (launchOpening) 0f else 1f
@@ -68,6 +71,9 @@ class GameActivity : AndroidApplication() {
             useImmersiveMode = true
             useAccelerometer = false
             useCompass = false
+            useRotationVectorSensor = false
+            // All game audio uses SoundFx. Avoid opening a second, unused SoundPool.
+            disableAudio = true
             useGL30 = true // libGDX falls back to GLES 2 where GLES 3 is unavailable
             numSamples = 2
             r = 8; g = 8; b = 8; a = 8
@@ -107,7 +113,13 @@ class GameActivity : AndroidApplication() {
             }
         }
         game.onFirstFrame = { runOnUiThread {
+            if (isFinishing || isDestroyed) return@runOnUiThread
             firstFrameReady = true; removeSplash?.invoke(); removeSplash = null
+            cube.run.core.LaunchTrace.mark("cube revealed")
+            openingTouch?.animate()?.alpha(0f)?.setDuration(80L)?.withEndAction {
+                openingTouch.background = null
+                openingTouch.alpha = 1f
+            }?.start()
             if (launchOpening) root.postDelayed({
                 if (!isFinishing && !isDestroyed && !::hud.isInitialized) {
                     cube.run.core.LaunchTrace.mark("hud begin")

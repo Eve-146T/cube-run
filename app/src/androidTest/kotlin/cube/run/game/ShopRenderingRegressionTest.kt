@@ -35,6 +35,9 @@ class ShopRenderingRegressionTest {
         scenario = ActivityScenario.launch(intent)
         scenario.onActivity { it.setShowWhenLocked(true); it.setTurnScreenOn(true) }
         SystemClock.sleep(800)
+        // These comparisons start from the settled menu. A wall-clock sleep is
+        // not the intro clock, especially while startup renderers are preparing.
+        gl { it.finishOpening(); it.tick(0f) }
     }
 
     @After fun finish() {

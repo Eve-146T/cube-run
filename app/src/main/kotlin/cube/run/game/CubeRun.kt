@@ -62,6 +62,7 @@ import kotlin.random.Random
 class CubeRun(session: GameSession, private val autoStart: Boolean = false, private val idleBotStart: Boolean = false, launchOpening: Boolean = false) : Gdx3DGame(session) {
 
     private val opening = CubeOpening(launchOpening)
+    override val hasLaunchOpening = launchOpening
     var onOpeningProgress: ((Float) -> Unit)? = null
     fun finishOpening() { opening.finish() }
 
@@ -174,6 +175,7 @@ class CubeRun(session: GameSession, private val autoStart: Boolean = false, priv
 
     private fun start() {
         if (started || session.isOver) return
+        finishRendererStartup()
         opening.finish()
         started = true
         runSkin = Skins.get(Progress.skin)
@@ -459,6 +461,9 @@ class CubeRun(session: GameSession, private val autoStart: Boolean = false, priv
     }
 
     override fun tick(dt: Float) {
+        // Navigation can become available before the intro finishes. Its camera
+        // must not be applied again when returning from a wardrobe/shop preview.
+        if (Stage.mode != Stage.NONE) opening.finish()
         opening.tick(dt)
         onOpeningProgress?.invoke(opening.uiAmount)
         if (!opening.active) onOpeningProgress = null
