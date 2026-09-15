@@ -49,14 +49,44 @@ Measurements and recordings stay locally in `captures/launch-time/` (ignored).
 
 ## Results
 
-The cube appears **about 80% sooner**: median **133 ms instead of 680 ms** in
-three separate screen recordings per build. It is already visible during the
-system launch transition, before `Application.onCreate`. Android still owns
-process scheduling and the launch animation, so this is not literal zero time.
+### Correction after reviewing the comparison video
+
+The change shows a **static native starting cube** sooner. It does not establish
+an 80% improvement in actual game startup or intro completion. In the displayed
+recorded trial, the real game frame was slower and the original intro finished
+first. The earlier summary mixed unrecorded game-frame measurements with the
+recorded placeholder measurement and did not make this distinction clear enough.
+
+The new renderer holds the intro clock at zero during staged initialization,
+then plays the full 1.75-second intro. This adds a still period and can delay
+the animation finish even when a placeholder appears earlier.
+
+| Same recorded trial used in the comparison | Before | After |
+| --- | ---: | ---: |
+| Request → first visible cube | 680 ms (real cube) | 133 ms (static native cube) |
+| Application → first game frame submitted | 364 ms | 432 ms |
+| Request → first game frame submitted | 542 ms | 624 ms |
+
+The **331 → 296 ms** figures below come from ten separate **unrecorded** launches;
+they are not the timings of the displayed clip. Recording changes load, and the
+recorded runs showed different results. Game-frame submission is also earlier
+than when those pixels actually become visible through the splash/cover.
+
+The original side-by-side export additionally reset each trimmed stream to its
+first remaining frame, introducing different offsets. Pixel detection on that
+export found the first cube at 633 ms before and 117 ms after, rather than the
+source recordings' 680/133 ms. The source timestamps were checked against MP4
+frame timestamps (agreement within 0.14 ms); the export alignment was the error.
+`compare.py` now shifts both sources onto the launch-request clock before
+resampling, and the corrected video includes a visible timer.
+
+Across three source recordings per build, the first **static/native-or-real**
+cube appeared at median 133 ms instead of 680 ms. Android still owns process
+scheduling and the launch animation, so this is not literal zero time.
 
 | Metric | Baseline median (range), ms | Optimized median (range), ms |
 | --- | ---: | ---: |
-| Request → visible cube, recorded, 3 launches | 680 (661–743) | 133 (130–139) |
+| Request → first cube pixels, recorded, 3 launches | 680 (661–743), real | 133 (130–139), static native |
 | Application → real cube GL frame, unrecorded, 10 launches | 331 (306–341) | 296 (284–302) |
 | Android `am start -W` TotalTime, unrecorded, 10 launches | 370 (366–383) | 376.5 (350–400) |
 
@@ -88,8 +118,9 @@ repeat-run comparison. Emulator results are not physical-device guarantees.
 - Local videos and visible-frame results:
   `captures/launch-time/{baseline,final}-video/`.
 - Visual handoff contact sheet: `captures/launch-time/final-video/handoff.png`.
-- Side-by-side video: `captures/launch-time/comparison.mp4`, using the median
-  recorded trial from each build and aligning both device-clock request times.
+- Corrected side-by-side video: `captures/launch-time/comparison-audited.mp4`,
+  using trial 2 from each build and a shared launch-request clock with a timer.
+  The original `comparison.mp4` is retained for the export-alignment audit.
 - Passing test output: `captures/launch-time/regression-verified.txt`.
 - Build logs: `.build-tmp/final-build.log` and `.build-tmp/final-tests-build.log`.
 
