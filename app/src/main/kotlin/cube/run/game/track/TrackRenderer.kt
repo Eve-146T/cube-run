@@ -17,6 +17,7 @@ import kotlin.math.sin
  */
 class TrackRenderer(private val game: Gdx3DGame) {
 
+    private val shardCols = cube.run.data.Shards.all.map { hsvInto(Color(), it.hue, .6f, 1f) }
     private val coinCol = Color()
     private val coinFace = Color()
     private val boxCol = Color()
@@ -176,6 +177,8 @@ class TrackRenderer(private val game: Gdx3DGame) {
         val fog = Fog.at(cz)
         val s = p
         when (r.pickup) {
+            Pickup.SHARD_EMBER, Pickup.SHARD_FROST, Pickup.SHARD_VOID ->
+                game.worldCrystal(x, y, cz, s * .85f, yaw * .6f, shardCols[Pickup.shardType(r.pickup)], fog)
             Pickup.RED_PILL -> game.worldPill(x, y + .1f, cz, s * .68f, time * 100f + r.visualPhase * 57.29578f, fog)
             Pickup.BOX -> { // a spinning gift: purple cube with a gold ribbon
                 game.worldBoxSpin(x, y, cz, 0.62f * s, 0.62f * s, 0.62f * s, yaw * 0.5f, boxCol, fog)
@@ -206,6 +209,7 @@ class TrackRenderer(private val game: Gdx3DGame) {
 
     /** Colours for the pickup bursts. */
     fun colorOf(kind: Int): Color = when (kind) {
+        Pickup.SHARD_EMBER, Pickup.SHARD_FROST, Pickup.SHARD_VOID -> shardCols[Pickup.shardType(kind)]
         Pickup.BOX -> boxCol
         Pickup.RED_PILL -> magnetCol
         Pickup.MAGNET -> magnetCol

@@ -79,14 +79,14 @@ object Skins {
         Skin(10, "Ocean", 350, WAVE, hue = 195f, hue2 = 235f, sat = 0.8f, value = 0.95f, glow = 1.3f),
         Skin(11, "Toxic", 450, PULSE, hue = 95f, sat = 0.95f, value = 1f, glow = 1.9f, trail = 1.4f),
         Skin(12, "Sunset", 550, WAVE, hue = 20f, hue2 = 320f, sat = 0.85f, value = 1f, trail = 1.4f),
-        Skin(13, "Ghost", 650, PULSE, hue = 220f, sat = 0.08f, value = 0.9f, glow = 2.6f, trail = 0.6f, abilities = listOf(Ability.PHASE), opacity = .78f),
+        Skin(13, "Ghost", 650, FIXED, hue = 210f, sat = 0.015f, value = 1f, glow = 1.5f, trail = 0.6f, abilities = listOf(Ability.PHASE), opacity = .72f),
         Skin(14, "Strobe", 700, STROBE, hue = 55f, hue2 = 200f, sat = 0.9f, value = 1f, glow = 1.4f, trail = 1.6f, sparkle = true),
         Skin(15, "Coal", 300, EMBER, hue = 24f, sat = 0.9f, value = 0.35f, glow = 1.6f),
         Skin(16, "Bubblegum", 220, FIXED, hue = 328f, sat = 0.55f, value = 1f, glow = 1.3f, abilities = listOf(Ability.BUBBLE_SAVER)),
         Skin(17, "Lemon", 220, FIXED, hue = 58f, sat = 0.8f, value = 1f),
         Skin(18, "Candy", 480, WAVE, hue = 325f, hue2 = 200f, sat = 0.6f, value = 1f, glow = 1.4f, trail = 1.3f),
         Skin(19, "Galaxy", 750, PULSE, hue = 262f, sat = 0.7f, value = 0.6f, glow = 2.4f, sparkle = true, trail = 1.5f),
-        // shard-only: mystery boxes drop the shards, nothing else does
+        // shard-only: collect crystals on the track or find shards in mystery boxes
         Skin(20, "Inferno", 0, EMBER, hue = 12f, sat = 1f, value = 1f, glow = 2.4f, trail = 2.6f, sparkle = true, shardType = Shards.EMBER),
         Skin(21, "Glacier", 0, WAVE, hue = 185f, hue2 = 225f, sat = 0.55f, value = 1f, glow = 2.6f, trail = 1.8f, sparkle = true, shardType = Shards.FROST),
         Skin(22, "Eclipse", 0, STROBE, hue = 285f, hue2 = 325f, sat = 0.9f, value = 0.55f, glow = 3f, trail = 2.2f, sparkle = true, shardType = Shards.VOID),
@@ -108,7 +108,7 @@ object BubbleSkins {
     const val IRIS = 0      // hue sweeps [hue]→[hue2] around the sphere, drifting with time (soap film)
     const val SOLID = 1     // one hue
     const val RAINBOW = 2   // the whole wheel, slowly turning
-    const val ELECTRIC = 3  // flickering rim with a hard pulse
+    const val ELECTRIC = 3  // flowing luminous rim
 
     class BubbleSkin(
         val id: Int,

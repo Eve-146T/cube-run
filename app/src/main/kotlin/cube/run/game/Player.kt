@@ -126,6 +126,7 @@ class Player(private val game: Gdx3DGame, private val rnd: Random) {
             BlendingAttribute(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA, skin.opacity),
             DepthTestAttribute(GL20.GL_LEQUAL, 0f, 1f, false),
         )
+        if (skin.id == 13) inst.materials.first().set(ColorAttribute.createEmissive(.24f, .25f, .26f, 1f))
         col = (inst.materials.first().get(ColorAttribute.Diffuse) as ColorAttribute).color
         hsvInto(col, skin.hueAt(time, baseHue), skin.sat, skin.valueAt(time))
         shellInst = ModelInstance(unit) // pulsing translucent "glow" shell

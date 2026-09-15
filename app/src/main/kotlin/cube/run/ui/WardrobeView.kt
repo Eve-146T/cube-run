@@ -29,7 +29,7 @@ import kotlin.math.abs
  * a swipe to browse, EQUIP / BUY.
  */
 @SuppressLint("SetTextI18n", "ViewConstructor", "ClickableViewAccessibility")
-class WardrobeView(activity: Activity, kit: UiKit, abilityStyle: Int = 0, shardStyle: Int = 0, onClose: () -> Unit) : Page(activity, kit, "WARDROBE", dark = true, onClosed = onClose) {
+class WardrobeView(activity: Activity, kit: UiKit, abilityStyle: Int = 0, onClose: () -> Unit) : Page(activity, kit, "WARDROBE", dark = true, onClosed = onClose) {
 
     private var cat = Wardrobe.CUBE
     private var index = Progress.equipped(cat)
@@ -37,7 +37,7 @@ class WardrobeView(activity: Activity, kit: UiKit, abilityStyle: Int = 0, shardS
     private val tabs = LinearLayout(activity).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER; clipChildren = false; clipToPadding = false }
     private val tabViews = ArrayList<TextView>()
     private val name = kit.stageText("", 32f, stroke = 4f)
-    private val shardDisplay = ShardDisplay(activity, kit, shardStyle)
+    private val shardDisplay = ShardDisplay(kit)
     private val dots = LinearLayout(activity).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER }
     private val abilityDisplay = AbilityDisplay(activity, kit, abilityStyle)
     private val action: CandyButton
@@ -87,14 +87,12 @@ class WardrobeView(activity: Activity, kit: UiKit, abilityStyle: Int = 0, shardS
             addView(abilityDisplay.inline, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
                 topMargin = dp(8f); leftMargin = dp(22f); rightMargin = dp(22f)
             })
-            addView(shardDisplay.inline, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(8f) })
             addView(dots, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(12f) })
             addView(action, LinearLayout.LayoutParams(dp(230f), LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(18f) })
         }
         content.addView(bottom, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT).apply {
             gravity = Gravity.BOTTOM; bottomMargin = dp(112f)
         })
-        content.addView(shardDisplay.floating, FrameLayout.LayoutParams(-1, -1))
         content.addView(abilityDisplay.floating, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT).apply {
             leftMargin = dp(22f); rightMargin = dp(22f)
             if (abilityStyle == 6) { gravity = Gravity.BOTTOM; bottomMargin = dp(28f) }
@@ -177,8 +175,10 @@ class WardrobeView(activity: Activity, kit: UiKit, abilityStyle: Int = 0, shardS
         val shardSkin = if (cat == Wardrobe.CUBE) Skins.get(index).takeIf { it.shardOnly } else null
         kit.labelOf(balance).text = Progress.coins.toString()
         name.text = Wardrobe.name(cat, index).uppercase()
-        shardDisplay.bind(shardSkin?.takeUnless { owned }, shardSkin?.let { Progress.shards(it.shardType) } ?: 0)
-        action.visibility = if (shardDisplay.showAction) View.VISIBLE else View.INVISIBLE
+        action.visibility = View.VISIBLE
+        action.maxLines = 1
+        action.contentDescription = null
+        action.setProgress()
         val canUnlock = shardSkin != null && Progress.shards(shardSkin.shardType) >= shardSkin.shardsNeeded
         action.setLabel(when {
             equipped -> "EQUIPPED"
@@ -193,6 +193,7 @@ class WardrobeView(activity: Activity, kit: UiKit, abilityStyle: Int = 0, shardS
             price <= Progress.coins -> Theme.GOLD
             else -> Theme.alpha(Theme.MUTED, 200)
         }
+        if (shardSkin != null && !owned) shardDisplay.bind(action, shardSkin, Progress.shards(shardSkin.shardType))
         action.alpha = if (equipped) 0.7f else 1f
         for ((i, t) in tabViews.withIndex()) {
             val on = Wardrobe.cats[i] == cat

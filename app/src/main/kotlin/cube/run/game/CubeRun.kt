@@ -328,6 +328,10 @@ class CubeRun(session: GameSession, private val autoStart: Boolean = false, priv
         val kind = row.pickup
         row.pickup = Pickup.NONE
         when (kind) {
+            Pickup.SHARD_EMBER, Pickup.SHARD_FROST, Pickup.SHARD_VOID -> {
+                session.addShard(Pickup.shardType(kind))
+                fx.coin(row.pickupX, .85f, cz, 1, trackArt.colorOf(kind))
+            }
             Pickup.BUBBLE -> { // one more in the stash (double-tap to use it)
                 Progress.addBubble(1)
                 session.setBubbles(Progress.bubbles)

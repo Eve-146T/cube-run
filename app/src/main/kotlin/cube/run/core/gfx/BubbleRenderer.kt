@@ -23,7 +23,7 @@ import com.badlogic.gdx.utils.Disposable
  */
 class BubbleRenderer(mb: ModelBuilder) : Disposable {
 
-    private val model: Model = mb.createSphere(1f, 1f, 1f, 28, 20, Material(ColorAttribute.createDiffuse(Color.WHITE)), (Usage.Position or Usage.Normal).toLong())
+    private val model: Model = mb.createSphere(1f, 1f, 1f, 48, 32, Material(ColorAttribute.createDiffuse(Color.WHITE)), (Usage.Position or Usage.Normal).toLong())
     private val mesh: Mesh = model.meshes.first()
     private val world = Matrix4()
     private val shader: ShaderProgram
@@ -58,28 +58,35 @@ class BubbleRenderer(mb: ModelBuilder) : Disposable {
             uniform float u_fill;
             uniform float u_alpha;
             uniform float u_style;
+            uniform float u_styleNext;
+            uniform float u_mix;
             varying vec3 v_normal;
             varying vec3 v_view;
             vec3 hsv(float h, float s, float v) {
                 vec3 p = abs(fract(vec3(h) + vec3(0.0, 2.0 / 3.0, 1.0 / 3.0)) * 6.0 - 3.0);
                 return v * mix(vec3(1.0), clamp(p - 1.0, 0.0, 1.0), s);
             }
+            vec4 film(float style, vec3 n, float band, float rim, float spec) {
+                float hue = mix(u_hueA, u_hueB, band) / 360.0;
+                if (style > 1.5 && style < 2.5) hue = fract(u_time * .045 + band * .35 + n.x * .15);
+                float flow = .5 + .5 * sin(n.y * 5.0 + n.x * 3.0 + u_time * 2.2);
+                float glow = style > 2.5 ? .80 + .20 * flow * flow : 1.0;
+                vec3 col = hsv(fract(hue), u_sat, 1.0);
+                float a = (rim * .88 + u_fill + spec * .55) * u_alpha * glow;
+                return vec4(mix(col, vec3(1.0), spec * .8 + rim * .15), clamp(a, 0.0, 1.0));
+            }
             void main() {
                 vec3 n = normalize(v_normal);
                 vec3 v = normalize(v_view);
                 float ndv = abs(dot(n, v));
                 float rim = pow(1.0 - ndv, u_rim);
-                float band = 0.5 + 0.5 * sin(n.y * 3.0 + n.x * 2.2 + n.z * 1.3 + u_time * 1.7);
-                float hue = mix(u_hueA, u_hueB, band) / 360.0;
-                if (u_style > 1.5 && u_style < 2.5) hue = fract(u_time * 0.12 + band * 0.35 + n.x * 0.15);
-                float flick = 1.0;
-                if (u_style > 2.5) flick = 0.55 + 0.45 * step(0.0, sin(u_time * 38.0 + n.y * 7.0 + n.x * 3.0));
-                vec3 col = hsv(fract(hue), u_sat, 1.0);
+                float band = 0.5 + 0.5 * sin(n.y * 3.0 + n.x * 2.2 + n.z * 1.3 + u_time * .65);
                 vec3 l = normalize(vec3(-0.45, 0.85, 0.6));
                 vec3 h = normalize(l + v);
                 float spec = pow(max(dot(n, h), 0.0), 60.0);
-                float a = (rim * 0.95 + u_fill + spec * 0.7) * u_alpha * flick;
-                gl_FragColor = vec4(mix(col, vec3(1.0), spec * 0.8 + rim * 0.15), clamp(a, 0.0, 1.0));
+                if (u_mix > .999) gl_FragColor = film(u_styleNext, n, band, rim, spec);
+                else if (u_mix < .001) gl_FragColor = film(u_style, n, band, rim, spec);
+                else gl_FragColor = mix(film(u_style, n, band, rim, spec), film(u_styleNext, n, band, rim, spec), u_mix);
             }
             """.trimIndent(),
         ).also { require(it.isCompiled) { "bubble shader: ${it.log}" } }
@@ -87,16 +94,17 @@ class BubbleRenderer(mb: ModelBuilder) : Disposable {
 
     /**
      * Draw one bubble. Call after the opaque passes; depth-tested, not
-     * depth-written, alpha-blended, both faces (the back rim doubles the glow).
+     * depth-written, alpha-blended, outward faces only to avoid unsorted shell overlap.
      */
     fun draw(
         cam: Camera, x: Float, y: Float, z: Float, sx: Float, sy: Float, sz: Float, yawDeg: Float, time: Float,
-        hueA: Float, hueB: Float, sat: Float, rim: Float, fill: Float, alpha: Float, style: Int,
+        hueA: Float, hueB: Float, sat: Float, rim: Float, fill: Float, alpha: Float, style: Int, nextStyle: Int = style, mix: Float = 0f,
     ) {
         world.setToTranslation(x, y, z).rotate(0f, 1f, 0f, yawDeg).scale(sx, sy, sz)
         Gdx.gl.glEnable(GL20.GL_DEPTH_TEST)
         Gdx.gl.glDepthMask(false)
-        Gdx.gl.glDisable(GL20.GL_CULL_FACE)
+        Gdx.gl.glEnable(GL20.GL_CULL_FACE)
+        Gdx.gl.glCullFace(GL20.GL_BACK)
         Gdx.gl.glEnable(GL20.GL_BLEND)
         Gdx.gl.glBlendFunc(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA)
         shader.bind()
@@ -111,7 +119,10 @@ class BubbleRenderer(mb: ModelBuilder) : Disposable {
         shader.setUniformf("u_fill", fill)
         shader.setUniformf("u_alpha", alpha)
         shader.setUniformf("u_style", style.toFloat())
+        shader.setUniformf("u_styleNext", nextStyle.toFloat())
+        shader.setUniformf("u_mix", mix)
         mesh.render(shader, GL20.GL_TRIANGLES)
+        Gdx.gl.glDisable(GL20.GL_CULL_FACE)
         Gdx.gl.glDepthMask(true)
         Gdx.gl.glDisable(GL20.GL_BLEND)
         Gdx.gl.glDisable(GL20.GL_DEPTH_TEST)

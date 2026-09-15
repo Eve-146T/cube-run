@@ -68,6 +68,7 @@ class Track(private val rnd: Random, private val fx: ObstacleFactory) {
     private var rowsSincePickup = 0
     private val pickupBag = ArrayDeque<Int>() // every kind appears before the bag repeats
     private var runScore = 0
+    private var shardOffers = 0
     private var jetOffers = 0
     private var boxOffers = 0
     /** While the jetpack is on, new coin trails are laid at flying height. */
@@ -109,7 +110,7 @@ class Track(private val rnd: Random, private val fx: ObstacleFactory) {
         curSafe = 1; prevKind = -1; rowsSpawned = 0
         coinRowsLeft = 0; prevPlatLane = -1
         rowsSincePickup = 0; pickupSpacing = 12; pickupBag.clear(); airCoins = false
-        runScore = 0; jetOffers = 0; boxOffers = 0
+        runScore = 0; jetOffers = 0; boxOffers = 0; shardOffers = 0
         bonus = Bonus.NONE; bonusRowsLeft = 0; rowsSincePortal = 0; portalPending = Bonus.NONE
         this.coinTrailChance = coinTrailChance
         pillWorld = if (Settings.testPillWorld) PillTestWorld(fx) else null
@@ -523,7 +524,7 @@ class Track(private val rnd: Random, private val fx: ObstacleFactory) {
         if (!galore && (rowsSpawned < pickupMinRows || rowsSincePickup < pickupSpacing)) return
         if (galore && rowsSincePickup < 3) return
         if (pickupBag.isEmpty()) {
-            val kinds = arrayListOf(Pickup.MAGNET, Pickup.MULT, Pickup.JET, Pickup.BUBBLE, Pickup.BOX, Pickup.RED_PILL)
+            val kinds = arrayListOf(Pickup.MAGNET, Pickup.MULT, Pickup.JET, Pickup.BUBBLE, Pickup.BOX, Pickup.RED_PILL, Pickup.SHARD_EMBER)
             val luck = Progress.level(Progress.LUCKYBOX)
             repeat(luck / 2) { kinds.add(Pickup.BOX) }
             if (luck % 2 != 0 && rnd.nextBoolean()) kinds.add(Pickup.BOX) // +0.5 box weight per level
@@ -534,6 +535,7 @@ class Track(private val rnd: Random, private val fx: ObstacleFactory) {
         // skipped rare pickups turn into extra magnets, multipliers or bubbles.
         row.pickup = when (kind) {
             Pickup.RED_PILL -> if (rnd.nextInt(30) == 0) kind else Pickup.NONE
+            Pickup.SHARD_EMBER -> if (runScore >= 100 && ++shardOffers % 2 == 0) Pickup.SHARD_EMBER + rnd.nextInt(3) else Pickup.NONE
             Pickup.JET -> if (runScore >= 100 && ++jetOffers % 2 == 0) kind else Pickup.NONE
             Pickup.BOX -> if (runScore >= 100 && ++boxOffers % 2 == 0) kind else Pickup.NONE
             else -> kind

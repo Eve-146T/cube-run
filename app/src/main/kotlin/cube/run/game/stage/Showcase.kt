@@ -150,7 +150,8 @@ class Showcase(private val game: Gdx3DGame, private val player: Player, private 
             game.burst3d(tmp, player.trailCol(), n = 20, speed = 5f, size = 0.12f, life = 0.7f)
             game.burst3d(tmp, Color.WHITE, n = 12, speed = 10f, size = 0.08f, life = 0.45f)
         }
-        kickA += kickV * dt
+        val kickStep = min(dt, kickV / 2400f)
+        kickA += kickV * kickStep - 1200f * kickStep * kickStep
         kickV = max(0f, kickV - 2400f * dt)
         pop = max(0f, pop - dt * 2.6f)
         // where the cube is: the centre, or out on the loop (eased between)

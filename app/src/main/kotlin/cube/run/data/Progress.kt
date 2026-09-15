@@ -244,7 +244,8 @@ object Progress {
 
     fun shards(kind: Int): Int = shardCounts.getOrElse(kind) { 0 }
 
-    private fun addShards(kind: Int, n: Int) {
+    fun addShards(kind: Int, n: Int) {
+        if (kind !in shardCounts.indices || n <= 0) return
         shardCounts[kind] += n
         prefs.edit().putInt("shards_$kind", shardCounts[kind]).apply()
     }
@@ -314,7 +315,7 @@ object Progress {
                 grant(cat, id); BoxReward(BoxReward.SKIN, 1, cat, id)
             }
             shards.isNotEmpty() -> {
-                val shard = shards.random(random); val n = random.nextInt(5, 31)
+                val shard = shards.random(random); val n = random.nextInt(2, 5)
                 addShards(shard.id, n); BoxReward(BoxReward.SHARDS, n, id = shard.id)
             }
             kind == BoxReward.COINS -> BoxReward(BoxReward.COINS,

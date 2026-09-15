@@ -110,7 +110,7 @@ class Bubble(private val game: Gdx3DGame) {
     fun render(cam: PerspectiveCamera, time: Float) {
         if (active) {
             val ending = timeLeft < 3f
-            val flick = if (ending && sin(time * 26f) < -0.1f) 0.45f else 1f
+            val flick = if (ending) .72f + .28f * sin(time * 6f) else 1f
             val s = 2.25f * inflate()
             val wob = 0.06f * sin(time * 9f) * s
             draw(cam, time, x, y, s + wob, s - wob, s + wob * 0.5f, flick)
@@ -126,12 +126,39 @@ class Bubble(private val game: Gdx3DGame) {
         game.bubbles.draw(cam, cx, cy, 0f, sx, sy, sz, yaw, time, skin.hue, skin.hue2, skin.sat, skin.rim, skin.fill, alpha, skin.style)
     }
 
+    private var previewId = -1
+    private var previewTime = 0f
+    private var previewBlend = 1f
+    private var previousStyle = 0
+    private val shown = FloatArray(5)
+    private val from = FloatArray(5)
+
+    private fun hueDelta(to: Float, from: Float) = ((to - from) % 360f + 540f) % 360f - 180f
+
     /** The wardrobe: a full bubble around ([px],[py]) in the previewed skin, no timer. */
     fun showcase(cam: PerspectiveCamera, time: Float, px: Float, py: Float, inflate: Float = 1f) {
-        skin = BubbleSkins.get(wanted())
-        yaw = time * 40f
-        val s = 2.25f * inflate * (1f + 0.25f * (1f - inflate) * sin(inflate * 9f)) // a wobble while it inflates
-        val wob = 0.05f * sin(time * 9f) * s
-        draw(cam, time, px, py + 0.1f, s + wob, s - wob, s + wob * 0.5f, min(1f, inflate * 1.5f))
+        val target = BubbleSkins.get(wanted())
+        if (previewId != target.id) {
+            previousStyle = skin.style
+            from.indices.forEach { from[it] = shown[it] }
+            previewBlend = if (previewId < 0) 1f else 0f
+            previewId = target.id
+        }
+        val dt = (time - previewTime).coerceIn(0f, .05f)
+        previewTime = time
+        previewBlend = min(1f, previewBlend + dt / .38f)
+        val k = previewBlend * previewBlend * (3f - 2f * previewBlend)
+        skin = target
+        shown[0] = (from[0] + hueDelta(target.hue, from[0]) * k + 360f) % 360f
+        val second = from[1] + hueDelta(target.hue2, from[1]) * k
+        shown[1] = shown[0] + hueDelta(second, shown[0])
+        shown[2] = from[2] + (target.sat - from[2]) * k
+        shown[3] = from[3] + (target.rim - from[3]) * k
+        shown[4] = from[4] + (target.fill - from[4]) * k
+        yaw = time * 16f
+        val s = 2.25f * inflate
+        val wob = .018f * sin(time * 2.6f) * s
+        game.bubbles.draw(cam, px, py + .1f, 0f, s + wob, s - wob, s, yaw, time,
+            shown[0], shown[1], shown[2], shown[3], shown[4], min(1f, inflate * 1.5f), previousStyle, target.style, k)
     }
 }

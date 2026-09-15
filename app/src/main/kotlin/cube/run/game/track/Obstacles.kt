@@ -31,6 +31,10 @@ object Pickup {
     const val MAGNET = 3  // timed: a huge coin magnet
     const val MULT = 4    // timed: 2× score
     const val RED_PILL = 6 // timed: black world with luminous green geometry edges
+    const val SHARD_EMBER = 7
+    const val SHARD_FROST = 8
+    const val SHARD_VOID = 9
+    fun shardType(kind: Int): Int = if (kind in SHARD_EMBER..SHARD_VOID) kind - SHARD_EMBER else -1
     const val JET = 5     // timed: fly above everything along an air coin line
 }
 

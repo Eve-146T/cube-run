@@ -26,6 +26,9 @@ import cube.run.core.SoundFx
 class CandyPainter(private val radius: Float, private val lip: Float) {
     private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
     private val rect = RectF()
+    private val clip = android.graphics.Path()
+    var progress = -1f
+    var progressColor = Theme.MINT
     var color = Theme.MINT
         set(v) { field = v; lipColor = Theme.darken(v, 0.32f); gloss = Theme.alpha(Theme.lighten(v, 0.6f), 110) }
     private var lipColor = Theme.darken(color, 0.32f)
@@ -49,6 +52,13 @@ class CandyPainter(private val radius: Float, private val lip: Float) {
         paint.color = color
         rect.set(0f, off, w, h - lip + off)
         c.drawRoundRect(rect, radius, radius, paint)
+        if (progress >= 0f) {
+            clip.reset(); clip.addRoundRect(rect, radius, radius, android.graphics.Path.Direction.CW)
+            c.save(); c.clipPath(clip)
+            paint.color = progressColor
+            c.drawRect(0f, off, w * progress.coerceIn(0f, 1f), h - lip + off, paint)
+            c.restore()
+        }
         paint.color = gloss
         rect.set(radius * 0.5f, off + radius * 0.35f, w - radius * 0.5f, off + (h - lip) * 0.42f)
         c.drawRoundRect(rect, radius * 0.7f, radius * 0.7f, paint)
@@ -125,6 +135,10 @@ class CandyButton(ctx: Context, color: Int, label: CharSequence, textSize: Float
     }
 
     fun setLabel(t: CharSequence) { text = t }
+
+    fun setProgress(amount: Float = -1f, color: Int = Theme.MINT) {
+        painter.progress = amount; painter.progressColor = color; invalidate()
+    }
 
     override fun onWindowFocusChanged(hasWindowFocus: Boolean) {
         super.onWindowFocusChanged(hasWindowFocus)

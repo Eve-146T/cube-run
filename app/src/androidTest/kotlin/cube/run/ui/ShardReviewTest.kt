@@ -6,86 +6,92 @@ import android.view.View
 import android.widget.FrameLayout
 import androidx.test.core.app.ActivityScenario
 import androidx.test.platform.app.InstrumentationRegistry
-import com.badlogic.gdx.Gdx
 import cube.run.GameActivity
 import cube.run.core.Stage
 import cube.run.data.Skins
 import org.junit.Assert.*
-import org.junit.Assume.assumeTrue
 import org.junit.Test
 import java.io.File
-import java.util.concurrent.CountDownLatch
-import java.util.concurrent.TimeUnit
 
-/** Explicit native screenshot review. Fixtures change views only; player progress is untouched. */
+/** Native layout checks; fixture counts never modify player progress. */
 class ShardReviewTest {
     private fun field(owner: Any, name: String) = owner.javaClass.getDeclaredField(name).apply { isAccessible = true }
     private fun call(owner: Any, name: String) = owner.javaClass.getDeclaredMethod(name).apply { isAccessible = true }.invoke(owner)
-
-    @Test fun captureThreeNativeLayouts() {
-        assumeTrue(InstrumentationRegistry.getArguments().getString("captureShards") == "true")
+    @Test fun progressAndUnlockUseTheSameButtonWithoutCoveringTheCube() {
         val instrumentation = InstrumentationRegistry.getInstrumentation()
+        val capture = InstrumentationRegistry.getArguments().getString("captureShards") == "true"
         val out = File(instrumentation.targetContext.getExternalFilesDir(null), "shard-review").apply { mkdirs() }
-        var actionHeight = -1
         try {
             ActivityScenario.launch(GameActivity::class.java).use { scenario ->
                 scenario.onActivity { it.setShowWhenLocked(true); it.setTurnScreenOn(true) }
-                SystemClock.sleep(800)
-                for (style in 0..2) for (have in listOf(33, 100)) {
-                    lateinit var page: WardrobeView
-                    lateinit var root: FrameLayout
-                    lateinit var action: CandyButton
-                    scenario.onActivity { activity ->
-                        Stage.paused = false
-                        (field(activity, "hud").get(activity) as Hud).apply {
-                            // Retain Hud's full-window alpha composition over SurfaceView.
-                            for (i in 0 until childCount) getChildAt(i).visibility = View.INVISIBLE
-                        }
-                        root = activity.findViewById(android.R.id.content)
-                        page = WardrobeView(activity, UiKit(activity), shardStyle = style) {}
-                        field(page, "index").setInt(page, 21)
-                        call(page, "applyPreview"); call(page, "render")
-                        val display = field(page, "shardDisplay").get(page) as ShardDisplay
-                        display.bind(Skins.get(21), have)
-                        action = field(page, "action").get(page) as CandyButton
-                        action.setLabel("UNLOCK")
-                        action.color = if (have >= 100) Theme.hsv(195f, 0.7f, 1f) else Theme.alpha(Theme.MUTED, 200)
-                        action.alpha = 1f
-                        action.visibility = if (display.showAction) View.VISIBLE else View.INVISIBLE
-                        action.isEnabled = false // Capture fixture cannot spend the phone's actual shards.
-                        root.addView(page, FrameLayout.LayoutParams(-1, -1))
-                    }
-                    SystemClock.sleep(900)
-                    val settled = CountDownLatch(1)
-                    Gdx.app.postRunnable { Stage.paused = true; settled.countDown() }
-                    assertTrue(settled.await(10, TimeUnit.SECONDS))
-                    instrumentation.waitForIdleSync()
-                    scenario.onActivity {
-                        assertEquals("Unlock must remain one line", 1, action.lineCount)
-                        if (actionHeight < 0) actionHeight = action.height
-                        assertEquals("All shard variants retain the same action height", actionHeight, action.height)
-                    }
-                    scenario.onActivity {
-                        fun describe(view: View): String {
-                            if (view is android.widget.TextView && view.visibility == View.VISIBLE) {
-                                assertEquals("Wardrobe text must fit: ${view.text}", 1, view.lineCount)
+                SystemClock.sleep(1000)
+                var baseline = 0
+                for (id in listOf(0,20,21,22,19,13)) {
+                    val counts = if (id in 20..22) listOf(0,33,99,100) else listOf(0)
+                    for (have in counts) {
+                        lateinit var page: WardrobeView
+                        lateinit var root: FrameLayout
+                        lateinit var action: CandyButton
+                        scenario.onActivity { activity ->
+                            Stage.paused = false
+                            (field(activity,"hud").get(activity) as Hud).apply {
+                                for (i in 0 until childCount) getChildAt(i).visibility = View.INVISIBLE
                             }
-                            val info = if (view is android.widget.TextView) " text=${view.text} lines=${view.lineCount} layout=${view.layout?.width} scroll=${view.scrollX},${view.scrollY}" else ""
-                            return "${view.javaClass.simpleName} ${view.width}x${view.height} at ${view.x},${view.y}$info\n" +
-                                if (view is android.view.ViewGroup) (0 until view.childCount).joinToString("") { describe(view.getChildAt(it)) } else ""
+                            root = activity.findViewById(android.R.id.content)
+                            page = WardrobeView(activity,UiKit(activity)) {}
+                            field(page,"index").setInt(page,id); call(page,"applyPreview"); call(page,"render")
+                            action = field(page,"action").get(page) as CandyButton
+                            if (id in 20..22) (field(page,"shardDisplay").get(page) as ShardDisplay).bind(action,Skins.get(id),have)
+                            action.isEnabled = false
+                            root.addView(page,FrameLayout.LayoutParams(-1,-1))
                         }
-                        File(out, "layout-$style-$have.txt").writeText(describe(page))
+                        SystemClock.sleep(if (capture) 900 else 360)
+                        scenario.onActivity {
+                            assertEquals(View.VISIBLE,action.visibility)
+                            if (baseline == 0) baseline = action.height
+                            assertEquals("Every action retains its full height",baseline,action.height)
+                            assertTrue("Button fits on screen",action.width <= page.width)
+                            val layout = action.layout
+                            for (i in 0 until layout.lineCount) assertEquals("Label fits without truncation",0,layout.getEllipsisCount(i))
+                            if (id in 20..22) {
+                                assertEquals(2,action.lineCount)
+                                assertTrue(action.text.toString().contains(if(have>=100) "UNLOCK" else "$have/100"))
+                                assertTrue(action.contentDescription.contains(Skins.get(id).name))
+                            }
+                        }
+                        if (capture) {
+                            val bitmap = instrumentation.uiAutomation.takeScreenshot()
+                            File(out,"cube-$id-$have.png").outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG,100,it) }
+                            bitmap.recycle()
+                        }
+                        scenario.onActivity { root.removeView(page) }
                     }
-                    val bitmap = instrumentation.uiAutomation.takeScreenshot()
-                    assertNotNull(bitmap)
-                    File(out, "frost-$style-${if (have >= 100) "ready" else "progress"}.png")
-                        .outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
-                    bitmap.recycle()
-                    scenario.onActivity { root.removeView(page) }
+                }
+                // Exercise all bubble shaders and the transitions on the real GL renderer.
+                lateinit var page: WardrobeView
+                scenario.onActivity { activity ->
+                    page = WardrobeView(activity,UiKit(activity)) {}
+                    field(page,"cat").setInt(page,1)
+                    activity.addContentView(page,FrameLayout.LayoutParams(-1,-1))
+                }
+                for(id in 0..9) {
+                    scenario.onActivity { field(page,"index").setInt(page,id); call(page,"applyPreview"); call(page,"render") }
+                    SystemClock.sleep(800)
+                    cube.run.bot.LiveBotDriver.gl { game ->
+                        val bubble = field(game,"bubble").get(game) as cube.run.game.Bubble
+                        val shown = field(bubble,"shown").get(bubble) as FloatArray
+                        val wanted = cube.run.data.BubbleSkins.get(id)
+                        fun difference(a: Float,b: Float) = kotlin.math.abs(((a-b)%360f+540f)%360f-180f)
+                        assertEquals("The displayed film reaches the selected hue",0f,difference(shown[0],wanted.hue),1f)
+                        assertEquals("Both ends of the film keep the intended hue range",0f,difference(shown[1],wanted.hue2),1f)
+                        assertTrue("No full-wheel hue wrap",kotlin.math.abs(shown[1]-shown[0]) <= 180f)
+                    }
+                    if(capture) {
+                        val bitmap = instrumentation.uiAutomation.takeScreenshot()
+                        File(out,"bubble-$id.png").outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG,100,it) }; bitmap.recycle()
+                    }
                 }
             }
-        } finally {
-            Stage.paused = false; Stage.mode = Stage.NONE; Stage.clearPreview()
-        }
+        } finally { Stage.paused = false; Stage.mode = Stage.NONE; Stage.clearPreview() }
     }
 }

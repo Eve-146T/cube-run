@@ -301,7 +301,7 @@ class Hud(private val activity: Activity) : FrameLayout(activity) {
         activity.finish()
     }
 
-    fun showRunOver(score: Int, best: Int, isNewBest: Boolean, coins: Int, boxes: Int) {
+    fun showRunOver(score: Int, best: Int, isNewBest: Boolean, coins: Int, boxes: Int, shards: IntArray = IntArray(3)) {
         if (Stage.botPlaying && Settings.devMode) {
             relaunch(autoStart = true, idleBot = true)
             return
@@ -311,6 +311,7 @@ class Hud(private val activity: Activity) : FrameLayout(activity) {
         pauseChip.visibility = GONE
         setBoost(false, 0, 5)
         val flow = RunOverFlow(activity, kit, score, best, isNewBest, coins, boxes, world, bonusVisited,
+            shards = shards,
             onRestart = { relaunch(autoStart = true) },
             onMenu = { relaunch(autoStart = false) },
         )

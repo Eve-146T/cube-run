@@ -31,7 +31,7 @@ or shard category is exhausted, it falls back to remaining shards or bubbles.
 The previous branch ordering made the bubble reward range unreachable.
 
 Coin rewards are 500–1,000 (80%) or 2,000–3,000 (20%). Bubble rewards contain
-3–5, and shard rewards contain 5–30. Including the two-coin limit, long-run coin
+3–5, and shard rewards contain 2–4. Including the two-coin limit, long-run coin
 rewards occur in about 3/7 of boxes, averaging about 471 coins per box across
 all outcomes (about 189 coins/min at the reference box rate).
 

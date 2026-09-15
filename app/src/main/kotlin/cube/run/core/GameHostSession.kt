@@ -18,6 +18,11 @@ class GameHostSession(
     private val coinsV = AtomicInteger(0)
     private val boxesV = AtomicInteger(0)
     private val over = AtomicBoolean(false)
+    private val shardsV = java.util.concurrent.atomic.AtomicIntegerArray(3)
+
+    override fun addShard(kind: Int) {
+        if (!over.get() && kind in 0..2) shardsV.incrementAndGet(kind)
+    }
 
     override val score: Int get() = scoreV.get()
     override val isOver: Boolean get() = over.get()
@@ -77,6 +82,8 @@ class GameHostSession(
         val finalScore = scoreV.get()
         val runCoins = coinsV.get()
         val boxes = boxesV.get()
+        val runShards = IntArray(3) { shardsV.get(it) }
+        for (kind in runShards.indices) if (runShards[kind] > 0) Progress.addShards(kind, runShards[kind])
         Progress.addCoins(runCoins)
         Progress.countRun()
         val prevBest = Scores.best(id)
@@ -88,7 +95,7 @@ class GameHostSession(
             SoundFx.play("fail")
             Haptics.fail()
         }
-        ui { it.showRunOver(finalScore, prevBest, isNew, runCoins, boxes) }
+        ui { it.showRunOver(finalScore, prevBest, isNew, runCoins, boxes, runShards) }
     }
 
     private val waiting = ArrayList<(Hud) -> Unit>()

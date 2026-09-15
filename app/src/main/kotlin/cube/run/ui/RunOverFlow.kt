@@ -43,6 +43,7 @@ class RunOverFlow(
     private val bonusVisited: List<Int>,
     private val onRestart: () -> Unit,
     private val onMenu: () -> Unit,
+    private val shards: IntArray = IntArray(3),
 ) : FrameLayout(activity) {
 
     private fun dp(v: Float) = kit.dp(v)
@@ -190,6 +191,18 @@ class RunOverFlow(
             addView(coinCell, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
         }
         card.addView(stats, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(4f) })
+        if (shards.any { it > 0 }) {
+            val collected = LinearLayout(activity).apply {
+                orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER
+                for (kind in cube.run.data.Shards.all) {
+                    val count = shards.getOrElse(kind.id) { 0 }
+                    if (count > 0) addView(kit.iconPill(ShardIcon(Theme.hsv(kind.hue, .6f, 1f)), "+$count", Theme.WHITE, 16f,
+                        fill = Theme.alpha(Theme.WHITE, 25)).apply { contentDescription = "$count ${kind.name} collected" },
+                        LinearLayout.LayoutParams(-2, -2).apply { leftMargin = dp(5f); rightMargin = dp(5f) })
+                }
+            }
+            card.addView(collected, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(8f) })
+        }
         column.addView(card, LinearLayout.LayoutParams(dp(300f), LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(12f) })
         later(700) { if (counting) coinAnim = Anim.countUp(coinText, coins, 900) { "+$it" } }
         later(1700) { counting = false }

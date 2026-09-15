@@ -26,6 +26,9 @@ interface GameSession {
     /** Mystery boxes collected so far this run (opened on the run-over screens). */
     fun setBoxes(v: Int) {}
 
+    /** One collectible shard; banked with the run rewards at game over. */
+    fun addShard(kind: Int) {}
+
     /** The world the player is running through (shown on the results). */
     fun setWorld(name: String) {}
 

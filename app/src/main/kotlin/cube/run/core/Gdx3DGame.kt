@@ -57,6 +57,7 @@ abstract class Gdx3DGame(val session: GameSession) : ApplicationAdapter(), Touch
     private lateinit var world: WorldBoxBatch
     private lateinit var coins: PrismBatch
     private lateinit var matrixWires: MatrixWireBatch
+    private lateinit var crystals: cube.run.core.gfx.CrystalBatch
     private lateinit var capsules: CapsuleBatch
     /** The soap-bubble shader (blended pass; use from [renderBlended]). */
     private var bubbleRenderer: BubbleRenderer? = null
@@ -164,6 +165,7 @@ abstract class Gdx3DGame(val session: GameSession) : ApplicationAdapter(), Touch
         world = WorldBoxBatch(kit, wires = matrixWires)
         coins = PrismBatch(kit, wires = matrixWires)
         capsules = CapsuleBatch(kit)
+        crystals = cube.run.core.gfx.CrystalBatch(kit)
         LaunchTrace.mark("batches ready")
         shards = ShardSystem(kit)
         perf = PerfMonitor(showFps, perfLog)
@@ -237,6 +239,7 @@ abstract class Gdx3DGame(val session: GameSession) : ApplicationAdapter(), Touch
         Gdx.gl.glDisable(GL20.GL_BLEND)
         matrixWires.begin()
         capsules.begin()
+        crystals.begin()
         world.begin(cam)
         coins.begin(cam)
         renderWorldBatched()
@@ -244,6 +247,7 @@ abstract class Gdx3DGame(val session: GameSession) : ApplicationAdapter(), Touch
         coins.render(cam)           // + 1 for every coin
         matrixWires.render(cam)
         capsules.render(cam)
+        crystals.render(cam)
         // unlit blended shapes in the world (sunbursts): behind whatever the ModelBatch draws next
         Gdx.gl.glEnable(GL20.GL_DEPTH_TEST)
         Gdx.gl.glDepthMask(false)
@@ -365,9 +369,12 @@ abstract class Gdx3DGame(val session: GameSession) : ApplicationAdapter(), Touch
     fun setWorldOpacity(amount: Float) { world.opacity = amount; coins.opacity = amount }
 
     /** Ground height by z added to everything in the batched passes (null = flat). */
-    fun setTerrain(f: TerrainHeight?) { world.terrain = f; coins.terrain = f; capsules.terrain = f }
+    fun setTerrain(f: TerrainHeight?) { world.terrain = f; coins.terrain = f; capsules.terrain = f; crystals.terrain = f }
 
     fun setMatrixAmount(amount: Float) { matrixWires.amount = amount }
+
+    fun worldCrystal(x: Float, y: Float, z: Float, scale: Float, yaw: Float, color: Color, fog: Float = 0f) =
+        crystals.crystal(x, y, z, scale, yaw, color, fog, fogColor)
 
     fun worldPill(x: Float, y: Float, z: Float, scale: Float, yaw: Float, fog: Float) {
         capsules.pill(x, y, z, scale, yaw, fog, fogColor)
@@ -419,6 +426,7 @@ abstract class Gdx3DGame(val session: GameSession) : ApplicationAdapter(), Touch
         coins.dispose()
         matrixWires.dispose()
         capsules.dispose()
+        crystals.dispose()
         bubbleRenderer?.dispose()
         kit.dispose()
         owned.forEach { it.dispose() }
