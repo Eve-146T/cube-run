@@ -12,8 +12,16 @@ Five native renderer candidates live in `ObstacleCues.kt`:
 4. `ACTION_COLORS`: stable blue/orange action colors plus chevrons across every world palette.
 5. `SHADOW_ARROWS`: chevrons plus a ground footprint for suspended obstacles.
 
+The follow-up `DUCK_ARROWS` candidate is now the worktree default. `DuckArrows.kt`
+draws smooth pale chevrons directly on duck-bar faces, with a small bevel tinted
+from the obstacle color. Full bars, segments and pendulums receive down arrows;
+jump obstacles receive no additional markings. These triangles share the existing
+world-shapes pass, follow terrain and stream-in scaling, and turn green with the
+red-pill effect. `duck-arrows.html` compares original, previous arrows and this
+new candidate (capture file prefix `6`).
+
 `ORIGINAL` is the comparison baseline. `TrackRenderer.cueStyle` selects the variant;
-the worktree defaults to candidate 1 pending review. All five are real rendering
+the worktree defaults to `DUCK_ARROWS`. All candidates are real rendering
 implementations, not image mockups. No collision dimensions, timing, controls or
 section generation change. Factory-authored cues cover full and partial walls,
 bars, sweepers and pendulums; stompers, pillars, pits and pad-assisted tall walls
@@ -48,5 +56,6 @@ comparison. The current world is shared across all candidates in a capture run.
 These are visual candidates, not a proven reaction-time improvement. The shadow
 is a stylized opaque footprint, not a dynamic lighting pass. More elaborate styles
 consume more of the existing box batch. In red-pill mode the existing renderer
-turns these boxes into wire outlines too. Playtesting at speed and across world
+turns the box-based candidates into wire outlines; the smooth duck chevrons turn
+green. Playtesting at speed and across world
 palettes should determine the final choice.

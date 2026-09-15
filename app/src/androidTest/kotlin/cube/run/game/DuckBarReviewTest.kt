@@ -62,6 +62,7 @@ class DuckBarReviewTest {
                 repeat(360) { game.tick(1f / 60f) }
                 Stage.paused = true
             }
+            SystemClock.sleep(900) // Let the native HUD finish its launch animation too.
             try {
                 for (scene in listOf("duck", "jump", "hills", "moving")) {
                     gl { game ->
@@ -105,7 +106,7 @@ class DuckBarReviewTest {
                 }
             } finally {
                 gl { game ->
-                    (field(game, "trackArt").get(game) as TrackRenderer).cueStyle = ObstacleCueStyle.EDGE_BANDS
+                    (field(game, "trackArt").get(game) as TrackRenderer).cueStyle = ObstacleCueStyle.DUCK_ARROWS
                     Terrain.reset(); Stage.paused = false
                 }
             }

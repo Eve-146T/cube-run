@@ -18,6 +18,7 @@ import kotlin.math.sin
 class TrackRenderer(private val game: Gdx3DGame) {
 
     private val cues = ObstacleCues(game)
+    private val duckArrows = DuckArrows()
     /** Review candidates use the same live renderer; choose a final style after comparison. */
     var cueStyle: ObstacleCueStyle
         get() = cues.style
@@ -52,6 +53,10 @@ class TrackRenderer(private val game: Gdx3DGame) {
 
     /** The coin colour (for bursts). */
     val gold: Color get() = coinCol
+
+    fun renderCues(shapes: com.badlogic.gdx.graphics.glutils.ShapeRenderer, track: Track, opacity: Float, matrix: Float) {
+        if (cueStyle == ObstacleCueStyle.DUCK_ARROWS) duckArrows.render(shapes, track, game.fogColor, opacity, matrix)
+    }
 
     fun render(track: Track, time: Float, kaleido: Float = 0f, kaleidoHue: Float = 0f) {
         val yaw = (time * 240f) % 360f

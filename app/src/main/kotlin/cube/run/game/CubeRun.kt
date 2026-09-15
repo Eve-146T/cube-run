@@ -722,6 +722,7 @@ class CubeRun(session: GameSession, private val autoStart: Boolean = false, priv
     override fun renderWorldShapes(shapes: ShapeRenderer) {
         if (gift.active) gift.renderShapes(shapes, time)
         else if (showcase.active && !showcase.shop) showcase.renderShapes(shapes, time)
+        else if (!showcase.active) trackArt.renderCues(shapes, track, opening.worldAmount, redPill.blend)
     }
 
     override fun renderWorld(batch: ModelBatch, env: Environment) {

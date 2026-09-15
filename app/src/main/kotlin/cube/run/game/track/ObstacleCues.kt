@@ -6,11 +6,11 @@ import cube.run.game.Terrain
 import kotlin.math.max
 import kotlin.math.min
 
-enum class ObstacleCueStyle { ORIGINAL, EDGE_BANDS, ARROWS, HAZARD, ACTION_COLORS, SHADOW_ARROWS }
+enum class ObstacleCueStyle { ORIGINAL, EDGE_BANDS, ARROWS, HAZARD, ACTION_COLORS, SHADOW_ARROWS, DUCK_ARROWS }
 
-/** Five review treatments, drawn through the existing box batch with no collision objects. */
+/** Review treatments with no collision objects. Smooth duck arrows use the existing shapes pass. */
 class ObstacleCues(private val game: Gdx3DGame) {
-    var style = ObstacleCueStyle.EDGE_BANDS
+    var style = ObstacleCueStyle.DUCK_ARROWS
     private val ink = Color(.065f, .075f, .11f, 1f)
     private val white = Color(.98f, .98f, .94f, 1f)
     private val yellow = Color(1f, .8f, .08f, 1f)
@@ -24,7 +24,7 @@ class ObstacleCues(private val game: Gdx3DGame) {
         } else original
 
     fun render(ob: Ob, z: Float, fog: Float, p: Float) {
-        if (style == ObstacleCueStyle.ORIGINAL || ob.cue == ObCue.NONE || p <= .001f) return
+        if (style == ObstacleCueStyle.ORIGINAL || style == ObstacleCueStyle.DUCK_ARROWS || ob.cue == ObCue.NONE || p <= .001f) return
         val w = ob.sx * if (p >= .999f) 1f else (.4f + .6f * p)
         val h = ob.sy * if (p >= .999f) 1f else p
         val cy = if (ob.grounded) ob.bottom + h / 2f else ob.cy
@@ -71,7 +71,7 @@ class ObstacleCues(private val game: Gdx3DGame) {
                 arrows()
                 if (down) game.worldGround(ob.x, .018f, z, w, .024f, ob.sz * 1.4f, shadow, fog)
             }
-            ObstacleCueStyle.ORIGINAL -> Unit
+            ObstacleCueStyle.ORIGINAL, ObstacleCueStyle.DUCK_ARROWS -> Unit
         }
     }
 }
