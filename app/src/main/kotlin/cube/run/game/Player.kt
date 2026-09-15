@@ -407,11 +407,20 @@ class Player(private val game: Gdx3DGame, private val rnd: Random) {
         target.set(posePosition.lerp(poseTarget, amount), poseRotation, poseScale.lerp(poseTargetScale, amount))
     }
 
-    /** Apply launch motion to the live idle pose; the same body and shell stay on screen. */
-    fun openingPose(turn: Float, tilt: Float, size: Float, squash: Float) {
-        val width = size*(1f+squash*.5f); val height = size*(1f-squash)
-        inst.transform.rotate(Vector3.Y, turn).rotate(Vector3.Z, tilt).scale(width, height, width)
-        shellInst.transform.rotate(Vector3.Y, turn).rotate(Vector3.Z, tilt).scale(width, height, width)
+    /** Absolute transforms shared with the native startup view; no accumulated pose. */
+    fun openingPose(pose: cube.run.intro.OpeningPose, seconds: Float, baseHue: Float, skinAmount: Float = 1f) {
+        idleYaw = 40f*seconds; idleT = seconds; idleMix = 1f
+        hsvInto(col, skin.hueAt(seconds, baseHue), skin.sat, skin.valueAt(seconds))
+        hsvInto(shellCol, skin.hueAt(seconds, baseHue), skin.sat*.9f, 1f)
+        col.set(1f+(col.r-1f)*skinAmount, .55f+(col.g-.55f)*skinAmount, .78f+(col.b-.78f)*skinAmount, col.a)
+        shellCol.set(1f+(shellCol.r-1f)*skinAmount, .595f+(shellCol.g-.595f)*skinAmount, .802f+(shellCol.b-.802f)*skinAmount, shellCol.a)
+        inst.transform.setToTranslation(0f, .45f, 0f)
+            .rotate(Vector3.Y, pose.yaw).rotate(Vector3.Z, pose.tilt)
+            .scale(pose.scaleX, pose.scaleY, pose.scaleX)
+        shellInst.transform.setToTranslation(0f, .45f, 0f)
+            .rotate(Vector3.Y, pose.yaw).rotate(Vector3.Z, pose.tilt)
+            .scale(pose.shellScale, pose.shellScale, pose.shellScale)
+        shellBlend.opacity = shellOpacity(seconds)
     }
 
     /** Draw the cube; [ground] lifts everything by the rolling terrain under it. */

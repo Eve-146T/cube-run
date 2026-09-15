@@ -59,9 +59,10 @@ import kotlin.random.Random
  * obstacle; coins and mystery boxes are handed to the session and banked at
  * game over.
  */
-class CubeRun(session: GameSession, private val autoStart: Boolean = false, private val idleBotStart: Boolean = false, launchOpening: Boolean = false) : Gdx3DGame(session) {
+class CubeRun(session: GameSession, private val autoStart: Boolean = false, private val idleBotStart: Boolean = false, launchOpening: Boolean = false, openingClock: cube.run.intro.OpeningClock? = null,
+              private val firstWorld: Int? = null) : Gdx3DGame(session) {
 
-    private val opening = CubeOpening(launchOpening)
+    private val opening = CubeOpening(launchOpening, openingClock)
     override val hasLaunchOpening = launchOpening
     var onOpeningProgress: ((Float) -> Unit)? = null
     fun finishOpening() { opening.finish() }
@@ -145,19 +146,20 @@ class CubeRun(session: GameSession, private val autoStart: Boolean = false, priv
         initialInteraction = Stage.interactions.get()
         Lanes.reset(); Terrain.reset()
         setTerrain { z -> Terrain.y(z) }
-        worlds.reset()
+        worlds.reset(firstWorld)
         scenery.init(worlds.world)
         bgTop.set(worlds.skyTop); bgBottom.set(worlds.skyBottom)
         player.init(worldHue(), time)
         bubble.init()
         scenery.spawnStartGate(hsvInto(tmpCol, worldHue() + 180f, 0.7f, 1f))
         rig = RunCamera(cam)
+        if (hasLaunchOpening) { introT = 1.8f; rig.intro = 0f }
         cam.position.set(0f, 3.7f, 6.4f)
         cam.lookAt(0f, 1.0f, -8f)
         cam.update()
         if (opening.active) {
             player.update(0f, 0f, time, worldHue(), trail = false, groundH = 0f)
-            opening.pose(player, cam)
+            opening.pose(player, cam, worldHue())
             bgTop.set(CubeOpening.INK); bgBottom.set(CubeOpening.INK)
         }
         session.setBubbles(Progress.bubbles)
@@ -460,11 +462,19 @@ class CubeRun(session: GameSession, private val autoStart: Boolean = false, priv
         return h
     }
 
+    override fun tickOpening() {
+        opening.tick(0f)
+        opening.pose(player, cam, worldHue())
+        alignOpeningTime(opening.motionSeconds)
+    }
+
     override fun tick(dt: Float) {
         // Navigation can become available before the intro finishes. Its camera
         // must not be applied again when returning from a wardrobe/shop preview.
         if (Stage.mode != Stage.NONE) opening.finish()
+        val wasOpening = opening.active
         opening.tick(dt)
+        if (wasOpening) alignOpeningTime(opening.motionSeconds)
         onOpeningProgress?.invoke(opening.uiAmount)
         if (!opening.active) onOpeningProgress = null
         if (idlePilot.ready(dt, !started && Stage.homeScreen && Stage.mode == Stage.NONE && !session.isOver)) {
@@ -602,7 +612,7 @@ class CubeRun(session: GameSession, private val autoStart: Boolean = false, priv
         collide(dt)
 
         rig.chase(dt, player.px, player.py, player.ground, deathT, spd)
-        if (opening.active) opening.pose(player, cam)
+        if (opening.active) opening.pose(player, cam, worldHue())
     }
 
     /** One pass over the rows: obstacles (box overlap), pads, pickups, coins, scoring. */

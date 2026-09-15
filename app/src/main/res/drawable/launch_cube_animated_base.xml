@@ -1,0 +1,10 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android" xmlns:tools="http://schemas.android.com/tools" tools:ignore="VectorRaster" android:width="288dp" android:height="288dp" android:viewportWidth="288" android:viewportHeight="288">
+<path android:name="face0" android:fillColor="#8C4D77" android:fillAlpha="1.0000" android:pathData="M161.339,212.647 L89.290,193.817 L75.763,116.039 L150.711,131.018 Z"/>
+<path android:name="face2" android:fillColor="#FFB6FF" android:fillAlpha="1.0000" android:pathData="M200.452,92.597 L150.711,131.018 L75.763,116.039 L128.024,80.751 Z"/>
+<path android:name="face4" android:fillColor="#CA6BB1" android:fillAlpha="0.0000" android:pathData="M89.290,193.817 L138.377,154.877 L128.024,80.751 L75.763,116.039 Z"/>
+<path android:name="face5" android:fillColor="#FF8FD0" android:fillAlpha="1.0000" android:pathData="M208.051,170.246 L161.339,212.647 L150.711,131.018 L200.452,92.597 Z"/>
+<path android:name="face6" android:fillColor="#8C537B" android:fillAlpha="0.2200" android:pathData="M164.619,225.630 L79.621,202.621 L63.004,110.810 L152.060,128.410 Z"/>
+<path android:name="face8" android:fillColor="#FFC5FF" android:fillAlpha="0.2200" android:pathData="M210.805,83.170 L152.060,128.410 L63.004,110.810 L125.281,69.890 Z"/>
+<path android:name="face10" android:fillColor="#CA74B6" android:fillAlpha="0.0000" android:pathData="M79.621,202.621 L137.460,156.650 L125.281,69.890 L63.004,110.810 Z"/>
+<path android:name="face11" android:fillColor="#FF9BD6" android:fillAlpha="0.2200" android:pathData="M219.165,174.800 L164.619,225.630 L152.060,128.410 L210.805,83.170 Z"/>
+</vector>

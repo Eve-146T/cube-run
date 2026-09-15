@@ -1,0 +1,82 @@
+<set xmlns:android="http://schemas.android.com/apk/res/android" android:ordering="together">
+<set android:ordering="sequentially">
+<objectAnimator android:propertyName="pathData" android:valueType="pathType" android:valueFrom="M79.621,202.621 L137.460,156.650 L125.281,69.890 L63.004,110.810 Z" android:valueTo="M77.002,207.254 L130.633,157.416 L119.119,67.288 L60.999,111.263 Z" android:duration="125" android:interpolator="@android:interpolator/linear"/>
+<objectAnimator android:propertyName="pathData" android:valueType="pathType" android:valueFrom="M77.002,207.254 L130.633,157.416 L119.119,67.288 L60.999,111.263 Z" android:valueTo="M77.387,209.645 L124.076,157.917 L113.775,67.566 L63.003,113.056 Z" android:duration="125" android:interpolator="@android:interpolator/linear"/>
+<objectAnimator android:propertyName="pathData" android:valueType="pathType" android:valueFrom="M77.387,209.645 L124.076,157.917 L113.775,67.566 L63.003,113.056 Z" android:valueTo="M80.963,209.281 L118.566,158.064 L109.961,70.905 L69.076,116.070 Z" android:duration="125" android:interpolator="@android:interpolator/linear"/>
+<objectAnimator android:propertyName="pathData" android:valueType="pathType" android:valueFrom="M80.963,209.281 L118.566,158.064 L109.961,70.905 L69.076,116.070 Z" android:valueTo="M85.376,208.252 L113.835,158.237 L106.973,74.774 L76.057,119.070 Z" android:duration="125" android:interpolator="@android:interpolator/linear"/>
+<objectAnimator android:propertyName="pathData" android:valueType="pathType" android:valueFrom="M85.376,208.252 L113.835,158.237 L106.973,74.774 L76.057,119.070 Z" android:valueTo="M88.020,209.421 L108.583,159.003 L103.163,76.251 L80.764,120.919 Z" android:duration="125" android:interpolator="@android:interpolator/linear"/>
+<objectAnimator android:propertyName="pathData" android:valueType="pathType" android:valueFrom="M88.020,209.421 L108.583,159.003 L103.163,76.251 L80.764,120.919 Z" android:valueTo="M88.521,213.702 L101.887,160.600 L97.650,74.731 L82.947,121.541 Z" android:duration="125" android:interpolator="@android:interpolator/linear"/>
+<objectAnimator android:propertyName="pathData" android:valueType="pathType" android:valueFrom="M88.521,213.702 L101.887,160.600 L97.650,74.731 L82.947,121.541 Z" android:valueTo="M88.954,219.032 L94.518,162.647 L91.511,72.453 L85.206,121.844 Z" android:duration="125" android:interpolator="@android:interpolator/linear"/>
+<objectAnimator android:propertyName="pathData" android:valueType="pathType" android:valueFrom="M88.954,219.032 L94.518,162.647 L91.511,72.453 L85.206,121.844 Z" android:valueTo="M91.726,222.123 L88.487,164.421 L86.989,72.373 L90.270,122.821 Z" android:duration="125" android:interpolator="@android:interpolator/linear"/>
+</set>
+<objectAnimator android:duration="1000" android:interpolator="@android:interpolator/linear">
+<propertyValuesHolder android:propertyName="fillColor" android:valueType="colorType">
+<keyframe android:fraction="0.000000" android:value="#CA74B6"/>
+<keyframe android:fraction="0.033333" android:value="#CA74B6"/>
+<keyframe android:fraction="0.066667" android:value="#C974B6"/>
+<keyframe android:fraction="0.100000" android:value="#C973B5"/>
+<keyframe android:fraction="0.133333" android:value="#C973B5"/>
+<keyframe android:fraction="0.166667" android:value="#C973B5"/>
+<keyframe android:fraction="0.200000" android:value="#C873B5"/>
+<keyframe android:fraction="0.233333" android:value="#C873B4"/>
+<keyframe android:fraction="0.266667" android:value="#C873B4"/>
+<keyframe android:fraction="0.300000" android:value="#C772B4"/>
+<keyframe android:fraction="0.333333" android:value="#C772B3"/>
+<keyframe android:fraction="0.366667" android:value="#C672B3"/>
+<keyframe android:fraction="0.400000" android:value="#C672B2"/>
+<keyframe android:fraction="0.433333" android:value="#C571B2"/>
+<keyframe android:fraction="0.466667" android:value="#C571B1"/>
+<keyframe android:fraction="0.500000" android:value="#C471B1"/>
+<keyframe android:fraction="0.533333" android:value="#C470B0"/>
+<keyframe android:fraction="0.566667" android:value="#C370AF"/>
+<keyframe android:fraction="0.600000" android:value="#C270AF"/>
+<keyframe android:fraction="0.633333" android:value="#C26FAE"/>
+<keyframe android:fraction="0.666667" android:value="#C16FAD"/>
+<keyframe android:fraction="0.700000" android:value="#C06FAD"/>
+<keyframe android:fraction="0.733333" android:value="#BF6EAC"/>
+<keyframe android:fraction="0.766667" android:value="#BF6EAB"/>
+<keyframe android:fraction="0.800000" android:value="#BE6DAA"/>
+<keyframe android:fraction="0.833333" android:value="#BD6DA9"/>
+<keyframe android:fraction="0.866667" android:value="#BC6CA9"/>
+<keyframe android:fraction="0.900000" android:value="#BB6CA8"/>
+<keyframe android:fraction="0.933333" android:value="#BA6BA7"/>
+<keyframe android:fraction="0.966667" android:value="#B96BA6"/>
+<keyframe android:fraction="1.000000" android:value="#B86AA5"/>
+</propertyValuesHolder>
+</objectAnimator>
+<objectAnimator android:duration="1000" android:interpolator="@android:interpolator/linear">
+<propertyValuesHolder android:propertyName="fillAlpha" android:valueType="floatType">
+<keyframe android:fraction="0.000000" android:value="0.0000"/>
+<keyframe android:fraction="0.033333" android:value="0.0000"/>
+<keyframe android:fraction="0.066667" android:value="0.0000"/>
+<keyframe android:fraction="0.100000" android:value="0.0000"/>
+<keyframe android:fraction="0.133333" android:value="0.0000"/>
+<keyframe android:fraction="0.166667" android:value="0.0000"/>
+<keyframe android:fraction="0.200000" android:value="0.0000"/>
+<keyframe android:fraction="0.233333" android:value="0.0000"/>
+<keyframe android:fraction="0.266667" android:value="0.0000"/>
+<keyframe android:fraction="0.300000" android:value="0.0000"/>
+<keyframe android:fraction="0.333333" android:value="0.0000"/>
+<keyframe android:fraction="0.366667" android:value="0.0000"/>
+<keyframe android:fraction="0.400000" android:value="0.0000"/>
+<keyframe android:fraction="0.433333" android:value="0.0000"/>
+<keyframe android:fraction="0.466667" android:value="0.0000"/>
+<keyframe android:fraction="0.500000" android:value="0.0000"/>
+<keyframe android:fraction="0.533333" android:value="0.0000"/>
+<keyframe android:fraction="0.566667" android:value="0.0000"/>
+<keyframe android:fraction="0.600000" android:value="0.0000"/>
+<keyframe android:fraction="0.633333" android:value="0.0000"/>
+<keyframe android:fraction="0.666667" android:value="0.0000"/>
+<keyframe android:fraction="0.700000" android:value="0.0000"/>
+<keyframe android:fraction="0.733333" android:value="0.0000"/>
+<keyframe android:fraction="0.766667" android:value="0.0000"/>
+<keyframe android:fraction="0.800000" android:value="0.0000"/>
+<keyframe android:fraction="0.833333" android:value="0.0000"/>
+<keyframe android:fraction="0.866667" android:value="0.0000"/>
+<keyframe android:fraction="0.900000" android:value="0.0000"/>
+<keyframe android:fraction="0.933333" android:value="0.0000"/>
+<keyframe android:fraction="0.966667" android:value="0.0000"/>
+<keyframe android:fraction="1.000000" android:value="0.1976"/>
+</propertyValuesHolder>
+</objectAnimator>
+</set>

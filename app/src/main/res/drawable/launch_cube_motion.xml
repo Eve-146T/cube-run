@@ -1,0 +1,10 @@
+<animated-vector xmlns:android="http://schemas.android.com/apk/res/android" android:drawable="@drawable/launch_cube_animated_base">
+<target android:name="face0" android:animation="@animator/launch_face_0"/>
+<target android:name="face2" android:animation="@animator/launch_face_2"/>
+<target android:name="face4" android:animation="@animator/launch_face_4"/>
+<target android:name="face5" android:animation="@animator/launch_face_5"/>
+<target android:name="face6" android:animation="@animator/launch_face_6"/>
+<target android:name="face8" android:animation="@animator/launch_face_8"/>
+<target android:name="face10" android:animation="@animator/launch_face_10"/>
+<target android:name="face11" android:animation="@animator/launch_face_11"/>
+</animated-vector>

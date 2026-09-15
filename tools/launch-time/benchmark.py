@@ -21,6 +21,7 @@ parser.add_argument('--serial', required=True)
 parser.add_argument('--output', type=Path, required=True)
 parser.add_argument('--runs', type=int, default=10)
 parser.add_argument('--record', action='store_true')
+parser.add_argument('--world', type=int, help='Pin the same starting world in both debug APKs')
 args = parser.parse_args()
 if not args.serial.startswith('emulator-'):
     parser.error('This benchmark is scoped to a local emulator.')
@@ -54,7 +55,9 @@ for trial in range(1, args.runs + 1):
                                       '--time-limit', '7', '/sdcard/cube-launch.mp4'],
                                      stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         time.sleep(1)
-    start = adb('shell', 'log -t CUBE_LAUNCH request; am start -W -n cube.run/.GameActivity')
+    command = 'log -t CUBE_LAUNCH request; am start -W -n cube.run/.GameActivity'
+    if args.world is not None: command += f' --ei world {args.world}'
+    start = adb('shell', command)
     time.sleep(3)
     trace = adb('logcat', '-d', '-v', 'monotonic', '-s', 'CUBE_START:D', 'CUBE_LAUNCH:I', 'AndroidRuntime:E', '*:S')
     (args.output / f'start-{trial}.txt').write_text(start)
@@ -73,7 +76,7 @@ for trial in range(1, args.runs + 1):
         adb('pull', '/sdcard/cube-launch.mp4', str(args.output / f'launch-{trial}.mp4'))
 
 summary = {}
-for key in ['android_total_ms', 'first frame', 'first frame swapped', 'game ready', 'cube revealed']:
+for key in ['android_total_ms', 'first frame', 'first frame swapped', 'game ready', 'cube revealed', 'native cube draw', 'scene revealed', 'opening finished']:
     samples = [r[key] for r in results if key in r and r[key] is not None]
     if samples:
         summary[key] = {'min': min(samples), 'median': statistics.median(samples), 'max': max(samples)}

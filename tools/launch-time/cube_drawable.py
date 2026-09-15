@@ -11,8 +11,8 @@ ROOT = Path(__file__).resolve().parents[2]
 YAW, TILT = radians(-125), radians(-12)
 CAMERA = (0, 2.6, 6.8)
 TARGET = (0, .45, 0)
-# Furthest shell corner is 93dp from the centre, inside Android's 96dp icon mask.
-REFERENCE_HEIGHT_DP = 640
+# Furthest starting shell corner is 90dp from the centre, inside Android's 96dp icon mask.
+REFERENCE_HEIGHT_DP = 620
 FOCAL = REFERENCE_HEIGHT_DP / (2 * tan(radians(20)))
 
 

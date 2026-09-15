@@ -16,6 +16,8 @@ parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--before', type=Path, required=True)
 parser.add_argument('--after', type=Path, required=True)
 parser.add_argument('--output', type=Path, required=True)
+parser.add_argument('--before-label', default='Original intro')
+parser.add_argument('--after-label', default='Moving startup cube')
 args = parser.parse_args()
 
 
@@ -39,11 +41,11 @@ before, before_offset = request_offset(args.before)
 after, after_offset = request_offset(args.after)
 filters = []
 for index, offset, title, subtitle in [
-    (0, before_offset, 'Before', 'Real cube first'),
-    (1, after_offset, 'After', 'Static launch cube first'),
+    (0, before_offset, 'Before', args.before_label),
+    (1, after_offset, 'After', args.after_label),
 ]:
     filters.append(
-        f'[{index}:v]setpts=PTS-{offset:.9f}/TB,fps=60:start_time=0,trim=duration=3.5,'
+        f'[{index}:v]setpts=PTS-{offset:.9f}/TB,fps=60:start_time=0:round=up,trim=duration=3.5,'
         f'scale=360:780,pad=360:900:0:120:color=0x14102e,'
         f"drawtext=text='{title}':fontcolor=white:fontsize=24:x=20:y=14,"
         f"drawtext=text='{subtitle}':fontcolor=white:fontsize=17:x=20:y=48[v{index}]"

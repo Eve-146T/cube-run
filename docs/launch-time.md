@@ -1,5 +1,8 @@
 # Launch-time optimization
 
+Historical first attempt and measurement correction. The current implementation,
+real-motion experiments, and final results are in [Moving animation at launch](launch-animation.md).
+
 ## Target and workspace
 
 Show the intro cube as close to the launch action as Android allows. Work takes
@@ -166,7 +169,9 @@ when using a different launcher or wallpaper.
 
 Regenerate the vector after changing the starting pose with
 `uv run --no-project tools/launch-time/cube_drawable.py`. Its projection and
-`CubeOpening` must use the same reference height of 640 dp.
+This historical version used a 640 dp reference height. The current moving
+version shares a 620 dp reference in `OpeningPose`, leaving room for the pulsing
+shell inside the system icon mask.
 
 ## Measurement rules
 

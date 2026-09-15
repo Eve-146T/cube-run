@@ -48,12 +48,14 @@ abstract class Gdx3DGame(val session: GameSession) : ApplicationAdapter(), Touch
 
     /** Consumed on the next GL frame, after the first frame's buffer swap. */
     var onFirstFrame: (() -> Unit)? = null
+    var onSceneFrame: (() -> Unit)? = null
+    private var sceneFrameDrawn = false
     private var firstFrameDrawn = false
     private var firstFrameReported = false
     private var startupStep = -1
     private var terrain: TerrainHeight? = null
 
-    /** The intro only needs the player; prepare scenery batches while its pose holds. */
+    /** The intro only needs the player; prepare scenery batches while its native animation continues. */
     protected open val hasLaunchOpening = false
 
     lateinit var cam: PerspectiveCamera
@@ -81,6 +83,10 @@ abstract class Gdx3DGame(val session: GameSession) : ApplicationAdapter(), Touch
     var time = 0f
         private set
     private var preciseTime = 0.0
+    /** Before gameplay begins, continue the visible intro time across renderers. */
+    protected fun alignOpeningTime(seconds: Float) {
+        preciseTime = seconds.toDouble(); time = seconds
+    }
     private val frameStepper = FrameStepper()
     private var resumed = true
 
@@ -106,6 +112,7 @@ abstract class Gdx3DGame(val session: GameSession) : ApplicationAdapter(), Touch
 
     abstract fun init()
     abstract fun tick(dt: Float)
+    protected open fun tickOpening() {}
 
     /** While true the frame is drawn but nothing advances: [tick] gets dt = 0 and [time] holds. */
     open fun paused(): Boolean = false
@@ -187,7 +194,7 @@ abstract class Gdx3DGame(val session: GameSession) : ApplicationAdapter(), Touch
         }
     }
 
-    /** A direct run-start request can skip the still pose at any point. GL thread only. */
+    /** A direct run-start request can finish preparation at any point. GL thread only. */
     protected fun finishRendererStartup() {
         if (startupStep < 0) return
         while (startupStep <= 7) prepareRenderer(startupStep++)
@@ -199,6 +206,9 @@ abstract class Gdx3DGame(val session: GameSession) : ApplicationAdapter(), Touch
     // ----------------------------------------------------------------- frame
 
     override fun render() {
+        if (sceneFrameDrawn) {
+            onSceneFrame?.invoke(); onSceneFrame = null
+        }
         if (firstFrameDrawn && !firstFrameReported) {
             firstFrameReported = true
             LaunchTrace.mark("first frame swapped")
@@ -206,18 +216,10 @@ abstract class Gdx3DGame(val session: GameSession) : ApplicationAdapter(), Touch
             if (!hasLaunchOpening) Gdx.app.postRunnable { if (!disposed) bubbles }
         }
         if (startupStep >= 0) {
-            // The first call draws only the cube. Later calls spend a small CPU
-            // budget preparing renderers between cube frames. Simulation stays at t=0.
-            if (firstFrameDrawn) {
-                val until = System.nanoTime() + 4_000_000L
-                do { prepareRenderer(startupStep++) }
-                while (startupStep <= 7 && System.nanoTime() < until)
-                if (startupStep > 7) {
-                    startupStep = -1
-                    resumed = true
-                    LaunchTrace.mark("game ready")
-                }
-            }
+            // Native Canvas now owns the visible intro. Finish GL preparation
+            // together instead of inserting extra frames between small batches.
+            if (firstFrameDrawn) finishRendererStartup()
+            tickOpening()
             Gdx.gl.glViewport(0, 0, sw, sh)
             Gdx.gl.glClearColor(bgBottom.r, bgBottom.g, bgBottom.b, 1f)
             Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT or GL20.GL_DEPTH_BUFFER_BIT)
@@ -336,6 +338,7 @@ abstract class Gdx3DGame(val session: GameSession) : ApplicationAdapter(), Touch
         Gdx.gl.glEnable(GL20.GL_DEPTH_TEST)
 
         perf.endFrame(shards.count)
+        sceneFrameDrawn = true
         markFirstFrame()
     }
 

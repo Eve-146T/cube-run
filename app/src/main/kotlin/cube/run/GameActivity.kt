@@ -22,6 +22,7 @@ import android.view.View
 class GameActivity : AndroidApplication() {
 
     private lateinit var hud: Hud
+    private var openingClock: cube.run.intro.OpeningClock? = null
     private var gameSurface: SurfaceView? = null
     private var backCallback: android.window.OnBackInvokedCallback? = null
 
@@ -43,24 +44,36 @@ class GameActivity : AndroidApplication() {
         val session = GameHostSession(this, SCORE_ID)
         // RESTART relaunches with this extra: the run begins on the first frame, no "tap to start"
         val launchOpening = !intent.hasExtra(Hud.EXTRA_AUTOSTART) && savedInstanceState == null
+        val clock = if (launchOpening) cube.run.intro.OpeningClock().also { openingClock = it } else null
+        val firstWorld = when {
+            Settings.testPillWorld -> 1
+            Settings.testWorld >= 0 -> Settings.testWorld
+            else -> cube.run.data.Worlds.all.random().id
+        }
         val game = CubeRun(session, autoStart = intent.getBooleanExtra(Hud.EXTRA_AUTOSTART, false),
-            idleBotStart = intent.getBooleanExtra(Hud.EXTRA_IDLE_BOT, false), launchOpening = launchOpening)
-        val openingTouch = if (launchOpening) View(this).apply {
+            idleBotStart = intent.getBooleanExtra(Hud.EXTRA_IDLE_BOT, false), launchOpening = launchOpening,
+            openingClock = clock, firstWorld = firstWorld)
+        val openingTouch = if (clock != null) cube.run.intro.NativeCubeView(this, clock,
+            cube.run.data.Skins.get(Progress.skin), cube.run.data.Worlds.get(firstWorld).hue).apply {
             isClickable = true
             importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
-            // Keep the starting pose visible while SurfaceView acquires its first
-            // buffer, including on Android 9–11 where there is no SplashScreen API.
-            setBackgroundResource(R.drawable.launch_background)
             setOnClickListener { com.badlogic.gdx.Gdx.app.postRunnable { game.finishOpening() } }
         } else null
         var openingAmount = if (launchOpening) 0f else 1f
+        var finishReported = false
         if (launchOpening) {
             game.onOpeningProgress = { amount -> runOnUiThread {
                 openingAmount = amount
                 if (::hud.isInitialized) {
                     hud.alpha = amount
                     hud.translationY = (1f-amount)*18f*resources.displayMetrics.density
-                    if (amount >= 1f) (openingTouch?.parent as? FrameLayout)?.removeView(openingTouch)
+                    if (amount >= 1f) {
+                        (openingTouch?.parent as? FrameLayout)?.removeView(openingTouch)
+                        if (!finishReported) {
+                            finishReported = true
+                            cube.run.core.LaunchTrace.mark("opening finished")
+                        }
+                    }
                 }
             } }
         } else {
@@ -105,19 +118,19 @@ class GameActivity : AndroidApplication() {
         root.addView(gameView, FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT)
         if (::hud.isInitialized) root.addView(hud, FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT)
         openingTouch?.let { root.addView(it, FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT) }
-        var firstFrameReady = false
-        var removeSplash: (() -> Unit)? = null
         if (android.os.Build.VERSION.SDK_INT >= 31) {
             splashScreen.setOnExitAnimationListener { splash ->
-                if (firstFrameReady) splash.remove() else removeSplash = { splash.remove() }
+                if (launchOpening) splash.iconAnimationStart?.let { clock?.adoptSystemStart(it.toEpochMilli()) }
+                // A normal Android view is already drawing the moving cube; no EGL wait.
+                splash.remove()
+                cube.run.core.LaunchTrace.mark("system splash removed")
             }
         }
-        game.onFirstFrame = { runOnUiThread {
+        game.onSceneFrame = { runOnUiThread {
             if (isFinishing || isDestroyed) return@runOnUiThread
-            firstFrameReady = true; removeSplash?.invoke(); removeSplash = null
-            cube.run.core.LaunchTrace.mark("cube revealed")
-            openingTouch?.animate()?.alpha(0f)?.setDuration(80L)?.withEndAction {
-                openingTouch.background = null
+            cube.run.core.LaunchTrace.mark("scene revealed")
+            openingTouch?.animate()?.alpha(0f)?.setDuration(50L)?.withEndAction {
+                openingTouch.drawingCube = false
                 openingTouch.alpha = 1f
             }?.start()
             if (launchOpening) root.postDelayed({
@@ -188,11 +201,13 @@ class GameActivity : AndroidApplication() {
     /** Leaving the app mid-run (home, a call) pauses it: the run resumes from the pause card. */
     override fun onPause() {
         Stage.userInteraction()
+        openingClock?.pause()
         if (::hud.isInitialized) hud.autoPause()
         super.onPause()
     }
 
     override fun onResume() {
+        openingClock?.resume()
         super.onResume()
         goFullscreen()
     }
