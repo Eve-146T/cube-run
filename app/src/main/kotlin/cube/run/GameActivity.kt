@@ -25,14 +25,38 @@ class GameActivity : AndroidApplication() {
         super.attachBaseContext(cube.run.data.Languages.wrap(newBase))
     }
 
-    /** Relaunch like MENU so libGDX disposes its native meshes before the new session. */
+    private var languageResources: android.content.res.Resources? = null
+    override fun getResources(): android.content.res.Resources = languageResources ?: super.getResources()
+    private lateinit var hostSession: GameHostSession
+    private var changingLanguage = false
+
+    /** Rebuild only the localized overlay; the GL surface and world keep running uninterrupted. */
     fun changeLanguage(code: String) {
-        if (code == cube.run.data.Languages.current(this)) return
+        if (changingLanguage || code == cube.run.data.Languages.current(this)) return
+        val parent = hud.parent as? FrameLayout ?: return
+        changingLanguage = true
         cube.run.data.Languages.select(this, code)
-        startActivity(android.content.Intent(this, javaClass)
-            .putExtra(Hud.EXTRA_AUTOSTART, false)
-            .putExtra(EXTRA_LANGUAGES, true))
-        finish()
+        val previous = hud
+        previous.settleLanguageTransition()
+        languageResources = cube.run.data.Languages.wrap(baseContext).resources
+        hud = Hud(this).apply {
+            layoutDirection = resources.configuration.layoutDirection
+            setBest(Scores.best(SCORE_ID))
+            showLanguagesAfterChange()
+            alpha = 0f
+        }
+        hostSession.attach(hud)
+        parent.addView(hud, FrameLayout.LayoutParams(-1, -1))
+        // Block taps during the crossfade, including outside-menu taps, until both trees settle.
+        val blocker = View(this).apply { isClickable = true; importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO }
+        parent.addView(blocker, FrameLayout.LayoutParams(-1, -1))
+        previous.animate().alpha(0f).setDuration(180).start()
+        hud.animate().alpha(1f).setDuration(180).withEndAction {
+            parent.removeView(previous)
+            parent.removeView(blocker)
+            changingLanguage = false
+            hud.resumeLanguageIdle()
+        }.start()
     }
 
     private lateinit var hud: Hud
@@ -55,6 +79,7 @@ class GameActivity : AndroidApplication() {
             intent.getIntExtra("bonusnow", -2).let { if (it >= -1) Settings.testBonusNow = it }
         }
         val session = GameHostSession(this, SCORE_ID)
+        hostSession = session
         // RESTART relaunches with this extra: the run begins on the first frame, no "tap to start"
         val launchOpening = !intent.hasExtra(Hud.EXTRA_AUTOSTART) && savedInstanceState == null
         val game = CubeRun(session, autoStart = intent.getBooleanExtra(Hud.EXTRA_AUTOSTART, false),
@@ -122,7 +147,6 @@ class GameActivity : AndroidApplication() {
         }
         game.onFirstFrame = { runOnUiThread {
             firstFrameReady = true; removeSplash?.invoke(); removeSplash = null
-            if (::hud.isInitialized) hud.showPendingLanguages()
             if (launchOpening) root.postDelayed({
                 if (!isFinishing && !isDestroyed && !::hud.isInitialized) {
                     cube.run.core.LaunchTrace.mark("hud begin")
@@ -131,7 +155,6 @@ class GameActivity : AndroidApplication() {
                     hud.translationY = (1f-openingAmount)*18f*resources.displayMetrics.density
                     root.addView(hud, 1, FrameLayout.LayoutParams(-1, -1))
                     session.attach(hud)
-                    hud.showPendingLanguages()
                     if (openingAmount >= 1f) openingTouch?.let { root.removeView(it) }
                     cube.run.core.LaunchTrace.mark("hud ready")
                 }
@@ -203,6 +226,5 @@ class GameActivity : AndroidApplication() {
 
     companion object {
         private const val SCORE_ID = "cuberun"
-        const val EXTRA_LANGUAGES = "show_languages"
     }
 }

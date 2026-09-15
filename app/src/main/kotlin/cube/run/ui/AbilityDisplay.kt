@@ -86,6 +86,8 @@ class AbilityDisplay(private val activity: Activity, private val kit: UiKit, val
     /** Keep the pressed icon alive so its shared 220 ms release can finish. */
     private fun revealCorner() {
         val host = cornerHost ?: return
+        val rtl = host.layoutDirection == View.LAYOUT_DIRECTION_RTL
+        val direction = if (rtl) -1 else 1
         cornerChips.forEachIndexed { i, chip ->
             chip.color = if (selected == i) Theme.LAVENDER else Theme.WHITE
             chip.isSelected = selected == i
@@ -94,7 +96,7 @@ class AbilityDisplay(private val activity: Activity, private val kit: UiKit, val
         val old = cornerCard
         cornerCard = null
         if (old != null) {
-            old.move().alpha(0f).scaleX(.94f).scaleY(.97f).translationX(-kit.dpf(8f))
+            old.move().alpha(0f).scaleX(.94f).scaleY(.97f).translationX(-kit.dpf(8f) * direction)
                 .setDuration(120).withEndAction { (old.parent as? android.view.ViewGroup)?.removeView(old) }.start()
         }
         if (selected < 0) return
@@ -109,8 +111,8 @@ class AbilityDisplay(private val activity: Activity, private val kit: UiKit, val
         for (i in 0 until slot.childCount) slot.getChildAt(i).animate().cancel()
         slot.removeAllViews()
         slot.addView(panel, FrameLayout.LayoutParams(-1, -2))
-        panel.pivotX = 0f; panel.pivotY = kit.dpf(24f)
-        panel.alpha = 0f; panel.scaleX = .92f; panel.scaleY = .96f; panel.translationX = -kit.dpf(10f)
+        panel.pivotX = if (rtl) slot.width.toFloat() else 0f; panel.pivotY = kit.dpf(24f)
+        panel.alpha = 0f; panel.scaleX = .92f; panel.scaleY = .96f; panel.translationX = -kit.dpf(10f) * direction
         panel.move().alpha(1f).scaleX(1f).scaleY(1f).translationX(0f)
             .setDuration(260).setInterpolator(Anim.springSoft).start()
     }

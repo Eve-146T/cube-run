@@ -56,7 +56,7 @@ class WardrobeView(activity: Activity, kit: UiKit, abilityStyle: Int = 0, onClos
 
         // ---- tabs under the title
         for (c in Wardrobe.cats) {
-            val t = kit.text(kit.ctx.gameText(Wardrobe.label(c)), 13f, Theme.WHITE, 700).apply {
+            val t = kit.text(kit.ctx.gameText(Wardrobe.label(c)).uppercase(resources.configuration.locales[0]), 13f, Theme.WHITE, 700).apply {
                 letterSpacing = kit.tracking(0.1f)
                 setPadding(dp(16f), dp(7f), dp(16f), dp(7f))
                 setOnClickListener { switchTo(c) }
@@ -160,10 +160,11 @@ class WardrobeView(activity: Activity, kit: UiKit, abilityStyle: Int = 0, onClos
         applyPreview()
         Stage.previewKicks.incrementAndGet() // the stage spin-flips the cube with a pop
         Haptics.tick()
-        Anim.slideIn(name, fromX = d * dpf(40f), duration = 220)
+        val visualDirection = d * if (layoutDirection == View.LAYOUT_DIRECTION_RTL) -1 else 1
+        Anim.slideIn(name, fromX = visualDirection * dpf(40f), duration = 220)
         val arrow = if (d > 0) right else left
         Anim.reset(arrow)
-        arrow.translationX = d * dpf(8f)
+        arrow.translationX = visualDirection * dpf(8f)
         arrow.move().translationX(0f).setDuration(220).setInterpolator(Anim.ease).start()
         render()
     }

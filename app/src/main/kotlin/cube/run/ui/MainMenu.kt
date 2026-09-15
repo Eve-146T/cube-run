@@ -187,6 +187,19 @@ class MainMenu(
         logo.postDelayed(startRipple, 620)
     }
 
+    /** A locale crossfade keeps the menu in place instead of replaying its launch entrance. */
+    fun settleLanguageTransition() {
+        setShown(true)
+        for (part in listOf(logo, bestRow, tapHint)) Anim.reset(part)
+        for (chip in toolbarChips()) Anim.reset(chip)
+        for (letter in letters) Anim.reset(letter)
+    }
+
+    fun resumeLanguageIdle() {
+        anims.add(Anim.breathe(tapHint, 0.55f, 1f, 750))
+        logo.post(startRipple)
+    }
+
     /** Re-read the bank / stock / best (after the shop, the wardrobe, a dev toggle). */
     fun refresh() {
         kit.labelOf(bank).text = Progress.coins.toString()

@@ -10,6 +10,7 @@ import android.graphics.Paint
 import android.graphics.Path
 import android.view.Gravity
 import android.view.View
+import android.view.MotionEvent
 import android.view.accessibility.AccessibilityNodeInfo
 import android.widget.ImageView
 import android.widget.LinearLayout
@@ -27,6 +28,23 @@ class LanguageSheet(
     onSelected: (String) -> Unit,
     onDismissed: () -> Unit,
 ) : Sheet(activity, kit, onDismissed) {
+    private var outsideTouch = false
+
+    // Include the scroll container's padding in the backdrop; consume the whole gesture.
+    override fun dispatchTouchEvent(event: MotionEvent): Boolean {
+        if (event.actionMasked == MotionEvent.ACTION_DOWN) {
+            val bounds = android.graphics.Rect()
+            card.getGlobalVisibleRect(bounds)
+            outsideTouch = !bounds.contains(event.rawX.toInt(), event.rawY.toInt())
+        }
+        if (outsideTouch) {
+            if (event.actionMasked == MotionEvent.ACTION_UP) { outsideTouch = false; dismiss() }
+            if (event.actionMasked == MotionEvent.ACTION_CANCEL) outsideTouch = false
+            return true
+        }
+        return super.dispatchTouchEvent(event)
+    }
+
     init {
         accessibilityPaneTitle = activity.getString(R.string.languages_title)
         // Keep the card reachable on small displays and with larger system text.
@@ -65,7 +83,7 @@ class LanguageSheet(
             val row = LinearLayout(activity).apply {
                 orientation = LinearLayout.HORIZONTAL
                 gravity = Gravity.CENTER_VERTICAL
-                minimumHeight = dp(82f)
+                minimumHeight = dp(72f)
                 setPaddingRelative(dp(14f), dp(14f), dp(12f), dp(14f) + kit.CARD_LIP)
                 background = RippleDrawable(ColorStateList.valueOf(Theme.alpha(Theme.GRAPE, 28)),
                     kit.cardDrawable(if (selected) Theme.lighten(Theme.MINT, 0.82f) else Theme.CARD_ALT,
@@ -99,10 +117,6 @@ class LanguageSheet(
                     textDirection = View.TEXT_DIRECTION_FIRST_STRONG
                     textAlignment = View.TEXT_ALIGNMENT_VIEW_START
                 }, LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT))
-                addView(kit.text(activity.getString(option.country), 13f, Theme.INK_SOFT, 400, Gravity.START).apply {
-                    textAlignment = View.TEXT_ALIGNMENT_VIEW_START
-                },
-                    LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT).apply { topMargin = dp(3f) })
             }, LinearLayout.LayoutParams(0, LayoutParams.WRAP_CONTENT, 1f).apply { marginStart = dp(12f); marginEnd = dp(8f) })
             row.addView(SelectionMark(activity, kit, selected), LinearLayout.LayoutParams(dp(24f), dp(24f)))
             card.addView(row, LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT).apply {

@@ -11,7 +11,7 @@ object Languages {
     data class Option(val code: String, val nativeName: String, val country: Int, val flag: Int)
 
     val options = listOf(
-        Option("en", "English", R.string.country_uk, R.drawable.flag_gb),
+        Option("en", "American", R.string.country_us, R.drawable.flag_us),
         Option("de", "Deutsch", R.string.country_germany, R.drawable.flag_de),
         Option("he", "עברית", R.string.country_israel, R.drawable.flag_il),
     )
@@ -35,7 +35,8 @@ object Languages {
     }
 
     fun wrap(ctx: Context): Context {
-        val locale = Locale.forLanguageTag(current(ctx))
+        val code = current(ctx)
+        val locale = Locale.forLanguageTag(if (code == "en") "en-US" else code)
         val config = Configuration(ctx.resources.configuration).apply {
             setLocales(LocaleList(locale))
             setLayoutDirection(locale)

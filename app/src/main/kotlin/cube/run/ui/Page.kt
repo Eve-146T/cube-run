@@ -59,6 +59,7 @@ abstract class Page(
     }
 
     init {
+        layoutDirection = resources.configuration.layoutDirection // Also applies while a shop is prepared offscreen.
         isClickable = true // the page owns every touch: the game must not start under it
         if (!dark) background = kit.pageBackground()
 

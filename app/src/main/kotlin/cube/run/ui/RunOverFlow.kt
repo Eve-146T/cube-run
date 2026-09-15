@@ -79,12 +79,13 @@ class RunOverFlow(
 
     /** Slide the old page out to the left, the new one in from the right. */
     private fun swap(next: View) {
+        val direction = if (resources.configuration.layoutDirection == View.LAYOUT_DIRECTION_RTL) -1 else 1
         page?.let { old ->
-            old.move().alpha(0f).translationX(-dpf(60f)).setDuration(160).withEndAction { removeView(old) }.start()
+            old.move().alpha(0f).translationX(-dpf(60f) * direction).setDuration(160).withEndAction { removeView(old) }.start()
         }
         page = next
         addView(next, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
-        Anim.slideIn(next, 0, dpf(70f), 260)
+        Anim.slideIn(next, 0, dpf(70f) * direction, 260)
     }
 
     /** Start the destination immediately; the window transition keeps these results visible until it is ready. */
@@ -152,7 +153,12 @@ class RunOverFlow(
         if (isNewBest) host.addView(CelebrationView(activity, focusY = 0.17f, rays = false, count = 160), LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
 
         // the column: (NEW RECORD!) the score, then ONE card with the stars and the stats
-        val column = LinearLayout(activity).apply {
+        val column = object : LinearLayout(activity) {
+            override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
+                // Measure the complete result, then fit it as a unit; never squeeze away the coin total.
+                super.onMeasure(widthMeasureSpec, MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED))
+            }
+        }.apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER_HORIZONTAL
             clipChildren = false; clipToPadding = false
@@ -213,6 +219,15 @@ class RunOverFlow(
         host.addView(column, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT).apply {
             gravity = Gravity.TOP; topMargin = dp(200f) // the stage frames the cube at 156 dp
         })
+        fun fitResults() {
+            if (host.height <= 0 || column.height <= 0) return
+            val available = (host.height - dp(200f) - dp(86f)).coerceAtLeast(1)
+            val scale = minOf(1f, available.toFloat() / column.height)
+            column.pivotX = column.width / 2f; column.pivotY = 0f
+            column.scaleX = scale; column.scaleY = scale
+        }
+        host.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ -> fitResults() }
+        column.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ -> fitResults() }
         host.addView(tapHint(if (boxes > 0) kit.ctx.getString(R.string.text_tap_to_continue) else kit.ctx.getString(R.string.text_tap_for_the_menu)), LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT).apply {
             gravity = Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL; bottomMargin = dp(32f)
         })

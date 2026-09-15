@@ -28,6 +28,7 @@ class CandyPainter(private val radius: Float, private val lip: Float) {
     private val rect = RectF()
     private val clip = android.graphics.Path()
     var progress = -1f
+    var rtl = false
     var progressColor = Theme.MINT
     var color = Theme.MINT
         set(v) { field = v; lipColor = Theme.darken(v, 0.32f); gloss = Theme.alpha(Theme.lighten(v, 0.6f), 110) }
@@ -56,7 +57,8 @@ class CandyPainter(private val radius: Float, private val lip: Float) {
             clip.reset(); clip.addRoundRect(rect, radius, radius, android.graphics.Path.Direction.CW)
             c.save(); c.clipPath(clip)
             paint.color = progressColor
-            c.drawRect(0f, off, w * progress.coerceIn(0f, 1f), h - lip + off, paint)
+            val filled = w * progress.coerceIn(0f, 1f)
+            c.drawRect(if (rtl) w - filled else 0f, off, if (rtl) w else filled, h - lip + off, paint)
             c.restore()
         }
         paint.color = gloss
@@ -152,6 +154,7 @@ class CandyButton(ctx: Context, color: Int, label: CharSequence, textSize: Float
 
     override fun onDraw(canvas: Canvas) {
         canvas.save()
+        painter.rtl = layoutDirection == View.LAYOUT_DIRECTION_RTL
         canvas.scale(painter.scale(), painter.scale(), width / 2f, height / 2f)
         painter.draw(canvas, width.toFloat(), height.toFloat())
         canvas.translate(0f, painter.offset())
@@ -248,7 +251,8 @@ class SegmentBar(ctx: Context, private val max: Int, private val gapPx: Float, p
         val w = width.toFloat(); val h = height.toFloat()
         val segW = (w - gapPx * (max - 1)) / max
         for (i in 0 until max) {
-            val x0 = i * (segW + gapPx)
+            val visualIndex = if (layoutDirection == View.LAYOUT_DIRECTION_RTL) max - 1 - i else i
+            val x0 = visualIndex * (segW + gapPx)
             val grow = if (i == popIndex) pop * h * 0.45f else 0f
             paint.color = if (i < level) color else offColor
             rect.set(x0, -grow, x0 + segW, h + grow)
@@ -270,24 +274,28 @@ class UiKit(val ctx: Context) {
     fun text(
         t: CharSequence, size: Float, color: Int = Theme.INK, weight: Int = 600, gravity: Int = Gravity.CENTER,
     ): TextView = TextView(ctx).apply {
+        layoutDirection = ctx.resources.configuration.layoutDirection
         text = t
         textDirection = View.TEXT_DIRECTION_FIRST_STRONG_LTR
         textSize = size
         setTextColor(color)
         typeface = Fonts.get(ctx, weight)
         this.gravity = gravity
+        if (gravity and Gravity.RELATIVE_HORIZONTAL_GRAVITY_MASK == Gravity.START) textAlignment = View.TEXT_ALIGNMENT_VIEW_START
         includeFontPadding = false
     }
 
     /** White text with an ink outline: the look of everything drawn over the 3D stage. */
     fun stageText(t: CharSequence, size: Float, color: Int = Theme.WHITE, weight: Int = 700, gravity: Int = Gravity.CENTER, stroke: Float = size / 7f): OutlineTextView =
         OutlineTextView(ctx, dpf(stroke), Theme.INK).apply {
+            layoutDirection = ctx.resources.configuration.layoutDirection
             text = t
             textDirection = View.TEXT_DIRECTION_FIRST_STRONG_LTR
             textSize = size
             setTextColor(color)
             typeface = Fonts.get(ctx, weight)
             this.gravity = gravity
+            if (gravity and Gravity.RELATIVE_HORIZONTAL_GRAVITY_MASK == Gravity.START) textAlignment = View.TEXT_ALIGNMENT_VIEW_START
             includeFontPadding = false
             val pad = dp(stroke + 2f)
             setPadding(pad, pad, pad, pad)

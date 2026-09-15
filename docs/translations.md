@@ -4,6 +4,7 @@ English is the fallback catalog in `app/src/main/res/values/strings.xml` and
 `language.xml`. German lives in `values-de`; Hebrew uses Android's compatible
 `values-iw` resource qualifier and the modern `he` language code in the picker.
 The first launch chooses a supported device language, falling back to English.
+The English option is displayed as American with a US flag and uses `en-US`.
 An explicit selection is saved in settings and takes precedence on later launches.
 
 ## Add a language
@@ -13,7 +14,7 @@ An explicit selection is saved in settings and takes precedence on later launche
    (`%1$s`, `%2$d`) intact. Translate each plural form required by that language.
 2. Add an option to `data/Languages.kt`: language tag, native language name,
    country-name resource, and a vector flag. Add the country name to every catalog.
-   Flags identify the labeled country; the native language name identifies the language.
+   Show the flag and native language name. Country names are included only in accessibility labels.
 3. Run `./gradlew :app:assembleDebug :app:lintDebug` and the `cube.run.ui.LanguageTest`
    instrumentation tests. Check the picker, home, wardrobe, shop, pause and rewards
    on a small screen and with large system text. Check RTL when applicable.

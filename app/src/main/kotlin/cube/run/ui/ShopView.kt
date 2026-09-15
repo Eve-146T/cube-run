@@ -325,14 +325,26 @@ class ShopView(
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
             clipChildren = false; clipToPadding = false
-            if (next != null) {
-                addView(kit.stageText(now, 16f, Theme.alpha(Theme.WHITE, 215), stroke = 2f, gravity = Gravity.START).apply { maxLines = 1 }.also { nowViews[u.key] = it })
-                addView(kit.stageText(if (resources.configuration.layoutDirection == View.LAYOUT_DIRECTION_RTL) "←" else "→", 16f, Theme.alpha(Theme.WHITE, 190), stroke = 2f), LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { marginStart = dp(6f); marginEnd = dp(6f) })
-                addView(kit.stageText(next, 30f, Theme.lighten(color, 0.3f), stroke = 3.5f, gravity = Gravity.START).apply { maxLines = 1 }.also { nextViews[u.key] = it })
-            } else {
-                addView(kit.stageText(now, 30f, Theme.YELLOW, stroke = 3.5f, gravity = Gravity.START).apply { maxLines = 1 }.also { nowViews[u.key] = it })
+            val values = LinearLayout(activity).apply {
+                val stacked = resources.configuration.screenWidthDp / resources.configuration.fontScale < 350 &&
+                    (now.length > 4 || (next?.length ?: 0) > 4)
+                orientation = if (stacked) LinearLayout.VERTICAL else LinearLayout.HORIZONTAL
+                gravity = Gravity.CENTER_VERTICAL
+                clipChildren = false; clipToPadding = false
+                fun value(text: String, size: Float, tint: Int, weight: Float, target: MutableMap<String, View>) {
+                    addView(kit.stageText(text, size, tint, stroke = if (size > 16) 3.5f else 2f, gravity = Gravity.START).apply {
+                        target[u.key] = this
+                    }, if (stacked) LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+                    else LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, weight))
+                }
+                if (next != null) {
+                    value(now, 16f, Theme.alpha(Theme.WHITE, 215), 1f, nowViews)
+                    if (!stacked) addView(kit.stageText(if (resources.configuration.layoutDirection == View.LAYOUT_DIRECTION_RTL) "←" else "→", 16f, Theme.alpha(Theme.WHITE, 190), stroke = 2f),
+                        LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { marginStart = dp(3f); marginEnd = dp(3f) })
+                    value(next, if (stacked) 24f else 30f, Theme.lighten(color, .3f), 1.5f, nextViews)
+                } else value(now, 30f, Theme.YELLOW, 1f, nowViews)
             }
-            addView(View(activity), LinearLayout.LayoutParams(0, 1, 1f))
+            addView(values, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply { marginEnd = dp(10f) })
             addView(priceButton(price, u.key, u, demoOf(u)) { Progress.buyUpgrade(u) })
         })
         val bar = kit.segments(u.max).apply { level = lvl; this.color = if (maxed) Theme.GOLD else Theme.lighten(color, 0.15f); offColor = Theme.alpha(Theme.WHITE, 60) }

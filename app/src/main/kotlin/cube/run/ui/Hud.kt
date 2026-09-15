@@ -4,6 +4,7 @@ import android.annotation.SuppressLint
 import android.app.Activity
 import android.content.Intent
 import android.view.Gravity
+import android.view.View
 import android.widget.FrameLayout
 import android.widget.LinearLayout
 import cube.run.GameActivity
@@ -102,9 +103,10 @@ class Hud(private val activity: Activity) : FrameLayout(activity) {
         addView(pauseChip, LayoutParams(dp(48f), dp(52f)).apply { gravity = Gravity.TOP or Gravity.END; topMargin = dp(48f); marginEnd = dp(14f) })
         setBubbles(Progress.bubbles)
         setOnApplyWindowInsetsListener { _, insets ->
-            val (_, t, r, _) = insetsOf(insets)
+            val (l, t, r, _) = insetsOf(insets)
+            val endInset = if (layoutDirection == View.LAYOUT_DIRECTION_RTL) l else r
             (topBox.layoutParams as LayoutParams).topMargin = maxOf(dp(44f), t + dp(6f))
-            (pauseChip.layoutParams as LayoutParams).apply { topMargin = maxOf(dp(48f), t + dp(10f)); marginEnd = dp(14f) + r }
+            (pauseChip.layoutParams as LayoutParams).apply { topMargin = maxOf(dp(48f), t + dp(10f)); marginEnd = dp(14f) + endInset }
             topBox.requestLayout(); pauseChip.requestLayout()
             insets
         }
@@ -117,13 +119,17 @@ class Hud(private val activity: Activity) : FrameLayout(activity) {
         postDelayed(prepareShop, 900) // let the initial menu entrance finish before preparing cards
     }
 
-    /** Called after the engine's first frame, so Stage.reset cannot reopen the idle pilot. */
-    fun showPendingLanguages() {
-        if (activity.intent.getBooleanExtra(GameActivity.EXTRA_LANGUAGES, false)) {
-            activity.intent.removeExtra(GameActivity.EXTRA_LANGUAGES)
-            openLanguages()
-        }
+    fun settleLanguageTransition() {
+        menu.settleLanguageTransition()
+        languageSheet?.settleEntrance()
     }
+
+    fun showLanguagesAfterChange() {
+        openLanguages()
+        settleLanguageTransition()
+    }
+
+    fun resumeLanguageIdle() = menu.resumeLanguageIdle()
 
     override fun onDetachedFromWindow() {
         removeCallbacks(prepareShop)
@@ -269,7 +275,7 @@ class Hud(private val activity: Activity) : FrameLayout(activity) {
             val b = boost ?: return
             boost = null
             b.taps = taps
-            b.move().translationX(dpf(120f)).alpha(0f).setDuration(260).setInterpolator(Anim.ease).withEndAction { removeView(b) }.start()
+            b.move().translationX(dpf(if (layoutDirection == View.LAYOUT_DIRECTION_RTL) -120f else 120f)).alpha(0f).setDuration(260).setInterpolator(Anim.ease).withEndAction { removeView(b) }.start()
         }
     }
 
