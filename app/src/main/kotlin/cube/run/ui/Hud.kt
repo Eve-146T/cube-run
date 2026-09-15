@@ -78,6 +78,7 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false) : Fr
     private var runStarted = false
     private var page: Page? = null
     private var preparedShop: ShopView? = null
+    private var opening = openingEntrance
     private val prepareShop = Runnable {
         if (isAttachedToWindow && !pageOpen() && width > 0 && height > 0 && preparedShop?.isCurrent() != true) {
             preparedShop = newShop().also { shop ->
@@ -94,7 +95,10 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false) : Fr
     /** One launch clock owns the fade. Controls are laid out at their final positions from frame one. */
     fun setOpeningProgress(amount: Float) {
         alpha = amount
-        if (amount >= 1f) menu.finishOpeningEntrance()
+        if (amount >= 1f) {
+            menu.finishOpeningEntrance()
+            if (opening) { opening = false; scheduleShopPreparation() }
+        }
     }
 
     init {
@@ -118,7 +122,7 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false) : Fr
 
     override fun onAttachedToWindow() {
         super.onAttachedToWindow()
-        postDelayed(prepareShop, 900) // let the initial menu entrance finish before preparing cards
+        if (!opening) scheduleShopPreparation()
     }
 
     override fun onDetachedFromWindow() {

@@ -1,5 +1,10 @@
 # Cube and menu handoff correction
 
+**Superseded in part:** subsequent user review found a remaining scene snap and
+stop/start rotation. [Launch continuity correction](launch-continuity.md)
+documents the reproduction, wider tests and replacement handoff. Measurements
+and crossfade descriptions below apply to the previous APK.
+
 Worktree: `~/Worktrees/cube-run/optimizing-launch-time`, branch
 `optimizing-launchtime`. Previous APK: commit `48a48f2`.
 

@@ -18,6 +18,7 @@ parser.add_argument('--video', action='store_true')
 args = parser.parse_args()
 FACES = [[1,5,7,3], [4,0,2,6], [2,3,7,6], [0,4,5,1], [5,4,6,7], [0,1,3,2]]
 NORMALS = [(1,0,0), (-1,0,0), (0,1,0), (0,-1,0), (0,0,1), (0,0,-1)]
+ICON_SECONDS = 3
 
 
 def ease(t):
@@ -27,10 +28,10 @@ def ease(t):
 
 def frame(t, width=288, height=288, density=1, icon=True, skin=None, world_hue=0):
     move = 0 if icon else ease(t/1.15)
-    yaw = (-125*(1-move)+40*t)*pi/180
+    yaw = (-125+40*t)*pi/180
     tilt = -12*(1-move)*pi/180
-    camera_y, camera_z = 2.6+3.035*move, 6.8+2.2*move
-    pitch = atan2(-2.15,6.8)*(1-move)+atan2(-4.81,23)*move
+    camera_y, camera_z = 2.6+2.9*move, 6.8+2.2*move
+    pitch = atan2(-2.15,6.8)*(1-move)+atan2(-4.9,23)*move
     height_dp = 620 if icon else height/density
     fov = 2*atan(tan(pi/9)*height_dp/620)*(1-move)+(pi/3)*move
     focal = (620 if icon else height)/(2*tan(fov/2))
@@ -39,7 +40,7 @@ def frame(t, width=288, height=288, density=1, icon=True, skin=None, world_hue=0
         return x*cos(yaw)+z*sin(yaw),y,-x*sin(yaw)+z*cos(yaw)
     out=[]
     for shell in range(2):
-        settle=min(1,max(0,(t-1.04)/.53))
+        settle=0 if icon else min(1,max(0,(t-1.04)/.53))
         squash=.12*sin(settle*pi*2)*(1-settle)
         size=.82+.18*move
         breathe=1+.03*move*sin(t*2.4)
@@ -87,7 +88,7 @@ for stale in (res/'animator').glob('launch_face_*.xml'): stale.unlink()
 initial=frame(0)
 vector=['<vector xmlns:android="http://schemas.android.com/apk/res/android" xmlns:tools="http://schemas.android.com/tools" tools:ignore="VectorRaster" android:width="288dp" android:height="288dp" android:viewportWidth="288" android:viewportHeight="288">']
 animated=['<animated-vector xmlns:android="http://schemas.android.com/apk/res/android" android:drawable="@drawable/launch_cube_animated_base">']
-samples=[frame(i/60) for i in range(61)]
+samples=[frame(i/60) for i in range(ICON_SECONDS*60+1)]
 # Keep one animated vector and one set of geometry paths. Only its paint values
 # vary by persisted theme; parse the game's skin table so new colours cannot drift.
 skins=[]
@@ -97,7 +98,7 @@ for match in re.finditer(r'^        Skin\((\d+), "[^"]+", \d+, (\w+)(.*)$', (ROO
     skins.append(skin)
 world_hues=[float(h) for h in re.findall(r'World\(\d+, "[^"]+", ([\d.]+)f', (ROOT/'app/src/main/kotlin/cube/run/data/Worlds.kt').read_text())]
 palettes=[('LaunchPalette', None, 0)] + [(f'LaunchSkin{s["id"]}',s,world_hues[0]) for s in skins] + [(f'LaunchWorld{i}',skins[0],h) for i,h in enumerate(world_hues) if i>0]
-palette_frames=[[frame(i/30,skin=skin,world_hue=hue) for i in range(31)] for _,skin,hue in palettes]
+palette_frames=[[frame(i/30,skin=skin,world_hue=hue) for i in range(ICON_SECONDS*30+1)] for _,skin,hue in palettes]
 paint_attrs={}
 paint_values={}
 
@@ -128,16 +129,16 @@ for face,(path,color,alpha) in enumerate(initial):
     for property_name,value_type,index in [('pathData','pathType',0),('fillColor','colorType',1),('fillAlpha','floatType',2)]:
         if index == 0:
             animator.append('<set android:ordering="sequentially">')
-            for i in range(8):
+            for i in range(ICON_SECONDS*8):
                 start=frame(i/8)[face][0]; end=frame((i+1)/8)[face][0]
                 animator.append(f'<objectAnimator android:propertyName="pathData" android:valueType="pathType" android:valueFrom="{start}" android:valueTo="{end}" android:duration="125" android:interpolator="@android:interpolator/linear"/>')
             animator.append('</set>')
         else:
-            animator.append('<objectAnimator android:duration="1000" android:interpolator="@android:interpolator/linear">')
+            animator.append(f'<objectAnimator android:duration="{ICON_SECONDS*1000}" android:interpolator="@android:interpolator/linear">')
             animator.append(f'<propertyValuesHolder android:propertyName="{property_name}" android:valueType="{value_type}">')
-            for i in range(31):
+            for i in range(ICON_SECONDS*30+1):
                 attr=paint_attr(face,index,i)
-                animator.append(f'<keyframe android:fraction="{i/30:.6f}" android:value="?attr/{attr}"/>')
+                animator.append(f'<keyframe android:fraction="{i/(ICON_SECONDS*30):.6f}" android:value="?attr/{attr}"/>')
             animator.extend(['</propertyValuesHolder>','</objectAnimator>'])
     animator.append('</set>')
     (res/f'animator/launch_face_{face}.xml').write_text('\n'.join(animator)+'\n')

@@ -2,5 +2,6 @@
     <style name="GameTheme" parent="GameThemeBase">
         <item name="android:windowSplashScreenBackground">@color/bg</item>
         <item name="android:windowSplashScreenAnimatedIcon">@drawable/launch_cube_motion</item>
+        <item name="android:windowSplashScreenAnimationDuration">3000</item>
     </style>
 </resources>

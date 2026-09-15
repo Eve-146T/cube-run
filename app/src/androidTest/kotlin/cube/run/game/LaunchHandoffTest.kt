@@ -2,6 +2,7 @@ package cube.run.game
 
 import android.graphics.Bitmap
 import android.graphics.Canvas
+import android.os.SystemClock
 import android.view.ContextThemeWrapper
 import android.view.View
 import android.view.ViewGroup
@@ -71,6 +72,7 @@ class LaunchHandoffTest {
         val positions = mutableMapOf<View, Pair<Int, Int>>()
         val errors = mutableListOf<String>()
         var samples = 0
+        var finishedAt = 0L
         // ActivityScenario.onActivity may arrive after startup animations have
         // finished. Observe creation before launch, so no entrance frames are missed.
         val callback = ActivityLifecycleCallback { activity, state ->
@@ -81,10 +83,10 @@ class LaunchHandoffTest {
                         fun visit(view: View, visible: Float) {
                             if (view.visibility != View.VISIBLE) return
                             val alpha = visible*view.alpha
-                            if (view.isClickable && alpha > .1f && view.contentDescription != null) {
+                            if (alpha > .1f && (view is ViewGroup || view.isClickable && view.contentDescription != null)) {
                                 val xy = IntArray(2); view.getLocationOnScreen(xy)
                                 val previous = positions.putIfAbsent(view, xy[0] to xy[1])
-                                if (previous != null && previous != (xy[0] to xy[1])) errors.add("${view.contentDescription}: $previous -> ${xy.toList()}")
+                                if (previous != null && previous != (xy[0] to xy[1])) errors.add("${view.contentDescription ?: view.javaClass.simpleName}: $previous -> ${xy.toList()}")
                             }
                             if (view is ViewGroup) for (i in 0 until view.childCount) visit(view.getChildAt(i), alpha)
                         }
@@ -98,8 +100,11 @@ class LaunchHandoffTest {
                             samples++
                             visit(hud, 1f)
                             if (hud.alpha == 1f) {
-                                decor.viewTreeObserver.removeOnPreDrawListener(this)
-                                settled.countDown()
+                                if (finishedAt == 0L) finishedAt = SystemClock.uptimeMillis()
+                                if (SystemClock.uptimeMillis()-finishedAt >= 450) {
+                                    decor.viewTreeObserver.removeOnPreDrawListener(this)
+                                    settled.countDown()
+                                }
                             }
                         }
                         return true

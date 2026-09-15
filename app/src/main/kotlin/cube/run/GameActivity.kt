@@ -123,10 +123,7 @@ class GameActivity : AndroidApplication() {
         fun revealScene() {
             if (!sceneReady || splashHandoff || isFinishing || isDestroyed) return
             cube.run.core.LaunchTrace.mark("scene revealed")
-            openingTouch?.animate()?.alpha(0f)?.setDuration(50L)?.withEndAction {
-                openingTouch.drawingCube = false
-                openingTouch.alpha = 1f
-            }?.start()
+            openingTouch?.drawingCube = false
         }
         if (android.os.Build.VERSION.SDK_INT >= 31) {
             splashScreen.setOnExitAnimationListener { splash ->
@@ -148,13 +145,16 @@ class GameActivity : AndroidApplication() {
                                 splash.remove()
                             } else {
                                 cube.run.core.LaunchTrace.mark("system matching frame submitted")
-                                splash.animate().alpha(0f).setDuration(80L).withEndAction {
-                                    splash.remove()
-                                    clock.releaseSystem()
+                                splash.remove()
+                                clock.releaseSystem()
+                                cube.run.core.LaunchTrace.mark("system splash removed")
+                                // A scene rendered before phase adoption is stale even if
+                                // initial loading is complete. Canvas keeps moving meanwhile.
+                                game.afterFreshSceneFrame { runOnUiThread {
                                     splashHandoff = false
-                                    cube.run.core.LaunchTrace.mark("system splash removed")
+                                    sceneReady = true
                                     revealScene()
-                                }.start()
+                                } }
                             }
                         }
                     }

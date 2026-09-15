@@ -20,7 +20,7 @@ class OpeningPose {
         val t = seconds.coerceIn(0f, DURATION)
         val move = ease(t/1.15f)
         // The cube turns from the first frame; camera travel still eases into the road.
-        yaw = -125f*(1f-move) + 40f*spinSeconds
+        yaw = -125f + 40f*spinSeconds
         tilt = -12f*(1f-move)
         val settle = ((t-1.04f)/.53f).coerceIn(0f, 1f)
         val squash = .12f*sin(settle*PI.toFloat()*2f)*(1f-settle)
@@ -29,9 +29,9 @@ class OpeningPose {
         scaleX = .9f*size*(1f+squash*.5f)*breathe
         scaleY = .9f*size*(1f-squash)/breathe
         shellScale = .9f*(1.18f+.06f*sin(spinSeconds*8f))*size
-        cameraY = 2.6f+3.035f*move
-        cameraZ = 6.8f+2.2f*move
-        pitch = atan2(-2.15f, 6.8f)*(1f-move) + atan2(-4.81f, 23f)*move
+        cameraY = 2.6f+(MENU_CAMERA_Y-2.6f)*move
+        cameraZ = 6.8f+(MENU_CAMERA_Z-6.8f)*move
+        pitch = atan2(-2.15f, 6.8f)*(1f-move) + atan2(MENU_TARGET_Y-MENU_CAMERA_Y, MENU_CAMERA_Z-MENU_TARGET_Z)*move
         val initialFov = 2f*atan(tan(PI.toFloat()/9f)*heightDp/REFERENCE_HEIGHT_DP)
         fov = initialFov*(1f-move) + PI.toFloat()/3f*move
         worldAmount = ease((t-.14f)/1.05f)
@@ -41,6 +41,10 @@ class OpeningPose {
     companion object {
         const val DURATION = 1.57f
         const val REFERENCE_HEIGHT_DP = 620f
+        const val MENU_CAMERA_Y = 5.5f
+        const val MENU_CAMERA_Z = 9f
+        const val MENU_TARGET_Y = .6f
+        const val MENU_TARGET_Z = -14f
         const val INK = 0xFF14102E.toInt()
         fun ease(t: Float): Float = t.coerceIn(0f, 1f).let { it*it*it*(it*(it*6f-15f)+10f) }
     }

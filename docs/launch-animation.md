@@ -1,5 +1,7 @@
 # Moving animation at launch
 
+**Latest correction:** [scene and rotation continuity](launch-continuity.md).
+
 **Follow-up:** [Cube and menu handoff correction](launch-handoff.md) fixes the
 system/native transition and button movement, and adds saved-skin launch themes.
 Measurements below describe the preceding APK, not that follow-up build.

@@ -50,6 +50,15 @@ abstract class Gdx3DGame(val session: GameSession) : ApplicationAdapter(), Touch
     var onFirstFrame: (() -> Unit)? = null
     var onSceneFrame: (() -> Unit)? = null
     private var sceneFrameDrawn = false
+    @Volatile private var sceneFramesDrawn = 0L
+    private class SceneCallback(val after: Long, val action: () -> Unit)
+    @Volatile private var sceneCallback: SceneCallback? = null
+
+    /** The caller may change the shared opening pose while a GL frame is in flight.
+     * Wait past that frame and a newly rendered complete scene, including its swap. */
+    fun afterFreshSceneFrame(action: () -> Unit) {
+        sceneCallback = SceneCallback(sceneFramesDrawn+2, action)
+    }
     private var firstFrameDrawn = false
     private var firstFrameReported = false
     private var startupStep = -1
@@ -206,6 +215,10 @@ abstract class Gdx3DGame(val session: GameSession) : ApplicationAdapter(), Touch
     // ----------------------------------------------------------------- frame
 
     override fun render() {
+        sceneCallback?.takeIf { sceneFramesDrawn >= it.after }?.let {
+            sceneCallback = null
+            it.action()
+        }
         if (sceneFrameDrawn) {
             onSceneFrame?.invoke(); onSceneFrame = null
         }
@@ -339,6 +352,7 @@ abstract class Gdx3DGame(val session: GameSession) : ApplicationAdapter(), Touch
 
         perf.endFrame(shards.count)
         sceneFrameDrawn = true
+        sceneFramesDrawn++
         markFirstFrame()
     }
 
@@ -483,6 +497,8 @@ abstract class Gdx3DGame(val session: GameSession) : ApplicationAdapter(), Touch
     override fun dispose() {
         disposed = true
         onFirstFrame = null
+        onSceneFrame = null
+        sceneCallback = null
         if (::batch.isInitialized) batch.dispose()
         if (::shapes.isInitialized) shapes.dispose()
         if (::shards.isInitialized) shards.dispose()

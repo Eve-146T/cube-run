@@ -411,7 +411,7 @@ class Player(private val game: Gdx3DGame, private val rnd: Random) {
     /** Absolute transforms shared with the native startup view; no accumulated pose. */
     fun openingPose(pose: cube.run.intro.OpeningPose, seconds: Float, baseHue: Float, skinAmount: Float = 1f,
                     launchAppearance: cube.run.intro.LaunchAppearance? = null) {
-        idleYaw = 40f*seconds; idleT = seconds; idleMix = 1f
+        idleYaw = pose.yaw; idleT = 0f; idleMix = 1f
         hsvInto(col, skin.hueAt(seconds, baseHue), skin.sat, skin.valueAt(seconds))
         hsvInto(shellCol, skin.hueAt(seconds, baseHue), skin.sat*.9f, 1f)
         val source = launchAppearance ?: cube.run.intro.LaunchAppearance.ROSE
