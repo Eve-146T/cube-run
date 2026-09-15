@@ -55,6 +55,12 @@ android {
     }
 
     buildTypes {
+        debug {
+            // Let visual review captures coexist with builds from other worktrees.
+            if (providers.gradleProperty("duckReview").orNull == "true") {
+                applicationIdSuffix = ".duckreview"
+            }
+        }
         release {
             isMinifyEnabled = false
             if (releaseStoreFile != null) {

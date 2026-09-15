@@ -23,6 +23,9 @@ object ObAnim {
     const val PENDULUM = 4  // a block swinging sideways at chest height — roll under or step aside
 }
 
+/** Authored action cue; height alone cannot distinguish a bar from a stomper or raised wall. */
+enum class ObCue { NONE, JUMP, DUCK }
+
 /** What a row may carry on the walk lane besides obstacles. */
 object Pickup {
     const val NONE = 0
@@ -58,6 +61,7 @@ class Ob(
     val ramp: Float = 0f,
     /** A tar pit: drawn sunk into the road as a void (the collision box stays where it is). */
     val pit: Boolean = false,
+    val cue: ObCue = ObCue.NONE,
 ) {
     /** Pads: launched the player already (once per pass). */
     var used = false
@@ -169,7 +173,7 @@ class ObstacleFactory(private val rnd: Random) {
     /** A solid block sitting ON the ground across every lane — clearly "jump over". */
     fun wall(hue: Float): Ob {
         val w = laneW * 3f + 0.6f; val h = 0.62f
-        return Ob(hsv(hue + 140f, 0.9f, 1f), 0f, h / 2f, laneW * 1.5f + 0.3f, ObType.SOLID, w, h, 0.7f)
+        return Ob(hsv(hue + 140f, 0.9f, 1f), 0f, h / 2f, laneW * 1.5f + 0.3f, ObType.SOLID, w, h, 0.7f, cue = ObCue.JUMP)
     }
 
     /** A wall too tall for a standing jump — bounce off a pad, or come down off a platform. */
@@ -182,7 +186,7 @@ class ObstacleFactory(private val rnd: Random) {
     /** A chunky beam floating well above the ground with a clear gap beneath — unmistakably "roll under". */
     fun over(hue: Float): Ob {
         val w = laneW * 3f + 0.6f; val bottom = 0.78f; val top = 1.5f
-        return Ob(hsv(hue + 300f, 0.9f, 1f), 0f, (bottom + top) / 2f, laneW * 1.5f + 0.3f, ObType.SOLID, w, top - bottom, 0.7f)
+        return Ob(hsv(hue + 300f, 0.9f, 1f), 0f, (bottom + top) / 2f, laneW * 1.5f + 0.3f, ObType.SOLID, w, top - bottom, 0.7f, cue = ObCue.DUCK)
     }
 
     fun slider(from: Int, to: Int, hue: Float): Ob =
@@ -192,14 +196,14 @@ class ObstacleFactory(private val rnd: Random) {
     fun wallSeg(a: Int, b: Int, hue: Float): Ob {
         val cx = (laneX(a) + laneX(b)) / 2f
         val w = (b - a) * laneW + laneW * 1.05f; val h = 0.62f
-        return Ob(hsv(hue + 140f, 0.9f, 1f), cx, h / 2f, w / 2f - 0.11f, ObType.SOLID, w, h, 0.7f)
+        return Ob(hsv(hue + 140f, 0.9f, 1f), cx, h / 2f, w / 2f - 0.11f, ObType.SOLID, w, h, 0.7f, cue = ObCue.JUMP)
     }
 
     /** Overhead-bar segment spanning lanes [a]..[b] — same "roll under" language as [over]. */
     fun overSeg(a: Int, b: Int, hue: Float): Ob {
         val cx = (laneX(a) + laneX(b)) / 2f
         val w = (b - a) * laneW + laneW * 1.05f; val bottom = 0.78f; val top = 1.5f
-        return Ob(hsv(hue + 300f, 0.9f, 1f), cx, (bottom + top) / 2f, w / 2f - 0.11f, ObType.SOLID, w, top - bottom, 0.7f)
+        return Ob(hsv(hue + 300f, 0.9f, 1f), cx, (bottom + top) / 2f, w / 2f - 0.11f, ObType.SOLID, w, top - bottom, 0.7f, cue = ObCue.DUCK)
     }
 
     /**
@@ -221,7 +225,7 @@ class ObstacleFactory(private val rnd: Random) {
     /** A low beam that glides sideways across every lane. Jump it (or time a gap). */
     fun sweeper(hue: Float, phase: Float): Ob {
         val h = 0.36f
-        return Ob(hsv(hue + 120f, 0.9f, 1f), 0f, h / 2f, 0.85f, ObType.SOLID, 1.7f, h, 0.5f, anim = ObAnim.SWEEP, phase = phase)
+        return Ob(hsv(hue + 120f, 0.9f, 1f), 0f, h / 2f, 0.85f, ObType.SOLID, 1.7f, h, 0.5f, anim = ObAnim.SWEEP, phase = phase, cue = ObCue.JUMP)
     }
 
     /** A block hanging over lane [l] that slams to the floor and lifts again. */
@@ -231,7 +235,7 @@ class ObstacleFactory(private val rnd: Random) {
     /** A block swinging sideways at chest height: roll under it, or step out of its arc. */
     fun pendulum(hue: Float, phase: Float): Ob {
         val bottom = 0.7f; val top = 1.7f
-        return Ob(hsv(hue + 260f, 0.85f, 1f), 0f, (bottom + top) / 2f, 0.65f, ObType.SOLID, 1.3f, top - bottom, 0.9f, anim = ObAnim.PENDULUM, phase = phase)
+        return Ob(hsv(hue + 260f, 0.85f, 1f), 0f, (bottom + top) / 2f, 0.65f, ObType.SOLID, 1.3f, top - bottom, 0.9f, anim = ObAnim.PENDULUM, phase = phase, cue = ObCue.DUCK)
     }
 
     /** A springy slab in lane [l]: run onto it and it launches you high. */
