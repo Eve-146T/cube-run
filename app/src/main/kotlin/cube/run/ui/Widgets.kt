@@ -124,10 +124,11 @@ class CandyButton(ctx: Context, color: Int, label: CharSequence, textSize: Float
 
     init {
         text = label
+        textDirection = View.TEXT_DIRECTION_FIRST_STRONG_LTR
         this.textSize = textSize
         typeface = Fonts.get(ctx, 700)
         gravity = Gravity.CENTER
-        letterSpacing = 0.04f
+        letterSpacing = if (ctx.resources.configuration.layoutDirection == View.LAYOUT_DIRECTION_RTL) 0f else 0.04f
         setTextColor(Theme.onColor(color))
         isClickable = true
         isFocusable = true
@@ -262,6 +263,7 @@ class UiKit(val ctx: Context) {
     private val density = ctx.resources.displayMetrics.density
     fun dp(v: Float) = (v * density).toInt()
     fun dpf(v: Float) = v * density
+    fun tracking(value: Float) = if (ctx.resources.configuration.layoutDirection == View.LAYOUT_DIRECTION_RTL) 0f else value
 
     enum class Size { BIG, NORMAL, SMALL }
 
@@ -269,6 +271,7 @@ class UiKit(val ctx: Context) {
         t: CharSequence, size: Float, color: Int = Theme.INK, weight: Int = 600, gravity: Int = Gravity.CENTER,
     ): TextView = TextView(ctx).apply {
         text = t
+        textDirection = View.TEXT_DIRECTION_FIRST_STRONG_LTR
         textSize = size
         setTextColor(color)
         typeface = Fonts.get(ctx, weight)
@@ -280,6 +283,7 @@ class UiKit(val ctx: Context) {
     fun stageText(t: CharSequence, size: Float, color: Int = Theme.WHITE, weight: Int = 700, gravity: Int = Gravity.CENTER, stroke: Float = size / 7f): OutlineTextView =
         OutlineTextView(ctx, dpf(stroke), Theme.INK).apply {
             text = t
+            textDirection = View.TEXT_DIRECTION_FIRST_STRONG_LTR
             textSize = size
             setTextColor(color)
             typeface = Fonts.get(ctx, weight)
@@ -324,7 +328,7 @@ class UiKit(val ctx: Context) {
             v.setImageResource(if (on) iconOn else iconOff)
             v.color = if (on) onColor else Theme.alpha(Theme.WHITE, 235)
             v.imageTintList = ColorStateList.valueOf(if (on) Theme.onColor(onColor) else Theme.MUTED)
-            v.contentDescription = "$label ${if (on) "on" else "off"}"
+            v.contentDescription = ctx.getString(if (on) R.string.text_toggle_on else R.string.text_toggle_off, label)
         }
         v = chip(iconOn, onColor, label = label) { set(!isOn()); paint() }
         paint()
@@ -363,7 +367,7 @@ class UiKit(val ctx: Context) {
         setPadding(dp(16f), dp(10f), dp(16f), dp(10f))
         background = GradientDrawable().apply { cornerRadius = dpf(20f); setColor(Theme.alpha(Theme.WHITE, 34)); setStroke(dp(1.5f), Theme.alpha(Theme.WHITE, 60)) }
         addView(stageText(value, 20f, valueColor, stroke = 2.5f))
-        addView(text(label.uppercase(), 10f, Theme.alpha(Theme.WHITE, 200), 600).apply { letterSpacing = 0.12f })
+        addView(text(label.uppercase(ctx.resources.configuration.locales[0]), 10f, Theme.alpha(Theme.WHITE, 200), 600).apply { letterSpacing = tracking(0.12f) })
     }
 
     fun segments(max: Int): SegmentBar = SegmentBar(ctx, max, dpf(3f), dpf(4f))
@@ -389,7 +393,7 @@ class UiKit(val ctx: Context) {
             clipChildren = false; clipToPadding = false
             addView(ImageView(ctx).apply { setImageDrawable(icon) }, LinearLayout.LayoutParams(dp(iconDp), dp(iconDp)))
             val tv = if (stage) stageText(t, size, color, stroke = size / 8f) else text(t, size, color, 700)
-            addView(tv, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { leftMargin = dp(6f) })
+            addView(tv, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { marginStart = dp(6f) })
         }
 
     /** The text inside an [iconText]. */

@@ -89,7 +89,7 @@ class AbilityDisplay(private val activity: Activity, private val kit: UiKit, val
         cornerChips.forEachIndexed { i, chip ->
             chip.color = if (selected == i) Theme.LAVENDER else Theme.WHITE
             chip.isSelected = selected == i
-            chip.contentDescription = "${if (selected == i) "Hide" else "Show"} ${abilities[i].title} ability"
+            chip.contentDescription = kit.ctx.getString(if (selected == i) R.string.text_hide_ability else R.string.text_show_ability, kit.ctx.gameText(abilities[i].title))
         }
         val old = cornerCard
         cornerCard = null
@@ -119,14 +119,14 @@ class AbilityDisplay(private val activity: Activity, private val kit: UiKit, val
 
     private fun chip(ability: Ability, index: Int): CandyChip = CandyChip(activity, if (selected == index) Theme.LAVENDER else Theme.WHITE, kit.dpf(4f), kit.dpf(16f)).apply {
         setImageDrawable(icon(ability)); setPadding(dp(10f), dp(10f), dp(10f), dp(10f))
-        contentDescription = "${if (selected == index) "Hide" else "Show"} ${ability.title} ability"
+        contentDescription = kit.ctx.getString(if (selected == index) R.string.text_hide_ability else R.string.text_show_ability, kit.ctx.gameText(ability.title))
         isSelected = selected == index
         setOnClickListener { toggle(index) }
     }
 
     private fun description(ability: Ability, dark: Boolean = false) =
-        if (dark) kit.stageText("Ability: ${ability.detail}", 15f, stroke = 1.8f, weight = 500, gravity = Gravity.CENTER)
-        else kit.text("Ability: ${ability.detail}", 15f, Theme.INK, 500, Gravity.START)
+        if (dark) kit.stageText(kit.ctx.getString(R.string.text_ability_description, kit.ctx.gameText(ability.detail)), 15f, stroke = 1.8f, weight = 500, gravity = Gravity.CENTER)
+        else kit.text(kit.ctx.getString(R.string.text_ability_description, kit.ctx.gameText(ability.detail)), 15f, Theme.INK, 500, Gravity.START)
 
     private fun card(values: List<Ability>, color: Int = Theme.WHITE, icons: Boolean = false): LinearLayout = column().apply {
         background = kit.cardDrawable(color, null, 20f)
@@ -134,7 +134,7 @@ class AbilityDisplay(private val activity: Activity, private val kit: UiKit, val
         for ((i, ability) in values.withIndex()) {
             val body: View = if (icons) row().apply {
                 addView(ImageView(activity).apply { setImageDrawable(icon(ability)) }, LinearLayout.LayoutParams(dp(30f), dp(30f)))
-                addView(description(ability), LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply { leftMargin = dp(12f) })
+                addView(description(ability), LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply { marginStart = dp(12f) })
             } else description(ability)
             addView(body, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { if (i > 0) topMargin = dp(12f) })
         }
@@ -164,15 +164,15 @@ class AbilityDisplay(private val activity: Activity, private val kit: UiKit, val
                     }
                 })
                 host.addView(FrameLayout(activity).apply { clipChildren = false; clipToPadding = false },
-                    LinearLayout.LayoutParams(0, -2, 1f).apply { leftMargin = dp(10f) })
+                    LinearLayout.LayoutParams(0, -2, 1f).apply { marginStart = dp(10f) })
                 floating.addView(host)
             }
             1 -> { // Labeled ability tabs above the cube.
                 val host = column()
                 host.addView(row().apply {
                     abilities.forEachIndexed { i, ability ->
-                        addView(kit.button(ability.title, if (selected == i) Theme.LAVENDER else Theme.WHITE, UiKit.Size.SMALL) { toggle(i) },
-                            LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { rightMargin = dp(8f) })
+                        addView(kit.button(kit.ctx.gameText(ability.title), if (selected == i) Theme.LAVENDER else Theme.WHITE, UiKit.Size.SMALL) { toggle(i) },
+                            LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { marginEnd = dp(8f) })
                     }
                 })
                 if (selected >= 0) host.addView(card(listOf(abilities[selected])), LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(10f) })
@@ -183,11 +183,11 @@ class AbilityDisplay(private val activity: Activity, private val kit: UiKit, val
             4 -> { // Compact pills under the cosmetic name, expanded on demand.
                 inline.addView(row().apply {
                     abilities.forEachIndexed { i, ability ->
-                        addView(kit.iconPill(icon(ability), ability.title, size = 13f, fill = if (selected == i) Theme.LAVENDER else Theme.WHITE).apply {
+                        addView(kit.iconPill(icon(ability), kit.ctx.gameText(ability.title), size = 13f, fill = if (selected == i) Theme.LAVENDER else Theme.WHITE).apply {
                             minimumHeight = dp(48f)
-                            contentDescription = "Show ${ability.title} ability"
+                            contentDescription = kit.ctx.getString(R.string.text_show_ability, kit.ctx.gameText(ability.title))
                             setOnClickListener { toggle(i) }
-                        }, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { leftMargin = dp(4f); rightMargin = dp(4f) })
+                        }, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { marginStart = dp(4f); marginEnd = dp(4f) })
                     }
                 })
                 if (selected >= 0) addInline(description(abilities[selected], dark = true), dp(8f))
@@ -195,17 +195,17 @@ class AbilityDisplay(private val activity: Activity, private val kit: UiKit, val
             5 -> { // A permanently visible speech bubble, tucked above the cube.
                 floating.addView(column().apply {
                     addView(card(abilities, color = Theme.LAVENDER, icons = true))
-                    addView(SpeechTail(activity), LinearLayout.LayoutParams(dp(22f), dp(16f)).apply { leftMargin = dp(32f); topMargin = -dp(4f) })
+                    addView(SpeechTail(activity), LinearLayout.LayoutParams(dp(22f), dp(16f)).apply { marginStart = dp(32f); topMargin = -dp(4f) })
                 })
             }
             6 -> { // One large button opens a short sheet over the lower part of the stage.
-                inline.addView(kit.button(if (abilities.size == 1) "ABILITY" else "ABILITIES", Theme.LAVENDER, UiKit.Size.SMALL) { toggle(0) })
+                inline.addView(kit.button(if (abilities.size == 1) kit.ctx.getString(R.string.text_ability) else kit.ctx.getString(R.string.text_abilities), Theme.LAVENDER, UiKit.Size.SMALL) { toggle(0) })
                 if (selected >= 0) floating.addView(column().apply {
                     background = kit.cardDrawable(Theme.WHITE, null, 24f)
                     setPadding(dp(18f), dp(14f), dp(18f), dp(20f))
                     addView(row().apply {
-                        addView(kit.text("ABILITIES", 20f, Theme.INK, 700, Gravity.START), LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
-                        addView(kit.chip(R.drawable.ic_chevron_left, Theme.CARD_ALT, Theme.INK, "Close abilities") { toggle(0) }, LinearLayout.LayoutParams(dp(44f), dp(48f)))
+                        addView(kit.text(kit.ctx.getString(R.string.text_abilities), 20f, Theme.INK, 700, Gravity.START), LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+                        addView(kit.chip(R.drawable.ic_chevron_left, Theme.CARD_ALT, Theme.INK, kit.ctx.getString(R.string.text_close_abilities)) { toggle(0) }, LinearLayout.LayoutParams(dp(44f), dp(48f)))
                     })
                     addView(card(abilities, icons = true))
                 })
@@ -217,7 +217,7 @@ class AbilityDisplay(private val activity: Activity, private val kit: UiKit, val
                         background = kit.cardDrawable(Theme.LAVENDER, null, 14f)
                     }, LinearLayout.LayoutParams(dp(44f), dp(48f)))
                     addView(description(ability, dark = true).apply { gravity = Gravity.START },
-                        LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply { leftMargin = dp(12f) })
+                        LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply { marginStart = dp(12f) })
                 }, dp(8f))
             }
         }

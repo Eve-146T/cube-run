@@ -6,6 +6,7 @@ import android.content.Intent
 import android.view.Gravity
 import android.widget.FrameLayout
 import android.widget.LinearLayout
+import cube.run.GameActivity
 import cube.run.R
 import cube.run.core.Haptics
 import cube.run.core.SoundFx
@@ -66,8 +67,8 @@ class Hud(private val activity: Activity) : FrameLayout(activity) {
             gravity = Gravity.CENTER
             clipChildren = false; clipToPadding = false
             addView(haul)
-            addView(boxes, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { leftMargin = dp(8f) })
-            addView(bubbles, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { leftMargin = dp(8f) })
+            addView(boxes, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { marginStart = dp(8f) })
+            addView(bubbles, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { marginStart = dp(8f) })
         }, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = -dp(4f) })
     }
 
@@ -87,9 +88,10 @@ class Hud(private val activity: Activity) : FrameLayout(activity) {
             }
         }
     }
+    private var languageSheet: LanguageSheet? = null
     private var pauseSheet: PauseSheet? = null
     private var runOver: RunOverFlow? = null
-    private val menu: MainMenu = MainMenu(activity, kit, { openShop() }, { openWardrobe() }, { openSections() }, { menu.pulseBank() })
+    private val menu: MainMenu = MainMenu(activity, kit, { openShop() }, { openWardrobe() }, { openSections() }, { menu.pulseBank() }, { openLanguages() })
 
     init {
         isClickable = false
@@ -97,12 +99,12 @@ class Hud(private val activity: Activity) : FrameLayout(activity) {
         clipChildren = false; clipToPadding = false
         addView(menu, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
         addView(topBox, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT).apply { topMargin = dp(44f) })
-        addView(pauseChip, LayoutParams(dp(48f), dp(52f)).apply { gravity = Gravity.TOP or Gravity.END; topMargin = dp(48f); rightMargin = dp(14f) })
+        addView(pauseChip, LayoutParams(dp(48f), dp(52f)).apply { gravity = Gravity.TOP or Gravity.END; topMargin = dp(48f); marginEnd = dp(14f) })
         setBubbles(Progress.bubbles)
         setOnApplyWindowInsetsListener { _, insets ->
             val (_, t, r, _) = insetsOf(insets)
             (topBox.layoutParams as LayoutParams).topMargin = maxOf(dp(44f), t + dp(6f))
-            (pauseChip.layoutParams as LayoutParams).apply { topMargin = maxOf(dp(48f), t + dp(10f)); rightMargin = dp(14f) + r }
+            (pauseChip.layoutParams as LayoutParams).apply { topMargin = maxOf(dp(48f), t + dp(10f)); marginEnd = dp(14f) + r }
             topBox.requestLayout(); pauseChip.requestLayout()
             insets
         }
@@ -113,6 +115,14 @@ class Hud(private val activity: Activity) : FrameLayout(activity) {
     override fun onAttachedToWindow() {
         super.onAttachedToWindow()
         postDelayed(prepareShop, 900) // let the initial menu entrance finish before preparing cards
+    }
+
+    /** Called after the engine's first frame, so Stage.reset cannot reopen the idle pilot. */
+    fun showPendingLanguages() {
+        if (activity.intent.getBooleanExtra(GameActivity.EXTRA_LANGUAGES, false)) {
+            activity.intent.removeExtra(GameActivity.EXTRA_LANGUAGES)
+            openLanguages()
+        }
     }
 
     override fun onDetachedFromWindow() {
@@ -128,12 +138,13 @@ class Hud(private val activity: Activity) : FrameLayout(activity) {
 
     /** System Back only navigates out of the two stores. */
     fun navigateBack() {
+        languageSheet?.let { it.dismiss(); return }
         if (runStarted || pauseSheet != null || runOver != null) return
         val current = page
         if (current is ShopView || current is WardrobeView) current.navigateBack()
     }
 
-    private fun pageOpen() = page != null || runStarted
+    private fun pageOpen() = page != null || languageSheet != null || runStarted
 
     private fun open(p: Page) {
         Stage.homeScreen = false
@@ -156,6 +167,21 @@ class Hud(private val activity: Activity) : FrameLayout(activity) {
         Stage.homeScreen = true
         setBubbles(Progress.bubbles)
         scheduleShopPreparation()
+    }
+
+    private fun openLanguages() {
+        if (pageOpen()) return
+        Stage.homeScreen = false
+        removeCallbacks(prepareShop)
+        val sheet = LanguageSheet(activity, kit, { code ->
+            (activity as GameActivity).changeLanguage(code)
+        }, {
+            languageSheet = null
+            Stage.homeScreen = true
+            scheduleShopPreparation()
+        })
+        languageSheet = sheet
+        addView(sheet, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
     }
 
     private fun openShop() {
@@ -206,7 +232,7 @@ class Hud(private val activity: Activity) : FrameLayout(activity) {
     }
 
     private fun refreshBubbleLabel() {
-        kit.labelOf(bubbles).text = if (bubbleCooldown > 0) "${bubbleCooldown}s" else "×$bubbleStock"
+        kit.labelOf(bubbles).text = if (bubbleCooldown > 0) kit.ctx.getString(R.string.text_seconds, bubbleCooldown.toString()) else "×$bubbleStock"
         bubbles.alpha = if (bubbleCooldown > 0) .65f else 1f
         bubbles.visibility = if ((bubbleStock > 0 || bubbleCooldown > 0) && runStarted) VISIBLE else GONE
     }
@@ -234,7 +260,7 @@ class Hud(private val activity: Activity) : FrameLayout(activity) {
                     Stage.boostRequests.incrementAndGet()
                     SoundFx.play("tap", rate = 1.1f + b.taps * 0.1f); Haptics.click()
                 }
-                addView(b, LayoutParams(dp(84f), dp(160f)).apply { gravity = Gravity.TOP or Gravity.END; topMargin = dp(116f); rightMargin = dp(10f) })
+                addView(b, LayoutParams(dp(84f), dp(160f)).apply { gravity = Gravity.TOP or Gravity.END; topMargin = dp(116f); marginEnd = dp(10f) })
                 boost = b
                 Anim.popIn(b, 250, 0.4f, 420)
             }

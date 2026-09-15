@@ -30,6 +30,7 @@ class MainMenu(
     private val openWardrobe: () -> Unit,
     private val openSections: () -> Unit,
     private val onDevToggled: () -> Unit,
+    private val openLanguages: () -> Unit = {},
 ) : FrameLayout(activity) {
 
     private fun dp(v: Float) = kit.dp(v)
@@ -49,12 +50,13 @@ class MainMenu(
     private val letters = ArrayList<View>()
 
     private fun word(text: String, color: Int): LinearLayout = LinearLayout(activity).apply {
+        layoutDirection = View.LAYOUT_DIRECTION_LTR // The brand keeps its letter order in every language.
         orientation = LinearLayout.HORIZONTAL
         clipChildren = false; clipToPadding = false
         for (ch in text) {
             val v = kit.stageText(ch.toString(), 62f, color, stroke = 7f).apply { setLayerType(View.LAYER_TYPE_HARDWARE, null) }
             letters.add(v)
-            addView(v, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { leftMargin = -dp(6f); rightMargin = -dp(6f) })
+            addView(v, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { marginStart = -dp(6f); marginEnd = -dp(6f) })
         }
     }
 
@@ -85,24 +87,37 @@ class MainMenu(
     private val bestRow = kit.iconText(TrophyIcon(), "", 22f, Theme.WHITE, stage = true, iconDp = 28f).apply { visibility = GONE }
     private val bank = kit.iconPill(CoinIcon(), "0", Theme.INK, 16f).apply { setOnClickListener { openShop() } }
     private val bubbles = kit.iconPill(BubbleIcon(), "", Theme.INK, 16f, Theme.lighten(Theme.CYAN, 0.55f)).apply { visibility = GONE; setOnClickListener { openShop() } }
-    private val tapHint = kit.stageText("TAP TO START", 22f, Theme.WHITE, stroke = 3f).apply { letterSpacing = 0.12f }
+    private val tapHint = kit.stageText(activity.getString(R.string.tap_to_start), 22f, Theme.WHITE, stroke = 3f).apply {
+        letterSpacing = if (resources.configuration.layoutDirection == View.LAYOUT_DIRECTION_RTL) 0f else 0.12f
+    }
+
+    private val languageChip = kit.chip(R.drawable.ic_language, Theme.SKY, Theme.INK,
+        activity.getString(R.string.cd_languages)) { openLanguages() }
 
     private val leftChips = LinearLayout(activity).apply {
-        orientation = LinearLayout.HORIZONTAL
-        gravity = Gravity.CENTER_VERTICAL
+        orientation = LinearLayout.VERTICAL
         clipChildren = false; clipToPadding = false
-        val size = dp(44f)
-        addView(kit.toggle(R.drawable.ic_sound_on, R.drawable.ic_sound_off, activity.getString(R.string.cd_sound), Theme.SKY,
-            { Settings.soundEnabled }, { Settings.setSoundEnabled(it) }), LinearLayout.LayoutParams(size, size + dp(4f)))
-        addView(kit.toggle(R.drawable.ic_haptic_on, R.drawable.ic_haptic_off, activity.getString(R.string.cd_haptics), Theme.SKY,
-            { Settings.hapticsEnabled }, { Settings.setHapticsEnabled(it) }), LinearLayout.LayoutParams(size, size + dp(4f)).apply { leftMargin = dp(8f) })
-        if (BuildConfig.DEBUG) {
-            // Debug builds only: fill the bank or loop a section for testing.
-            addView(kit.toggle(R.drawable.ic_dev_on, R.drawable.ic_dev_off, activity.getString(R.string.cd_dev), Theme.ORANGE,
-                { Settings.devMode }, { Settings.setDevMode(it); if (it) Progress.enterDev() else Progress.leaveDev(); onDevToggled() }), LinearLayout.LayoutParams(size, size + dp(4f)).apply { leftMargin = dp(8f) })
-            addView(kit.chip(R.drawable.ic_sections, Theme.WHITE, Theme.INK, activity.getString(R.string.cd_sections)) { openSections() },
-                LinearLayout.LayoutParams(size, size + dp(4f)).apply { leftMargin = dp(8f) })
+        val size = dp(48f)
+        fun row() = LinearLayout(activity).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            clipChildren = false; clipToPadding = false
         }
+        if (BuildConfig.DEBUG) {
+            addView(row().apply {
+                addView(kit.toggle(R.drawable.ic_dev_on, R.drawable.ic_dev_off, activity.getString(R.string.cd_dev), Theme.ORANGE,
+                    { Settings.devMode }, { Settings.setDevMode(it); if (it) Progress.enterDev() else Progress.leaveDev(); onDevToggled() }), LinearLayout.LayoutParams(size, size + dp(4f)))
+                addView(kit.chip(R.drawable.ic_sections, Theme.WHITE, Theme.INK, activity.getString(R.string.cd_sections)) { openSections() },
+                    LinearLayout.LayoutParams(size, size + dp(4f)).apply { marginStart = dp(8f) })
+            }, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { bottomMargin = dp(10f) })
+        }
+        addView(row().apply {
+            addView(kit.toggle(R.drawable.ic_sound_on, R.drawable.ic_sound_off, activity.getString(R.string.cd_sound), Theme.SKY,
+                { Settings.soundEnabled }, { Settings.setSoundEnabled(it) }), LinearLayout.LayoutParams(size, size + dp(4f)))
+            addView(kit.toggle(R.drawable.ic_haptic_on, R.drawable.ic_haptic_off, activity.getString(R.string.cd_haptics), Theme.SKY,
+                { Settings.hapticsEnabled }, { Settings.setHapticsEnabled(it) }), LinearLayout.LayoutParams(size, size + dp(4f)).apply { marginStart = dp(8f) })
+            addView(languageChip, LinearLayout.LayoutParams(size, size + dp(4f)).apply { marginStart = dp(8f) })
+        })
     }
 
     private val rightChips = LinearLayout(activity).apply {
@@ -112,7 +127,7 @@ class MainMenu(
         addView(kit.chip(R.drawable.ic_skins, Theme.GRAPE, Theme.WHITE, activity.getString(R.string.cd_skins)) { openWardrobe() }.apply { val p = dp(13f); setPadding(p, p, p, p) },
             LinearLayout.LayoutParams(size, size + dp(4f)))
         addView(kit.chip(R.drawable.ic_shop, Theme.GOLD, Theme.INK, activity.getString(R.string.cd_shop)) { openShop() }.apply { val p = dp(13f); setPadding(p, p, p, p) },
-            LinearLayout.LayoutParams(size, size + dp(4f)).apply { leftMargin = dp(10f) })
+            LinearLayout.LayoutParams(size, size + dp(4f)).apply { marginStart = dp(10f) })
     }
 
     private val top = LinearLayout(activity).apply {
@@ -134,19 +149,22 @@ class MainMenu(
         isFocusable = false
         clipChildren = false; clipToPadding = false
         addView(top, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT).apply { topMargin = dp(70f) })
-        addView(bank, LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT).apply { gravity = Gravity.TOP or Gravity.END; topMargin = dp(40f); rightMargin = dp(14f) })
-        addView(bubbles, LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT).apply { gravity = Gravity.TOP or Gravity.START; topMargin = dp(40f); leftMargin = dp(14f) })
+        addView(bank, LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT).apply { gravity = Gravity.TOP or Gravity.END; topMargin = dp(40f); marginEnd = dp(14f) })
+        addView(bubbles, LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT).apply { gravity = Gravity.TOP or Gravity.START; topMargin = dp(40f); marginStart = dp(14f) })
         addView(middle, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT).apply { gravity = Gravity.CENTER; topMargin = dp(40f) })
-        addView(leftChips, LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT).apply { gravity = Gravity.BOTTOM or Gravity.START; leftMargin = dp(14f); bottomMargin = dp(28f) })
-        addView(rightChips, LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT).apply { gravity = Gravity.BOTTOM or Gravity.END; rightMargin = dp(14f); bottomMargin = dp(26f) })
+        addView(leftChips, LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT).apply { gravity = Gravity.BOTTOM or Gravity.START; marginStart = dp(14f); bottomMargin = dp(28f) })
+        addView(rightChips, LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT).apply { gravity = Gravity.BOTTOM or Gravity.END; marginEnd = dp(14f); bottomMargin = dp(26f) })
         setOnApplyWindowInsetsListener { _, insets ->
-            val (l, t, r, b) = insetsOf(insets)
+            val (physicalLeft, t, physicalRight, b) = insetsOf(insets)
+            val rtl = layoutDirection == View.LAYOUT_DIRECTION_RTL
+            val l = if (rtl) physicalRight else physicalLeft
+            val r = if (rtl) physicalLeft else physicalRight
             (top.layoutParams as LayoutParams).topMargin = maxOf(dp(70f), t + dp(40f))
             // the same corner as every page's balance pill (page padding max(36, t+6) + 4): it never shifts between screens
-            (bank.layoutParams as LayoutParams).apply { topMargin = maxOf(dp(40f), t + dp(10f)); rightMargin = dp(14f) + r }
-            (bubbles.layoutParams as LayoutParams).apply { topMargin = maxOf(dp(40f), t + dp(10f)); leftMargin = dp(14f) + l }
-            (leftChips.layoutParams as LayoutParams).apply { leftMargin = dp(14f) + l; bottomMargin = dp(28f) + b }
-            (rightChips.layoutParams as LayoutParams).apply { rightMargin = dp(14f) + r; bottomMargin = dp(26f) + b }
+            (bank.layoutParams as LayoutParams).apply { topMargin = maxOf(dp(40f), t + dp(10f)); marginEnd = dp(14f) + r }
+            (bubbles.layoutParams as LayoutParams).apply { topMargin = maxOf(dp(40f), t + dp(10f)); marginStart = dp(14f) + l }
+            (leftChips.layoutParams as LayoutParams).apply { marginStart = dp(14f) + l; bottomMargin = dp(28f) + b }
+            (rightChips.layoutParams as LayoutParams).apply { marginEnd = dp(14f) + r; bottomMargin = dp(26f) + b }
             requestLayout()
             insets
         }

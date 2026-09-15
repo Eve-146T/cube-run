@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="languages_title">Languages</string>
+    <string name="cd_languages">Choose language</string>
+    <string name="language_option">%1$s, %2$s</string>
+    <string name="country_uk">United Kingdom</string>
+    <string name="country_germany">Germany</string>
+    <string name="country_israel">Israel</string>
+    <string name="tap_to_start">TAP TO START</string>
+</resources>

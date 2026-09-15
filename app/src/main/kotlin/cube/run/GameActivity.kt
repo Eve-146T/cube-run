@@ -21,6 +21,20 @@ import android.view.View
 /** Single-game launcher host: builds the HUD over the libGDX surface and runs Cube Run. */
 class GameActivity : AndroidApplication() {
 
+    override fun attachBaseContext(newBase: android.content.Context) {
+        super.attachBaseContext(cube.run.data.Languages.wrap(newBase))
+    }
+
+    /** Relaunch like MENU so libGDX disposes its native meshes before the new session. */
+    fun changeLanguage(code: String) {
+        if (code == cube.run.data.Languages.current(this)) return
+        cube.run.data.Languages.select(this, code)
+        startActivity(android.content.Intent(this, javaClass)
+            .putExtra(Hud.EXTRA_AUTOSTART, false)
+            .putExtra(EXTRA_LANGUAGES, true))
+        finish()
+    }
+
     private lateinit var hud: Hud
     private var gameSurface: SurfaceView? = null
     private var backCallback: android.window.OnBackInvokedCallback? = null
@@ -108,6 +122,7 @@ class GameActivity : AndroidApplication() {
         }
         game.onFirstFrame = { runOnUiThread {
             firstFrameReady = true; removeSplash?.invoke(); removeSplash = null
+            if (::hud.isInitialized) hud.showPendingLanguages()
             if (launchOpening) root.postDelayed({
                 if (!isFinishing && !isDestroyed && !::hud.isInitialized) {
                     cube.run.core.LaunchTrace.mark("hud begin")
@@ -116,6 +131,7 @@ class GameActivity : AndroidApplication() {
                     hud.translationY = (1f-openingAmount)*18f*resources.displayMetrics.density
                     root.addView(hud, 1, FrameLayout.LayoutParams(-1, -1))
                     session.attach(hud)
+                    hud.showPendingLanguages()
                     if (openingAmount >= 1f) openingTouch?.let { root.removeView(it) }
                     cube.run.core.LaunchTrace.mark("hud ready")
                 }
@@ -185,7 +201,8 @@ class GameActivity : AndroidApplication() {
         goFullscreen()
     }
 
-    private companion object {
-        const val SCORE_ID = "cuberun"
+    companion object {
+        private const val SCORE_ID = "cuberun"
+        const val EXTRA_LANGUAGES = "show_languages"
     }
 }

@@ -1,5 +1,7 @@
 package cube.run.ui
 
+import cube.run.R
+
 import android.annotation.SuppressLint
 import android.app.Activity
 import android.content.Context
@@ -93,7 +95,7 @@ class SectionThumbView(ctx: Context, sect: Sect) : View(ctx) {
  * While one is chosen the page says so at the top and offers PLAY NORMALLY.
  */
 @SuppressLint("SetTextI18n", "ViewConstructor")
-class SectionsView(activity: Activity, kit: UiKit, onClose: () -> Unit) : Page(activity, kit, "SECTIONS", dark = false, onClosed = onClose) {
+class SectionsView(activity: Activity, kit: UiKit, onClose: () -> Unit) : Page(activity, kit, kit.ctx.getString(R.string.text_sections), dark = false, onClosed = onClose) {
 
     private val grid = LinearLayout(activity).apply {
         orientation = LinearLayout.VERTICAL
@@ -111,7 +113,7 @@ class SectionsView(activity: Activity, kit: UiKit, onClose: () -> Unit) : Page(a
         val column = LinearLayout(activity).apply {
             orientation = LinearLayout.VERTICAL
             addView(status, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
-                leftMargin = dp(14f); rightMargin = dp(14f); topMargin = dp(4f); bottomMargin = dp(6f)
+                marginStart = dp(14f); marginEnd = dp(14f); topMargin = dp(4f); bottomMargin = dp(6f)
             })
             addView(ScrollView(activity).apply {
                 isVerticalScrollBarEnabled = false
@@ -131,27 +133,27 @@ class SectionsView(activity: Activity, kit: UiKit, onClose: () -> Unit) : Page(a
         if (chosen != null || Settings.testPillWorld) {
             status.addView(LinearLayout(activity).apply {
                 orientation = LinearLayout.VERTICAL
-                addView(kit.text(if (Settings.testPillWorld) "RED PILL TEST" else "TESTING ${chosen!!.name}", 14f, Theme.INK, 700, Gravity.START))
-                addView(kit.text(if (Settings.testPillWorld) "Pills on loop. Clear middle lane." else "The run plays only this section, on loop. No pickups.", 12f, Theme.INK_SOFT, 500, Gravity.START))
+                addView(kit.text(if (Settings.testPillWorld) kit.ctx.getString(R.string.text_red_pill_test) else kit.ctx.getString(R.string.text_testing, kit.ctx.gameText(chosen!!.name)), 14f, Theme.INK, 700, Gravity.START))
+                addView(kit.text(if (Settings.testPillWorld) kit.ctx.getString(R.string.text_pills_on_loop_clear_middle_lane) else kit.ctx.getString(R.string.text_the_run_plays_only_this_section_on_loop_no_pickups), 12f, Theme.INK_SOFT, 500, Gravity.START))
             }, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
-            status.addView(kit.button("PLAY NORMALLY", Theme.PLAY, UiKit.Size.SMALL) {
+            status.addView(kit.button(kit.ctx.getString(R.string.text_play_normally), Theme.PLAY, UiKit.Size.SMALL) {
                 Settings.testPillWorld = false
                 Settings.testSection = -1
                 Settings.testBonus = -1; Settings.testBonusNow = -1
                 render()
-            }, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { leftMargin = dp(10f) })
+            }, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { marginStart = dp(10f) })
         } else {
-            status.addView(kit.text("Choose a section", 13f, Theme.INK, 600, Gravity.START),
+            status.addView(kit.text(kit.ctx.getString(R.string.text_choose_a_section), 13f, Theme.INK, 600, Gravity.START),
                 LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
         }
     }
 
     private fun renderGrid() {
         grid.removeAllViews()
-        grid.addView(kit.text("TEST WORLDS", 12f, Theme.INK_SOFT, 700, Gravity.START).apply {
+        grid.addView(kit.text(kit.ctx.getString(R.string.text_test_worlds), 12f, Theme.INK_SOFT, 700, Gravity.START).apply {
             setPadding(dp(6f), dp(10f), dp(6f), dp(8f))
         })
-        grid.addView(kit.button("RED PILL", Theme.MINT, UiKit.Size.NORMAL) {
+        grid.addView(kit.button(kit.ctx.getString(R.string.text_red_pill), Theme.MINT, UiKit.Size.NORMAL) {
             Settings.testPillWorld = true
             Settings.testSection = -1; Settings.testBonus = -1; Settings.testBonusNow = -1
             close()
@@ -181,9 +183,9 @@ class SectionsView(activity: Activity, kit: UiKit, onClose: () -> Unit) : Page(a
         addView(SectionThumbView(activity, s).apply {
             background = android.graphics.drawable.GradientDrawable().apply { cornerRadius = dpf(8f); setColor(0xFF2A2350.toInt()) }
         }, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(96f)))
-        addView(kit.text(s.name, 10f, Theme.INK, 700).apply { maxLines = 1 },
+        addView(kit.text(kit.ctx.gameText(s.name), 10f, Theme.INK, 700).apply { maxLines = 2; minLines = 2 },
             LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(5f) })
-        addView(kit.text("tier ${s.tier} · ${s.steps.size} rows", 9f, Theme.MUTED, 500))
+        addView(kit.text(kit.ctx.getString(R.string.text_section_stats, s.tier, kit.ctx.resources.getQuantityString(R.plurals.count_rows, s.steps.size, s.steps.size)), 9f, Theme.MUTED, 500))
         setOnClickListener {
             Settings.testPillWorld = false
             Settings.testSection = s.id
