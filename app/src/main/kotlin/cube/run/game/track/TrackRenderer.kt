@@ -55,7 +55,7 @@ class TrackRenderer(private val game: Gdx3DGame) {
     val gold: Color get() = coinCol
 
     fun renderCues(shapes: com.badlogic.gdx.graphics.glutils.ShapeRenderer, track: Track, opacity: Float, matrix: Float) {
-        if (cueStyle == ObstacleCueStyle.DUCK_ARROWS) duckArrows.render(shapes, track, game.fogColor, opacity, matrix)
+        if (cueStyle.duckOnly) duckArrows.render(shapes, track, game.fogColor, opacity, matrix, cueStyle)
     }
 
     fun render(track: Track, time: Float, kaleido: Float = 0f, kaleidoHue: Float = 0f) {

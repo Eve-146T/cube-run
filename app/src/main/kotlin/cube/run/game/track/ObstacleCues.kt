@@ -6,7 +6,10 @@ import cube.run.game.Terrain
 import kotlin.math.max
 import kotlin.math.min
 
-enum class ObstacleCueStyle { ORIGINAL, EDGE_BANDS, ARROWS, HAZARD, ACTION_COLORS, SHADOW_ARROWS, DUCK_ARROWS }
+enum class ObstacleCueStyle(val duckOnly: Boolean = false) {
+    ORIGINAL, EDGE_BANDS, ARROWS, HAZARD, ACTION_COLORS, SHADOW_ARROWS,
+    DUCK_ARROWS(true), DUCK_DOUBLE(true), DUCK_CENTER(true), DUCK_FULL(true), DUCK_INSET(true), DUCK_TIPS(true)
+}
 
 /** Review treatments with no collision objects. Smooth duck arrows use the existing shapes pass. */
 class ObstacleCues(private val game: Gdx3DGame) {
@@ -24,7 +27,7 @@ class ObstacleCues(private val game: Gdx3DGame) {
         } else original
 
     fun render(ob: Ob, z: Float, fog: Float, p: Float) {
-        if (style == ObstacleCueStyle.ORIGINAL || style == ObstacleCueStyle.DUCK_ARROWS || ob.cue == ObCue.NONE || p <= .001f) return
+        if (style == ObstacleCueStyle.ORIGINAL || style.duckOnly || ob.cue == ObCue.NONE || p <= .001f) return
         val w = ob.sx * if (p >= .999f) 1f else (.4f + .6f * p)
         val h = ob.sy * if (p >= .999f) 1f else p
         val cy = if (ob.grounded) ob.bottom + h / 2f else ob.cy
@@ -71,7 +74,7 @@ class ObstacleCues(private val game: Gdx3DGame) {
                 arrows()
                 if (down) game.worldGround(ob.x, .018f, z, w, .024f, ob.sz * 1.4f, shadow, fog)
             }
-            ObstacleCueStyle.ORIGINAL, ObstacleCueStyle.DUCK_ARROWS -> Unit
+            else -> Unit // Original and duck-only treatments do not add box decorations.
         }
     }
 }

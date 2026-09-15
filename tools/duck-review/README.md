@@ -20,6 +20,26 @@ world-shapes pass, follow terrain and stream-in scaling, and turn green with the
 red-pill effect. `duck-arrows.html` compares original, previous arrows and this
 new candidate (capture file prefix `6`).
 
+## More duck-only treatments
+
+Five additional candidates keep jump walls unmarked and share the same batched
+triangle renderer. The previous pale chevrons remain the default for comparison:
+
+| Capture ID | Style | Treatment |
+| --- | --- | --- |
+| 7 | `DUCK_DOUBLE` | Two compact chevrons stacked vertically |
+| 8 | `DUCK_CENTER` | One wide center chevron on each bar |
+| 9 | `DUCK_FULL` | Solid arrowhead with a short stem |
+| 10 | `DUCK_INSET` | Dark chevron with a pale lower lip, suggesting an inset |
+| 11 | `DUCK_TIPS` | Small down-pointing tips along the lower edge |
+
+`more-duck-arrows.html` compares these five with candidate 6. Its world buttons
+switch between Candy Fields and Neon City. Capture each palette by adding
+`-e duckOnly true -e duckWorld 0` (Candy) or `-e duckOnly true -e duckWorld 1`
+(Neon) to the instrumentation command below. This saves `<world>-<style>-<scene>.png`;
+copy those images under `assets/` beside the page. These are static comparisons;
+high-speed playtesting is still needed to choose a final treatment.
+
 `ORIGINAL` is the comparison baseline. `TrackRenderer.cueStyle` selects the variant;
 the worktree defaults to `DUCK_ARROWS`. All candidates are real rendering
 implementations, not image mockups. No collision dimensions, timing, controls or
