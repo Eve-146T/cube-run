@@ -117,7 +117,7 @@ class MainMenu(
             addView(kit.toggle(R.drawable.ic_haptic_on, R.drawable.ic_haptic_off, activity.getString(R.string.cd_haptics), Theme.SKY,
                 { Settings.hapticsEnabled }, { Settings.setHapticsEnabled(it) }), LinearLayout.LayoutParams(size, size + dp(4f)).apply { marginStart = dp(8f) })
             addView(languageChip, LinearLayout.LayoutParams(size, size + dp(4f)).apply { marginStart = dp(8f) })
-        })
+        }, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT))
     }
 
     private val rightChips = LinearLayout(activity).apply {
@@ -182,8 +182,7 @@ class MainMenu(
         Anim.popIn(bank, 260, 0.6f)
         Anim.popIn(bubbles, 300, 0.6f)
         Anim.riseIn(middle, 320, dpf(24f))
-        Anim.stagger(leftChips, dpf(40f), 280, 60)
-        Anim.stagger(rightChips, dpf(40f), 420, 80)
+        for (chip in toolbarChips()) Anim.riseIn(chip, 280, dpf(40f))
         anims.add(Anim.breathe(tapHint, 0.55f, 1f, 750))
         logo.postDelayed(startRipple, 620)
     }
@@ -207,6 +206,15 @@ class MainMenu(
     val shopBalance: LinearLayout get() = bank
     private var shopNavigating = false
 
+    /** Animate actual controls together, including the nested utility/debug rows. */
+    private fun toolbarChips(): List<View> = buildList {
+        for (i in 0 until leftChips.childCount) {
+            val row = leftChips.getChildAt(i) as LinearLayout
+            for (j in 0 until row.childCount) add(row.getChildAt(j))
+        }
+        for (i in 0 until rightChips.childCount) add(rightChips.getChildAt(i))
+    }
+
     // During shop navigation these controls draw over the departing sheet, but the shop owns input.
     override fun dispatchTouchEvent(event: MotionEvent): Boolean =
         if (shopNavigating) false else super.dispatchTouchEvent(event)
@@ -217,7 +225,7 @@ class MainMenu(
         for (a in anims) a.pause()
         Anim.cancelTree(this)
         for (v in listOf(top, logo, bestRow, middle, leftChips, rightChips, bank, bubbles)) Anim.reset(v)
-        for (group in listOf(leftChips, rightChips)) for (i in 0 until group.childCount) Anim.reset(group.getChildAt(i))
+        for (chip in toolbarChips()) Anim.reset(chip)
         setShopProgress(0f)
     }
 

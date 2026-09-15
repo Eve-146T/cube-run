@@ -6,6 +6,7 @@ import android.graphics.Bitmap
 import android.os.SystemClock
 import android.view.View
 import android.view.ViewGroup
+import android.view.MotionEvent
 import android.widget.TextView
 import androidx.test.core.app.ActivityScenario
 import androidx.test.platform.app.InstrumentationRegistry
@@ -32,14 +33,37 @@ class LanguageTest {
         }
     }
 
-    private fun tap(id: Int) {
-        var clicked = false
+    private fun tap(id: Int) = tapMatching { activity, view ->
+        view.contentDescription == activity.getString(id)
+    }
+
+    /** Exercise Android hit testing, including every ancestor's bounds. */
+    private fun tapMatching(matches: (GameActivity, View) -> Boolean) {
+        val point = IntArray(2)
         await { activity ->
             val view = views(activity.window.decorView).firstOrNull {
-                it.isShown && it.alpha == 1f && it.contentDescription == activity.getString(id)
+                it.isShown && it.alpha == 1f && matches(activity, it)
             }
-            if (view != null) { view.performClick(); clicked = true }
-            clicked
+            if (view == null || view.width == 0 || view.translationY != 0f) false else {
+                view.getLocationOnScreen(point)
+                point[0] += view.width / 2; point[1] += view.height / 2
+                var parent = view.parent
+                while (parent is View) {
+                    if (parent.alpha < 1f || parent.translationY != 0f) return@await false
+                    val bounds = android.graphics.Rect()
+                    parent.getGlobalVisibleRect(bounds)
+                    assertTrue("Touch target outside ancestor bounds: ${view.contentDescription}", bounds.contains(point[0], point[1]))
+                    parent = parent.parent
+                }
+                true
+            }
+        }
+        val down = SystemClock.uptimeMillis()
+        for (action in intArrayOf(MotionEvent.ACTION_DOWN, MotionEvent.ACTION_UP)) {
+            val event = MotionEvent.obtain(down, SystemClock.uptimeMillis(), action, point[0].toFloat(), point[1].toFloat(), 0)
+            instrumentation.sendPointerSync(event)
+            event.recycle()
+            SystemClock.sleep(60)
         }
         instrumentation.waitForIdleSync()
     }
@@ -79,16 +103,27 @@ class LanguageTest {
                 await { a -> views(a.window.decorView).any { it is MainMenu && it.isShown } }
                 val bank = Progress.coins
                 val bubbles = Progress.bubbles
-                
+                onActivity { a -> views(a.window.decorView).filterIsInstance<MainMenu>().single().show() }
+                repeat(9) {
+                    SystemClock.sleep(70)
+                    onActivity { a ->
+                        val menu = views(a.window.decorView).filterIsInstance<MainMenu>().single()
+                        val chips = views(menu).filterIsInstance<CandyChip>().toList()
+                        val globe = chips.single { it.contentDescription == a.getString(R.string.cd_languages) }
+                        for (chip in chips) {
+                            assertEquals("Toolbar buttons must fade together", globe.alpha, chip.alpha, 0.02f)
+                            assertEquals("Toolbar buttons must rise together", globe.translationY, chip.translationY, 1f)
+                        }
+                    }
+                }
                 capture("home-en")
                 tap(R.string.cd_languages)
                 for (code in listOf("en", "de", "he", "en")) {
                     if (code != Languages.current(context)) {
-                        onActivity { a ->
-                            val sheet = views(a.window.decorView).filterIsInstance<LanguageSheet>().single()
+                        tapMatching { a, view ->
                             val option = Languages.options.single { it.code == code }
                             val description = a.getString(R.string.language_option, option.nativeName, a.getString(option.country))
-                            views(sheet).single { it.contentDescription == description }.performClick()
+                            view.contentDescription == description
                         }
                     }
                     await { a ->
