@@ -24,6 +24,7 @@ class GameActivity : AndroidApplication() {
     private lateinit var hud: Hud
     private var openingClock: cube.run.intro.OpeningClock? = null
     private var gameSurface: SurfaceView? = null
+    private var openingSplash: cube.run.intro.OpeningSplashHandoff? = null
     private var backCallback: android.window.OnBackInvokedCallback? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -71,6 +72,7 @@ class GameActivity : AndroidApplication() {
                         (openingTouch?.parent as? FrameLayout)?.removeView(openingTouch)
                         if (!finishReported) {
                             finishReported = true
+                            openingSplash?.dispose()
                             cube.run.core.LaunchTrace.mark("opening finished")
                         }
                     }
@@ -126,42 +128,17 @@ class GameActivity : AndroidApplication() {
             openingTouch?.drawingCube = false
         }
         if (android.os.Build.VERSION.SDK_INT >= 31) {
-            splashScreen.setOnExitAnimationListener { splash ->
-                val start = splash.iconAnimationStart
-                if (clock == null || openingTouch == null || start == null || clock.sceneSeconds() >= cube.run.intro.OpeningPose.DURATION) {
-                    splash.remove()
-                } else {
-                    splashHandoff = true
-                    openingTouch.animate().cancel()
-                    openingTouch.alpha = 1f
-                    openingTouch.drawingCube = true
-                    clock.adoptSystemStart(start.toEpochMilli(), splash.iconAnimationDuration?.toMillis() ?: 0L)
-                    cube.run.core.LaunchTrace.mark("system handoff begin")
-                    // Removing in the exit callback exposes the PREVIOUS native pose. Wait for
-                    // the matching pose to reach the swapchain, then transfer the visible cube.
-                    val transfer = Runnable {
-                        openingTouch.post {
-                            if (isFinishing || isDestroyed) {
-                                splash.remove()
-                            } else {
-                                cube.run.core.LaunchTrace.mark("system matching frame submitted")
-                                splash.remove()
-                                clock.releaseSystem()
-                                cube.run.core.LaunchTrace.mark("system splash removed")
-                                // A scene rendered before phase adoption is stale even if
-                                // initial loading is complete. Canvas keeps moving meanwhile.
-                                game.afterFreshSceneFrame { runOnUiThread {
-                                    splashHandoff = false
-                                    sceneReady = true
-                                    revealScene()
-                                } }
-                            }
-                        }
-                    }
-                    openingTouch.viewTreeObserver.registerFrameCommitCallback(transfer)
-                    openingTouch.invalidate()
-                }
-            }
+            if (clock != null && openingTouch != null) {
+                openingSplash = cube.run.intro.OpeningSplashHandoff(this, openingTouch, clock,
+                    onBegin = { splashHandoff = true },
+                    onRemoved = {
+                        game.afterFreshSceneFrame { runOnUiThread {
+                            splashHandoff = false
+                            sceneReady = true
+                            revealScene()
+                        } }
+                    }).also { it.install() }
+            } else splashScreen.setOnExitAnimationListener { it.remove() }
         }
         game.onSceneFrame = { runOnUiThread {
             if (isFinishing || isDestroyed) return@runOnUiThread
@@ -194,6 +171,7 @@ class GameActivity : AndroidApplication() {
     override fun onBackPressed() { if (::hud.isInitialized) hud.navigateBack() }
 
     override fun onDestroy() {
+        openingSplash?.dispose()
         if (android.os.Build.VERSION.SDK_INT >= 33) backCallback?.let { onBackInvokedDispatcher.unregisterOnBackInvokedCallback(it) }
         super.onDestroy()
     }

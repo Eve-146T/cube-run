@@ -1,5 +1,8 @@
 # Launch continuity: scene snap and stop/start correction
 
+**Follow-up:** [Ghost launch flash](launch-ghost-flash.md) reproduces and fixes
+an intermittent missing frame during system-splash removal.
+
 Worktree: `~/Worktrees/cube-run/optimizing-launch-time`, branch
 `optimizing-launchtime`. Previous shipped APK: `1dc1185`.
 

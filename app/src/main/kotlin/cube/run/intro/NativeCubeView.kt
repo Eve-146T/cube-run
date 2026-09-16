@@ -22,10 +22,14 @@ class NativeCubeView(context: Context, val clock: OpeningClock, private val skin
     private val hsv = FloatArray(3)
     private var first = true
     private var moving = false
+    private var traceName = "native cube"
     var onFirstDraw: (() -> Unit)? = null
     var secondsForTest: Float? = null
     var drawingCube = true
         set(value) { field = value; invalidate() }
+
+    /** Same live pose, briefly drawn inside Android's copied splash during surface transfer. */
+    internal fun handoffCopy() = NativeCubeView(context, clock, skin, worldHue).apply { traceName = "splash cube" }
 
     override fun onDraw(canvas: Canvas) {
         if (!drawingCube) return
@@ -93,8 +97,8 @@ class NativeCubeView(context: Context, val clock: OpeningClock, private val skin
                 path.close(); canvas.drawPath(path, paint)
             }
         }
-        if (first) { first = false; LaunchTrace.mark("native cube draw"); onFirstDraw?.invoke() }
-        if (!moving && t > .016f) { moving = true; LaunchTrace.mark("native cube motion") }
+        if (first) { first = false; LaunchTrace.mark("$traceName draw"); onFirstDraw?.invoke() }
+        if (!moving && t > .016f) { moving = true; LaunchTrace.mark("$traceName motion") }
         if (secondsForTest == null && t < OpeningPose.DURATION) postInvalidateOnAnimation()
     }
 
