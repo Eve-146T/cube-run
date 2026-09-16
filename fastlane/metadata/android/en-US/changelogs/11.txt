@@ -1,0 +1,5 @@
+Duck obstacles now have arrows showing when to duck instead of jump.
+Ghost can phase through one obstacle per run. Bubblegum has a 35% chance to save a bubble when used.
+Added a Matrix-themed easter egg and an upgrade for faster starts.
+Balance changes and UI improvements, including a new startup animation and icon.
+Cube Shards can now be collected during runs.
