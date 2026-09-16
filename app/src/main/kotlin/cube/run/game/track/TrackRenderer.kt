@@ -17,6 +17,13 @@ import kotlin.math.sin
  */
 class TrackRenderer(private val game: Gdx3DGame) {
 
+    private val cues = ObstacleCues(game)
+    private val duckArrows = DuckArrows()
+    /** Review candidates use the same live renderer; choose a final style after comparison. */
+    var cueStyle: ObstacleCueStyle
+        get() = cues.style
+        set(value) { cues.style = value }
+
     private val shardCols = cube.run.data.Shards.all.map { hsvInto(Color(), it.hue, .6f, 1f) }
     private val coinCol = Color()
     private val coinFace = Color()
@@ -47,6 +54,10 @@ class TrackRenderer(private val game: Gdx3DGame) {
     /** The coin colour (for bursts). */
     val gold: Color get() = coinCol
 
+    fun renderCues(shapes: com.badlogic.gdx.graphics.glutils.ShapeRenderer, track: Track, opacity: Float, matrix: Float) {
+        if (cueStyle.duckOnly) duckArrows.render(shapes, track, game.fogColor, opacity, matrix, cueStyle)
+    }
+
     fun render(track: Track, time: Float, kaleido: Float = 0f, kaleidoHue: Float = 0f) {
         val yaw = (time * 240f) % 360f
         // coins spin in lockstep, a little out of phase down the line, so every line glints in a wave
@@ -63,14 +74,20 @@ class TrackRenderer(private val game: Gdx3DGame) {
                     ob.anim == ObAnim.PISTON && ob.sy < 0.03f -> {} // sunk into the floor
                     ob.pit -> renderPit(ob, r.z, fog, time, p, r.visualPhase)
                     ob.anim == ObAnim.PENDULUM -> {
-                        box(ob.x, ob.cy, r.z, ob.sx, ob.sy, ob.sz, ob.col, fog, p, false)
+                        box(ob.x, ob.cy, r.z, ob.sx, ob.sy, ob.sz, cues.body(ob, ob.col), fog, p, false)
                         game.worldBox(ob.x * 0.5f, ob.top + 1.1f, r.z, abs(ob.x) + 0.16f, 0.16f, 0.16f, rod, fog) // the rod up to the beam
                         game.worldBox(0f, ob.top + 2.2f, r.z, 6.4f * p, 0.22f, 0.22f, rod, fog)                    // the beam it hangs from
                     }
-                    else -> box(ob.x, ob.cy, r.z, ob.sx, ob.sy, ob.sz, if (kaleido > 0.01f) tmpCol.set(ob.col).lerp(hsvInto(portalB, kaleidoHue + r.z * 6f, 0.9f, 1f), kaleido) else ob.col, fog, p, ob.grounded)
+                    else -> box(ob.x, ob.cy, r.z, ob.sx, ob.sy, ob.sz, cues.body(ob, if (kaleido > 0.01f) tmpCol.set(ob.col).lerp(hsvInto(portalB, kaleidoHue + r.z * 6f, 0.9f, 1f), kaleido) else ob.col), fog, p, ob.grounded)
                 }
             }
             if (r.pickup != Pickup.NONE && r.pickup != Pickup.BUBBLE) renderPickup(r, yaw, time, p)
+        }
+        // Every solid is queued before review markings, preserving collision visibility at capacity.
+        for (r in track.rows) {
+            if (r.pop <= .001f) continue
+            val fog = Fog.at(r.z)
+            for (ob in r.obs) cues.render(ob, r.z, fog, r.pop)
         }
         // coins: fat gold pieces with a raised, paler heart, spinning, bobbing
         for (r in track.rows) {
