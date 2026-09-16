@@ -1,6 +1,7 @@
 package cube.run.game
 
 import com.badlogic.gdx.graphics.PerspectiveCamera
+import cube.run.intro.OpeningPose
 import kotlin.math.max
 import kotlin.math.min
 
@@ -36,11 +37,10 @@ class RunCamera(private val cam: PerspectiveCamera) {
         val highT = ((lift - 1.5f) / (Player.FLY_Y - ground - 1.5f)).coerceIn(0f, 1f)
         flyCam += (highT - flyCam) * min(1f, dt * 4f)
         val f = flyCam
-        val i = 1f - intro
         val g = Terrain.y(0f)
-        val cy = 3.6f + lift * 0.3f * (1f - f) + f * 9.5f + deathT * 1.6f + i * 1.9f + wide * 1.4f + g * 0.8f
-        cam.position.set(px * (0.45f - 0.15f * f), cy, 6.4f + f * 1.2f + deathT * 2.2f + dolly + i * 2.6f + wide * 2.2f)
-        cam.lookAt(px * (0.55f - 0.15f * f), 1.0f + lift * 0.5f * (1f - f) + f * 1.6f - i * 0.4f + g * 0.5f + Terrain.y(-8f) * 0.4f, -8f - f * 6f - i * 6f)
+        val cy = OpeningPose.MENU_CAMERA_Y + lift * 0.3f * (1f - f) + f * 9.5f + deathT * 1.6f - intro * 1.9f + wide * 1.4f + g * 0.8f
+        cam.position.set(px * (0.45f - 0.15f * f), cy, OpeningPose.MENU_CAMERA_Z + f * 1.2f + deathT * 2.2f + dolly - intro * 2.6f + wide * 2.2f)
+        cam.lookAt(px * (0.55f - 0.15f * f), OpeningPose.MENU_TARGET_Y + lift * 0.5f * (1f - f) + f * 1.6f + intro * 0.4f + g * 0.5f + Terrain.y(-8f) * 0.4f, OpeningPose.MENU_TARGET_Z - f * 6f + intro * 6f)
         val rr = Math.toRadians(roll.toDouble())
         cam.up.set(kotlin.math.sin(rr).toFloat(), kotlin.math.cos(rr).toFloat(), 0f)
         kick = max(0f, kick - dt * 2.2f)

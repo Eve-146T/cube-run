@@ -1,0 +1,7 @@
+<resources>
+    <style name="GameTheme" parent="GameThemeBase">
+        <item name="android:windowSplashScreenBackground">@color/bg</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/launch_cube_motion</item>
+        <item name="android:windowSplashScreenBehavior">icon_preferred</item>
+    </style>
+</resources>

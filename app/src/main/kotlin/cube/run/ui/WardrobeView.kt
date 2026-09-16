@@ -217,6 +217,11 @@ class WardrobeView(activity: Activity, kit: UiKit, abilityStyle: Int = 0, onClos
         }
     }
 
+    private fun equip(category: Int, id: Int) {
+        Progress.equip(category, id)
+        if (category == Wardrobe.CUBE) cube.run.intro.LaunchAppearance.remember(activity)
+    }
+
     private fun act() {
         if (paying) return
         val before = Progress.coins
@@ -224,10 +229,10 @@ class WardrobeView(activity: Activity, kit: UiKit, abilityStyle: Int = 0, onClos
         val shardSkin = if (cat == Wardrobe.CUBE) Skins.get(index).takeIf { it.shardOnly } else null
         when {
             Progress.equipped(cat) == index -> {}
-            Progress.owns(cat, index) -> { Progress.equip(cat, index); SoundFx.play("tap"); Haptics.tick(); Anim.pulse(name, 1.15f); Stage.previewKicks.incrementAndGet(); render() }
+            Progress.owns(cat, index) -> { equip(cat, index); SoundFx.play("tap"); Haptics.tick(); Anim.pulse(name, 1.15f); Stage.previewKicks.incrementAndGet(); render() }
             shardSkin != null -> { // shards, not coins
                 if (Progress.unlockWithShards(index)) {
-                    Progress.equip(c, id)
+                    equip(c, id)
                     Stage.previewBuys.incrementAndGet()
                     Anim.pulse(name, 1.25f)
                     render()
@@ -237,7 +242,7 @@ class WardrobeView(activity: Activity, kit: UiKit, abilityStyle: Int = 0, onClos
                 paying = true
                 // Commit the choice with the purchase; its visual completion may
                 // be cancelled if the user leaves the page while coins are flying.
-                Progress.equip(c, id)
+                equip(c, id)
                 Haptics.click()
                 val ms = PayFx.fly(this, kit, balance, action, n = 6, onDone = {
                     paying = false

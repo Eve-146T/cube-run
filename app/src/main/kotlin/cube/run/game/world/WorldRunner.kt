@@ -48,8 +48,9 @@ class WorldRunner(private val game: Gdx3DGame, private val scenery: Scenery, pri
     var fogMix = 0.62f
         private set
 
-    fun reset() {
+    fun reset(firstWorld: Int? = null) {
         order = ArrayList(Worlds.all.indices.shuffled(rnd)) // a different first world every launch
+        firstWorld?.let { order.remove(it); order.add(0, it) }
         if (cube.run.data.Settings.testWorld >= 0) { order.remove(cube.run.data.Settings.testWorld); order.add(0, cube.run.data.Settings.testWorld) }
         if (cube.run.data.Settings.testPillWorld) { order.remove(1); order.add(0, 1) }
         world = Worlds.get(order.removeAt(0))

@@ -22,7 +22,7 @@ import cube.run.ui.Anim.move
  * Must only be touched from the UI thread (GameHostSession marshals for you).
  */
 @SuppressLint("SetTextI18n", "ViewConstructor")
-class Hud(private val activity: Activity) : FrameLayout(activity) {
+class Hud(private val activity: Activity, openingEntrance: Boolean = false) : FrameLayout(activity) {
 
     /** Animated overlays can grow into any part of the game window between layouts. */
     override fun gatherTransparentRegion(region: android.graphics.Region?): Boolean {
@@ -78,6 +78,7 @@ class Hud(private val activity: Activity) : FrameLayout(activity) {
     private var runStarted = false
     private var page: Page? = null
     private var preparedShop: ShopView? = null
+    private var opening = openingEntrance
     private val prepareShop = Runnable {
         if (isAttachedToWindow && !pageOpen() && width > 0 && height > 0 && preparedShop?.isCurrent() != true) {
             preparedShop = newShop().also { shop ->
@@ -89,7 +90,16 @@ class Hud(private val activity: Activity) : FrameLayout(activity) {
     }
     private var pauseSheet: PauseSheet? = null
     private var runOver: RunOverFlow? = null
-    private val menu: MainMenu = MainMenu(activity, kit, { openShop() }, { openWardrobe() }, { openSections() }, { menu.pulseBank() })
+    private val menu: MainMenu = MainMenu(activity, kit, { openShop() }, { openWardrobe() }, { openSections() }, { menu.pulseBank() }, openingEntrance)
+
+    /** One launch clock owns the fade. Controls are laid out at their final positions from frame one. */
+    fun setOpeningProgress(amount: Float) {
+        alpha = amount
+        if (amount >= 1f) {
+            menu.finishOpeningEntrance()
+            if (opening) { opening = false; scheduleShopPreparation() }
+        }
+    }
 
     init {
         isClickable = false
@@ -112,7 +122,7 @@ class Hud(private val activity: Activity) : FrameLayout(activity) {
 
     override fun onAttachedToWindow() {
         super.onAttachedToWindow()
-        postDelayed(prepareShop, 900) // let the initial menu entrance finish before preparing cards
+        if (!opening) scheduleShopPreparation()
     }
 
     override fun onDetachedFromWindow() {

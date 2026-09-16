@@ -1,0 +1,6 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android" xmlns:tools="http://schemas.android.com/tools">
+    <application>
+        <activity android:name=".IntroProbeActivity" android:exported="true"
+            tools:ignore="LockedOrientationActivity,DiscouragedApi" android:screenOrientation="portrait" android:theme="@style/GameTheme"/>
+    </application>
+</manifest>

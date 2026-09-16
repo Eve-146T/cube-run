@@ -30,6 +30,7 @@ class MainMenu(
     private val openWardrobe: () -> Unit,
     private val openSections: () -> Unit,
     private val onDevToggled: () -> Unit,
+    private var openingEntrance: Boolean = false,
 ) : FrameLayout(activity) {
 
     private fun dp(v: Float) = kit.dp(v)
@@ -151,7 +152,14 @@ class MainMenu(
             insets
         }
         refresh()
-        show()
+        if (openingEntrance) setShown(true) else show()
+    }
+
+    fun finishOpeningEntrance() {
+        if (!openingEntrance) return
+        openingEntrance = false
+        anims.add(Anim.breathe(tapHint, 1f, 0.55f, 750))
+        anims.add(ripple())
     }
 
     /** The entrance (also replayed coming back from a page): everything pops in staggered, the logo bobs. */

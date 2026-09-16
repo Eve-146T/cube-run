@@ -1,42 +1,39 @@
 package cube.run.game
 
+import com.badlogic.gdx.Gdx
 import com.badlogic.gdx.graphics.Color
 import com.badlogic.gdx.graphics.PerspectiveCamera
-import com.badlogic.gdx.math.Vector3
+import cube.run.intro.OpeningClock
+import cube.run.intro.OpeningPose
+import kotlin.math.cos
 import kotlin.math.sin
 
-/** One continuous shot: the equipped cube goes from centre stage to the idle menu. */
-class CubeOpening(enabled: Boolean) {
-    private var elapsed = if (enabled) 0f else DURATION
+/** Native and GL renderers continue the same shot on the same clock. */
+class CubeOpening(enabled: Boolean, private val clock: OpeningClock? = null) {
+    var elapsed = if (enabled) 0f else DURATION
+        private set
+    private val shot = OpeningPose()
+    val motionSeconds: Float get() = clock?.motionSeconds() ?: elapsed
     val active: Boolean get() = elapsed < DURATION
-    private val travel: Float get() = ease((elapsed-.18f)/1.15f)
-    val worldAmount: Float get() = ease((elapsed-.32f)/1.05f)
-    val uiAmount: Float get() = ease((elapsed-.85f)/.90f)
-    private val endPosition = Vector3()
-    private val endDirection = Vector3()
-    private val startDirection = Vector3()
+    val worldAmount: Float get() = OpeningPose.ease((elapsed-.14f)/1.05f)
+    val uiAmount: Float get() = OpeningPose.ease((elapsed-.67f)/.9f)
 
-    fun tick(dt: Float) { elapsed = (elapsed+dt).coerceAtMost(DURATION) }
-    fun finish() { elapsed = DURATION }
+    fun tick(dt: Float) {
+        if (active) elapsed = clock?.sceneSeconds() ?: (elapsed+dt).coerceAtMost(DURATION)
+    }
+    fun finish() { elapsed = DURATION; clock?.finish() }
 
-    fun pose(player: Player, camera: PerspectiveCamera) {
-        val move = travel
-        endPosition.set(camera.position); endDirection.set(camera.direction)
-        // Begin looking directly at the actual cube, then ease into the normal road view.
-        startDirection.set(0f, player.py-2.6f, -6.8f).nor()
-        camera.position.set(0f, 2.6f, 6.8f).lerp(endPosition, move)
-        camera.direction.set(startDirection).slerp(endDirection, move)
-        camera.up.set(Vector3.Y)
-        camera.fieldOfView = 40f+(camera.fieldOfView-40f)*move
-        val settle = ((elapsed-1.22f)/.53f).coerceIn(0f, 1f)
-        val squash = .12f*sin(settle*Math.PI.toFloat()*2f)*(1f-settle)
-        player.openingPose(-125f*(1f-move), -12f*(1f-move), .82f+.18f*move, squash)
+    fun pose(player: Player, camera: PerspectiveCamera, worldHue: Float) {
+        shot.update(elapsed, camera.viewportHeight/Gdx.graphics.density, motionSeconds)
+        camera.position.set(0f, shot.cameraY, shot.cameraZ)
+        camera.direction.set(0f, sin(shot.pitch), -cos(shot.pitch))
+        camera.up.set(0f, 1f, 0f)
+        camera.fieldOfView = Math.toDegrees(shot.fov.toDouble()).toFloat()
+        player.openingPose(shot, motionSeconds, worldHue, clock?.skinAmount() ?: 1f, clock?.launchAppearance)
     }
 
-    private fun ease(t: Float): Float = t.coerceIn(0f, 1f).let { it*it*it*(it*(it*6f-15f)+10f) }
-
     companion object {
-        const val DURATION = 1.75f
+        const val DURATION = OpeningPose.DURATION
         val INK: Color = Color.valueOf("14102E")
     }
 }

@@ -46,8 +46,26 @@ import kotlin.random.Random
  */
 abstract class Gdx3DGame(val session: GameSession) : ApplicationAdapter(), TouchListener {
 
-    /** Consumed on the GL thread after the first complete frame. */
+    /** Consumed on the next GL frame, after the first frame's buffer swap. */
     var onFirstFrame: (() -> Unit)? = null
+    var onSceneFrame: (() -> Unit)? = null
+    private var sceneFrameDrawn = false
+    @Volatile private var sceneFramesDrawn = 0L
+    private class SceneCallback(val after: Long, val action: () -> Unit)
+    @Volatile private var sceneCallback: SceneCallback? = null
+
+    /** The caller may change the shared opening pose while a GL frame is in flight.
+     * Wait past that frame and a newly rendered complete scene, including its swap. */
+    fun afterFreshSceneFrame(action: () -> Unit) {
+        sceneCallback = SceneCallback(sceneFramesDrawn+2, action)
+    }
+    private var firstFrameDrawn = false
+    private var firstFrameReported = false
+    private var startupStep = -1
+    private var terrain: TerrainHeight? = null
+
+    /** The intro only needs the player; prepare scenery batches while its native animation continues. */
+    protected open val hasLaunchOpening = false
 
     lateinit var cam: PerspectiveCamera
     lateinit var env: Environment
@@ -74,6 +92,10 @@ abstract class Gdx3DGame(val session: GameSession) : ApplicationAdapter(), Touch
     var time = 0f
         private set
     private var preciseTime = 0.0
+    /** Before gameplay begins, continue the visible intro time across renderers. */
+    protected fun alignOpeningTime(seconds: Float) {
+        preciseTime = seconds.toDouble(); time = seconds
+    }
     private val frameStepper = FrameStepper()
     private var resumed = true
 
@@ -99,6 +121,7 @@ abstract class Gdx3DGame(val session: GameSession) : ApplicationAdapter(), Touch
 
     abstract fun init()
     abstract fun tick(dt: Float)
+    protected open fun tickOpening() {}
 
     /** While true the frame is drawn but nothing advances: [tick] gets dt = 0 and [time] holds. */
     open fun paused(): Boolean = false
@@ -160,23 +183,66 @@ abstract class Gdx3DGame(val session: GameSession) : ApplicationAdapter(), Touch
         LaunchTrace.mark("box kit")
         env = kit.environment()
         batch = ModelBatch()
-        shapes = ShapeRenderer()
-        matrixWires = MatrixWireBatch(kit)
-        world = WorldBoxBatch(kit, wires = matrixWires)
-        coins = PrismBatch(kit, wires = matrixWires)
-        capsules = CapsuleBatch(kit)
-        crystals = cube.run.core.gfx.CrystalBatch(kit)
-        LaunchTrace.mark("batches ready")
-        shards = ShardSystem(kit)
         perf = PerfMonitor(showFps, perfLog)
         Gdx.input.inputProcessor = TouchInput(this, { sw }, { session.isOver || paused() || Stage.mode != Stage.NONE })
+        if (hasLaunchOpening) startupStep = 0 else for (step in 0..6) prepareRenderer(step)
         init()
+        LaunchTrace.mark(if (hasLaunchOpening) "cube ready" else "game ready")
+    }
+
+    private fun prepareRenderer(step: Int) {
+        when (step) {
+            0 -> shapes = ShapeRenderer()
+            1 -> matrixWires = MatrixWireBatch(kit)
+            2 -> world = WorldBoxBatch(kit, wires = matrixWires).also { it.terrain = terrain }
+            3 -> coins = PrismBatch(kit, wires = matrixWires).also { it.terrain = terrain }
+            4 -> capsules = CapsuleBatch(kit).also { it.terrain = terrain }
+            5 -> crystals = cube.run.core.gfx.CrystalBatch(kit).also { it.terrain = terrain }
+            6 -> shards = ShardSystem(kit)
+            7 -> { bubbles; LaunchTrace.mark("batches ready") }
+        }
+    }
+
+    /** A direct run-start request can finish preparation at any point. GL thread only. */
+    protected fun finishRendererStartup() {
+        if (startupStep < 0) return
+        while (startupStep <= 7) prepareRenderer(startupStep++)
+        startupStep = -1
+        resumed = true
         LaunchTrace.mark("game ready")
     }
 
     // ----------------------------------------------------------------- frame
 
     override fun render() {
+        sceneCallback?.takeIf { sceneFramesDrawn >= it.after }?.let {
+            sceneCallback = null
+            it.action()
+        }
+        if (sceneFrameDrawn) {
+            onSceneFrame?.invoke(); onSceneFrame = null
+        }
+        if (firstFrameDrawn && !firstFrameReported) {
+            firstFrameReported = true
+            LaunchTrace.mark("first frame swapped")
+            onFirstFrame?.invoke(); onFirstFrame = null
+            if (!hasLaunchOpening) Gdx.app.postRunnable { if (!disposed) bubbles }
+        }
+        if (startupStep >= 0) {
+            // Native Canvas now owns the visible intro. Finish GL preparation
+            // together instead of inserting extra frames between small batches.
+            if (firstFrameDrawn) finishRendererStartup()
+            tickOpening()
+            Gdx.gl.glViewport(0, 0, sw, sh)
+            Gdx.gl.glClearColor(bgBottom.r, bgBottom.g, bgBottom.b, 1f)
+            Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT or GL20.GL_DEPTH_BUFFER_BIT)
+            cam.viewportWidth = sw.toFloat(); cam.viewportHeight = sh.toFloat(); cam.update()
+            batch.begin(cam)
+            renderWorld(batch, env)
+            batch.end()
+            markFirstFrame()
+            return
+        }
         perf.beginFrame()
         val raw = if (resumed) 0f else Gdx.graphics.rawDeltaTime
         resumed = false
@@ -285,10 +351,15 @@ abstract class Gdx3DGame(val session: GameSession) : ApplicationAdapter(), Touch
         Gdx.gl.glEnable(GL20.GL_DEPTH_TEST)
 
         perf.endFrame(shards.count)
-        onFirstFrame?.let {
-            onFirstFrame = null; LaunchTrace.mark("first frame"); it()
-            // Compile during the opening's still pose, after the cube is already visible.
-            Gdx.app.postRunnable { if (!disposed) { bubbles; LaunchTrace.mark("bubble ready") } }
+        sceneFrameDrawn = true
+        sceneFramesDrawn++
+        markFirstFrame()
+    }
+
+    private fun markFirstFrame() {
+        if (!firstFrameDrawn) {
+            firstFrameDrawn = true
+            LaunchTrace.mark("first frame")
         }
     }
 
@@ -369,7 +440,13 @@ abstract class Gdx3DGame(val session: GameSession) : ApplicationAdapter(), Touch
     fun setWorldOpacity(amount: Float) { world.opacity = amount; coins.opacity = amount }
 
     /** Ground height by z added to everything in the batched passes (null = flat). */
-    fun setTerrain(f: TerrainHeight?) { world.terrain = f; coins.terrain = f; capsules.terrain = f; crystals.terrain = f }
+    fun setTerrain(f: TerrainHeight?) {
+        terrain = f
+        if (::world.isInitialized) world.terrain = f
+        if (::coins.isInitialized) coins.terrain = f
+        if (::capsules.isInitialized) capsules.terrain = f
+        if (::crystals.isInitialized) crystals.terrain = f
+    }
 
     fun setMatrixAmount(amount: Float) { matrixWires.amount = amount }
 
@@ -419,16 +496,19 @@ abstract class Gdx3DGame(val session: GameSession) : ApplicationAdapter(), Touch
 
     override fun dispose() {
         disposed = true
-        batch.dispose()
-        shapes.dispose()
-        shards.dispose()
-        world.dispose()
-        coins.dispose()
-        matrixWires.dispose()
-        capsules.dispose()
-        crystals.dispose()
+        onFirstFrame = null
+        onSceneFrame = null
+        sceneCallback = null
+        if (::batch.isInitialized) batch.dispose()
+        if (::shapes.isInitialized) shapes.dispose()
+        if (::shards.isInitialized) shards.dispose()
+        if (::world.isInitialized) world.dispose()
+        if (::coins.isInitialized) coins.dispose()
+        if (::matrixWires.isInitialized) matrixWires.dispose()
+        if (::capsules.isInitialized) capsules.dispose()
+        if (::crystals.isInitialized) crystals.dispose()
         bubbleRenderer?.dispose()
-        kit.dispose()
+        if (::kit.isInitialized) kit.dispose()
         owned.forEach { it.dispose() }
         owned.clear()
     }
