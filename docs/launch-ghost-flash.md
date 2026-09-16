@@ -6,6 +6,11 @@ Follow-up to `338e42d`, in the `optimizing-launchtime` worktree.
 frame or excessive brightness; all 23 affected instrumentation tests pass.
 [Installable APK](https://apps.muxu.click/d/3gaw8f49).
 
+**User verification, 2026-09-16:** the user reports that this APK is very smooth
+and that the earlier flash report no longer applies. The subsequent unverified
+compatibility experiment was set aside; the verified implementation remains
+`d9c1e1f`. No replacement APK was published.
+
 ## Reproduction
 
 Purchased and equipped **Ghost (skin 13)** through the wardrobe on the dedicated
