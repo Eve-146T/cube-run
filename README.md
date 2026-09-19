@@ -5,6 +5,9 @@ src="fastlane/metadata/android/en-US/images/icon.png" alt="Cube Run">
 
 Endless runner but you are cube.
 
+> [!TIP]
+> Vibe coded pull requests welcome! 
+    
 Latest APK: [GitHub releases](https://github.com/Eve-146T/cube-run/releases/latest).
 
 ## Screenshots
