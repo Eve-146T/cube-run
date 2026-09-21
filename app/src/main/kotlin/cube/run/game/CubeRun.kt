@@ -210,11 +210,6 @@ class CubeRun(session: GameSession, private val autoStart: Boolean = false, priv
             Terrain.set(bonus == Bonus.HILLS)
             session.setBonus(bonus)
         }
-        if (Progress.safeStartSeconds > 0f) { // the Safe start perk: a bubble is already up
-            bubble.duration = Progress.safeStartSeconds
-            bubble.activate(player.px, player.py, quiet = true)
-            bubble.duration = Progress.BUBBLE.duration(Progress.bubbleLevel)
-        }
         session.runStarted()
         fx.runStart(worldHue())
         rig.punch(0.8f)
@@ -569,7 +564,15 @@ class CubeRun(session: GameSession, private val autoStart: Boolean = false, priv
         }
         when (scenery.scroll(mv)) {
             Scenery.PASSED_WORLD -> worlds.gatePassed()?.let { fx.worldGate(worlds.gateColor()); rig.punch(0.7f); session.setWorld(it.name) }
-            Scenery.PASSED_START -> { fx.startGate(player.trailCol()); rig.punch(0.9f) }
+            Scenery.PASSED_START -> {
+                fx.startGate(player.trailCol())
+                rig.punch(0.9f)
+                if (Progress.safeStartSeconds > 0f) { // the Safe start perk: a bubble is already up
+                    bubble.duration = Progress.safeStartSeconds
+                    bubble.activate(player.px, player.py, quiet = true)
+                    bubble.duration = Progress.BUBBLE.duration(Progress.bubbleLevel)
+                }
+            }
         }
         if (live()) track.spawn(mv, worldHue(), session.score, dt)
 
