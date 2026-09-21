@@ -188,7 +188,7 @@ class CubeRun(session: GameSession, private val autoStart: Boolean = false, priv
 
     override fun paused(): Boolean {
         if (Stage.paused) { player.clearJumpInput(); idlePilot.stop() }
-        return Stage.paused
+        return Stage.paused || Stage.jackpotCelebrating
     }
 
     private fun start() {
@@ -220,6 +220,10 @@ class CubeRun(session: GameSession, private val autoStart: Boolean = false, priv
         }
         track.portalEvery = if (Settings.devMode) 28 else 110 - 14 * Progress.level(Progress.PORTALS) // dev: portals galore too
         powerUps.reset(); redPill.reset(); jetGrace = 0f
+        if (BuildConfig.DEBUG && BuildConfig.JACKPOT_TEST_WORLD) {
+            track.portalPool = emptyList()
+            powerUps.magnet.start(3600f)
+        }
         bubble.reset(); shownBubbleCooldown = 0; session.setBubbleCooldown(0)
         bubble.cooldownDuration = 5f * runSkin.bubbleCooldownMultiplier
         bubble.duration = bubbleDuration()

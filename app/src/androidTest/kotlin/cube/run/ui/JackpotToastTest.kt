@@ -13,6 +13,7 @@ import android.widget.TextView
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.core.app.ActivityScenario
 import cube.run.GameActivity
+import cube.run.core.Stage
 import org.junit.Assert.*
 import org.junit.Test
 
@@ -53,9 +54,7 @@ class JackpotToastTest {
                 kit = UiKit(activity.createConfigurationContext(config))
                 root = activity.findViewById(android.R.id.content)
                 toast = JackpotToast(activity, kit)
-                root.addView(toast, FrameLayout.LayoutParams(kit.dp(280f), -2, Gravity.TOP or Gravity.CENTER_HORIZONTAL).apply {
-                    topMargin = kit.dp(220f)
-                })
+                root.addView(toast, FrameLayout.LayoutParams(kit.dp(280f), -1, Gravity.TOP or Gravity.CENTER_HORIZONTAL))
             }
             try { test(scenario, toast, root, kit) }
             finally { ui { toast.reset(); root.removeView(toast) } }
@@ -67,7 +66,9 @@ class JackpotToastTest {
         awaitShown(scenario, toast)
         ui {
             assertTrue(amount(toast).text.toString().endsWith("+250,000"))
+            assertTrue("Simulation holds while the takeover covers gameplay", Stage.jackpotCelebrating)
             toast.setRunActive(false)
+            assertFalse("Pause releases the celebration's hold", Stage.jackpotCelebrating)
             assertEquals(View.INVISIBLE, card(toast).visibility)
             assertEquals(250000, field(toast, "pendingAmount").getInt(toast))
             toast.show(250000)
@@ -88,11 +89,12 @@ class JackpotToastTest {
         ui {
             assertTrue(amount(toast).text.toString().endsWith("+500,000"))
             toast.reset()
+            assertFalse("Reset cannot leave simulation frozen", Stage.jackpotCelebrating)
             toast.setRunActive(true)
             assertEquals(0, field(toast, "currentAmount").getInt(toast))
             assertEquals(0, field(toast, "pendingAmount").getInt(toast))
         }
-        SystemClock.sleep(3100)
+        SystemClock.sleep(5100)
         ui {
             assertEquals("A new run cannot resurrect an interrupted prior win", View.INVISIBLE, card(toast).visibility)
         }
@@ -109,6 +111,7 @@ class JackpotToastTest {
         ui {
             assertEquals(0, field(toast, "currentAmount").getInt(toast))
             assertEquals(0, field(toast, "pendingAmount").getInt(toast))
+            assertFalse("Gameplay resumes after the takeover", Stage.jackpotCelebrating)
         }
     }
 

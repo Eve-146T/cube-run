@@ -77,6 +77,17 @@ class GameActivity : AndroidApplication() {
 
         // Debug builds only: adb shortcuts for testing individual sections and worlds.
         if (BuildConfig.DEBUG) {
+            // Opt-in APK preset: survives launcher starts and RESTART without adb extras.
+            if (BuildConfig.JACKPOT_TEST_WORLD) {
+                Settings.setDevMode(true)
+                Progress.enterDev()
+                Settings.testSection = 56 // MOTHERLODE: an obstacle-free field of coins.
+                Settings.testPillWorld = false
+                Settings.testBonus = -1
+                Settings.testBonusNow = -1
+                Progress.buy(cube.run.data.Wardrobe.CUBE, 1)
+                Progress.equip(cube.run.data.Wardrobe.CUBE, 1)
+            }
             if (intent.getBooleanExtra("dev", false) && !Settings.devMode) { Settings.setDevMode(true); Progress.enterDev() }
             intent.getIntExtra("section", -2).let { if (it >= -1) { Settings.testSection = it; Settings.testPillWorld = false } }
             if (intent.hasExtra("pillworld")) Settings.testPillWorld = intent.getBooleanExtra("pillworld", false)

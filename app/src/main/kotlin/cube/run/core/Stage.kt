@@ -55,6 +55,8 @@ object Stage {
 
     /** The pause menu is up: the game renders its last frame and integrates nothing. */
     @Volatile var paused = false
+    /** Jackpot takeover holds simulation independently of the pause menu. */
+    @Volatile var jackpotCelebrating = false
 
     /** Dev tool: the pause card asked for the run to end now (crash → results). */
     @Volatile var endRun = false
