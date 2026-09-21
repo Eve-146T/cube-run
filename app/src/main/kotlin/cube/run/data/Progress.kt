@@ -372,8 +372,6 @@ object Progress {
         prefs.edit().putInt("runs", runs).putInt("achievement_best_score", bestRunScore).putInt("max_run_bounces", maxRunBounces).apply()
     }
 
-    fun payLanguageSwitch(from: String, to: String): Boolean = spend(Languages.switchCost(from, to))
-
     private fun spend(n: Int): Boolean {
         if (n < 0 || n > coins) return false
         coins -= n

@@ -80,7 +80,6 @@ class LanguageSheet(
         val current = Languages.current(activity)
         for (option in Languages.options) {
             val selected = option.code == current
-            val cost = Languages.switchCost(current, option.code)
             val row = LinearLayout(activity).apply {
                 orientation = LinearLayout.HORIZONTAL
                 gravity = Gravity.CENTER_VERTICAL
@@ -93,7 +92,6 @@ class LanguageSheet(
                 isSelected = selected
                 isFocusable = true
                 contentDescription = activity.getString(R.string.language_option, option.nativeName, activity.getString(option.country))
-                if (cost > 0) contentDescription = "$contentDescription, ${activity.getString(R.string.language_switch_cost, cost)}"
                 accessibilityDelegate = object : View.AccessibilityDelegate() {
                     override fun onInitializeAccessibilityNodeInfo(host: View, info: AccessibilityNodeInfo) {
                         super.onInitializeAccessibilityNodeInfo(host, info)
@@ -119,7 +117,6 @@ class LanguageSheet(
                     textDirection = View.TEXT_DIRECTION_FIRST_STRONG
                     textAlignment = View.TEXT_ALIGNMENT_VIEW_START
                 }, LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT))
-                if (cost > 0) addView(kit.text(activity.getString(R.string.language_switch_cost, cost), 13f, Theme.INK_SOFT, 600, Gravity.START))
             }, LinearLayout.LayoutParams(0, LayoutParams.WRAP_CONTENT, 1f).apply { marginStart = dp(12f); marginEnd = dp(8f) })
             row.addView(SelectionMark(activity, kit, selected), LinearLayout.LayoutParams(dp(24f), dp(24f)))
             card.addView(row, LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT).apply {

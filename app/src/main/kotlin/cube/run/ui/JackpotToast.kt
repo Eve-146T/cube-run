@@ -12,6 +12,7 @@ import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.TextView
 import cube.run.ui.Anim.move
+import cube.run.R
 
 /** Celebrates coins already earned by the run; this view never awards or spends anything. */
 @SuppressLint("ViewConstructor")
@@ -19,7 +20,7 @@ class JackpotToast(activity: Activity, private val kit: UiKit) : FrameLayout(act
     private var active = false
     private var currentAmount = 0
     private var pendingAmount = 0
-    private val title = kit.text("JACKPOT", 13f, Theme.INK, 700).apply {
+    private val title = kit.text(context.getString(R.string.jackpot_title), 13f, Theme.INK, 700).apply {
         tag = "jackpot_title"
         letterSpacing = .13f
         setSingleLine(); setHorizontallyScrolling(false)
@@ -34,7 +35,7 @@ class JackpotToast(activity: Activity, private val kit: UiKit) : FrameLayout(act
     private val card = object : LinearLayout(activity) {
         override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
             val available = (MeasureSpec.getSize(widthMeasureSpec) - paddingLeft - paddingRight - kit.dp(2f)).coerceAtLeast(1)
-            fit(title, available, 13f) { "JACKPOT" }
+            fit(title, available, 13f) { context.getString(R.string.jackpot_title) }
             fit(amount, available, 24f, ::amountLabel)
             labelChanged = false
             super.onMeasure(widthMeasureSpec, heightMeasureSpec)
@@ -130,7 +131,7 @@ class JackpotToast(activity: Activity, private val kit: UiKit) : FrameLayout(act
         pendingAmount = 0
         labelChanged = true
         amount.text = amountLabel(amount.textSize)
-        card.contentDescription = "Jackpot. ${number(currentAmount)} coins."
+        card.contentDescription = context.getString(R.string.jackpot_description, number(currentAmount))
         card.visibility = VISIBLE
         card.requestLayout()
         Anim.popIn(card, from = .88f, duration = 300L)

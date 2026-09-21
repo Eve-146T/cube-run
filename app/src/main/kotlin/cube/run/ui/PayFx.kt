@@ -66,7 +66,7 @@ object PayFx {
     }
 
     /** A white flash over [card] that fades out (the thing you bought lighting up). */
-    fun flash(card: View, radiusPx: Float) {
+    fun flash(card: View, radiusPx: Float, pulse: Boolean = true) {
         val fg = GradientDrawable().apply { cornerRadius = radiusPx; setColor(Theme.WHITE) }
         card.foreground = fg
         ValueAnimator.ofInt(170, 0).apply {
@@ -77,7 +77,7 @@ object PayFx {
             doOnEnd { card.foreground = null }
             start()
         }
-        Anim.pulse(card, 1.03f, 380)
+        if (pulse) Anim.pulse(card, 1.03f, 380)
     }
 
     private fun ValueAnimator.doOnEnd(f: () -> Unit) {

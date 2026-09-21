@@ -21,6 +21,11 @@ fun Context.gameText(stableLabel: String): String = when (stableLabel) {
     "Ghost" -> getString(R.string.game_ghost)
     "Strobe" -> getString(R.string.game_strobe)
     "Coal" -> getString(R.string.game_coal)
+    "Gambler" -> getString(R.string.game_gambler)
+    "Cloud" -> getString(R.string.game_cloud)
+    "Black void" -> getString(R.string.game_black_void)
+    "Event horizon" -> getString(R.string.game_event_horizon)
+    "Afterimage" -> getString(R.string.game_afterimage)
     "Bubblegum" -> getString(R.string.game_bubblegum)
     "Lemon" -> getString(R.string.game_lemon)
     "Candy" -> getString(R.string.game_candy)
@@ -46,12 +51,32 @@ fun Context.gameText(stableLabel: String): String = when (stableLabel) {
     "BUBBLE" -> getString(R.string.game_bubble)
     "TRAIL" -> getString(R.string.game_trail)
     "Phase" -> getString(R.string.game_phase)
+    "Slip through one obstacle each run!" -> getString(R.string.ability_phase_detail)
     "Allows you to phase through one obstacle per run." -> getString(R.string.game_allows_you_to_phase_through_one_obstacle_per_run)
     "1 / RUN" -> getString(R.string.game_1_run)
     "Speed" -> getString(R.string.game_speed)
+    "Your cube runs 30% faster!" -> getString(R.string.ability_speed_detail)
     "Makes you 30% faster." -> getString(R.string.game_makes_you_30_faster)
     "+30%" -> getString(R.string.game_30)
     "Bubble saver" -> getString(R.string.game_bubble_saver)
+    "35% chance to keep your bubble when you use it!" -> getString(R.string.ability_bubble_saver_detail)
+    "Midas Little Toe" -> getString(R.string.ability_midas)
+    "Coins you collect are worth 20% more!" -> getString(R.string.ability_midas_detail)
+    "Zappy" -> getString(R.string.ability_zappy)
+    "Teleport between lanes in a flash!" -> getString(R.string.ability_zappy_detail)
+    "Power stretch" -> getString(R.string.ability_power_stretch)
+    "Your power-ups last 25% longer!" -> getString(R.string.ability_power_stretch_detail)
+    "Quick bubble" -> getString(R.string.ability_quick_bubble)
+    "Pop another bubble 30% sooner!" -> getString(R.string.ability_quick_bubble_detail)
+    "Turns every coin into coal. Coal is worthless." -> getString(R.string.ability_coal_detail)
+    "Lottery" -> getString(R.string.ability_lottery)
+    "All the coins you collect are spent on playing the Lottery! The jackpot is 250k coins. Each coin of value has a 1 in 100,000 chance; each mystery box has a 1.3% chance." -> getString(R.string.ability_lottery_detail)
+    "Floaty" -> getString(R.string.ability_floaty)
+    "Your cube becomes floaty!" -> getString(R.string.ability_floaty_detail)
+    "Double jump" -> getString(R.string.ability_double_jump)
+    "Jump twice while your bubble is active!" -> getString(R.string.ability_double_jump_detail)
+    "Long bubble" -> getString(R.string.ability_long_bubble)
+    "Your bubble lasts 30% longer!" -> getString(R.string.ability_long_bubble_detail)
     "35% chance to not consume a bubble." -> getString(R.string.game_35_chance_to_not_consume_a_bubble)
     "35%" -> getString(R.string.game_35)
     "Bubble" -> getString(R.string.game_bubble)
@@ -137,3 +162,38 @@ fun Context.gameText(stableLabel: String): String = when (stableLabel) {
     "VALLEY GATES" -> getString(R.string.section_valley_gates)
     else -> stableLabel
 }
+
+fun Context.achievementTitle(id: String): String = getString(when (id) {
+    "runner" -> R.string.achievement_good_runner
+    "coins" -> R.string.achievement_lifetime_coins
+    "cubes" -> R.string.achievement_unlocked_cubes
+    "powerups" -> R.string.achievement_power_collector
+    "boxes" -> R.string.achievement_mystery_seeker
+    "bubbles" -> R.string.achievement_big_bubble
+    "bounces" -> R.string.achievement_bouncer
+    "center" -> R.string.achievement_stay_centered
+    "homeress" -> R.string.achievement_homeress
+    "gambliphobic" -> R.string.achievement_gambliphobic
+    else -> R.string.achievement_cookie_clicker
+})
+
+fun Context.achievementGoal(id: String): String = getString(when (id) {
+    "runner" -> R.string.achievement_single_run_score
+    "coins" -> R.string.achievement_collected_over_time
+    "cubes" -> R.string.achievement_cube_collection
+    "powerups" -> R.string.achievement_powerups_collected
+    "boxes" -> R.string.achievement_boxes_opened
+    "bubbles" -> R.string.achievement_hold_bubbles
+    "bounces" -> R.string.achievement_wall_bounces
+    "center" -> R.string.achievement_stay_middle
+    "homeress" -> R.string.achievement_no_coins
+    "gambliphobic" -> R.string.achievement_miss_boxes
+    else -> R.string.achievement_toggle_sound
+})
+
+fun Context.achievementTierName(tier: Int): String = getString(listOf(
+    R.string.achievement_bronze,
+    R.string.achievement_silver,
+    R.string.achievement_gold,
+    R.string.achievement_diamond,
+)[tier.coerceIn(0, 3)])

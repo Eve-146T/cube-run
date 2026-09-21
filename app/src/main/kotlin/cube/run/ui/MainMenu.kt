@@ -128,7 +128,7 @@ class MainMenu(
         }
     }
 
-    private val achievements = kit.chip(R.drawable.ic_achievements, Theme.ORANGE, Theme.WHITE, "Achievements") { openAchievements() }.apply {
+    private val achievements = kit.chip(R.drawable.ic_achievements, Theme.ORANGE, Theme.WHITE, activity.getString(R.string.achievements_title)) { openAchievements() }.apply {
         val p = dp(13f); setPadding(p, p, p, p)
     }
 

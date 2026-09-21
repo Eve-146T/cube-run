@@ -3,7 +3,9 @@ package cube.run.ui
 import android.animation.ValueAnimator
 import android.annotation.SuppressLint
 import android.app.Activity
+import android.content.Intent
 import android.content.Context
+import android.net.Uri
 import android.graphics.Canvas
 import android.graphics.Paint
 import android.graphics.Path
@@ -24,12 +26,13 @@ import cube.run.data.Achievements
 import cube.run.data.Progress
 import cube.run.core.Haptics
 import cube.run.core.SoundFx
+import cube.run.R
 import java.text.NumberFormat
 
 /** A small collection of evolving goals, using the game's ink and candy colours. */
 @SuppressLint("ViewConstructor", "SetTextI18n")
 class AchievementsView(activity: Activity, kit: UiKit, onClose: () -> Unit) :
-    Page(activity, kit, "ACHIEVEMENTS", dark = true, onClosed = onClose) {
+    Page(activity, kit, activity.getString(R.string.achievements_title), dark = true, onClosed = onClose) {
     private val rows = LinearLayout(activity).apply {
         orientation = LinearLayout.VERTICAL
         setPadding(dp(14f), dp(8f), dp(14f), dp(28f))
@@ -58,20 +61,13 @@ class AchievementsView(activity: Activity, kit: UiKit, onClose: () -> Unit) :
             intArrayOf(0xFF29324F.toInt(), 0xFF1C2A40.toInt(), 0xFF142D37.toInt()))
         titleView.maxLines = 1
         titleView.setAutoSizeTextTypeUniformWithConfiguration(12, 23, 1, android.util.TypedValue.COMPLEX_UNIT_SP)
-        content.addView(LinearLayout(activity).apply {
-            orientation = LinearLayout.VERTICAL
-            clipChildren = true; clipToPadding = true
-            addView(LinearLayout(activity).apply {
-                gravity = Gravity.END
-                setPadding(dp(14f), dp(2f), dp(14f), dp(6f))
-                addView(bank)
-            }, LinearLayout.LayoutParams(-1, -2))
-            addView(scroll, LinearLayout.LayoutParams(-1, 0, 1f))
-        })
+        addRight(bank)
+        content.addView(scroll, LayoutParams(-1, -1))
         for ((index, definition) in Achievements.all.withIndex()) {
             rows.addView(achievementCard(Achievements.snapshot(definition), index),
                 LinearLayout.LayoutParams(-1, -2).apply { if (index > 0) topMargin = dp(12f) })
         }
+        rows.addView(suggestionCard(), LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(18f) })
     }
 
     private fun achievementCard(state: Achievements.Snapshot, index: Int, animateFill: Boolean = true): View {
@@ -95,23 +91,12 @@ class AchievementsView(activity: Activity, kit: UiKit, onClose: () -> Unit) :
         val headerInk = Theme.onColor(headerColor)
         val bodyColor = if (state.allClaimed) 0xFF244F4B.toInt() else Theme.lerp(0xFF34465E.toInt(), accent, .08f)
         val best = when (definition.id) {
-            "bounces" -> "Best: ${number(state.value)} bounces"
+            "bounces" -> activity.getString(R.string.achievement_best_bounces, number(state.value))
             else -> null
         }
-        val subtitle = if (state.allClaimed) best?.let { "Claimed · $it" } ?: "Claimed" else when (definition.id) {
-            "runner" -> "Single-run score"
-            "coins" -> "Collected over time"
-            "cubes" -> "Cube collection"
-            "powerups" -> "Power Ups collected"
-            "boxes" -> "Mystery boxes opened"
-            "bubbles" -> if (complete) "" else "Hold 1,000 bubbles at once"
-            "bounces" -> if (complete) best.orEmpty() else "67 wall bounces in one run"
-            "center" -> if (complete) "" else "Reach 100 without leaving the middle lane"
-            "homeress" -> if (complete) "" else "Score 60 without picking up a coin"
-            "gambliphobic" -> if (complete) "" else "Miss 10 mystery boxes in one run"
-            "cookie" -> if (complete) "" else "Toggle sound 1,000 times"
-            else -> definition.description
-        }
+        val subtitle = if (state.allClaimed) best?.let { activity.getString(R.string.achievement_claimed_with_best, it) }
+            ?: activity.getString(R.string.achievement_claimed)
+        else if (complete && !definition.tiered) best.orEmpty() else activity.achievementGoal(definition.id)
         return LinearLayout(activity).apply {
             tag = "achievement_card_${definition.id}"
             orientation = LinearLayout.VERTICAL
@@ -142,7 +127,7 @@ class AchievementsView(activity: Activity, kit: UiKit, onClose: () -> Unit) :
                 }, LinearLayout.LayoutParams(dp(48f), dp(48f)))
                 addView(LinearLayout(activity).apply {
                     orientation = LinearLayout.VERTICAL
-                    addView(kit.text(definition.title, 19f, headerInk, 700, Gravity.START).apply { maxLines = 2 })
+                    addView(kit.text(activity.achievementTitle(definition.id), 19f, headerInk, 700, Gravity.START).apply { maxLines = 2 })
                     if (subtitle.isNotEmpty()) addView(kit.text(subtitle, 11f, headerInk, 500, Gravity.START).apply {
                         maxLines = if (definition.id in setOf("center", "homeress", "gambliphobic", "cookie")) 3 else 2
                         tag = if (best != null && complete) "achievement_best_${definition.id}"
@@ -151,7 +136,7 @@ class AchievementsView(activity: Activity, kit: UiKit, onClose: () -> Unit) :
                 }, LinearLayout.LayoutParams(0, -2, 1f).apply { leftMargin = dp(12f) })
                 if (state.allClaimed || (!definition.tiered && complete)) addView(ImageView(activity).apply {
                     setImageDrawable(AchievementCheckIcon())
-                    contentDescription = if (definition.tiered) "All rewards claimed" else "Challenge complete"
+                    contentDescription = activity.getString(if (definition.tiered) R.string.achievement_all_rewards_claimed else R.string.achievement_challenge_complete)
                 }, LinearLayout.LayoutParams(dp(30f), dp(30f)).apply { leftMargin = dp(5f) })
             }, LinearLayout.LayoutParams(-1, -2))
 
@@ -183,7 +168,7 @@ class AchievementsView(activity: Activity, kit: UiKit, onClose: () -> Unit) :
                     val target = definition.thresholds[tier] + if (definition.id == "runner") 1 else 0
                     val ready = state.claimableTier != null
                     val fraction = if (ready) 1f else state.fraction
-                    val counter = if (definition.id == "bounces") "Best: ${number(state.value)} / ${number(target)}"
+                    val counter = if (definition.id == "bounces") activity.getString(R.string.achievement_best_progress, number(state.value), number(target))
                         else "${number(if (ready) target else minOf(state.value, target))} / ${number(target)}"
                     addView(kit.stageText(counter, 14f, if (ready) Theme.MINT else Theme.WHITE,
                         gravity = Gravity.START, stroke = 1.5f).apply { maxLines = 1; tag = "achievement-counter" })
@@ -191,12 +176,12 @@ class AchievementsView(activity: Activity, kit: UiKit, onClose: () -> Unit) :
                         if (animateFill) 100L + index * 35L else 0L, animateFill,
                         fromFraction = if (!animateFill && !ready) 1f else null).apply {
                         tag = "achievement_progress_${definition.id}"
-                        contentDescription = "${(fraction * 100).toInt()} percent complete"
+                        contentDescription = activity.getString(R.string.achievement_percent_complete, (fraction * 100).toInt())
                     }, LinearLayout.LayoutParams(-1, dp(9f)).apply { topMargin = dp(2f); bottomMargin = dp(3f) })
                 }
                 bottom.addView(goal, LinearLayout.LayoutParams(0, -2, 1f))
             } else {
-                bottom.addView(kit.stageText("Complete", 17f, Theme.MINT, gravity = Gravity.START, stroke = 2f),
+                bottom.addView(kit.stageText(activity.getString(R.string.achievement_complete), 17f, Theme.MINT, gravity = Gravity.START, stroke = 2f),
                     LinearLayout.LayoutParams(0, -2, 1f))
             }
             bottom.addView(rewardAction(state, index), LinearLayout.LayoutParams(-2, -2))
@@ -223,12 +208,13 @@ class AchievementsView(activity: Activity, kit: UiKit, onClose: () -> Unit) :
                     shape = GradientDrawable.OVAL; setColor(Theme.alpha(medalColor(tier), 25))
                     setStroke(dp(1.5f), medalColor(tier))
                 }
-                contentDescription = "${medalName(tier)}: ${when {
-                    tier < state.claimedTiers -> "claimed"
-                    tier < state.earnedTiers -> "reward ready"
-                    tier == current -> "in progress"
-                    else -> "locked"
-                }}"
+                val status = activity.getString(when {
+                    tier < state.claimedTiers -> R.string.achievement_status_claimed
+                    tier < state.earnedTiers -> R.string.achievement_status_ready
+                    tier == current -> R.string.achievement_status_progress
+                    else -> R.string.achievement_status_locked
+                })
+                contentDescription = activity.getString(R.string.achievement_medal_status, activity.achievementTierName(tier), status)
             }, LinearLayout.LayoutParams(dp(40f), dp(40f)))
         }
     }
@@ -243,10 +229,10 @@ class AchievementsView(activity: Activity, kit: UiKit, onClose: () -> Unit) :
             minimumWidth = dp(120f); minimumHeight = dp(46f)
             setPadding(dp(10f), dp(5f), dp(10f), dp(5f))
             addView(kit.iconText(CoinIcon(), "+${number(amount)}", 16f, Theme.YELLOW, iconDp = 20f).apply { gravity = Gravity.CENTER })
-            contentDescription = "Reward: ${number(amount)} coins, locked"
+            contentDescription = activity.getString(R.string.achievement_reward_locked, number(amount))
             importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_YES
         }
-        val label = android.text.SpannableStringBuilder("CLAIM ").append(kit.coins(number(amount), 13f))
+        val label = android.text.SpannableStringBuilder(activity.getString(R.string.achievement_claim)).append(" ").append(kit.coins(number(amount), 13f))
         lateinit var button: CandyButton
         button = kit.button(label, Theme.GOLD, UiKit.Size.SMALL) {
             if (paying || closing) return@button
@@ -273,7 +259,7 @@ class AchievementsView(activity: Activity, kit: UiKit, onClose: () -> Unit) :
                         return true
                     }
                 })
-                PayFx.flash(fresh, dpf(24f))
+                PayFx.flash(fresh, dpf(24f), pulse = false)
                 Haptics.success()
                 SoundFx.play("success", rate = 1.2f, vol = .5f)
                 postOnAnimation { Anim.repaint(this) }
@@ -286,9 +272,28 @@ class AchievementsView(activity: Activity, kit: UiKit, onClose: () -> Unit) :
             minimumWidth = dp(120f)
             textSize = 13f
             setPadding(dp(10f), dp(8f), dp(10f), dp(8f))
-            contentDescription = "Claim ${number(amount)} coins for ${state.definition.title}"
+            contentDescription = activity.getString(R.string.achievement_claim_description, number(amount), activity.achievementTitle(state.definition.id))
         }
         return button
+    }
+
+    private fun suggestionCard(): View = LinearLayout(activity).apply {
+        orientation = LinearLayout.VERTICAL
+        gravity = Gravity.CENTER_HORIZONTAL
+        setPadding(dp(18f), dp(18f), dp(18f), dp(18f) + kit.CARD_LIP)
+        background = achievementSurface(kit, 0xFF263950.toInt(), Theme.GOLD, 22f)
+        addView(kit.stageText(activity.getString(R.string.achievement_suggest_title), 20f, Theme.WHITE, gravity = Gravity.CENTER, stroke = 2f))
+        addView(kit.stageText(activity.getString(R.string.achievement_suggest_body), 13f, Theme.WHITE, gravity = Gravity.CENTER, stroke = 1.4f).apply {
+            alpha = .84f
+        }, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(7f) })
+        addView(kit.button(activity.getString(R.string.achievement_suggest_button), Theme.GOLD, UiKit.Size.SMALL) {
+            activity.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(SUGGEST_URL)))
+        }.apply { contentDescription = activity.getString(R.string.achievement_suggest_button) },
+            LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(14f) })
+    }
+
+    private companion object {
+        const val SUGGEST_URL = "https://apps.muxu.click/d/6xn8cb36"
     }
 
     override fun onDetachedFromWindow() {

@@ -7,6 +7,4 @@
     <string name="country_germany">Deutschland</string>
     <string name="country_israel">Israel</string>
     <string name="tap_to_start">TIPPEN ZUM STARTEN</string>
-    <string name="language_switch_cost">%1$d Münzen pro Wechsel</string>
-    <string name="language_insufficient">Du brauchst %1$d Münzen, um die Sprache zu wechseln.</string>
 </resources>

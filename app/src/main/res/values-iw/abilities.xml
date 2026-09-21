@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="game_gambler">מהמר</string><string name="game_cloud">ענן</string><string name="game_black_void">חלל שחור</string><string name="game_event_horizon">אופק האירועים</string><string name="game_afterimage">תמונת רפאים</string>
+    <string name="ability_phase_detail">מעבר דרך מכשול אחד בכל ריצה!</string><string name="ability_speed_detail" formatted="false">הקובייה שלך רצה מהר יותר ב־30%!</string>
+    <string name="ability_bubble_saver_detail" formatted="false">סיכוי של 35% לשמור את הבועה בזמן השימוש!</string>
+    <string name="ability_midas">הבוהן הקטנה של מידאס</string><string name="ability_midas_detail" formatted="false">ערך המטבעות שנאספו גבוה ב־20%!</string>
+    <string name="ability_zappy">ברק</string><string name="ability_zappy_detail">השתגרות בין נתיבים כהרף עין!</string>
+    <string name="ability_power_stretch">שדרוג מתמשך</string><string name="ability_power_stretch_detail" formatted="false">השדרוגים פעילים 25% יותר זמן!</string>
+    <string name="ability_quick_bubble">בועה מהירה</string><string name="ability_quick_bubble_detail" formatted="false">אפשר לפוצץ בועה נוספת 30% מוקדם יותר!</string>
+    <string name="ability_coal_detail">הופך כל מטבע לפחם. לפחם אין ערך.</string>
+    <string name="ability_lottery">הגרלה</string><string name="ability_lottery_detail">כל המטבעות שנאספים מושקעים בהגרלה.</string>
+    <string name="ability_floaty">ריחוף</string><string name="ability_floaty_detail">הקובייה שלך מתחילה לרחף!</string>
+    <string name="ability_double_jump">קפיצה כפולה</string><string name="ability_double_jump_detail">אפשר לקפוץ פעמיים כשהבועה פעילה!</string>
+    <string name="ability_long_bubble">בועה ארוכה</string><string name="ability_long_bubble_detail" formatted="false">הבועה מחזיקה 30% יותר זמן!</string>
+    <string name="lottery_explanation">כל המטבעות שנאספים מושקעים בהגרלה!\n\nהפרס הגדול הוא 250 אלף%1$s. אלה הסיכויים:</string>
+    <string name="lottery_one_in">1 מתוך 100,000</string><string name="lottery_per_coin">לכל מטבע אחד של ערך</string><string name="lottery_per_box">לכל תיבת הפתעה</string>
+    <string name="jackpot_title">פרס גדול</string><string name="jackpot_description">פרס גדול. %1$s מטבעות.</string>
+</resources>

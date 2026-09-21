@@ -467,25 +467,25 @@ class ShopView(
         })
     }
 
-    private fun mysteryCard(): View = card("mystery", Theme.GRAPE, BoxIcon(Theme.WHITE), "Mystery box", "Coins, bubbles, shards or a new cosmetic", solid = true) {
+    private fun mysteryCard(): View = card("mystery", Theme.GRAPE, BoxIcon(Theme.WHITE), activity.getString(R.string.shop_mystery_box), activity.getString(R.string.shop_mystery_box_detail), solid = true) {
         addView(priceButton(Progress.mysteryBoxPrice, "mystery", null, 0) {
             pendingBox = Progress.buyMysteryBox()
             pendingBox != null
         }, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
     }
 
-    private fun achievementCard(): View = card("achievements", Theme.GOLD, AchievementShopIcon(), "Achievements",
-        "Unlock the ability to collect achievments!", solid = true) {
-        if (Progress.achievementsUnlocked) addView(CandyButton(activity, Theme.PLAY, "UNLOCKED", 16f, dpf(5f), dpf(18f)).apply {
+    private fun achievementCard(): View = card("achievements", Theme.GOLD, AchievementShopIcon(), activity.getString(R.string.achievements_title),
+        activity.getString(R.string.shop_achievements_detail), solid = true) {
+        if (Progress.achievementsUnlocked) addView(CandyButton(activity, Theme.PLAY, activity.getString(R.string.shop_unlocked), 16f, dpf(5f), dpf(18f)).apply {
             // A read-only candy slab must not retain CandyButton's ACTION_DOWN press listener:
             // non-clickable views do not necessarily receive the matching release event.
             setOnTouchListener(null)
             isClickable = false; isLongClickable = false; isFocusable = false
             tag = "achievements_unlocked_status"
-            contentDescription = "Achievements unlocked"
+            contentDescription = activity.getString(R.string.shop_achievements_unlocked)
             setPadding(dp(20f), dp(12f), dp(20f), dp(12f))
             val check = UnlockedCheckIcon().apply { setBounds(0, 0, dp(22f), dp(22f)) }
-            text = SpannableStringBuilder("\uFFFC  UNLOCKED").apply {
+            text = SpannableStringBuilder("\uFFFC  ${activity.getString(R.string.shop_unlocked)}").apply {
                 setSpan(CenteredImageSpan(check), 0, 1, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
             }
         }, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))

@@ -18,6 +18,15 @@
 - Classification: environment/setup problem
 - Resolution: installed and initialized the baseline app once, then reran the same recording command successfully.
 
+## 2026-09-21 — Test-world APK screenshot destination was absent
+
+- Revision: local combined test build `93e2266` plus the bundled MOTHERLODE/magnet preset
+- Command: install, launcher start, activity verification, and `adb exec-out screencap` to `captures/test-world-apk-check.png`
+- Device: fresh `eve-pool-1` Android 35 emulator (`emulator-5554`)
+- Failure: installation and launch succeeded, but the host shell could not create the screenshot because the isolated worktree had no `captures/` directory.
+- Classification: environment/setup problem
+- Resolution: create the output directory and repeat only the screenshot capture; the already-running app remains the test subject.
+
 ## 2026-09-21 — Integration build could not access the Gradle cache
 
 - Revision: `achievements-translations` merge in progress at `31c8973`
@@ -53,3 +62,21 @@
 - Failure: the test remained on the responsive Hebrew main menu while `waitForIdleSync` did not return; a thread/CPU check showed the render loop active and the test runner waiting.
 - Classification: stale test synchronization; Cube Run's continuous GL rendering and menu animation do not guarantee Android's global UI-idle condition. Achievement polling on the idle menu added another needless periodic wakeup but was not the sole cause.
 - Resolution: replaced the test's explicit post-tap `waitForIdleSync` with targeted state waits and a short settle, and limited achievement polling to active runs. A direct instrumentation rerun plus a JDWP stack inspection then localized the remaining wait to `ActivityScenario.launch` calling Android's own `Instrumentation.waitForIdleSync` before the test body. The English, German and Hebrew flows were therefore verified manually on the same emulator; this visual-review test still needs a launch strategy that does not require global UI idle.
+
+## 2026-09-21 — Language-charge cleanup removed a shared import
+
+- Revision: `achievements-translations` at `884170f` with local changes
+- Command: `./gradlew :app:assembleDebug`
+- Environment: local repository build
+- Failure: Kotlin compilation failed because removing the Hebrew language charge also removed the `Progress` import from `GameActivity`, where two unrelated calls still use it.
+- Classification: application compile error
+- Resolution: restored the shared import and reran the build.
+
+## 2026-09-21 — Ability translations treated percentages as format tokens
+
+- Revision: `achievements-translations` at `884170f` with local changes
+- Command: `./gradlew :app:assembleDebug :app:lintDebug`
+- Environment: local repository build
+- Failure: the APK assembled, but Android lint rejected six English and German ability resources because literal percent signs were parsed as incomplete format conversions.
+- Classification: resource-formatting error
+- Resolution: marked non-parameterized percentage strings with `formatted="false"` and reran build and lint.
