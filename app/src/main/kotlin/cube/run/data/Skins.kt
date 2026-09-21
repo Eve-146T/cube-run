@@ -8,6 +8,7 @@ import kotlin.math.sin
  * [Skin.valueAt] every frame on the GL thread (pure functions of time).
  */
 object Skins {
+    const val VOID_ID = 24
     // colour modes
     const val COMP = 0      // complementary to the world's base hue (the classic look)
     const val FIXED = 1     // one fixed hue
@@ -17,10 +18,20 @@ object Skins {
     const val WAVE = 5      // hue sways between [hue] and [hue2]
     const val STROBE = 6    // snaps between [hue] and [hue2] on a beat
 
-    enum class Ability(val title: String, val detail: String, val stat: String) {
-        PHASE("Phase", "Allows you to phase through one obstacle per run.", "1 / RUN"),
-        SPEED("Speed", "Makes you 30% faster.", "+30%"),
-        BUBBLE_SAVER("Bubble saver", "35% chance to not consume a bubble.", "35%"),
+    enum class Ability(val title: String, val detail: String) {
+        SECRET("???", ""),
+        PHASE("Phase", "Slip through one obstacle each run!"),
+        SPEED("Speed", "Your cube runs 30% faster!"),
+        BUBBLE_SAVER("Bubble saver", "35% chance to keep your bubble when you use it!"),
+        GOLD_COINS("Midas Little Toe", "Coins you collect are worth 20% more!"),
+        ZAPPY("Zappy", "Teleport between lanes in a flash!"),
+        POWER_STRETCH("Power stretch", "Your power-ups last 25% longer!"),
+        QUICK_BUBBLE("Quick bubble", "Pop another bubble 30% sooner!"),
+        COAL("Coal", "Turns every coin into coal. Coal is worthless."),
+        LOTTERY("Lottery", "All the coins you collect are spent on playing the Lottery! The jackpot is 250k coins. Each coin of value has a 1 in 100,000 chance; each mystery box has a 1.3% chance."),
+        FLOATY("Floaty", "Your cube becomes floaty!"),
+        DOUBLE_JUMP("Double jump", "Jump twice while your bubble is active!"),
+        LONG_BUBBLE("Long bubble", "Your bubble lasts 30% longer!"),
     }
 
     class Skin(
@@ -46,7 +57,10 @@ object Skins {
         val opacity: Float = 1f,
     ) {
         val speedMultiplier: Float get() = if (Ability.SPEED in abilities) 1.3f else 1f
-        val bubbleSaveChance: Float get() = if (Ability.BUBBLE_SAVER in abilities) 0.35f else 0f
+        val coinMultiplier: Float get() = if (Ability.GOLD_COINS in abilities) 1.2f else 1f
+        val powerupDurationMultiplier: Float get() = if (Ability.POWER_STRETCH in abilities) 1.25f else 1f
+        val bubbleCooldownMultiplier: Float get() = if (Ability.QUICK_BUBBLE in abilities) 0.7f else 1f
+        val bubbleSaveChance: Float get() = when { Ability.BUBBLE_SAVER in abilities -> 0.35f; Ability.SECRET in abilities -> 0.2f; else -> 0f }
         val shardOnly: Boolean get() = shardType >= 0
         /** Hue in degrees for the body at [t] seconds given the world's [baseHue]. */
         fun hueAt(t: Float, baseHue: Float): Float = when (mode) {
@@ -54,7 +68,7 @@ object Skins {
             RAINBOW -> t * 90f
             EMBER -> hue + 14f * sin(t * 9f) + 6f * sin(t * 23f)
             WAVE -> hue + (hue2 - hue) * (0.5f + 0.5f * sin(t * 1.6f))
-            STROBE -> if (sin(t * 6f) > 0f) hue else hue2
+            STROBE -> if (sin(t * if (Ability.LOTTERY in abilities) 15f else 6f) > 0f) hue else hue2
             else -> hue
         }
 
@@ -67,30 +81,31 @@ object Skins {
 
     val all: List<Skin> = listOf(
         Skin(0, "Classic", 0, COMP, sat = 0.55f),
-        Skin(1, "Neon", 150, FIXED, hue = 0f, sat = 0.04f, value = 1f, glow = 1.8f, sparkle = true),
-        Skin(2, "Lava", 250, EMBER, hue = 16f, sat = 0.95f, value = 1f, trail = 2f),
-        Skin(3, "Ice", 250, FIXED, hue = 196f, sat = 0.32f, value = 1f, glow = 1.4f),
-        Skin(4, "Void", 400, FIXED, hue = 275f, sat = 0.6f, value = 0.16f, glow = 2.2f),
-        Skin(5, "Plasma", 500, PULSE, hue = 305f, sat = 0.85f, value = 1f, glow = 1.6f, trail = 1.6f),
-        Skin(6, "Gold", 600, FIXED, hue = 46f, sat = 0.85f, value = 1f, sparkle = true, trail = 1.8f),
-        Skin(7, "Rainbow", 800, RAINBOW, sat = 0.9f, value = 1f, glow = 1.5f, trail = 2f, sparkle = true),
-        Skin(8, "Mint", 200, FIXED, hue = 150f, sat = 0.45f, value = 1f),
-        Skin(9, "Rose", 200, FIXED, hue = 340f, sat = 0.5f, value = 1f, glow = 1.2f),
-        Skin(10, "Ocean", 350, WAVE, hue = 195f, hue2 = 235f, sat = 0.8f, value = 0.95f, glow = 1.3f),
-        Skin(11, "Toxic", 450, PULSE, hue = 95f, sat = 0.95f, value = 1f, glow = 1.9f, trail = 1.4f),
-        Skin(12, "Sunset", 550, WAVE, hue = 20f, hue2 = 320f, sat = 0.85f, value = 1f, trail = 1.4f),
-        Skin(13, "Ghost", 650, FIXED, hue = 210f, sat = 0.015f, value = 1f, glow = 1.5f, trail = 0.6f, abilities = listOf(Ability.PHASE), opacity = .72f),
-        Skin(14, "Strobe", 700, STROBE, hue = 55f, hue2 = 200f, sat = 0.9f, value = 1f, glow = 1.4f, trail = 1.6f, sparkle = true),
-        Skin(15, "Coal", 300, EMBER, hue = 24f, sat = 0.9f, value = 0.35f, glow = 1.6f),
-        Skin(16, "Bubblegum", 220, FIXED, hue = 328f, sat = 0.55f, value = 1f, glow = 1.3f, abilities = listOf(Ability.BUBBLE_SAVER)),
-        Skin(17, "Lemon", 220, FIXED, hue = 58f, sat = 0.8f, value = 1f),
-        Skin(18, "Candy", 480, WAVE, hue = 325f, hue2 = 200f, sat = 0.6f, value = 1f, glow = 1.4f, trail = 1.3f),
-        Skin(19, "Galaxy", 750, PULSE, hue = 262f, sat = 0.7f, value = 0.6f, glow = 2.4f, sparkle = true, trail = 1.5f),
+        Skin(1, "Gambler", 1_500, STROBE, hue = 0f, hue2 = 52f, sat = 0.95f, value = 1f, glow = 1.8f, sparkle = true, abilities = listOf(Ability.LOTTERY)),
+        Skin(2, "Lava", 2_500, EMBER, hue = 16f, sat = 0.95f, value = 1f, trail = 2f),
+        Skin(3, "Ice", 2_500, FIXED, hue = 196f, sat = 0.32f, value = 1f, glow = 1.4f),
+        Skin(4, "Void", 4_000, FIXED, hue = 275f, sat = 0.6f, value = 0.16f, glow = 2.2f),
+        Skin(5, "Plasma", 5_000, PULSE, hue = 305f, sat = 0.85f, value = 1f, glow = 1.6f, trail = 1.6f, abilities = listOf(Ability.POWER_STRETCH)),
+        Skin(6, "Gold", 6_000, FIXED, hue = 46f, sat = 0.85f, value = 1f, sparkle = true, trail = 1.8f, abilities = listOf(Ability.GOLD_COINS)),
+        Skin(7, "Rainbow", 8_000, RAINBOW, sat = 0.9f, value = 1f, glow = 1.5f, trail = 2f, sparkle = true),
+        Skin(8, "Mint", 2_000, FIXED, hue = 150f, sat = 0.45f, value = 1f),
+        Skin(9, "Rose", 2_000, FIXED, hue = 340f, sat = 0.5f, value = 1f, glow = 1.2f),
+        Skin(10, "Ocean", 3_500, WAVE, hue = 195f, hue2 = 235f, sat = 0.8f, value = 0.95f, glow = 1.3f),
+        Skin(11, "Toxic", 4_500, PULSE, hue = 95f, sat = 0.95f, value = 1f, glow = 1.9f, trail = 1.4f),
+        Skin(12, "Sunset", 5_500, WAVE, hue = 20f, hue2 = 320f, sat = 0.85f, value = 1f, trail = 1.4f),
+        Skin(13, "Ghost", 6_500, FIXED, hue = 210f, sat = 0.015f, value = 1f, glow = 1.5f, trail = 0.6f, abilities = listOf(Ability.PHASE), opacity = .72f),
+        Skin(14, "Strobe", 7_000, STROBE, hue = 55f, hue2 = 200f, sat = 0.9f, value = 1f, glow = 1.4f, trail = 1.6f, sparkle = true),
+        Skin(15, "Coal", 3_000, EMBER, hue = 24f, sat = 0.9f, value = 0.35f, glow = 1.6f, abilities = listOf(Ability.COAL)),
+        Skin(16, "Bubblegum", 2_200, FIXED, hue = 328f, sat = 0.55f, value = 1f, glow = 1.3f, abilities = listOf(Ability.BUBBLE_SAVER, Ability.QUICK_BUBBLE)),
+        Skin(17, "Cloud", 2_200, FIXED, hue = 205f, sat = 0.06f, value = 1f, glow = 1.25f, trail = 0.45f, abilities = listOf(Ability.FLOATY)),
+        Skin(18, "Candy", 4_800, WAVE, hue = 325f, hue2 = 200f, sat = 0.6f, value = 1f, glow = 1.4f, trail = 1.3f),
+        Skin(19, "Galaxy", 7_500, PULSE, hue = 262f, sat = 0.7f, value = 0.6f, glow = 2.4f, sparkle = true, trail = 1.5f),
         // shard-only: collect crystals on the track or find shards in mystery boxes
         Skin(20, "Inferno", 0, EMBER, hue = 12f, sat = 1f, value = 1f, glow = 2.4f, trail = 2.6f, sparkle = true, shardType = Shards.EMBER),
         Skin(21, "Glacier", 0, WAVE, hue = 185f, hue2 = 225f, sat = 0.55f, value = 1f, glow = 2.6f, trail = 1.8f, sparkle = true, shardType = Shards.FROST),
-        Skin(22, "Eclipse", 0, STROBE, hue = 285f, hue2 = 325f, sat = 0.9f, value = 0.55f, glow = 3f, trail = 2.2f, sparkle = true, shardType = Shards.VOID),
-        Skin(23, "Speedy cube", 900, FIXED, hue = 42f, sat = 0.95f, glow = 1.7f, trail = 1.8f, abilities = listOf(Ability.SPEED)),
+        Skin(22, "Eclipse", 0, STROBE, hue = 285f, hue2 = 325f, sat = 0.9f, value = 0.55f, glow = 3f, trail = 2.2f, sparkle = true, shardType = Shards.VOID, abilities = listOf(Ability.ZAPPY)),
+        Skin(23, "Speedy cube", 9_000, FIXED, hue = 42f, sat = 0.95f, glow = 1.7f, trail = 1.8f, abilities = listOf(Ability.SPEED)),
+        Skin(VOID_ID, "Black void", 300_000, FIXED, hue = 265f, sat = 0.25f, value = 0.012f, glow = 0.7f, trail = 0.7f, abilities = listOf(Ability.SECRET)),
     )
 
     /** The skin a shard type unlocks. */
@@ -105,6 +120,8 @@ object Skins {
  * soap-film rim whose hue slides from [hue] to [hue2] around the sphere.
  */
 object BubbleSkins {
+    const val VOID_ID = 10
+    const val VOID = 4
     const val IRIS = 0      // hue sweeps [hue]→[hue2] around the sphere, drifting with time (soap film)
     const val SOLID = 1     // one hue
     const val RAINBOW = 2   // the whole wheel, slowly turning
@@ -126,19 +143,22 @@ object BubbleSkins {
         /** The pop / activation shards sparkle white. */
         val sparkle: Boolean = false,
         val abilities: List<Skins.Ability> = emptyList(),
-    )
+    ) {
+        val durationMultiplier: Float get() = if (Skins.Ability.LONG_BUBBLE in abilities) 1.3f else 1f
+    }
 
     val all: List<BubbleSkin> = listOf(
         BubbleSkin(0, "Soap", 0, IRIS, hue = 170f, hue2 = 270f),
-        BubbleSkin(1, "Rose", 180, SOLID, hue = 335f, sat = 0.7f),
-        BubbleSkin(2, "Mint", 180, SOLID, hue = 150f, sat = 0.65f),
-        BubbleSkin(3, "Gold", 350, SOLID, hue = 46f, sat = 0.85f, fill = 0.14f, sparkle = true),
-        BubbleSkin(4, "Plasma", 420, ELECTRIC, hue = 300f, hue2 = 330f, sat = 0.9f, rim = 2.2f),
-        BubbleSkin(5, "Rainbow", 700, RAINBOW, sat = 0.9f, rim = 2.4f, sparkle = true),
-        BubbleSkin(6, "Ice", 260, IRIS, hue = 190f, hue2 = 215f, sat = 0.35f, rim = 3.4f, fill = 0.05f),
-        BubbleSkin(7, "Lava", 480, ELECTRIC, hue = 12f, hue2 = 42f, sat = 0.95f, rim = 2f, fill = 0.12f),
-        BubbleSkin(8, "Neon", 320, SOLID, hue = 118f, sat = 0.95f, rim = 2f),
-        BubbleSkin(9, "Galaxy", 600, IRIS, hue = 250f, hue2 = 340f, sat = 0.85f, rim = 2.8f, fill = 0.1f, sparkle = true),
+        BubbleSkin(1, "Rose", 1_800, SOLID, hue = 335f, sat = 0.7f),
+        BubbleSkin(2, "Mint", 1_800, SOLID, hue = 150f, sat = 0.65f, abilities = listOf(Skins.Ability.DOUBLE_JUMP)),
+        BubbleSkin(3, "Gold", 3_500, SOLID, hue = 46f, sat = 0.85f, fill = 0.14f, sparkle = true),
+        BubbleSkin(4, "Plasma", 4_200, ELECTRIC, hue = 300f, hue2 = 330f, sat = 0.9f, rim = 2.2f, abilities = listOf(Skins.Ability.LONG_BUBBLE)),
+        BubbleSkin(5, "Rainbow", 7_000, RAINBOW, sat = 0.9f, rim = 2.4f, sparkle = true),
+        BubbleSkin(6, "Ice", 2_600, IRIS, hue = 190f, hue2 = 215f, sat = 0.35f, rim = 3.4f, fill = 0.05f),
+        BubbleSkin(7, "Lava", 4_800, ELECTRIC, hue = 12f, hue2 = 42f, sat = 0.95f, rim = 2f, fill = 0.12f),
+        BubbleSkin(8, "Neon", 3_200, SOLID, hue = 118f, sat = 0.95f, rim = 2f),
+        BubbleSkin(9, "Galaxy", 6_000, IRIS, hue = 250f, hue2 = 340f, sat = 0.85f, rim = 2.8f, fill = 0.1f, sparkle = true),
+        BubbleSkin(VOID_ID, "Event horizon", 750_000, VOID, hue = 260f, hue2 = 285f, sat = 0.25f, rim = 5f, fill = 0.12f),
     )
 
     fun get(id: Int): BubbleSkin = all.getOrElse(id) { all[0] }
@@ -149,6 +169,7 @@ object BubbleSkins {
  * shard system — colour rule, size, life, rate, drift — sampled per emission.
  */
 object Trails {
+    const val VOID_ID = 11
     const val BODY = 0      // the cube's own colour
     const val FIXED = 1     // one hue
     const val RAINBOW = 2   // hue cycles over time
@@ -187,16 +208,17 @@ object Trails {
 
     val all: List<Trail> = listOf(
         Trail(0, "Classic", 0, BODY),
-        Trail(1, "Sparks", 150, FIXED, hue = 0f, sat = 0f, size = 0.06f, life = 0.3f, rate = 22f, speed = 3f, gravity = 22f),
-        Trail(2, "Flame", 300, DUO, hue = 18f, hue2 = 44f, sat = 0.95f, size = 0.13f, life = 0.5f, rate = 20f, count = 2, speed = 1.2f, gravity = -7f),
-        Trail(3, "Rainbow", 500, RAINBOW, sat = 0.9f, size = 0.09f, life = 0.5f, rate = 24f, speed = 1.6f, gravity = 6f),
-        Trail(4, "Frost", 260, FIXED, hue = 196f, sat = 0.3f, size = 0.12f, life = 0.8f, rate = 9f, speed = 0.8f, gravity = 2f),
-        Trail(5, "Smoke", 240, FIXED, hue = 262f, sat = 0.25f, value = 0.55f, size = 0.18f, life = 0.9f, rate = 10f, speed = 0.7f, gravity = -3f),
-        Trail(6, "Confetti", 450, CONFETTI, sat = 0.85f, size = 0.09f, life = 0.7f, rate = 16f, count = 2, speed = 2.4f, gravity = 9f),
-        Trail(7, "Stardust", 400, FIXED, hue = 48f, sat = 0.75f, size = 0.06f, life = 1.0f, rate = 18f, speed = 1.0f, gravity = 0f),
-        Trail(8, "Bubbles", 350, FIXED, hue = 185f, sat = 0.35f, size = 0.11f, life = 0.9f, rate = 10f, speed = 1.0f, gravity = -4f),
-        Trail(9, "Pixie", 550, DUO, hue = 300f, hue2 = 180f, sat = 0.7f, size = 0.07f, life = 0.6f, rate = 26f, speed = 2f, gravity = -2f),
-        Trail(10, "No trail", 150, BODY, rate = 0f, count = 0),
+        Trail(1, "Sparks", 1_500, FIXED, hue = 0f, sat = 0f, size = 0.06f, life = 0.3f, rate = 22f, speed = 3f, gravity = 22f),
+        Trail(2, "Flame", 3_000, DUO, hue = 18f, hue2 = 44f, sat = 0.95f, size = 0.13f, life = 0.5f, rate = 20f, count = 2, speed = 1.2f, gravity = -7f),
+        Trail(3, "Rainbow", 5_000, RAINBOW, sat = 0.9f, size = 0.09f, life = 0.5f, rate = 24f, speed = 1.6f, gravity = 6f),
+        Trail(4, "Frost", 2_600, FIXED, hue = 196f, sat = 0.3f, size = 0.12f, life = 0.8f, rate = 9f, speed = 0.8f, gravity = 2f),
+        Trail(5, "Smoke", 2_400, FIXED, hue = 262f, sat = 0.25f, value = 0.55f, size = 0.18f, life = 0.9f, rate = 10f, speed = 0.7f, gravity = -3f),
+        Trail(6, "Confetti", 4_500, CONFETTI, sat = 0.85f, size = 0.09f, life = 0.7f, rate = 16f, count = 2, speed = 2.4f, gravity = 9f),
+        Trail(7, "Stardust", 4_000, FIXED, hue = 48f, sat = 0.75f, size = 0.06f, life = 1.0f, rate = 18f, speed = 1.0f, gravity = 0f),
+        Trail(8, "Bubbles", 3_500, FIXED, hue = 185f, sat = 0.35f, size = 0.11f, life = 0.9f, rate = 10f, speed = 1.0f, gravity = -4f),
+        Trail(9, "Pixie", 5_500, DUO, hue = 300f, hue2 = 180f, sat = 0.7f, size = 0.07f, life = 0.6f, rate = 26f, speed = 2f, gravity = -2f),
+        Trail(10, "No trail", 1_500, BODY, rate = 0f, count = 0),
+        Trail(VOID_ID, "Afterimage", 500_000, DUO, hue = 255f, hue2 = 280f, sat = 0.2f, value = 0.7f, size = 0.16f, life = 1.1f, rate = 13f, count = 1, speed = 0.25f, gravity = -0.4f),
     )
 
     fun get(id: Int): Trail = all.getOrElse(id) { all[0] }
@@ -229,6 +251,12 @@ object Wardrobe {
         CUBE -> Skins.get(id).abilities
         BUBBLE -> BubbleSkins.get(id).abilities
         else -> Trails.get(id).abilities
+    }
+    fun isSecret(cat: Int, id: Int): Boolean = when (cat) {
+        CUBE -> id == Skins.VOID_ID
+        BUBBLE -> id == BubbleSkins.VOID_ID
+        TRAIL -> id == Trails.VOID_ID
+        else -> false
     }
     fun label(cat: Int): String = when (cat) { CUBE -> "CUBE"; BUBBLE -> "BUBBLE"; else -> "TRAIL" }
 }

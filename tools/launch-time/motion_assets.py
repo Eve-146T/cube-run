@@ -61,7 +61,7 @@ def frame(t, width=288, height=288, density=1, icon=True, skin=None, world_hue=0
             elif mode == 'RAINBOW': hue = t*90
             elif mode == 'EMBER': hue += 14*sin(t*9)+6*sin(t*23)
             elif mode == 'WAVE': hue += (hue2-hue)*(.5+.5*sin(t*1.6))
-            elif mode == 'STROBE': hue = hue if sin(t*6)>0 else hue2
+            elif mode == 'STROBE': hue = hue if sin(t*skin.get('strobe_rate',6))>0 else hue2
             value = skin.get('value',1)
             if mode == 'PULSE': value *= .72+.28*(.5+.5*sin(t*5))
             elif mode == 'EMBER': value *= .85+.15*sin(t*13)
@@ -82,6 +82,31 @@ def frame(t, width=288, height=288, density=1, icon=True, skin=None, world_hue=0
     return out
 
 
+def parse_skins(source):
+    # Constants belong to the cube catalogue; BubbleSkins and Trails each have
+    # their own VOID_ID and must never override Skins.VOID_ID.
+    catalogue = source.split('object Skins {', 1)[1].split('\nobject ', 1)[0]
+    constants = {name: int(value.replace('_', '')) for name, value in
+                 re.findall(r'\bconst val (\w+)\s*=\s*(\d[\d_]*)', catalogue)}
+    skins = []
+    pattern = r'^\s*Skin\(\s*(\w+)\s*,\s*"([^"]+)"\s*,\s*(\d[\d_]*)\s*,\s*(\w+)(.*)$'
+    for match in re.finditer(pattern, catalogue, re.M):
+        token, name, price, mode, parameters = match.groups()
+        skin_id = int(token.replace('_', '')) if token.replace('_', '').isdigit() else constants[token]
+        skin = {'id': skin_id, 'name': name, 'price': int(price.replace('_', '')), 'mode': mode}
+        skin.update({key: float(value.replace('_', '')) for key, value in
+                     re.findall(r'\b(hue2?|sat|value|glow|opacity)\s*=\s*(-?[\d_.]+)f', parameters)})
+        skin['strobe_rate'] = 15 if 'Ability.LOTTERY' in parameters else 6
+        skins.append(skin)
+    expected = len(re.findall(r'^\s*Skin\(', catalogue, re.M))
+    skins.sort(key=lambda skin: skin['id'])
+    assert skins and len(skins) == expected, 'Launch generator did not parse every cube skin'
+    assert [skin['id'] for skin in skins] == list(range(len(skins))), 'Launch themes require contiguous cube IDs'
+    return skins
+
+
+skins = parse_skins((ROOT/'app/src/main/kotlin/cube/run/data/Skins.kt').read_text())
+
 res=ROOT/'app/src/main/res'
 (res/'animator').mkdir(exist_ok=True)
 for stale in (res/'animator').glob('launch_face_*.xml'): stale.unlink()
@@ -91,11 +116,6 @@ animated=['<animated-vector xmlns:android="http://schemas.android.com/apk/res/an
 samples=[frame(i/60) for i in range(ICON_SECONDS*60+1)]
 # Keep one animated vector and one set of geometry paths. Only its paint values
 # vary by persisted theme; parse the game's skin table so new colours cannot drift.
-skins=[]
-for match in re.finditer(r'^        Skin\((\d+), "[^"]+", \d+, (\w+)(.*)$', (ROOT/'app/src/main/kotlin/cube/run/data/Skins.kt').read_text(), re.M):
-    skin={'id':int(match[1]), 'mode':match[2]}
-    skin.update({key:float(value) for key,value in re.findall(r'(hue2?|sat|value|glow|opacity) = ([\d.]+)f',match[3])})
-    skins.append(skin)
 world_hues=[float(h) for h in re.findall(r'World\(\d+, "[^"]+", ([\d.]+)f', (ROOT/'app/src/main/kotlin/cube/run/data/Worlds.kt').read_text())]
 palettes=[('LaunchPalette', None, 0)] + [(f'LaunchSkin{s["id"]}',s,world_hues[0]) for s in skins] + [(f'LaunchWorld{i}',skins[0],h) for i,h in enumerate(world_hues) if i>0]
 palette_frames=[[frame(i/30,skin=skin,world_hue=hue) for i in range(ICON_SECONDS*30+1)] for _,skin,hue in palettes]

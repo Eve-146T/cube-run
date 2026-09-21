@@ -27,6 +27,8 @@ class Bubble(private val game: Gdx3DGame) {
     val timer = PowerUps.Timer(0.35f, 0.88f, 1f)
     /** Full duration (upgrade-dependent). */
     var duration = 10f
+    /** Bubblegum shortens both the natural-expiry and crash cooldown. */
+    var cooldownDuration = 5f
     val active: Boolean get() = timer.active
     val timeLeft: Float get() = timer.left
     var cooldownLeft = 0f
@@ -71,7 +73,7 @@ class Bubble(private val game: Gdx3DGame) {
 
     fun pop(px: Float, py: Float) {
         timer.stop()
-        cooldownLeft = 5f
+        cooldownLeft = cooldownDuration
         shock = 1f; shockHue = skin.hue
         x = px; y = py
         SoundFx.play("pop", rate = 0.55f)
@@ -91,7 +93,7 @@ class Bubble(private val game: Gdx3DGame) {
         if (!active) return false
         age += dt
         if (timer.tick(dt)) { // ran out quietly
-            cooldownLeft = 5f
+            cooldownLeft = cooldownDuration
             SoundFx.play("pop", rate = 0.7f, vol = 0.6f)
             game.burst3d(tmp.set(px, py, 0f), burstCol(), n = 16, speed = 4f, size = 0.1f, life = 0.6f)
             return true

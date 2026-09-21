@@ -6,6 +6,7 @@ import android.view.Gravity
 import android.widget.LinearLayout
 import cube.run.R
 import cube.run.data.Settings
+import cube.run.data.Progress
 
 /**
  * The pause: a compact candy card over the frozen, dimmed run (the HUD
@@ -45,7 +46,12 @@ class PauseSheet(
             clipChildren = false; clipToPadding = false
             val size = dp(46f)
             addView(kit.toggle(R.drawable.ic_sound_on, R.drawable.ic_sound_off, activity.getString(R.string.cd_sound), Theme.SKY,
-                { Settings.soundEnabled }, { Settings.setSoundEnabled(it) }), LinearLayout.LayoutParams(size, size + dp(4f)))
+                { Settings.soundEnabled }, { enabled ->
+                    if (Settings.soundEnabled != enabled) {
+                        Settings.setSoundEnabled(enabled)
+                        Progress.recordMuteToggle()
+                    }
+                }), LinearLayout.LayoutParams(size, size + dp(4f)))
             addView(kit.toggle(R.drawable.ic_haptic_on, R.drawable.ic_haptic_off, activity.getString(R.string.cd_haptics), Theme.SKY,
                 { Settings.hapticsEnabled }, { Settings.setHapticsEnabled(it) }), LinearLayout.LayoutParams(size, size + dp(4f)).apply { leftMargin = dp(14f) })
         }, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(16f) })

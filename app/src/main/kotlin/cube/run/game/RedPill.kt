@@ -9,7 +9,7 @@ class RedPill {
     private var progress = 0f
     val blend: Float get() = progress * progress * (3f - 2f * progress)
 
-    fun collect() { timer.start(DURATION) }
+    fun collect(duration: Float = DURATION) { timer.start(duration) }
     fun reset() { timer.stop(); progress = 0f }
     fun tick(dt: Float, alive: Boolean) {
         if (!alive) timer.stop()

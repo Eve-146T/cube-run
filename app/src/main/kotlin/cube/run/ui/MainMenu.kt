@@ -18,8 +18,8 @@ import cube.run.data.Settings
  * The main menu, drawn over the idling 3D world: the logo, your best score
  * under a trophy, the coin bank (tap: shop) and bubble stock (tap: shop) in
  * the corners, "TAP TO START" breathing in the middle, and the chips along
- * the bottom — sound / vibration / dev / explorer on the left, wardrobe and
- * shop on the right. Everything pops in staggered; [hide] drops it all when
+ * the bottom — sound / vibration with dev / explorer above on the left,
+ * achievements, wardrobe and shop on the right. Everything pops in staggered; [hide] drops it all when
  * a run begins.
  */
 @SuppressLint("ViewConstructor", "SetTextI18n")
@@ -30,6 +30,7 @@ class MainMenu(
     private val openWardrobe: () -> Unit,
     private val openSections: () -> Unit,
     private val onDevToggled: () -> Unit,
+    private val openAchievements: () -> Unit = {},
     private var openingEntrance: Boolean = false,
 ) : FrameLayout(activity) {
 
@@ -90,30 +91,65 @@ class MainMenu(
 
     private val leftChips = LinearLayout(activity).apply {
         orientation = LinearLayout.HORIZONTAL
-        gravity = Gravity.CENTER_VERTICAL
+        gravity = Gravity.BOTTOM
         clipChildren = false; clipToPadding = false
         val size = dp(44f)
-        addView(kit.toggle(R.drawable.ic_sound_on, R.drawable.ic_sound_off, activity.getString(R.string.cd_sound), Theme.SKY,
-            { Settings.soundEnabled }, { Settings.setSoundEnabled(it) }), LinearLayout.LayoutParams(size, size + dp(4f)))
-        addView(kit.toggle(R.drawable.ic_haptic_on, R.drawable.ic_haptic_off, activity.getString(R.string.cd_haptics), Theme.SKY,
-            { Settings.hapticsEnabled }, { Settings.setHapticsEnabled(it) }), LinearLayout.LayoutParams(size, size + dp(4f)).apply { leftMargin = dp(8f) })
-        if (BuildConfig.DEBUG) {
-            // Debug builds only: fill the bank or loop a section for testing.
-            addView(kit.toggle(R.drawable.ic_dev_on, R.drawable.ic_dev_off, activity.getString(R.string.cd_dev), Theme.ORANGE,
-                { Settings.devMode }, { Settings.setDevMode(it); if (it) Progress.enterDev() else Progress.leaveDev(); onDevToggled() }), LinearLayout.LayoutParams(size, size + dp(4f)).apply { leftMargin = dp(8f) })
-            addView(kit.chip(R.drawable.ic_sections, Theme.WHITE, Theme.INK, activity.getString(R.string.cd_sections)) { openSections() },
-                LinearLayout.LayoutParams(size, size + dp(4f)).apply { leftMargin = dp(8f) })
+        for (column in 0..1) {
+            addView(LinearLayout(activity).apply {
+                orientation = LinearLayout.VERTICAL
+                clipChildren = false; clipToPadding = false
+                if (BuildConfig.DEBUG) {
+                    val debug = if (column == 0) kit.toggle(R.drawable.ic_dev_on, R.drawable.ic_dev_off, activity.getString(R.string.cd_dev), Theme.ORANGE,
+                        { Settings.devMode }, { Settings.setDevMode(it); if (it) Progress.enterDev() else Progress.leaveDev(); onDevToggled() })
+                    else kit.chip(R.drawable.ic_sections, Theme.WHITE, Theme.INK, activity.getString(R.string.cd_sections)) { openSections() }
+                    addView(debug, LinearLayout.LayoutParams(size, size + dp(4f)).apply { bottomMargin = dp(10f) })
+                }
+                val toggle = if (column == 0) kit.toggle(R.drawable.ic_sound_on, R.drawable.ic_sound_off, activity.getString(R.string.cd_sound), Theme.SKY,
+                    { Settings.soundEnabled }, { enabled ->
+                        if (Settings.soundEnabled != enabled) {
+                            Settings.setSoundEnabled(enabled)
+                            Progress.recordMuteToggle()
+                        }
+                    })
+                else kit.toggle(R.drawable.ic_haptic_on, R.drawable.ic_haptic_off, activity.getString(R.string.cd_haptics), Theme.SKY,
+                    { Settings.hapticsEnabled }, { Settings.setHapticsEnabled(it) })
+                addView(toggle, LinearLayout.LayoutParams(size, size + dp(4f)))
+            }, LinearLayout.LayoutParams(size, LinearLayout.LayoutParams.WRAP_CONTENT).apply { if (column > 0) leftMargin = dp(8f) })
         }
+    }
+
+    private val achievements = kit.chip(R.drawable.ic_achievements, Theme.ORANGE, Theme.WHITE, "Achievements") { openAchievements() }.apply {
+        val p = dp(13f); setPadding(p, p, p, p)
     }
 
     private val rightChips = LinearLayout(activity).apply {
         orientation = LinearLayout.HORIZONTAL
         clipChildren = false; clipToPadding = false
         val size = dp(58f)
+        addView(achievements, LinearLayout.LayoutParams(size, size + dp(4f)).apply { rightMargin = dp(10f) })
         addView(kit.chip(R.drawable.ic_skins, Theme.GRAPE, Theme.WHITE, activity.getString(R.string.cd_skins)) { openWardrobe() }.apply { val p = dp(13f); setPadding(p, p, p, p) },
             LinearLayout.LayoutParams(size, size + dp(4f)))
         addView(kit.chip(R.drawable.ic_shop, Theme.GOLD, Theme.INK, activity.getString(R.string.cd_shop)) { openShop() }.apply { val p = dp(13f); setPadding(p, p, p, p) },
             LinearLayout.LayoutParams(size, size + dp(4f)).apply { leftMargin = dp(10f) })
+    }
+
+    /** Keep a real gutter beside the settings on narrow phones, even after the third chip appears. */
+    override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
+        val cutouts = rootWindowInsets?.let(::insetsOf)
+        val available = MeasureSpec.getSize(widthMeasureSpec) - (cutouts?.get(0) ?: 0) - (cutouts?.get(2) ?: 0)
+        val count = if (Progress.achievementsUnlocked) 3 else 2
+        val separateRows = available < dp(28f + 96f + 12f) + dp(48f) * count + dp(10f) * (count - 1)
+        val settingsWidth = if (separateRows) 0 else dp(96f + 12f)
+        val chipSize = ((available - dp(28f) - settingsWidth - dp(10f) * (count - 1)) / count)
+            .coerceIn(dp(48f), dp(58f))
+        for (i in 0 until rightChips.childCount) {
+            rightChips.getChildAt(i).layoutParams.apply { width = chipSize; height = chipSize + dp(4f) }
+        }
+        // Large display-size settings can leave less than 300dp. Keep real touch targets and
+        // move the settings columns above the actions instead of letting the rows overlap.
+        (leftChips.layoutParams as LayoutParams).bottomMargin = dp(28f) + (cutouts?.get(3) ?: 0) +
+            if (separateRows) chipSize + dp(20f) else 0
+        super.onMeasure(widthMeasureSpec, heightMeasureSpec)
     }
 
     private val top = LinearLayout(activity).apply {
@@ -183,6 +219,7 @@ class MainMenu(
         kit.labelOf(bank).text = Progress.coins.toString()
         kit.labelOf(bubbles).text = "×${Progress.bubbles}"
         bubbles.visibility = if (Progress.bubbles > 0) VISIBLE else GONE
+        achievements.visibility = if (Progress.achievementsUnlocked) VISIBLE else GONE
     }
 
     fun setBest(best: Int) {

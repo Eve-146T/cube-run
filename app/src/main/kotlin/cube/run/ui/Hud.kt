@@ -4,6 +4,8 @@ import android.annotation.SuppressLint
 import android.app.Activity
 import android.content.Intent
 import android.view.Gravity
+import android.view.View
+import android.view.ViewTreeObserver
 import android.widget.FrameLayout
 import android.widget.LinearLayout
 import cube.run.R
@@ -12,6 +14,7 @@ import cube.run.core.SoundFx
 import cube.run.core.Stage
 import cube.run.data.Settings
 import cube.run.data.Progress
+import cube.run.data.Achievements
 import cube.run.ui.Anim.move
 
 /**
@@ -90,7 +93,23 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false) : Fr
     }
     private var pauseSheet: PauseSheet? = null
     private var runOver: RunOverFlow? = null
-    private val menu: MainMenu = MainMenu(activity, kit, { openShop() }, { openWardrobe() }, { openSections() }, { menu.pulseBank() }, openingEntrance)
+    private var shopBox: RunOverFlow? = null
+    private var giftReturnCover: View? = null
+    @Volatile private var giftReturnGeneration = 0
+    private var voidPurchase: VoidPurchaseView? = null
+    private val achievementToast = AchievementToast(activity, kit)
+    private val jackpotToast = JackpotToast(activity, kit)
+    private val pollAchievements = object : Runnable {
+        override fun run() {
+            if (!isAttachedToWindow) return
+            if (runStarted && runOver == null && pauseSheet == null) {
+                achievementToast.enqueue(Achievements.drainUnlocks())
+            }
+            postDelayed(this, 500)
+        }
+    }
+    private val menu: MainMenu = MainMenu(activity, kit, { openShop() }, { openWardrobe() }, { openSections() }, { menu.pulseBank() },
+        openAchievements = { openAchievements() }, openingEntrance = openingEntrance)
 
     /** One launch clock owns the fade. Controls are laid out at their final positions from frame one. */
     fun setOpeningProgress(amount: Float) {
@@ -108,12 +127,20 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false) : Fr
         addView(menu, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
         addView(topBox, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT).apply { topMargin = dp(44f) })
         addView(pauseChip, LayoutParams(dp(48f), dp(52f)).apply { gravity = Gravity.TOP or Gravity.END; topMargin = dp(48f); rightMargin = dp(14f) })
+        addView(achievementToast, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT).apply {
+            gravity = Gravity.BOTTOM; bottomMargin = dp(32f); leftMargin = dp(22f); rightMargin = dp(22f)
+        })
+        addView(jackpotToast, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT).apply {
+            gravity = Gravity.TOP; leftMargin = dp(14f); rightMargin = dp(14f)
+        })
+        topBox.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ -> positionJackpot() }
         setBubbles(Progress.bubbles)
         setOnApplyWindowInsetsListener { _, insets ->
-            val (_, t, r, _) = insetsOf(insets)
+            val (_, t, r, b) = insetsOf(insets)
             (topBox.layoutParams as LayoutParams).topMargin = maxOf(dp(44f), t + dp(6f))
             (pauseChip.layoutParams as LayoutParams).apply { topMargin = maxOf(dp(48f), t + dp(10f)); rightMargin = dp(14f) + r }
             topBox.requestLayout(); pauseChip.requestLayout()
+            (achievementToast.layoutParams as LayoutParams).bottomMargin = dp(32f) + b
             insets
         }
     }
@@ -123,11 +150,34 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false) : Fr
     override fun onAttachedToWindow() {
         super.onAttachedToWindow()
         if (!opening) scheduleShopPreparation()
+        postDelayed(pollAchievements, 500)
     }
 
     override fun onDetachedFromWindow() {
         removeCallbacks(prepareShop)
+        removeCallbacks(pollAchievements)
         preparedShop = null
+        voidPurchase = null
+        giftReturnGeneration++
+        giftReturnCover?.let { cover ->
+            cover.animate().cancel()
+            removeView(cover)
+            shopBox?.let { removeView(it) }
+            shopBox = null
+            // A reattached HUD must not retain a detached curtain or a locked gift
+            // reference. Complete the already-paid presentation while offscreen.
+            (page as? ShopView)?.let { shop ->
+                shop.refreshAfterBox()
+                shop.visibility = VISIBLE
+                menu.visibility = VISIBLE
+                menu.refresh()
+                Stage.openRequests.set(0)
+                Stage.skipBoxRequests.set(0)
+                Stage.shopProgress = 1f
+                Stage.mode = Stage.SHOP
+            }
+        }
+        giftReturnCover = null
         super.onDetachedFromWindow()
     }
 
@@ -139,8 +189,9 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false) : Fr
     /** System Back only navigates out of the two stores. */
     fun navigateBack() {
         if (runStarted || pauseSheet != null || runOver != null) return
+        if (shopBox != null || voidPurchase != null) return // keep purchased presentations intact
         val current = page
-        if (current is ShopView || current is WardrobeView) current.navigateBack()
+        if (current is ShopView || current is WardrobeView || current is AchievementsView) current.navigateBack()
     }
 
     private fun pageOpen() = page != null || runStarted
@@ -160,12 +211,31 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false) : Fr
         scheduleShopPreparation()
     }
 
-    private fun newShop() = ShopView(activity, kit, menu.shopBalance, menu::setShopProgress) {
+    private fun newShop() = ShopView(activity, kit, menu.shopBalance, menu::setShopProgress,
+        onOpenMysteryBox = ::openPurchasedBox, onVoidPurchase = ::showVoidPurchase,
+        onProgressReset = ::refreshAfterProgressReset) {
         page = null
         menu.finishShop()
         Stage.homeScreen = true
         setBubbles(Progress.bubbles)
         scheduleShopPreparation()
+    }
+
+    /** Reset the visible caches too, so closing the developer shop shows a fresh game. */
+    private fun refreshAfterProgressReset() {
+        removeCallbacks(prepareShop)
+        preparedShop = null
+        achievementToast.reset()
+        jackpotToast.reset()
+        bonusVisited.clear()
+        score = 0; scoreText.text = "0"
+        runCoins = 0; kit.labelOf(haul).text = "0"
+        kit.labelOf(boxes).text = "×0"; boxes.visibility = GONE
+        setBest(0)
+        setBubbleCooldown(0)
+        setBubbles(Progress.bubbles)
+        menu.refresh()
+        Anim.repaint(this)
     }
 
     private fun openShop() {
@@ -181,6 +251,134 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false) : Fr
     }
     private fun openWardrobe() { if (!pageOpen()) open(WardrobeView(activity, kit) { closed() }) }
     private fun openSections() { if (!pageOpen()) open(SectionsView(activity, kit) { closed() }) }
+    private fun openAchievements() {
+        if (!pageOpen() && Progress.achievementsUnlocked) open(AchievementsView(activity, kit) { closed() })
+    }
+
+    private fun showVoidPurchase(onCovered: () -> Unit, onFinished: () -> Unit) {
+        if (voidPurchase != null) return
+        val shop = page as? ShopView
+        val oldShopAccessibility = shop?.importantForAccessibility
+        val oldMenuAccessibility = menu.importantForAccessibility
+        shop?.importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS
+        menu.importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS
+        lateinit var fx: VoidPurchaseView
+        // The clue stays in the dialogue; discovered cosmetics are found in the wardrobe.
+        fx = VoidPurchaseView(activity, Progress.voidLine) {
+            // Rebuild and lay out the evolving card behind an opaque frame. The first
+            // visible shop frame is already settled at the same end of the list.
+            onCovered()
+            viewTreeObserver.addOnPreDrawListener(object : ViewTreeObserver.OnPreDrawListener {
+                override fun onPreDraw(): Boolean {
+                    viewTreeObserver.removeOnPreDrawListener(this)
+                    if (voidPurchase === fx) {
+                        val item = shop?.darknessFocus()
+                        // A tap can leave the price flush with the viewport edge. Settle its
+                        // full face and lower margin while the opaque scene still covers it.
+                        item?.findViewWithTag<android.view.View>("void_price_button")?.let { price ->
+                            price.requestRectangleOnScreen(android.graphics.Rect(0, -dp(8f),
+                                price.width, price.height + dp(16f)), true)
+                        }
+                        val hostPosition = IntArray(2); val itemPosition = IntArray(2)
+                        getLocationInWindow(hostPosition)
+                        item?.getLocationInWindow(itemPosition)
+                        val x = item?.let { itemPosition[0] - hostPosition[0] + it.width / 2f } ?: width / 2f
+                        val y = item?.let { itemPosition[1] - hostPosition[1] + it.height / 2f } ?: height * .7f
+                        fx.returnTo(x, y) {
+                            voidPurchase = null
+                            removeView(fx)
+                            shop?.importantForAccessibility = oldShopAccessibility ?: IMPORTANT_FOR_ACCESSIBILITY_AUTO
+                            menu.importantForAccessibility = oldMenuAccessibility
+                            onFinished()
+                            item?.let { Anim.pulse(it, 1.018f, 280) }
+                            Anim.repaint(this@Hud)
+                        }
+                    }
+                    return true
+                }
+            })
+            requestLayout()
+        }
+        voidPurchase = fx
+        addView(fx, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
+        fx.play()
+    }
+
+    private fun openPurchasedBox(reward: Progress.BoxReward) {
+        if (shopBox != null) return
+        val shop = page as? ShopView ?: return
+        shop.visibility = INVISIBLE
+        menu.visibility = INVISIBLE
+        Stage.purchasedBoxRewards.add(reward)
+        val flow = RunOverFlow(activity, kit, 0, 0, false, 0, 1, "", emptyList(),
+            onRestart = {}, onMenu = { returnFromPurchasedBox(shop) }, boxesOnly = true)
+        shopBox = flow
+        addView(flow, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
+    }
+
+    /** Keep the gift visible until an opaque curtain covers the actual GL camera handoff. */
+    private fun returnFromPurchasedBox(shop: ShopView) {
+        if (giftReturnCover != null) return
+        val flow = shopBox ?: return
+        val generation = ++giftReturnGeneration
+        val cover = View(activity).apply {
+            tag = "gift_return_cover"
+            setBackgroundColor(0xff100a20.toInt())
+            alpha = 0f
+            isClickable = true
+            importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO
+        }
+        giftReturnCover = cover
+        addView(cover, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
+        cover.move().alpha(1f).setDuration(180).setInterpolator(Anim.ease).withEndAction {
+            if (giftReturnCover !== cover || generation != giftReturnGeneration) return@withEndAction
+            removeView(flow)
+            shop.refreshAfterBox()
+            shop.visibility = VISIBLE
+            menu.visibility = VISIBLE
+            menu.refresh()
+            Stage.openRequests.set(0)
+            Stage.skipBoxRequests.set(0)
+            val app = com.badlogic.gdx.Gdx.app
+            app.postRunnable {
+                if (generation != giftReturnGeneration) return@postRunnable
+                Stage.shopProgress = 1f
+                Stage.mode = Stage.SHOP
+                // Runnables execute before rendering. Waiting for exit, then one more
+                // frame, ensures the restored showroom has actually been drawn. A
+                // backgrounded app simply retains its opaque curtain until GL resumes.
+                app.postRunnable(object : Runnable {
+                    override fun run() {
+                        if (generation != giftReturnGeneration) return
+                        if (Stage.giftShowing) { app.postRunnable(this); return }
+                        app.postRunnable {
+                            if (generation == giftReturnGeneration) post {
+                                if (giftReturnCover !== cover || !isAttachedToWindow) return@post
+                                viewTreeObserver.addOnPreDrawListener(object : ViewTreeObserver.OnPreDrawListener {
+                                    override fun onPreDraw(): Boolean {
+                                        viewTreeObserver.removeOnPreDrawListener(this)
+                                        if (giftReturnCover === cover) {
+                                            cover.move().alpha(0f).setDuration(280).setInterpolator(Anim.ease).withEndAction {
+                                                if (giftReturnCover === cover) {
+                                                    removeView(cover)
+                                                    giftReturnCover = null
+                                                    shopBox = null
+                                                    Anim.repaint(this@Hud)
+                                                }
+                                            }.start()
+                                        }
+                                        return true
+                                    }
+                                })
+                                requestLayout()
+                                invalidate()
+                            }
+                        }
+                    }
+                })
+            }
+        }.start()
+    }
 
     // ------------------------------------------------------------- HUD values
 
@@ -197,8 +395,26 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false) : Fr
     /** Coins collected this run: the counter pops on each pickup. */
     fun setRunCoins(v: Int) {
         runCoins = v
-        kit.labelOf(haul).text = v.toString()
+        kit.labelOf(haul).text = number(v)
         Anim.pulse(haul, 1.18f, 160)
+    }
+
+    /** Coins are already in the run haul; celebrate without changing the saved bank. */
+    fun showJackpot(amount: Int) {
+        if (!runStarted || runOver != null || amount <= 0) return
+        positionJackpot()
+        jackpotToast.show(amount)
+    }
+
+    private fun positionJackpot() {
+        val params = jackpotToast.layoutParams as? LayoutParams ?: return
+        val top = topBox.bottom + dp(10f)
+        val right = if ((0 until childCount).any { getChildAt(it) is BoostArrows }) dp(104f) else dp(14f)
+        if (params.topMargin != top || params.rightMargin != right) {
+            params.topMargin = top
+            params.rightMargin = right
+            jackpotToast.layoutParams = params
+        }
     }
 
     fun setBoxes(n: Int) {
@@ -253,14 +469,24 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false) : Fr
             val b = boost ?: return
             boost = null
             b.taps = taps
-            b.move().translationX(dpf(120f)).alpha(0f).setDuration(260).setInterpolator(Anim.ease).withEndAction { removeView(b) }.start()
+            b.move().translationX(dpf(120f)).alpha(0f).setDuration(260).setInterpolator(Anim.ease).withEndAction {
+                removeView(b)
+                positionJackpot()
+            }.start()
         }
+        positionJackpot()
     }
 
     /** A run has begun: the menu drops away, the HUD and the pause chip pop in. */
     fun hideOptions() {
         Stage.homeScreen = false
         runStarted = true
+        // Purchases and result-screen unlocks belong on the achievement page, not the next run.
+        Achievements.drainUnlocks()
+        achievementToast.reset()
+        achievementToast.setRunActive(true)
+        jackpotToast.reset()
+        jackpotToast.setRunActive(true)
         page?.let { removeView(it); page = null }
         menu.hide()
         setBubbles(bubbleStock)
@@ -276,11 +502,15 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false) : Fr
     fun pause(animate: Boolean = true) {
         if (!runStarted || runOver != null || pauseSheet != null) return
         Stage.paused = true
+        achievementToast.setRunActive(false)
+        jackpotToast.setRunActive(false)
         pauseChip.visibility = INVISIBLE
         val sheet = PauseSheet(activity, kit,
             onResume = {
                 pauseSheet = null
                 Stage.paused = false
+                achievementToast.setRunActive(true)
+                jackpotToast.setRunActive(true)
                 pauseChip.visibility = VISIBLE
                 Anim.popIn(pauseChip, 0, 0.6f)
             },
@@ -312,6 +542,8 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false) : Fr
     }
 
     fun showRunOver(score: Int, best: Int, isNewBest: Boolean, coins: Int, boxes: Int, shards: IntArray = IntArray(3)) {
+        achievementToast.setRunActive(false)
+        jackpotToast.reset()
         if (Stage.botPlaying && Settings.devMode) {
             relaunch(autoStart = true, idleBot = true)
             return
@@ -331,6 +563,6 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false) : Fr
 
     /** The game's 3D gift stage opened a box (GL → UI via the session). */
     fun onBoxOpened(kind: Int, amount: Int, cat: Int, id: Int) {
-        runOver?.onBoxOpened(kind, amount, cat, id)
+        (shopBox ?: runOver)?.onBoxOpened(kind, amount, cat, id)
     }
 }
