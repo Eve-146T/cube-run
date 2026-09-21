@@ -180,6 +180,8 @@ object Progress {
         prefs.edit().putInt("runs", runs).apply()
     }
 
+    fun payLanguageSwitch(from: String, to: String): Boolean = spend(Languages.switchCost(from, to))
+
     private fun spend(n: Int): Boolean {
         if (n > coins) return false
         coins -= n

@@ -7,4 +7,6 @@
     <string name="country_germany">Germany</string>
     <string name="country_israel">Israel</string>
     <string name="tap_to_start">TAP TO START</string>
+    <string name="language_switch_cost">%1$d coins per switch</string>
+    <string name="language_insufficient">You need %1$d coins to switch languages.</string>
 </resources>

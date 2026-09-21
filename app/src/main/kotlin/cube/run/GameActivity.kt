@@ -34,6 +34,11 @@ class GameActivity : AndroidApplication() {
     fun changeLanguage(code: String) {
         if (changingLanguage || code == cube.run.data.Languages.current(this)) return
         val parent = hud.parent as? FrameLayout ?: return
+        require(cube.run.data.Languages.options.any { it.code == code })
+        if (!Progress.payLanguageSwitch(cube.run.data.Languages.current(this), code)) {
+            android.widget.Toast.makeText(this, getString(R.string.language_insufficient, 500), android.widget.Toast.LENGTH_SHORT).show()
+            return
+        }
         changingLanguage = true
         cube.run.data.Languages.select(this, code)
         val previous = hud
