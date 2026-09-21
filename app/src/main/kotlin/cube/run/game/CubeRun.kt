@@ -660,10 +660,12 @@ class CubeRun(session: GameSession, private val autoStart: Boolean = false, priv
                         if (c.taken) continue
                         val cz = row.z + c.dz
                         if (c.missed) continue
-                        if (pull > 0f && abs(cz) < pull) { // magnet: coins fly to you
+                        if ((pull > 0f && abs(cz) < pull) || c.pullStarted) { // magnet: coins fly to you
+                            c.pullStarted = true
                             val k = min(1f, dt * 11f)
                             c.x += (px - c.x) * k
                             c.y += (py - c.y) * k
+                            c.dz += (-cz / 2) * k
                         }
                         if (abs(cz) < 0.8f && abs(px - c.x) < 0.85f && abs(py - c.y) < 0.85f) {
                             collectCoin(c, cz)
