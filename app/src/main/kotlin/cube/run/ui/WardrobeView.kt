@@ -3,6 +3,11 @@ package cube.run.ui
 import android.annotation.SuppressLint
 import android.app.Activity
 import android.graphics.drawable.GradientDrawable
+import android.text.Layout
+import android.text.SpannableStringBuilder
+import android.text.Spanned
+import android.text.TextPaint
+import android.util.TypedValue
 import android.view.Gravity
 import android.view.MotionEvent
 import android.view.View
@@ -41,6 +46,7 @@ class WardrobeView(activity: Activity, kit: UiKit, abilityStyle: Int = 0, onClos
     private val dots = LinearLayout(activity).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER }
     private val abilityDisplay = AbilityDisplay(activity, kit, abilityStyle)
     private val action: CandyButton
+    private val actionLabel: WardrobeActionLabel
     private val left: View
     private val right: View
     private var paying = false
@@ -76,9 +82,11 @@ class WardrobeView(activity: Activity, kit: UiKit, abilityStyle: Int = 0, onClos
         action = kit.button("", Theme.PLAY, UiKit.Size.BIG) { act() }.apply {
             // Keep the generous height of the former two-line shard unlock button.
             minimumHeight = dp(34f) + kotlin.math.ceil(paint.fontSpacing + paint.fontMetrics.bottom - paint.fontMetrics.top).toInt()
-            maxLines = 1
-            ellipsize = android.text.TextUtils.TruncateAt.END
+            tag = "wardrobe_action_button"
+            setSingleLine()
+            setHorizontallyScrolling(false)
         }
+        actionLabel = WardrobeActionLabel(activity, kit, action)
         val bottom = LinearLayout(activity).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER_HORIZONTAL
@@ -88,7 +96,7 @@ class WardrobeView(activity: Activity, kit: UiKit, abilityStyle: Int = 0, onClos
                 topMargin = dp(8f); leftMargin = dp(22f); rightMargin = dp(22f)
             })
             addView(dots, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(12f) })
-            addView(action, LinearLayout.LayoutParams(dp(230f), LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(18f) })
+            addView(actionLabel, LinearLayout.LayoutParams(dp(230f), LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(18f) })
         }
         content.addView(bottom, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT).apply {
             gravity = Gravity.BOTTOM; bottomMargin = dp(112f)
@@ -155,8 +163,10 @@ class WardrobeView(activity: Activity, kit: UiKit, abilityStyle: Int = 0, onClos
     override fun onTouchEvent(event: MotionEvent): Boolean { swipe(event); return true }
 
     private fun step(d: Int) {
-        val n = Wardrobe.count(cat)
-        index = ((index + d) % n + n) % n
+        val visible = visibleItems()
+        val n = visible.size
+        val position = visible.indexOf(index).coerceAtLeast(0)
+        index = visible[((position + d) % n + n) % n]
         applyPreview()
         Stage.previewKicks.incrementAndGet() // the stage spin-flips the cube with a pop
         Haptics.tick()
@@ -168,24 +178,26 @@ class WardrobeView(activity: Activity, kit: UiKit, abilityStyle: Int = 0, onClos
         render()
     }
 
+    private fun visibleItems(): List<Int> = (0 until Wardrobe.count(cat)).filter { Progress.secretAvailable(cat, it) }
+
     private fun render() {
         val owned = Progress.owns(cat, index)
         val equipped = Progress.equipped(cat) == index
         val price = Wardrobe.price(cat, index)
         val shardSkin = if (cat == Wardrobe.CUBE) Skins.get(index).takeIf { it.shardOnly } else null
-        kit.labelOf(balance).text = Progress.coins.toString()
+        kit.labelOf(balance).text = number(Progress.coins)
         name.text = Wardrobe.name(cat, index).uppercase()
         action.visibility = View.VISIBLE
         action.maxLines = 1
         action.contentDescription = null
         action.setProgress()
         val canUnlock = shardSkin != null && Progress.shards(shardSkin.shardType) >= shardSkin.shardsNeeded
-        action.setLabel(when {
+        actionLabel.bind(when {
             equipped -> "EQUIPPED"
             owned -> "EQUIP"
             shardSkin != null -> "UNLOCK"
-            else -> android.text.SpannableStringBuilder("BUY ").append(kit.coins(price, 22f))
-        })
+            else -> null
+        }, price)
         action.color = when {
             equipped -> Theme.alpha(Theme.WHITE, 200)
             owned -> Theme.PLAY
@@ -204,10 +216,12 @@ class WardrobeView(activity: Activity, kit: UiKit, abilityStyle: Int = 0, onClos
                 setStroke(dp(1.5f), Theme.alpha(Theme.WHITE, if (on) 0 else 90))
             }
         }
-        abilityDisplay.bind(Wardrobe.abilities(cat, index), "$cat:$index")
+        // Every void discovery keeps its question button, without revealing gameplay details.
+        val displayedAbilities = if (Wardrobe.isSecret(cat, index)) listOf(Skins.Ability.SECRET)
+            else Wardrobe.abilities(cat, index)
+        abilityDisplay.bind(displayedAbilities, "$cat:$index")
         dots.removeAllViews()
-        val n = Wardrobe.count(cat)
-        for (i in 0 until n) {
+        for (i in visibleItems()) {
             dots.addView(View(activity).apply {
                 background = GradientDrawable().apply {
                     shape = GradientDrawable.OVAL
@@ -252,7 +266,7 @@ class WardrobeView(activity: Activity, kit: UiKit, abilityStyle: Int = 0, onClos
                         render()
                     }
                 })
-                Anim.countTo(kit.labelOf(balance), before, Progress.coins, ms)
+                Anim.countTo(kit.labelOf(balance), before, Progress.coins, ms, ::number)
             }
             else -> { // can't afford: nudge the balance
                 SoundFx.play("tap", rate = 0.6f); Haptics.tick()
@@ -265,5 +279,73 @@ class WardrobeView(activity: Activity, kit: UiKit, abilityStyle: Int = 0, onClos
         Stage.clearPreview()
         Stage.mode = Stage.NONE
         close()
+    }
+}
+
+/** Measure the purchase label and its coin together before the candy button is laid out. */
+@SuppressLint("ViewConstructor")
+private class WardrobeActionLabel(
+    activity: Activity,
+    private val kit: UiKit,
+    private val button: CandyButton,
+) : FrameLayout(activity) {
+    private var status: String? = ""
+    private var amount = ""
+    private var labelChanged = true
+    private var fittedPx = Float.NaN
+
+    init {
+        clipChildren = false; clipToPadding = false
+        addView(button, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT))
+    }
+
+    fun bind(status: String?, price: Int) {
+        this.status = status
+        amount = number(price)
+        labelChanged = true
+        button.contentDescription = status ?: "Buy $amount coins"
+        requestLayout()
+    }
+
+    override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
+        val width = MeasureSpec.getSize(widthMeasureSpec) - paddingLeft - paddingRight
+        val paint = TextPaint(button.paint)
+        val nominal = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_SP, 22f, button.resources.displayMetrics)
+        paint.textSize = nominal
+        val fullWidth = Layout.getDesiredWidth(labelAt(nominal), paint)
+        // Preserve the usual big-button padding for short labels. Longer prices use
+        // the otherwise empty edge space before reducing the visible letter size.
+        val horizontal = kit.dp(if (fullWidth <= width - kit.dp(70f)) 34f else 18f)
+        if (button.paddingLeft != horizontal) button.setPadding(horizontal, kit.dp(14f), horizontal, kit.dp(14f))
+        val budget = (width - button.compoundPaddingLeft - button.compoundPaddingRight - kit.dp(2f)).coerceAtLeast(1)
+        var size = nominal
+        if (fullWidth > budget) {
+            var low = 1f
+            var high = nominal
+            repeat(16) {
+                val candidate = (low + high) / 2f
+                paint.textSize = candidate
+                if (Layout.getDesiredWidth(labelAt(candidate), paint) <= budget) low = candidate else high = candidate
+            }
+            size = low
+        }
+        if (labelChanged || size != fittedPx) {
+            labelChanged = false
+            fittedPx = size
+            // Commit exactly the pixels that were measured; SP scales nonlinearly on
+            // newer Android versions, and the coin must track the same physical size.
+            button.text = labelAt(size)
+            button.setTextSize(TypedValue.COMPLEX_UNIT_PX, size)
+        }
+        super.onMeasure(widthMeasureSpec, heightMeasureSpec)
+    }
+
+    private fun labelAt(sizePx: Float): CharSequence = status ?: SpannableStringBuilder("BUY \u2009").apply {
+        val coin = CoinIcon().apply {
+            val edge = (sizePx * 1.15f).toInt().coerceAtLeast(1)
+            setBounds(0, 0, edge, edge)
+        }
+        append(" ", CenteredImageSpan(coin), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+        append("\u2009").append(amount)
     }
 }

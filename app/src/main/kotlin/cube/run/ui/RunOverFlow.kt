@@ -4,6 +4,11 @@ import android.animation.ValueAnimator
 import android.annotation.SuppressLint
 import android.app.Activity
 import android.graphics.drawable.Drawable
+import android.text.Layout
+import android.text.SpannableStringBuilder
+import android.text.Spanned
+import android.text.TextPaint
+import android.util.TypedValue
 import android.view.Gravity
 import android.view.View
 import android.widget.FrameLayout
@@ -44,6 +49,7 @@ class RunOverFlow(
     private val onRestart: () -> Unit,
     private val onMenu: () -> Unit,
     private val shards: IntArray = IntArray(3),
+    private val boxesOnly: Boolean = false,
 ) : FrameLayout(activity) {
 
     private fun dp(v: Float) = kit.dp(v)
@@ -266,6 +272,38 @@ class RunOverFlow(
     private var boxHint: TextView? = null
     private var boxRack: LinearLayout? = null
     private var boxHost: FrameLayout? = null
+    private var rewardSizeSp = 36f
+    private var rewardLabel: (Float) -> CharSequence = { "" }
+
+    /** Fit the actual glyphs and icon together, including Android's non-linear font scaling. */
+    private fun fitBoxText(view: TextView, width: Int, sizeSp: Float, label: (Float) -> CharSequence = { view.text }) {
+        val available = (width - view.compoundPaddingLeft - view.compoundPaddingRight - dp(3f)).coerceAtLeast(1)
+        val paint = TextPaint(view.paint)
+        val nominal = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_SP, sizeSp, view.resources.displayMetrics)
+        fun fits(px: Float): Boolean {
+            paint.textSize = px
+            return Layout.getDesiredWidth(label(px), paint) <= available
+        }
+        var low = 1f
+        var high = nominal
+        if (fits(nominal)) low = nominal else repeat(16) {
+            val candidate = (low + high) / 2f
+            if (fits(candidate)) low = candidate else high = candidate
+        }
+        val resized = kotlin.math.abs(view.textSize - low) > .01f
+        if (resized) view.setTextSize(TypedValue.COMPLEX_UNIT_PX, low)
+        val text = label(low)
+        if (resized || view.text.toString() != text.toString()) view.text = text
+    }
+
+    private fun rewardWithIcon(amount: String, px: Float, icon: Drawable): CharSequence {
+        val size = (px * 1.15f).toInt().coerceAtLeast(1)
+        icon.setBounds(0, 0, size, size)
+        return SpannableStringBuilder("\u2009 \u2009").apply {
+            setSpan(CenteredImageSpan(icon), 1, 2, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+            append(amount)
+        }
+    }
 
     private fun showBoxes() {
         stopEffects()
@@ -275,11 +313,21 @@ class RunOverFlow(
             setOnClickListener { tapBox() }
         }
         boxHost = host
-        val top = LinearLayout(activity).apply {
+        lateinit var heading: TextView
+        val top = object : LinearLayout(activity) {
+            override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
+                fitBoxText(heading, MeasureSpec.getSize(widthMeasureSpec) - paddingLeft - paddingRight, 28f)
+                super.onMeasure(widthMeasureSpec, heightMeasureSpec)
+            }
+        }.apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER_HORIZONTAL
+            setPadding(dp(20f), 0, dp(20f), 0)
             clipChildren = false; clipToPadding = false
-            addView(kit.stageText(if (boxes == 1) "MYSTERY BOX" else "MYSTERY BOXES", 28f, Theme.LAVENDER, stroke = 4f).apply { letterSpacing = 0.06f })
+            heading = kit.stageText(if (boxes == 1) "MYSTERY BOX" else "MYSTERY BOXES", 28f, Theme.LAVENDER, stroke = 4f).apply {
+                letterSpacing = 0.06f; setSingleLine(); setHorizontallyScrolling(false)
+            }
+            addView(heading, LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT))
             boxRack = LinearLayout(activity).apply { // one icon per box; opened ones go quiet
                 orientation = LinearLayout.HORIZONTAL
                 clipChildren = false; clipToPadding = false
@@ -288,26 +336,50 @@ class RunOverFlow(
             addView(boxRack, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(4f) })
         }
         host.addView(top, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT).apply { gravity = Gravity.TOP; topMargin = dp(24f) })
-        val bottom = LinearLayout(activity).apply {
+        val bottom = object : LinearLayout(activity) {
+            override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
+                val contentWidth = MeasureSpec.getSize(widthMeasureSpec) - paddingLeft - paddingRight
+                boxHint?.let { fitBoxText(it, contentWidth, 14f) }
+                rewardCard?.layoutParams?.width = minOf(contentWidth, dp(360f))
+                super.onMeasure(widthMeasureSpec, heightMeasureSpec)
+            }
+        }.apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER_HORIZONTAL
+            // Room for the spring and reward heartbeat without clipping the card's corners.
+            setPadding(dp(20f), 0, dp(20f), 0)
             clipChildren = false; clipToPadding = false
-            rewardCard = LinearLayout(activity).apply {
+            rewardCard = object : LinearLayout(activity) {
+                override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
+                    val contentWidth = MeasureSpec.getSize(widthMeasureSpec) - paddingLeft - paddingRight
+                    rewardSub?.let { fitBoxText(it, contentWidth, 12f) }
+                    rewardBig?.let { fitBoxText(it, contentWidth, rewardSizeSp, rewardLabel) }
+                    super.onMeasure(widthMeasureSpec, heightMeasureSpec)
+                }
+            }.apply {
+                tag = "gift_reward_card"
                 orientation = LinearLayout.VERTICAL
                 gravity = Gravity.CENTER_HORIZONTAL
-                setPadding(dp(26f), dp(14f), dp(26f), dp(14f) + kit.CARD_LIP)
+                setPadding(dp(18f), dp(14f), dp(18f), dp(14f) + kit.CARD_LIP)
                 background = kit.cardDrawable(Theme.CARD, null, 26f)
                 alpha = 0f
-                rewardSub = kit.text("", 12f, Theme.MUTED, 700).apply { letterSpacing = 0.14f }
-                rewardBig = kit.text("", 36f, Theme.INK, 700)
-                addView(rewardSub)
-                addView(rewardBig)
+                rewardSub = kit.text("", 12f, Theme.MUTED, 700).apply {
+                    tag = "gift_reward_category"; letterSpacing = 0.1f; setSingleLine(); setHorizontallyScrolling(false)
+                }
+                rewardBig = kit.text("", 36f, Theme.INK, 700).apply {
+                    tag = "gift_reward_value"; setSingleLine(); setHorizontallyScrolling(false)
+                }
+                addView(rewardSub, LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT))
+                addView(rewardBig, LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT))
             }
-            addView(rewardCard)
-            boxHint = tapHint("TAP TO OPEN")
-            addView(boxHint, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(18f) })
+            addView(rewardCard, LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT))
+            boxHint = tapHint("TAP TO OPEN").apply {
+                tag = "gift_footer_hint"; letterSpacing = .08f; setSingleLine(); setHorizontallyScrolling(false)
+            }
+            // A reserved footer keeps the reward in place as the next-action wording changes.
+            addView(boxHint, LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, dp(48f)).apply { topMargin = dp(12f) })
         }
-        host.addView(bottom, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT).apply { gravity = Gravity.BOTTOM; bottomMargin = dp(32f) })
+        host.addView(bottom, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT).apply { gravity = Gravity.BOTTOM; bottomMargin = dp(16f) })
         Stage.openRequests.set(0)
         Stage.skipBoxRequests.set(0)
         Stage.mode = Stage.BOX
@@ -328,8 +400,7 @@ class RunOverFlow(
         boxRewardReady = false; skipBoxAnimation = false
         rewardBeat?.cancel(); rewardBeat = null
         boxesLeft--
-        boxHint?.text = "TAP TO SKIP"
-        boxHint?.visibility = VISIBLE
+        boxHint?.visibility = INVISIBLE
         rewardCard?.move()?.alpha(0f)?.scaleX(0.7f)?.scaleY(0.7f)?.setDuration(150)?.start()
         Stage.openRequests.incrementAndGet() // the game shakes + opens it, then calls onBoxOpened
     }
@@ -340,45 +411,42 @@ class RunOverFlow(
         boxRewardReady = true
         val big = rewardBig ?: return
         val sub = rewardSub ?: return
-        big.textSize = 36f
+        big.setTextColor(Theme.INK)
+        rewardSizeSp = 36f
         val rare: Boolean
         when (kind) {
             Progress.BoxReward.SKIN -> {
                 rare = true
                 sub.text = "NEW ${Wardrobe.label(cat)}!"
-                sub.setTextColor(Theme.PINK)
-                big.text = Wardrobe.name(cat, id).uppercase()
-                big.setTextColor(Theme.INK)
+                sub.setTextColor(Theme.darken(Theme.PINK, .35f))
+                val name = Wardrobe.name(cat, id).uppercase()
+                rewardLabel = { name }
             }
             Progress.BoxReward.SHARDS -> {
                 val k = cube.run.data.Shards.get(id)
-                val col = Theme.hsv(k.hue, 0.7f, 0.9f)
+                val col = Theme.darken(Theme.hsv(k.hue, 0.7f, 0.9f), .45f)
                 rare = amount >= 20
                 sub.text = k.name.uppercase()
                 sub.setTextColor(col)
-                big.text = android.text.SpannableStringBuilder("+$amount ").also { sb ->
-                    val d = ShardIcon(Theme.hsv(k.hue, 0.75f, 1f)); val px = kit.dp(36f * 1.1f); d.setBounds(0, 0, px, px)
-                    sb.append("\u2009 ", CenteredImageSpan(d), android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
-                }
-                big.textSize = 36f
-                big.setTextColor(col)
+                rewardLabel = { px -> rewardWithIcon("+$amount", px, ShardIcon(Theme.hsv(k.hue, 0.75f, 1f))) }
             }
             Progress.BoxReward.BUBBLE -> {
                 rare = false
                 sub.text = "BUBBLE SHIELD"
-                sub.setTextColor(Theme.darken(Theme.CYAN, 0.15f))
-                big.text = "+$amount"
-                big.setTextColor(Theme.darken(Theme.CYAN, 0.15f))
+                sub.setTextColor(Theme.darken(Theme.CYAN, .5f))
+                rewardLabel = { "+$amount" }
             }
             else -> {
                 rare = amount >= 100
                 sub.text = ""
-                big.text = kit.coins("+$amount", if (rare) 44f else 36f)
-                big.textSize = if (rare) 44f else 36f
-                big.setTextColor(if (rare) Theme.PINK else Theme.darken(Theme.GOLD, 0.1f))
+                rewardSizeSp = if (rare) 44f else 36f
+                rewardLabel = { px -> rewardWithIcon("+$amount", px, CoinIcon()) }
             }
         }
         sub.visibility = if (sub.text.isEmpty()) GONE else VISIBLE
+        // Assign now for accessibility; measurement then fits the same label and icon as one unit.
+        big.text = rewardLabel(big.textSize)
+        rewardCard?.requestLayout()
         rewardCard?.let { c ->
             rewardBeat?.cancel(); rewardBeat = null
             Anim.popIn(c, 0, 0.3f, 460) {
@@ -404,7 +472,7 @@ class RunOverFlow(
             for (i in host.childCount - 1 downTo 0) if (host.getChildAt(i) is CelebrationView) host.removeViewAt(i)
         }
         boxBusy = false
-        boxHint?.text = if (boxesLeft > 0) "TAP FOR THE NEXT BOX" else "TAP FOR THE MENU"
+        boxHint?.text = if (boxesLeft > 0) "TAP FOR THE NEXT BOX" else if (boxesOnly) "TAP TO RETURN" else "TAP FOR THE MENU"
         boxHint?.visibility = VISIBLE
     }
 
@@ -418,7 +486,7 @@ class RunOverFlow(
             setPadding(0, maxOf(dp(36f), t + dp(6f)), 0, maxOf(dp(24f), b + dp(8f)))
             insets
         }
-        showResults()
+        if (boxesOnly) showBoxes() else showResults()
     }
 
     override fun onDetachedFromWindow() {

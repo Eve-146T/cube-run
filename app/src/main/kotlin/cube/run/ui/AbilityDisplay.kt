@@ -32,6 +32,7 @@ class AbilityDisplay(private val activity: Activity, private val kit: UiKit, val
     private var cornerHost: LinearLayout? = null
     private val cornerChips = ArrayList<CandyChip>()
     private var cornerCard: View? = null
+    private var mysteryDisplay: MysteryAbilityDisplay? = null
 
     init {
         floating.addOnAttachStateChangeListener(object : View.OnAttachStateChangeListener {
@@ -79,6 +80,10 @@ class AbilityDisplay(private val activity: Activity, private val kit: UiKit, val
 
     private fun toggle(index: Int) {
         if (changing || index !in abilities.indices) return
+        if (abilities[index] == Ability.SECRET) {
+            mysteryDisplay?.toggle()
+            return
+        }
         selected = if (selected == index) -1 else index
         if (style == 0) revealCorner() else render()
     }
@@ -125,18 +130,40 @@ class AbilityDisplay(private val activity: Activity, private val kit: UiKit, val
     }
 
     private fun description(ability: Ability, dark: Boolean = false) =
-        if (dark) kit.stageText("Ability: ${ability.detail}", 15f, stroke = 1.8f, weight = 500, gravity = Gravity.CENTER)
-        else kit.text("Ability: ${ability.detail}", 15f, Theme.INK, 500, Gravity.START)
+        if (dark) kit.stageText(ability.detail, 15f, stroke = 1.8f, weight = 500, gravity = Gravity.CENTER)
+        else kit.text(ability.detail, 15f, Theme.INK, 500, Gravity.START)
 
     private fun card(values: List<Ability>, color: Int = Theme.WHITE, icons: Boolean = false): LinearLayout = column().apply {
         background = kit.cardDrawable(color, null, 20f)
-        setPadding(dp(16f), dp(12f), dp(16f), dp(16f))
+        setPadding(dp(14f), dp(12f), dp(14f), dp(14f))
         for ((i, ability) in values.withIndex()) {
-            val body: View = if (icons) row().apply {
-                addView(ImageView(activity).apply { setImageDrawable(icon(ability)) }, LinearLayout.LayoutParams(dp(30f), dp(30f)))
-                addView(description(ability), LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply { leftMargin = dp(12f) })
-            } else description(ability)
-            addView(body, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { if (i > 0) topMargin = dp(12f) })
+            val section = column()
+            section.addView(row().apply {
+                if (icons) addView(ImageView(activity).apply { setImageDrawable(icon(ability)) },
+                    LinearLayout.LayoutParams(dp(26f), dp(26f)).apply { rightMargin = dp(8f) })
+                addView(kit.text(ability.title, 17f, Theme.INK, 700, Gravity.START),
+                    LinearLayout.LayoutParams(0, -2, 1f))
+            })
+            if (ability == Ability.LOTTERY) {
+                val label = android.text.SpannableStringBuilder("All the coins you collect are spent on playing the Lottery!\n\nThe jackpot is 250k")
+                label.append(kit.coins("", 14f)).append(", here are the chances:")
+                section.addView(kit.text("", 14f, Theme.INK, 500, Gravity.START).apply { text = label },
+                    LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(8f) })
+                fun odds(drawable: Drawable, chance: String, basis: String) {
+                    section.addView(row().apply {
+                        gravity = Gravity.TOP
+                        addView(ImageView(activity).apply { setImageDrawable(drawable) },
+                            LinearLayout.LayoutParams(dp(22f), dp(22f)).apply { rightMargin = dp(8f); topMargin = dp(2f) })
+                        addView(column().apply {
+                            addView(kit.text(chance, 15f, Theme.INK, 700, Gravity.START))
+                            addView(kit.text(basis, 12f, Theme.INK, 500, Gravity.START))
+                        }, LinearLayout.LayoutParams(0, -2, 1f))
+                    }, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(10f) })
+                }
+                odds(CoinIcon(), if (cube.run.data.Settings.devMode) "2%" else "1 in 100,000", "per 1 coin of value")
+                odds(BoxIcon(), "1.3%", "per mystery box")
+            } else section.addView(description(ability), LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(8f) })
+            addView(section, LinearLayout.LayoutParams(-1, -2).apply { if (i > 0) topMargin = dp(14f) })
         }
     }
 
@@ -147,11 +174,25 @@ class AbilityDisplay(private val activity: Activity, private val kit: UiKit, val
     private fun render() {
         Anim.cancelTree(floating)
         Anim.reset(floating)
-        cornerHost = null; cornerCard = null; cornerChips.clear()
+        cornerHost = null; cornerCard = null; cornerChips.clear(); mysteryDisplay = null
         inline.removeAllViews(); floating.removeAllViews()
         inline.visibility = if (abilities.isEmpty() || style in listOf(0, 1, 5)) View.GONE else View.VISIBLE
         floating.visibility = if (abilities.isEmpty()) View.GONE else View.VISIBLE
         if (abilities.isEmpty()) return
+        if (Ability.SECRET in abilities) {
+            inline.visibility = View.GONE
+            val mystery = MysteryAbilityDisplay(activity, kit, canToggle = { !changing }, onExpandedChanged = {
+                selected = if (it) abilities.indexOf(Ability.SECRET) else -1
+            })
+            mysteryDisplay = mystery
+            cornerChips.add(mystery.button)
+            floating.addView(row().apply {
+                gravity = Gravity.TOP
+                addView(mystery.button, LinearLayout.LayoutParams(dp(48f), dp(52f)))
+                addView(mystery.panel, LinearLayout.LayoutParams(0, -2, 1f).apply { leftMargin = dp(10f) })
+            }, FrameLayout.LayoutParams(-1, -2))
+            return
+        }
         when (style) {
             0 -> { // One icon per ability, at the top-left of the cube; tap one to expand beside it.
                 val host = row().apply { gravity = Gravity.TOP }
@@ -240,7 +281,20 @@ class AbilityIcon(private val ability: Ability) : Icon() {
         val s = minOf(bounds.width(), bounds.height()) / 48f
         canvas.save(); canvas.translate(bounds.exactCenterX() - 24f * s, bounds.exactCenterY() - 24f * s); canvas.scale(s, s)
         paint.strokeWidth = 3f; paint.strokeJoin = Paint.Join.ROUND
-        if (ability == Ability.PHASE) {
+        if (ability == Ability.SECRET) {
+            path.reset(); path.moveTo(14f, 15f)
+            path.cubicTo(14f, 5f, 34f, 5f, 34f, 16f)
+            path.cubicTo(34f, 23f, 24f, 24f, 24f, 30f)
+            paint.style = Paint.Style.STROKE; paint.strokeCap = Paint.Cap.ROUND
+            paint.color = Theme.INK; paint.strokeWidth = 8f
+            canvas.drawPath(path, paint)
+            paint.color = Theme.LAVENDER; paint.strokeWidth = 5f
+            canvas.drawPath(path, paint)
+            paint.style = Paint.Style.FILL; paint.color = Theme.INK
+            canvas.drawCircle(24f, 39f, 4f, paint)
+            paint.color = Theme.LAVENDER
+            canvas.drawCircle(24f, 39f, 2.5f, paint)
+        } else if (ability == Ability.PHASE) {
             paint.style = Paint.Style.FILL; paint.color = Theme.LAVENDER
             canvas.drawRoundRect(17f, 7f, 40f, 30f, 5f, 5f, paint)
             paint.style = Paint.Style.STROKE; paint.color = Theme.INK
@@ -249,6 +303,78 @@ class AbilityIcon(private val ability: Ability) : Icon() {
             canvas.drawRoundRect(7f, 17f, 30f, 40f, 5f, 5f, paint)
             paint.style = Paint.Style.STROKE; paint.color = Theme.INK
             canvas.drawRoundRect(7f, 17f, 30f, 40f, 5f, 5f, paint)
+        } else if (ability == Ability.GOLD_COINS) {
+            paint.style = Paint.Style.FILL; paint.color = Theme.GOLD
+            canvas.drawCircle(21f, 27f, 15f, paint)
+            paint.style = Paint.Style.STROKE; paint.color = Theme.INK
+            canvas.drawCircle(21f, 27f, 15f, paint); canvas.drawCircle(21f, 27f, 9f, paint)
+            canvas.drawLine(21f, 22f, 21f, 32f, paint)
+            canvas.drawLine(36f, 5f, 36f, 17f, paint); canvas.drawLine(30f, 11f, 42f, 11f, paint)
+        } else if (ability == Ability.LOTTERY) {
+            canvas.save(); canvas.rotate(-12f, 24f, 24f)
+            // A notched raffle ticket: bold silhouette and one clear prize star.
+            path.reset(); path.moveTo(9f, 10f); path.lineTo(39f, 10f)
+            path.quadTo(43f, 10f, 43f, 14f); path.lineTo(43f, 19f)
+            path.cubicTo(36f, 19f, 36f, 29f, 43f, 29f); path.lineTo(43f, 34f)
+            path.quadTo(43f, 38f, 39f, 38f); path.lineTo(9f, 38f)
+            path.quadTo(5f, 38f, 5f, 34f); path.lineTo(5f, 29f)
+            path.cubicTo(12f, 29f, 12f, 19f, 5f, 19f); path.lineTo(5f, 14f)
+            path.quadTo(5f, 10f, 9f, 10f); path.close()
+            paint.style = Paint.Style.FILL; paint.color = Theme.GOLD; canvas.drawPath(path, paint)
+            paint.style = Paint.Style.STROKE; paint.color = Theme.INK; paint.strokeWidth = 2.8f
+            canvas.drawPath(path, paint)
+            paint.strokeWidth = 2f; paint.strokeCap = Paint.Cap.ROUND
+            canvas.drawLine(33f, 14f, 33f, 17f, paint)
+            canvas.drawLine(33f, 22f, 33f, 26f, paint)
+            canvas.drawLine(33f, 31f, 33f, 34f, paint)
+            path.reset(); path.moveTo(21f, 15f); path.lineTo(24f, 21f)
+            path.lineTo(30f, 22f); path.lineTo(25.5f, 26f); path.lineTo(26.5f, 32f)
+            path.lineTo(21f, 29f); path.lineTo(15.5f, 32f); path.lineTo(16.5f, 26f)
+            path.lineTo(12f, 22f); path.lineTo(18f, 21f); path.close()
+            paint.style = Paint.Style.FILL; paint.color = 0xFFF04C63.toInt(); canvas.drawPath(path, paint)
+            paint.style = Paint.Style.STROKE; paint.color = Theme.INK; paint.strokeWidth = 1.8f
+            canvas.drawPath(path, paint)
+            canvas.restore()
+        } else if (ability == Ability.COAL) {
+            path.reset(); path.moveTo(10f, 15f); path.lineTo(24f, 7f); path.lineTo(36f, 14f)
+            path.lineTo(42f, 29f); path.lineTo(30f, 41f); path.lineTo(12f, 37f); path.lineTo(6f, 26f); path.close()
+            paint.style = Paint.Style.FILL; paint.color = Theme.INK; canvas.drawPath(path, paint)
+            paint.style = Paint.Style.STROKE; paint.color = Theme.LAVENDER; paint.strokeWidth = 2f
+            canvas.drawLine(15f, 18f, 25f, 13f, paint); canvas.drawLine(25f, 13f, 32f, 20f, paint)
+        } else if (ability == Ability.FLOATY) {
+            path.reset(); path.moveTo(13f, 34f)
+            path.cubicTo(0f, 34f, 3f, 17f, 15f, 19f)
+            path.cubicTo(13f, 4f, 35f, 4f, 35f, 20f)
+            path.cubicTo(48f, 18f, 47f, 35f, 35f, 35f); path.close()
+            paint.style = Paint.Style.FILL; paint.color = Theme.LAVENDER; canvas.drawPath(path, paint)
+            paint.style = Paint.Style.STROKE; paint.color = Theme.INK; canvas.drawPath(path, paint)
+            canvas.drawLine(16f, 41f, 30f, 41f, paint)
+        } else if (ability == Ability.DOUBLE_JUMP) {
+            paint.style = Paint.Style.STROKE; paint.color = Theme.INK; paint.strokeCap = Paint.Cap.ROUND; paint.strokeWidth = 4f
+            for (y in listOf(8f, 25f)) {
+                path.reset(); path.moveTo(12f, y + 11f); path.lineTo(24f, y); path.lineTo(36f, y + 11f)
+                canvas.drawPath(path, paint)
+            }
+            paint.color = Theme.MINT; canvas.drawLine(15f, 43f, 33f, 43f, paint)
+        } else if (ability == Ability.ZAPPY) {
+            paint.style = Paint.Style.STROKE; paint.color = Theme.INK; paint.strokeCap = Paint.Cap.ROUND
+            canvas.drawLine(7f, 7f, 7f, 41f, paint); canvas.drawLine(41f, 7f, 41f, 41f, paint)
+            path.reset(); path.moveTo(19f, 8f); path.lineTo(31f, 8f); path.lineTo(22f, 23f)
+            path.lineTo(33f, 23f); path.lineTo(17f, 42f); path.lineTo(23f, 28f); path.lineTo(14f, 28f); path.close()
+            paint.style = Paint.Style.FILL; paint.color = Theme.LAVENDER; canvas.drawPath(path, paint)
+            paint.style = Paint.Style.STROKE; paint.color = Theme.INK; canvas.drawPath(path, paint)
+        } else if (ability == Ability.POWER_STRETCH || ability == Ability.QUICK_BUBBLE || ability == Ability.LONG_BUBBLE) {
+            paint.style = Paint.Style.FILL; paint.color = if (ability == Ability.POWER_STRETCH) Theme.LAVENDER else Theme.CYAN
+            canvas.drawCircle(22f, 25f, 15f, paint)
+            paint.style = Paint.Style.STROKE; paint.color = Theme.INK; paint.strokeCap = Paint.Cap.ROUND
+            canvas.drawCircle(22f, 25f, 15f, paint)
+            canvas.drawLine(22f, 15f, 22f, 25f, paint); canvas.drawLine(22f, 25f, 28f, 28f, paint)
+            canvas.drawLine(17f, 5f, 27f, 5f, paint)
+            paint.style = Paint.Style.FILL; paint.color = Theme.WHITE
+            canvas.drawCircle(37f, 36f, 9f, paint)
+            paint.style = Paint.Style.STROKE; paint.color = Theme.INK
+            canvas.drawLine(32f, 36f, 42f, 36f, paint)
+            if (ability != Ability.QUICK_BUBBLE) canvas.drawLine(37f, 31f, 37f, 41f, paint)
         } else {
             path.reset(); path.moveTo(28f, 4f); path.lineTo(10f, 27f); path.lineTo(23f, 27f)
             path.lineTo(20f, 44f); path.lineTo(39f, 19f); path.lineTo(26f, 19f); path.close()

@@ -24,28 +24,80 @@ class GameHostSession(
         if (!over.get() && kind in 0..2) shardsV.incrementAndGet(kind)
     }
 
+    private var runHasStarted = false
+    private var centerLaneObserved = false
+    private var stayedCentered = true
+    private var stayedCoinless = true
+    private var missedBoxes = 0
+
+    init {
+        // Older versions saved dev scores to the leaderboard while excluding
+        // achievement progress. Reconcile that existing best without requiring
+        // another record-breaking run or a full process restart.
+        Progress.recordRunProgress(Scores.best(id), 0)
+    }
+
     override val score: Int get() = scoreV.get()
     override val isOver: Boolean get() = over.get()
 
-    override fun setScore(v: Int) {
+    @Synchronized override fun setScore(v: Int) {
         if (over.get()) return
         scoreV.set(v)
+        Progress.recordRunProgress(v, 0)
+        recordRunChallenges(v)
         ui { it.setScore(v) }
     }
 
-    override fun addScore(d: Int) {
+    @Synchronized override fun addScore(d: Int) {
         if (over.get()) return
         val v = scoreV.addAndGet(d)
+        Progress.recordRunProgress(v, 0)
+        recordRunChallenges(v)
         ui { it.setScore(v) }
     }
 
-    override fun runStarted() {
+    @Synchronized override fun runStarted() {
+        runHasStarted = true
+        centerLaneObserved = false
+        stayedCentered = true
+        stayedCoinless = true
+        missedBoxes = 0
+        Progress.clearRunCoins()
         ui { it.hideOptions() }
+    }
+
+    @Synchronized override fun laneChanged(lane: Int, laneCount: Int) {
+        if (!runHasStarted || over.get()) return
+        centerLaneObserved = true
+        // Once lost, eligibility stays lost even when two opposite inputs are
+        // processed before the next render frame. Portal remaps preserve center.
+        if (laneCount <= 0 || lane != laneCount / 2) stayedCentered = false
+    }
+
+    private fun recordRunChallenges(score: Int) {
+        if (runHasStarted && centerLaneObserved && stayedCentered) Progress.recordCenteredScore(score)
+        if (runHasStarted && stayedCoinless) Progress.recordCoinlessScore(score)
+    }
+
+    @Synchronized override fun coinPickedUp() {
+        if (runHasStarted && !over.get()) stayedCoinless = false
+    }
+
+    @Synchronized override fun mysteryBoxMissed() {
+        if (!runHasStarted || over.get()) return
+        missedBoxes = (missedBoxes + 1).coerceAtMost(10)
+        Progress.recordMissedBoxes(missedBoxes)
+    }
+
+    override fun jackpotWon(amount: Int) {
+        if (over.get() || amount <= 0) return
+        ui { it.showJackpot(amount) }
     }
 
     override fun setCoins(v: Int) {
         if (over.get()) return
         coinsV.set(v)
+        Progress.recordRunCoins(v)
         ui { it.setRunCoins(v) }
     }
 
@@ -84,6 +136,8 @@ class GameHostSession(
         val boxes = boxesV.get()
         val runShards = IntArray(3) { shardsV.get(it) }
         for (kind in runShards.indices) if (runShards[kind] > 0) Progress.addShards(kind, runShards[kind])
+        Progress.recordRunProgress(finalScore, 0)
+        Progress.clearRunCoins()
         Progress.addCoins(runCoins)
         Progress.countRun()
         val prevBest = Scores.best(id)

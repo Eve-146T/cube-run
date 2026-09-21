@@ -1,0 +1,632 @@
+[
+  {
+    "title": "Double Jump",
+    "description": "Swipe up again in the air to jump a second time.",
+    "item": "Cube",
+    "group": "Movement & world",
+    "style": "Simple"
+  },
+  {
+    "title": "Mini Cube",
+    "description": "Your cube is 30% smaller, so it fits through tighter gaps.",
+    "item": "Cube",
+    "group": "Movement & world",
+    "style": "Simple"
+  },
+  {
+    "title": "Ground Pound",
+    "description": "Swipe down in the air to smash the obstacle you land on.",
+    "item": "Cube",
+    "group": "Movement & world",
+    "style": "Simple"
+  },
+  {
+    "title": "High Jump",
+    "description": "Your jumps go higher.",
+    "item": "Cube",
+    "group": "Movement & world",
+    "style": "Simple"
+  },
+  {
+    "title": "Long Jump",
+    "description": "Your jumps carry you farther forward.",
+    "item": "Cube",
+    "group": "Movement & world",
+    "style": "Simple"
+  },
+  {
+    "title": "Glider",
+    "description": "Hold your jump to glide over the road.",
+    "item": "Cube",
+    "group": "Movement & world",
+    "style": "Simple"
+  },
+  {
+    "title": "Air Brake",
+    "description": "Tap the ability button to stop falling for a moment.",
+    "item": "Cube",
+    "group": "Movement & world",
+    "style": "Simple"
+  },
+  {
+    "title": "Featherweight",
+    "description": "Your cube falls more slowly after a jump.",
+    "item": "Cube",
+    "group": "Movement & world",
+    "style": "Simple"
+  },
+  {
+    "title": "Wall Jump",
+    "description": "Bouncing against a side wall launches you upward.",
+    "item": "Cube",
+    "group": "Movement & world",
+    "style": "Simple"
+  },
+  {
+    "title": "Wall Runner",
+    "description": "Swipe into a side wall to run along it briefly.",
+    "item": "Cube",
+    "group": "Movement & world",
+    "style": "Wild"
+  },
+  {
+    "title": "Lane Blink",
+    "description": "Changing lanes instantly teleports you to the next lane.",
+    "item": "Cube",
+    "group": "Movement & world",
+    "style": "Simple"
+  },
+  {
+    "title": "Wraparound",
+    "description": "Swipe past the outside lane to appear on the other side.",
+    "item": "Cube",
+    "group": "Movement & world",
+    "style": "Simple"
+  },
+  {
+    "title": "Emergency Dodge",
+    "description": "Once per run, your cube automatically dodges a crash into a clear lane.",
+    "item": "Cube",
+    "group": "Movement & world",
+    "style": "Simple"
+  },
+  {
+    "title": "Burrow",
+    "description": "Tap the ability button to tunnel beneath the next obstacle.",
+    "item": "Cube",
+    "group": "Movement & world",
+    "style": "Wild"
+  },
+  {
+    "title": "Backstep",
+    "description": "Tap the ability button to rewind your position by one second.",
+    "item": "Cube",
+    "group": "Movement & world",
+    "style": "Wild"
+  },
+  {
+    "title": "Leapfrog",
+    "description": "Your cube automatically jumps over low obstacles.",
+    "item": "Cube",
+    "group": "Movement & world",
+    "style": "Simple"
+  },
+  {
+    "title": "Auto Duck",
+    "description": "Your cube automatically ducks under overhead bars.",
+    "item": "Cube",
+    "group": "Movement & world",
+    "style": "Simple"
+  },
+  {
+    "title": "Bowling Cube",
+    "description": "Rolling lets you knock down low obstacles.",
+    "item": "Cube",
+    "group": "Movement & world",
+    "style": "Simple"
+  },
+  {
+    "title": "Spring Legs",
+    "description": "Every landing launches you into another jump until you swipe down.",
+    "item": "Cube",
+    "group": "Movement & world",
+    "style": "Simple"
+  },
+  {
+    "title": "Ceiling Runner",
+    "description": "Tap the ability button to run on a temporary ceiling.",
+    "item": "Cube",
+    "group": "Movement & world",
+    "style": "Wild"
+  },
+  {
+    "title": "Grappling Hook",
+    "description": "Tap the ability button to pull yourself onto the next platform.",
+    "item": "Cube",
+    "group": "Movement & world",
+    "style": "Wild"
+  },
+  {
+    "title": "Crouch Hold",
+    "description": "Hold down to stay tucked beneath overhead obstacles.",
+    "item": "Cube",
+    "group": "Movement & world",
+    "style": "Simple"
+  },
+  {
+    "title": "Cannon Jump",
+    "description": "Tap the ability button to launch yourself far down the road.",
+    "item": "Cube",
+    "group": "Movement & world",
+    "style": "Wild"
+  },
+  {
+    "title": "Paper Thin",
+    "description": "Your cube turns sideways while changing lanes to squeeze past obstacles.",
+    "item": "Cube",
+    "group": "Movement & world",
+    "style": "Simple"
+  },
+  {
+    "title": "Express Train",
+    "description": "Tap the ability button to charge straight through the next row.",
+    "item": "Cube",
+    "group": "Movement & world",
+    "style": "Simple"
+  },
+  {
+    "title": "Boomerang Jump",
+    "description": "Jumping sideways brings you back to your starting lane when you land.",
+    "item": "Cube",
+    "group": "Movement & world",
+    "style": "Wild"
+  },
+  {
+    "title": "Surfboard",
+    "description": "A board appears beneath you whenever you cross a gap.",
+    "item": "Cube",
+    "group": "Movement & world",
+    "style": "Simple"
+  },
+  {
+    "title": "Tightrope",
+    "description": "You can run along the narrow edges between lanes.",
+    "item": "Cube",
+    "group": "Movement & world",
+    "style": "Wild"
+  },
+  {
+    "title": "Drill Roll",
+    "description": "Rolling drills through tall obstacles.",
+    "item": "Cube",
+    "group": "Movement & world",
+    "style": "Simple"
+  },
+  {
+    "title": "Slide Kick",
+    "description": "Rolling into an obstacle kicks it forward.",
+    "item": "Cube",
+    "group": "Movement & world",
+    "style": "Simple"
+  },
+  {
+    "title": "Shoulder Check",
+    "description": "Changing lanes knocks the nearest obstacle aside.",
+    "item": "Cube",
+    "group": "Movement & world",
+    "style": "Simple"
+  },
+  {
+    "title": "Karate Chop",
+    "description": "Tap the ability button to break the obstacle directly ahead.",
+    "item": "Cube",
+    "group": "Movement & world",
+    "style": "Simple"
+  },
+  {
+    "title": "Laser Beam",
+    "description": "Tap the ability button to clear a straight path through your lane.",
+    "item": "Cube",
+    "group": "Movement & world",
+    "style": "Simple"
+  },
+  {
+    "title": "Sonic Clap",
+    "description": "Tap the ability button to knock away the next row of obstacles.",
+    "item": "Cube",
+    "group": "Movement & world",
+    "style": "Simple"
+  },
+  {
+    "title": "Ricochet",
+    "description": "Throw a ball that bounces between nearby obstacles and breaks them.",
+    "item": "Cube",
+    "group": "Movement & world",
+    "style": "Wild"
+  },
+  {
+    "title": "Freeze Ray",
+    "description": "Tap the ability button to stop moving obstacles in place.",
+    "item": "Cube",
+    "group": "Movement & world",
+    "style": "Simple"
+  },
+  {
+    "title": "Fire Breath",
+    "description": "Tap the ability button to burn through obstacles ahead.",
+    "item": "Cube",
+    "group": "Movement & world",
+    "style": "Simple"
+  },
+  {
+    "title": "Repulsor",
+    "description": "Tap the ability button to push nearby obstacles away from you.",
+    "item": "Cube",
+    "group": "Movement & world",
+    "style": "Simple"
+  },
+  {
+    "title": "Balloon Lift",
+    "description": "Attach balloons to the next obstacle so it floats out of your way.",
+    "item": "Cube",
+    "group": "Movement & world",
+    "style": "Wild"
+  },
+  {
+    "title": "Obstacle Swap",
+    "description": "Tap an obstacle to move it into the neighboring lane.",
+    "item": "Cube",
+    "group": "Movement & world",
+    "style": "Simple"
+  },
+  {
+    "title": "Shrink Ray",
+    "description": "Tap the ability button to make the next obstacles small enough to jump over.",
+    "item": "Cube",
+    "group": "Movement & world",
+    "style": "Simple"
+  },
+  {
+    "title": "Giant Steps",
+    "description": "Tap the ability button to grow tall enough to step over obstacles.",
+    "item": "Cube",
+    "group": "Movement & world",
+    "style": "Wild"
+  },
+  {
+    "title": "Ghost Walk",
+    "description": "Tap the ability button to pass through solid obstacles briefly.",
+    "item": "Cube",
+    "group": "Movement & world",
+    "style": "Simple"
+  },
+  {
+    "title": "Time Stop",
+    "description": "Freeze the world while your cube keeps moving.",
+    "item": "Cube",
+    "group": "Movement & world",
+    "style": "Wild"
+  },
+  {
+    "title": "Slow Motion",
+    "description": "Tap the ability button to slow the run down briefly.",
+    "item": "Cube",
+    "group": "Movement & world",
+    "style": "Simple"
+  },
+  {
+    "title": "Fast Forward",
+    "description": "Tap the ability button to speed up the run briefly.",
+    "item": "Cube",
+    "group": "Movement & world",
+    "style": "Simple"
+  },
+  {
+    "title": "Reverse Gear",
+    "description": "Tap the ability button to run backward for a moment.",
+    "item": "Cube",
+    "group": "Movement & world",
+    "style": "Wild"
+  },
+  {
+    "title": "Bulldozer",
+    "description": "A plow pushes obstacles sideways as you run into them.",
+    "item": "Cube",
+    "group": "Movement & world",
+    "style": "Simple"
+  },
+  {
+    "title": "Dominoes",
+    "description": "Breaking an obstacle sends it crashing into the next one.",
+    "item": "Cube",
+    "group": "Movement & world",
+    "style": "Simple"
+  },
+  {
+    "title": "Bowling Ball",
+    "description": "Tap the ability button to roll a heavy ball down your lane.",
+    "item": "Cube",
+    "group": "Movement & world",
+    "style": "Simple"
+  },
+  {
+    "title": "Mirror Road",
+    "description": "Tap the ability button to swap the left and right sides of the road.",
+    "item": "Cube",
+    "group": "Movement & world",
+    "style": "Wild"
+  },
+  {
+    "title": "Bridge Builder",
+    "description": "Temporary bridges appear across gaps ahead of you.",
+    "item": "Cube",
+    "group": "Movement & world",
+    "style": "Simple"
+  },
+  {
+    "title": "Trampoline Maker",
+    "description": "Tap the ability button to turn the next obstacle into a bounce pad.",
+    "item": "Cube",
+    "group": "Movement & world",
+    "style": "Wild"
+  },
+  {
+    "title": "Ramp Maker",
+    "description": "Tap the ability button to turn the next wall into a ramp.",
+    "item": "Cube",
+    "group": "Movement & world",
+    "style": "Simple"
+  },
+  {
+    "title": "Middle Road",
+    "description": "Tap the ability button to clear the middle lane briefly.",
+    "item": "Cube",
+    "group": "Movement & world",
+    "style": "Simple"
+  },
+  {
+    "title": "Extra Lane",
+    "description": "Tap the ability button to add a temporary escape lane beside the road.",
+    "item": "Cube",
+    "group": "Movement & world",
+    "style": "Wild"
+  },
+  {
+    "title": "Shortcut Door",
+    "description": "Open a door that takes you past the next obstacle row.",
+    "item": "Cube",
+    "group": "Movement & world",
+    "style": "Wild"
+  },
+  {
+    "title": "Road Flip",
+    "description": "Tap the ability button to run along the underside of the road.",
+    "item": "Cube",
+    "group": "Movement & world",
+    "style": "Wild"
+  },
+  {
+    "title": "Knight Move",
+    "description": "One sideways swipe can jump across two lanes.",
+    "item": "Cube",
+    "group": "Movement & world",
+    "style": "Simple"
+  },
+  {
+    "title": "Zipper",
+    "description": "Open a cube-sized gap through the middle of a wall.",
+    "item": "Cube",
+    "group": "Movement & world",
+    "style": "Wild"
+  },
+  {
+    "title": "Road Lift",
+    "description": "Raise your lane above the next set of obstacles.",
+    "item": "Cube",
+    "group": "Movement & world",
+    "style": "Wild"
+  },
+  {
+    "title": "Lane Slide",
+    "description": "Tap the ability button to shift the whole obstacle row one lane sideways.",
+    "item": "Cube",
+    "group": "Movement & world",
+    "style": "Simple"
+  },
+  {
+    "title": "Gravity Off",
+    "description": "Jump once to float until you swipe down.",
+    "item": "Cube",
+    "group": "Movement & world",
+    "style": "Simple"
+  },
+  {
+    "title": "Gravity Reverse",
+    "description": "Tap the ability button to make nearby obstacles fall upward.",
+    "item": "Cube",
+    "group": "Movement & world",
+    "style": "Wild"
+  },
+  {
+    "title": "Pinball",
+    "description": "Crashing into an obstacle bounces you toward the nearest clear lane.",
+    "item": "Cube",
+    "group": "Movement & world",
+    "style": "Wild"
+  },
+  {
+    "title": "Jelly Cube",
+    "description": "Your cube squashes itself through low openings.",
+    "item": "Cube",
+    "group": "Movement & world",
+    "style": "Simple"
+  },
+  {
+    "title": "Liquid Cube",
+    "description": "Tap the ability button to melt into a puddle beneath obstacles.",
+    "item": "Cube",
+    "group": "Movement & world",
+    "style": "Wild"
+  },
+  {
+    "title": "Scissors",
+    "description": "Tap the ability button to cut overhead bars in half.",
+    "item": "Cube",
+    "group": "Movement & world",
+    "style": "Wild"
+  },
+  {
+    "title": "Shadow Clone",
+    "description": "Send a copy of your cube ahead to break the next obstacle.",
+    "item": "Cube",
+    "group": "Movement & world",
+    "style": "Simple"
+  },
+  {
+    "title": "Scout Drone",
+    "description": "A small drone points toward an open lane.",
+    "item": "Cube",
+    "group": "Movement & world",
+    "style": "Simple"
+  },
+  {
+    "title": "Attack Drone",
+    "description": "A drone follows you and shoots obstacles ahead.",
+    "item": "Cube",
+    "group": "Movement & world",
+    "style": "Simple"
+  },
+  {
+    "title": "Pet Ram",
+    "description": "Your pet ram charges ahead and knocks down the nearest wall.",
+    "item": "Cube",
+    "group": "Movement & world",
+    "style": "Simple"
+  },
+  {
+    "title": "Spider Friend",
+    "description": "A pet spider webs moving obstacles in place.",
+    "item": "Cube",
+    "group": "Movement & world",
+    "style": "Simple"
+  },
+  {
+    "title": "Crane Friend",
+    "description": "A little crane lifts you onto the next tall platform.",
+    "item": "Cube",
+    "group": "Movement & world",
+    "style": "Wild"
+  },
+  {
+    "title": "Digging Dog",
+    "description": "Your dog digs a tunnel beneath the next wall.",
+    "item": "Cube",
+    "group": "Movement & world",
+    "style": "Wild"
+  },
+  {
+    "title": "Hungry Snake",
+    "description": "A pet snake eats obstacles in the outside lanes.",
+    "item": "Cube",
+    "group": "Movement & world",
+    "style": "Wild"
+  },
+  {
+    "title": "Orbiting Hammer",
+    "description": "A hammer circles your cube and breaks obstacles it touches.",
+    "item": "Cube",
+    "group": "Movement & world",
+    "style": "Wild"
+  },
+  {
+    "title": "Helping Hand",
+    "description": "A tiny companion pulls you away from a crash once per run.",
+    "item": "Cube",
+    "group": "Movement & world",
+    "style": "Simple"
+  },
+  {
+    "title": "Cloud Rider",
+    "description": "Tap the ability button to ride a cloud over the road briefly.",
+    "item": "Cube",
+    "group": "Movement & world",
+    "style": "Wild"
+  },
+  {
+    "title": "Decoy",
+    "description": "Send out a fake cube that moving hazards chase instead.",
+    "item": "Cube",
+    "group": "Movement & world",
+    "style": "Simple"
+  },
+  {
+    "title": "Revealing Paint",
+    "description": "Your trail splashes ahead to reveal hidden obstacles.",
+    "item": "Cube",
+    "group": "Movement & world",
+    "style": "Simple"
+  },
+  {
+    "title": "Headlights",
+    "description": "A bright beam makes dark sections easier to see.",
+    "item": "Cube",
+    "group": "Movement & world",
+    "style": "Simple"
+  },
+  {
+    "title": "X-Ray",
+    "description": "Obstacles turn transparent so you can see what is behind them.",
+    "item": "Cube",
+    "group": "Movement & world",
+    "style": "Simple"
+  },
+  {
+    "title": "Wide View",
+    "description": "The camera pulls back so you can see farther ahead.",
+    "item": "Cube",
+    "group": "Movement & world",
+    "style": "Simple"
+  },
+  {
+    "title": "Warning Signs",
+    "description": "Simple arrows warn you which lanes are about to become blocked.",
+    "item": "Cube",
+    "group": "Movement & world",
+    "style": "Simple"
+  },
+  {
+    "title": "Confetti Cannon",
+    "description": "Blast nearby obstacles outward in a burst of confetti.",
+    "item": "Cube",
+    "group": "Movement & world",
+    "style": "Wild"
+  },
+  {
+    "title": "Dance Floor",
+    "description": "Every ground pound pushes the next obstacle row one lane sideways.",
+    "item": "Cube",
+    "group": "Movement & world",
+    "style": "Wild"
+  },
+  {
+    "title": "Meteor",
+    "description": "Call down a meteor to smash the obstacles ahead.",
+    "item": "Cube",
+    "group": "Movement & world",
+    "style": "Wild"
+  },
+  {
+    "title": "Rubber Road",
+    "description": "The road becomes bouncy, turning every landing into a high jump.",
+    "item": "Cube",
+    "group": "Movement & world",
+    "style": "Wild"
+  },
+  {
+    "title": "Air Step",
+    "description": "Tap the ability button to place a small platform beneath you in midair.",
+    "item": "Cube",
+    "group": "Movement & world",
+    "style": "Wild"
+  }
+]

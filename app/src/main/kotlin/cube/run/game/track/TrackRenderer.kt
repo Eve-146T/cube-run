@@ -27,6 +27,14 @@ class TrackRenderer(private val game: Gdx3DGame) {
     private val shardCols = cube.run.data.Shards.all.map { hsvInto(Color(), it.hue, .6f, 1f) }
     private val coinCol = Color()
     private val coinFace = Color()
+    private val coalBody = Color(0.105f, 0.115f, 0.145f, 1f)
+    private val coalFacet = Color(0.235f, 0.255f, 0.295f, 1f)
+
+    /** Latched by the run owner; browsing another cube must not recolour an active run. */
+    var coalCoins = false
+
+    /** A charcoal burst with enough light to remain legible against the road. */
+    val coal: Color get() = coalFacet
     private val boxCol = Color()
     private val bandCol = Color()
     private val magnetCol = Color()
@@ -89,7 +97,7 @@ class TrackRenderer(private val game: Gdx3DGame) {
             val fog = Fog.at(r.z)
             for (ob in r.obs) cues.render(ob, r.z, fog, r.pop)
         }
-        // coins: fat gold pieces with a raised, paler heart, spinning, bobbing
+        // Coins and coal share pickup positions, magnet motion, fog and stream-in animation.
         for (r in track.rows) {
             val coins = r.coins ?: continue
             val p = r.pop
@@ -100,10 +108,28 @@ class TrackRenderer(private val game: Gdx3DGame) {
                 val y = c.y + 0.06f * sin(time * 4f + c.dz * 0.9f)
                 val fog = Fog.at(cz)
                 val yaw = coinYaw + (r.visualPhase + c.dz) * 14f
-                game.worldCoin(c.x, y, cz, 0.36f * p, 0.14f, yaw, coinCol, fog)
-                game.worldCoin(c.x, y, cz, 0.23f * p, 0.2f, yaw, coinFace, fog)
+                if (coalCoins) {
+                    renderCoal(c.x, y, cz, p, time * 65f + (r.visualPhase + c.dz) * 23f, fog)
+                } else {
+                    game.worldCoin(c.x, y, cz, 0.36f * p, 0.14f, yaw, coinCol, fog)
+                    game.worldCoin(c.x, y, cz, 0.23f * p, 0.2f, yaw, coinFace, fog)
+                }
             }
         }
+    }
+
+    /** Two intersecting, differently cut chunks: an uneven lump, with no coin face or gold rim.
+     * Existing box lighting gives the charcoal facets their quiet glint without an extra draw pass.
+     * Keep this to two primitives per pickup, just like the normal two-layer coins.
+     */
+    private fun renderCoal(x: Float, y: Float, z: Float, p: Float, yaw: Float, fog: Float) {
+        val radians = yaw * (Math.PI.toFloat() / 180f)
+        val dx = cos(radians) * 0.14f * p
+        val dz = -sin(radians) * 0.14f * p
+        game.worldBoxSpin(x - dx * 0.35f, y - 0.035f * p, z - dz * 0.35f,
+            0.49f * p, 0.43f * p, 0.45f * p, yaw, coalBody, fog)
+        game.worldBoxSpin(x + dx, y + 0.09f * p, z + dz,
+            0.32f * p, 0.29f * p, 0.35f * p, yaw + 38f, coalFacet, fog)
     }
 
     /** A portal: a big turning ring of candy beads across the road, breathing, with a second counter-turning ring inside. */

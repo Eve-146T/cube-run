@@ -72,13 +72,14 @@ class GiftStage(private val game: Gdx3DGame) {
 
     fun enter(bgTop: Color, bgBottom: Color) {
         active = true
+        Stage.giftShowing = true
         phase = IDLE; t = 0f; yaw = 20f; glow = 0f; autoOpen = false; reward = null; prizeUp = 0f
         newBox()
         hsvInto(bgTop, 265f, 0.55f, 0.28f)
         hsvInto(bgBottom, 250f, 0.6f, 0.06f)
     }
 
-    fun exit() { active = false }
+    fun exit() { active = false; Stage.giftShowing = false }
 
     private fun newBox() {
         drop = 4f; dropV = 0f
@@ -148,7 +149,7 @@ class GiftStage(private val game: Gdx3DGame) {
     private fun burst() {
         phase = OPENED; t = 0f
         glow = 1f
-        val r = Progress.openBox()
+        val r = Stage.purchasedBoxRewards.poll() ?: Progress.openBox()
         reward = r
         game.session.boxOpened(r.kind, r.amount, r.cat, r.id)
         val bubble = r.kind == Progress.BoxReward.BUBBLE
