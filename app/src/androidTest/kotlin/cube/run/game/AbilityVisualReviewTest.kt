@@ -109,6 +109,7 @@ class AbilityVisualReviewTest {
             Settings.setDevMode(false); Settings.testBonus = -1; Settings.testBonusNow = -1
             Settings.testBoxes = 0; Settings.testPillWorld = false
             for ((skin, label) in listOf(15 to "coal", 1 to "gambler", 22 to "eclipse", 17 to "cloud")) {
+                if (InstrumentationRegistry.getArguments().getString("jackpotOnly") == "true" && skin != 1) continue
                 prefs.edit().clear().putInt("coins", 1000000).putInt("owned_skins", 0x1ffffff)
                     .putInt("owned_bubble_skins", 0x7ff).putInt("skin", skin).putInt("bubbles", 20).commit()
                 scores.edit().clear().commit(); Progress.init(context)
@@ -160,6 +161,12 @@ class AbilityVisualReviewTest {
                             call(game, "collectCoin", Coin(0f, .5f, 0f), 0f)
                         }
                         capture("jackpot-overlay", 350)
+                        if (InstrumentationRegistry.getArguments().getString("jackpotOnly") == "true") {
+                            capture("jackpot-impact", 350)
+                            capture("jackpot-shower", 650)
+                            capture("jackpot-tail", 1000)
+                            capture("jackpot-finished", 1700)
+                        }
                     }
                     if (skin == 22) {
                         gl { game ->

@@ -10,6 +10,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.FrameLayout
 import android.widget.TextView
+import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.core.app.ActivityScenario
 import cube.run.GameActivity
 import org.junit.Assert.*
@@ -17,6 +18,9 @@ import org.junit.Test
 
 /** Attached native feedback only: no purchase, random draw, or award is performed. */
 class JackpotToastTest {
+    // ActivityScenario.onActivity waits for global idle, which a running spectacle never promises.
+    private fun ui(action: () -> Unit) = InstrumentationRegistry.getInstrumentation().runOnMainSync(action)
+
     private fun field(owner: Any, name: String) = owner.javaClass.getDeclaredField(name).apply { isAccessible = true }
     private fun card(toast: JackpotToast) = toast.findViewWithTag<ViewGroup>("jackpot_card")
     private fun amount(toast: JackpotToast) = toast.findViewWithTag<TextView>("jackpot_amount")
@@ -27,7 +31,7 @@ class JackpotToastTest {
         val deadline = SystemClock.uptimeMillis() + timeout
         var passed = false
         while (!passed && SystemClock.uptimeMillis() < deadline) {
-            scenario.onActivity { passed = condition() }
+            ui { passed = condition() }
             if (!passed) SystemClock.sleep(25)
         }
         assertTrue(label, passed)
@@ -54,14 +58,14 @@ class JackpotToastTest {
                 })
             }
             try { test(scenario, toast, root, kit) }
-            finally { scenario.onActivity { toast.reset(); root.removeView(toast) } }
+            finally { ui { toast.reset(); root.removeView(toast) } }
         }
     }
 
     @Test fun pauseDetachAndResetPreserveExactlyOneCombinedWin() = withToast { scenario, toast, root, _ ->
-        scenario.onActivity { toast.setRunActive(true); toast.show(250000) }
+        ui { toast.setRunActive(true); toast.show(250000) }
         awaitShown(scenario, toast)
-        scenario.onActivity {
+        ui {
             assertTrue(amount(toast).text.toString().endsWith("+250,000"))
             toast.setRunActive(false)
             assertEquals(View.INVISIBLE, card(toast).visibility)
@@ -72,7 +76,7 @@ class JackpotToastTest {
             toast.setRunActive(true)
         }
         awaitShown(scenario, toast)
-        scenario.onActivity {
+        ui {
             assertTrue(amount(toast).text.toString().endsWith("+500,000"))
             val placement = toast.layoutParams
             root.removeView(toast)
@@ -81,7 +85,7 @@ class JackpotToastTest {
             root.addView(toast, placement)
         }
         awaitShown(scenario, toast)
-        scenario.onActivity {
+        ui {
             assertTrue(amount(toast).text.toString().endsWith("+500,000"))
             toast.reset()
             toast.setRunActive(true)
@@ -89,35 +93,35 @@ class JackpotToastTest {
             assertEquals(0, field(toast, "pendingAmount").getInt(toast))
         }
         SystemClock.sleep(3100)
-        scenario.onActivity {
+        ui {
             assertEquals("A new run cannot resurrect an interrupted prior win", View.INVISIBLE, card(toast).visibility)
         }
     }
 
     @Test fun bannerRetiresAfterItsReadableHoldAndIgnoresInvalidAmounts() = withToast { scenario, toast, _, _ ->
-        scenario.onActivity { toast.setRunActive(true); toast.show(0); toast.show(-1) }
+        ui { toast.setRunActive(true); toast.show(0); toast.show(-1) }
         SystemClock.sleep(100)
-        scenario.onActivity { assertEquals(View.INVISIBLE, card(toast).visibility); toast.show(250000) }
+        ui { assertEquals(View.INVISIBLE, card(toast).visibility); toast.show(250000) }
         awaitShown(scenario, toast)
         SystemClock.sleep(1900)
-        scenario.onActivity { assertEquals("A win remains readable for its intended hold", View.VISIBLE, card(toast).visibility) }
+        ui { assertEquals("A win remains readable for its intended hold", View.VISIBLE, card(toast).visibility) }
         awaitUi(scenario, "The banner leaves without a tap", timeout = 2500) { card(toast).visibility == View.INVISIBLE }
-        scenario.onActivity {
+        ui {
             assertEquals(0, field(toast, "currentAmount").getInt(toast))
             assertEquals(0, field(toast, "pendingAmount").getInt(toast))
         }
     }
 
     @Test fun narrowLargeFontAndBoostColumnFitWithoutStealingGameplayTouches() = withToast { scenario, toast, _, kit ->
-        scenario.onActivity { toast.setRunActive(true); toast.show(250000) }
+        ui { toast.setRunActive(true); toast.show(250000) }
         awaitShown(scenario, toast)
         for (width in listOf(280f, 162f)) {
-            scenario.onActivity {
+            ui {
                 // 162dp is the remaining width on a280dp screen with BOOST's104dp column.
                 toast.layoutParams = (toast.layoutParams as FrameLayout.LayoutParams).apply { this.width = kit.dp(width) }
             }
             awaitUi(scenario, "The requested narrow host is laid out") { toast.width == kit.dp(width) }
-            scenario.onActivity {
+            ui {
                 val body = card(toast)
                 assertTrue(body.left >= 0 && body.right <= toast.width)
                 val labels = descendants(body).filterIsInstance<TextView>()

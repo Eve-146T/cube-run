@@ -25,4 +25,5 @@ keystore.properties
 
 # Local validation scratch files
 .build-tmp/
+.local-tmp/
 __pycache__/

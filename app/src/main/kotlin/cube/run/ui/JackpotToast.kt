@@ -2,6 +2,9 @@ package cube.run.ui
 
 import android.annotation.SuppressLint
 import android.app.Activity
+import android.animation.ValueAnimator
+import android.graphics.Canvas
+import android.view.animation.LinearInterpolator
 import android.text.Layout
 import android.text.SpannableStringBuilder
 import android.text.Spanned
@@ -19,7 +22,9 @@ class JackpotToast(activity: Activity, private val kit: UiKit) : FrameLayout(act
     private var active = false
     private var currentAmount = 0
     private var pendingAmount = 0
-    private val title = kit.text("JACKPOT", 13f, Theme.INK, 700).apply {
+    private val spectacle = JackpotSpectacle(activity, kit)
+    private var clock: ValueAnimator? = null
+    private val title = kit.text("JACKPOT", 23f, Theme.INK, 700).apply {
         tag = "jackpot_title"
         letterSpacing = .13f
         setSingleLine(); setHorizontallyScrolling(false)
@@ -34,7 +39,7 @@ class JackpotToast(activity: Activity, private val kit: UiKit) : FrameLayout(act
     private val card = object : LinearLayout(activity) {
         override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
             val available = (MeasureSpec.getSize(widthMeasureSpec) - paddingLeft - paddingRight - kit.dp(2f)).coerceAtLeast(1)
-            fit(title, available, 13f) { "JACKPOT" }
+            fit(title, available, 23f) { "JACKPOT" }
             fit(amount, available, 24f, ::amountLabel)
             labelChanged = false
             super.onMeasure(widthMeasureSpec, heightMeasureSpec)
@@ -63,7 +68,8 @@ class JackpotToast(activity: Activity, private val kit: UiKit) : FrameLayout(act
     init {
         isClickable = false; isFocusable = false
         clipChildren = false; clipToPadding = false
-        addView(card, LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT, Gravity.CENTER))
+        setPadding(0, kit.dp(68f), 0, kit.dp(112f))
+        addView(card, LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT, Gravity.TOP or Gravity.CENTER_HORIZONTAL))
     }
 
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
@@ -133,13 +139,27 @@ class JackpotToast(activity: Activity, private val kit: UiKit) : FrameLayout(act
         card.contentDescription = "Jackpot. ${number(currentAmount)} coins."
         card.visibility = VISIBLE
         card.requestLayout()
-        Anim.popIn(card, from = .88f, duration = 300L)
+        Anim.popIn(card, delay = 350L, from = .35f, duration = 400L)
+        clock?.cancel()
+        clock = ValueAnimator.ofFloat(0f, 3.8f).apply {
+            duration = 3800L
+            interpolator = LinearInterpolator()
+            addUpdateListener {
+                spectacle.time = it.animatedValue as Float
+                val kick = ((.95f - spectacle.time) / .4f).coerceIn(0f, 1f)
+                card.rotation = kotlin.math.sin(spectacle.time * 48f) * 5f * kick
+                Anim.repaint(this@JackpotToast)
+            }
+            start()
+        }
         removeCallbacks(retreat)
-        postDelayed(retreat, 2800L)
+        postDelayed(retreat, 3600L)
     }
 
     /** Pausing or detaching must not consume a win the player has not finished seeing. */
     private fun interrupt() {
+        clock?.cancel(); clock = null
+        card.rotation = 0f
         removeCallbacks(reveal); removeCallbacks(retreat)
         if (currentAmount > 0) {
             pendingAmount = (pendingAmount.toLong() + currentAmount).coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
@@ -147,6 +167,11 @@ class JackpotToast(activity: Activity, private val kit: UiKit) : FrameLayout(act
         }
         Anim.reset(card)
         card.visibility = INVISIBLE
+    }
+
+    override fun dispatchDraw(canvas: Canvas) {
+        if (currentAmount > 0) spectacle.draw(canvas, width.toFloat(), height.toFloat())
+        super.dispatchDraw(canvas)
     }
 
     override fun onAttachedToWindow() { super.onAttachedToWindow(); schedule() }
