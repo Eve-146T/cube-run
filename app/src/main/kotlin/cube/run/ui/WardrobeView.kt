@@ -34,7 +34,7 @@ import kotlin.math.abs
  * a swipe to browse, EQUIP / BUY.
  */
 @SuppressLint("SetTextI18n", "ViewConstructor", "ClickableViewAccessibility")
-class WardrobeView(activity: Activity, kit: UiKit, abilityStyle: Int = 0, onClose: () -> Unit) : Page(activity, kit, "WARDROBE", dark = true, onClosed = onClose) {
+class WardrobeView(activity: Activity, kit: UiKit, abilityStyle: Int = 0, onClose: () -> Unit) : Page(activity, kit, kit.ctx.getString(R.string.text_wardrobe), dark = true, onClosed = onClose) {
 
     private var cat = Wardrobe.CUBE
     private var index = Progress.equipped(cat)
@@ -62,21 +62,21 @@ class WardrobeView(activity: Activity, kit: UiKit, abilityStyle: Int = 0, onClos
 
         // ---- tabs under the title
         for (c in Wardrobe.cats) {
-            val t = kit.text(Wardrobe.label(c), 13f, Theme.WHITE, 700).apply {
-                letterSpacing = 0.1f
+            val t = kit.text(kit.ctx.gameText(Wardrobe.label(c)).uppercase(resources.configuration.locales[0]), 13f, Theme.WHITE, 700).apply {
+                letterSpacing = kit.tracking(0.1f)
                 setPadding(dp(16f), dp(7f), dp(16f), dp(7f))
                 setOnClickListener { switchTo(c) }
             }
             tabViews.add(t)
-            tabs.addView(t, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { leftMargin = dp(4f); rightMargin = dp(4f) })
+            tabs.addView(t, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { marginStart = dp(4f); marginEnd = dp(4f) })
         }
         content.addView(tabs, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT).apply { gravity = Gravity.TOP; topMargin = dp(4f) })
 
         // ---- side arrows, mid-screen
         left = kit.chip(R.drawable.ic_chevron_left, Theme.WHITE, Theme.INK, activity.getString(R.string.cd_prev)) { step(-1) }
         right = kit.chip(R.drawable.ic_chevron_right, Theme.WHITE, Theme.INK, activity.getString(R.string.cd_next)) { step(1) }
-        content.addView(left, FrameLayout.LayoutParams(dp(54f), dp(58f)).apply { gravity = Gravity.CENTER_VERTICAL or Gravity.START; leftMargin = dp(12f) })
-        content.addView(right, FrameLayout.LayoutParams(dp(54f), dp(58f)).apply { gravity = Gravity.CENTER_VERTICAL or Gravity.END; rightMargin = dp(12f) })
+        content.addView(left, FrameLayout.LayoutParams(dp(54f), dp(58f)).apply { gravity = Gravity.CENTER_VERTICAL or Gravity.START; marginStart = dp(12f) })
+        content.addView(right, FrameLayout.LayoutParams(dp(54f), dp(58f)).apply { gravity = Gravity.CENTER_VERTICAL or Gravity.END; marginEnd = dp(12f) })
 
         // ---- bottom: name, status, dots, action
         action = kit.button("", Theme.PLAY, UiKit.Size.BIG) { act() }.apply {
@@ -93,7 +93,7 @@ class WardrobeView(activity: Activity, kit: UiKit, abilityStyle: Int = 0, onClos
             clipChildren = false; clipToPadding = false
             addView(name)
             addView(abilityDisplay.inline, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
-                topMargin = dp(8f); leftMargin = dp(22f); rightMargin = dp(22f)
+                topMargin = dp(8f); marginStart = dp(22f); marginEnd = dp(22f)
             })
             addView(dots, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(12f) })
             addView(actionLabel, LinearLayout.LayoutParams(dp(230f), LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(18f) })
@@ -102,7 +102,7 @@ class WardrobeView(activity: Activity, kit: UiKit, abilityStyle: Int = 0, onClos
             gravity = Gravity.BOTTOM; bottomMargin = dp(112f)
         })
         content.addView(abilityDisplay.floating, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT).apply {
-            leftMargin = dp(22f); rightMargin = dp(22f)
+            marginStart = dp(22f); marginEnd = dp(22f)
             if (abilityStyle == 6) { gravity = Gravity.BOTTOM; bottomMargin = dp(28f) }
             else { gravity = Gravity.TOP; topMargin = dp(108f) }
         })
@@ -150,7 +150,7 @@ class WardrobeView(activity: Activity, kit: UiKit, abilityStyle: Int = 0, onClos
                 val dx = ev.x - downX; val dy = ev.y - downY
                 if (abs(dx) > dp(48f) && abs(dx) > abs(dy) * 1.5f) {
                     swiped = true
-                    step(if (dx < 0) 1 else -1)
+                    step((if (dx < 0) 1 else -1) * (if (layoutDirection == View.LAYOUT_DIRECTION_RTL) -1 else 1))
                     return true
                 }
             }
@@ -170,10 +170,11 @@ class WardrobeView(activity: Activity, kit: UiKit, abilityStyle: Int = 0, onClos
         applyPreview()
         Stage.previewKicks.incrementAndGet() // the stage spin-flips the cube with a pop
         Haptics.tick()
-        Anim.slideIn(name, fromX = d * dpf(40f), duration = 220)
+        val visualDirection = d * if (layoutDirection == View.LAYOUT_DIRECTION_RTL) -1 else 1
+        Anim.slideIn(name, fromX = visualDirection * dpf(40f), duration = 220)
         val arrow = if (d > 0) right else left
         Anim.reset(arrow)
-        arrow.translationX = d * dpf(8f)
+        arrow.translationX = visualDirection * dpf(8f)
         arrow.move().translationX(0f).setDuration(220).setInterpolator(Anim.ease).start()
         render()
     }
@@ -186,16 +187,17 @@ class WardrobeView(activity: Activity, kit: UiKit, abilityStyle: Int = 0, onClos
         val price = Wardrobe.price(cat, index)
         val shardSkin = if (cat == Wardrobe.CUBE) Skins.get(index).takeIf { it.shardOnly } else null
         kit.labelOf(balance).text = number(Progress.coins)
-        name.text = Wardrobe.name(cat, index).uppercase()
+        name.text = kit.ctx.gameText(Wardrobe.name(cat, index)).uppercase(kit.ctx.resources.configuration.locales[0])
         action.visibility = View.VISIBLE
         action.maxLines = 1
+        action.setAutoSizeTextTypeUniformWithConfiguration(12, 22, 1, android.util.TypedValue.COMPLEX_UNIT_SP)
         action.contentDescription = null
         action.setProgress()
         val canUnlock = shardSkin != null && Progress.shards(shardSkin.shardType) >= shardSkin.shardsNeeded
         actionLabel.bind(when {
-            equipped -> "EQUIPPED"
-            owned -> "EQUIP"
-            shardSkin != null -> "UNLOCK"
+            equipped -> kit.ctx.getString(R.string.text_equipped)
+            owned -> kit.ctx.getString(R.string.text_equip)
+            shardSkin != null -> kit.ctx.getString(R.string.text_unlock)
             else -> null
         }, price)
         action.color = when {
@@ -227,7 +229,7 @@ class WardrobeView(activity: Activity, kit: UiKit, abilityStyle: Int = 0, onClos
                     shape = GradientDrawable.OVAL
                     setColor(when { i == index -> Theme.WHITE; Progress.owns(cat, i) -> Theme.alpha(Theme.WHITE, 130); else -> Theme.alpha(Theme.WHITE, 55) })
                 }
-            }, LinearLayout.LayoutParams(dp(if (i == index) 9f else 6f), dp(if (i == index) 9f else 6f)).apply { leftMargin = dp(3f); rightMargin = dp(3f) })
+            }, LinearLayout.LayoutParams(dp(if (i == index) 9f else 6f), dp(if (i == index) 9f else 6f)).apply { marginStart = dp(3f); marginEnd = dp(3f) })
         }
     }
 

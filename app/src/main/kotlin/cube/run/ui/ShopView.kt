@@ -1,5 +1,7 @@
 package cube.run.ui
 
+import cube.run.R
+
 import android.animation.ValueAnimator
 import android.animation.Animator
 import android.animation.AnimatorListenerAdapter
@@ -50,7 +52,7 @@ class ShopView(
     private val onVoidPurchase: (() -> Unit, () -> Unit) -> Unit,
     private val onProgressReset: () -> Unit = {},
     onClose: () -> Unit,
-) : Page(activity, kit, "SHOP", dark = true, onClosed = onClose) {
+) : Page(activity, kit, kit.ctx.getString(R.string.text_shop), dark = true, onClosed = onClose) {
 
     private val list = LinearLayout(activity).apply {
         orientation = LinearLayout.VERTICAL
@@ -84,7 +86,7 @@ class ShopView(
         if (paying) true else super.dispatchTouchEvent(event)
 
     private val showroom = View(activity).apply {
-        contentDescription = "Shop cube"
+        contentDescription = kit.ctx.getString(R.string.text_shop_cube)
         isClickable = true
         setOnClickListener { playWithCube(Stage.SHOP_TAP) }
         setOnTouchListener { view, event ->
@@ -145,10 +147,10 @@ class ShopView(
     }
 
     private fun blurb(u: Progress.Upgrade): String = when (u) {
-        Progress.BUBBLE -> "How long a bubble stays up"
-        Progress.MAGNET -> "Pulls in every coin from far away"
-        Progress.MULT -> "Every row counts double"
-        else -> "Fly above everything along a coin line"
+        Progress.BUBBLE -> kit.ctx.getString(R.string.text_how_long_a_bubble_stays_up)
+        Progress.MAGNET -> kit.ctx.getString(R.string.text_pulls_in_every_coin_from_far_away)
+        Progress.MULT -> kit.ctx.getString(R.string.text_every_row_counts_double)
+        else -> kit.ctx.getString(R.string.text_fly_above_everything_along_a_coin_line)
     }
 
     private fun demoOf(u: Progress.Upgrade): Int = when (u) {
@@ -188,15 +190,15 @@ class ShopView(
         kit.labelOf(balance).text = Progress.coins.toString()
         list.removeAllViews()
         bars.clear(); cards.clear(); nowViews.clear(); nextViews.clear()
-        list.addView(heading("CONSUMABLES"), LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { leftMargin = dp(8f); bottomMargin = dp(12f) })
+        list.addView(heading(kit.ctx.getString(R.string.text_consumables)), LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { marginStart = dp(8f); bottomMargin = dp(12f) })
         list.addView(bubbleCard(), LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
         list.addView(reviveCard(), LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(12f) })
         list.addView(mysteryCard(), LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(12f) })
-        list.addView(heading("POWER-UPS"), LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(22f); leftMargin = dp(8f); bottomMargin = dp(2f) })
+        list.addView(heading(kit.ctx.getString(R.string.text_power_ups)), LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(22f); marginStart = dp(8f); bottomMargin = dp(2f) })
         for (u in Progress.upgrades) {
             list.addView(upgradeCard(u), LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(12f) })
         }
-        list.addView(heading("PERKS"), LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(22f); leftMargin = dp(8f); bottomMargin = dp(2f) })
+        list.addView(heading(kit.ctx.getString(R.string.text_perks)), LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(22f); marginStart = dp(8f); bottomMargin = dp(2f) })
         for (u in Progress.perks) {
             list.addView(perkCard(u), LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(12f) })
         }
@@ -305,7 +307,7 @@ class ShopView(
         super.onDetachedFromWindow()
     }
 
-    private fun heading(t: String) = kit.stageText(t, 13f, Theme.alpha(Theme.WHITE, 230), weight = 700, gravity = Gravity.START, stroke = 1.5f).apply { letterSpacing = 0.16f }
+    private fun heading(t: String) = kit.stageText(t, 13f, Theme.alpha(Theme.WHITE, 230), weight = 700, gravity = Gravity.START, stroke = 1.5f).apply { letterSpacing = kit.tracking(0.16f) }
 
     /** A glass card with a coloured header band (icon + name + blurb). */
     private fun card(key: String, color: Int, icon: Drawable, name: String, blurb: String, solid: Boolean = false, body: LinearLayout.() -> Unit): View {
@@ -332,7 +334,7 @@ class ShopView(
                 orientation = LinearLayout.VERTICAL
                 addView(kit.text(name, 19f, Theme.onColor(color), 700, Gravity.START))
                 addView(kit.text(blurb, 12f, Theme.alpha(Theme.onColor(color), 215), 500, Gravity.START))
-            }, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply { leftMargin = dp(12f) })
+            }, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply { marginStart = dp(12f) })
         }
         outer.addView(header, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
         outer.addView(LinearLayout(activity).apply {
@@ -348,21 +350,21 @@ class ShopView(
     private fun rack(slots: Int, n: Int, icon: () -> Drawable, color: Int): LinearLayout = LinearLayout(activity).apply {
         orientation = LinearLayout.HORIZONTAL
         gravity = Gravity.CENTER_VERTICAL
-        addView(kit.stageText("×$n", 30f, color, stroke = 3.5f), LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { rightMargin = dp(12f) })
+        addView(kit.stageText("×$n", 30f, color, stroke = 3.5f), LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { marginEnd = dp(12f) })
         val lit = if (n == 0) 0 else ((n - 1) % slots) + 1
         for (i in 0 until slots) {
-            addView(ImageView(activity).apply { setImageDrawable(icon()); alpha = if (i < lit) 1f else 0.22f }, LinearLayout.LayoutParams(dp(24f), dp(24f)).apply { if (i > 0) leftMargin = dp(3f) })
+            addView(ImageView(activity).apply { setImageDrawable(icon()); alpha = if (i < lit) 1f else 0.22f }, LinearLayout.LayoutParams(dp(24f), dp(24f)).apply { if (i > 0) marginStart = dp(3f) })
         }
     }
 
-    private fun bubbleCard(): View = card("bubbles", Theme.BUBBLE, BubbleIcon(Theme.WHITE), "Bubble shield", "Double-tap to block a hit") {
+    private fun bubbleCard(): View = card("bubbles", Theme.BUBBLE, BubbleIcon(Theme.WHITE), kit.ctx.getString(R.string.text_bubble_shield), kit.ctx.getString(R.string.text_double_tap_to_block_a_hit)) {
         addView(LinearLayout(activity).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
             clipChildren = false; clipToPadding = false
             addView(rack(5, Progress.bubbles, { BubbleIcon() }, Theme.lighten(Theme.CYAN, 0.5f)).also { nowViews["bubbles"] = it }, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
             addView(priceButton(Progress.BUBBLE_PRICE, "bubbles", null, Stage.DEMO_BUBBLE) { Progress.buyBubble() },
-                LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { leftMargin = dp(10f) })
+                LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { marginStart = dp(10f) })
         })
     }
 
@@ -375,14 +377,26 @@ class ShopView(
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
             clipChildren = false; clipToPadding = false
-            if (next != null) {
-                addView(kit.stageText(now, 16f, Theme.alpha(Theme.WHITE, 215), stroke = 2f, gravity = Gravity.START).apply { maxLines = 1 }.also { nowViews[u.key] = it })
-                addView(kit.stageText("→", 16f, Theme.alpha(Theme.WHITE, 190), stroke = 2f), LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { leftMargin = dp(6f); rightMargin = dp(6f) })
-                addView(kit.stageText(next, 30f, Theme.lighten(color, 0.3f), stroke = 3.5f, gravity = Gravity.START).apply { maxLines = 1 }.also { nextViews[u.key] = it })
-            } else {
-                addView(kit.stageText(now, 30f, Theme.YELLOW, stroke = 3.5f, gravity = Gravity.START).apply { maxLines = 1 }.also { nowViews[u.key] = it })
+            val values = LinearLayout(activity).apply {
+                val stacked = resources.configuration.screenWidthDp / resources.configuration.fontScale < 350 &&
+                    (now.length > 4 || (next?.length ?: 0) > 4)
+                orientation = if (stacked) LinearLayout.VERTICAL else LinearLayout.HORIZONTAL
+                gravity = Gravity.CENTER_VERTICAL
+                clipChildren = false; clipToPadding = false
+                fun value(text: String, size: Float, tint: Int, weight: Float, target: MutableMap<String, View>) {
+                    addView(kit.stageText(text, size, tint, stroke = if (size > 16) 3.5f else 2f, gravity = Gravity.START).apply {
+                        target[u.key] = this
+                    }, if (stacked) LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+                    else LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, weight))
+                }
+                if (next != null) {
+                    value(now, 16f, Theme.alpha(Theme.WHITE, 215), 1f, nowViews)
+                    if (!stacked) addView(kit.stageText(if (resources.configuration.layoutDirection == View.LAYOUT_DIRECTION_RTL) "←" else "→", 16f, Theme.alpha(Theme.WHITE, 190), stroke = 2f),
+                        LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { marginStart = dp(3f); marginEnd = dp(3f) })
+                    value(next, if (stacked) 24f else 30f, Theme.lighten(color, .3f), 1.5f, nextViews)
+                } else value(now, 30f, Theme.YELLOW, 1f, nowViews)
             }
-            addView(View(activity), LinearLayout.LayoutParams(0, 1, 1f))
+            addView(values, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply { marginEnd = dp(10f) })
             addView(priceButton(price, u.key, u, demoOf(u)) { Progress.buyUpgrade(u) })
         })
         val bar = kit.segments(u.max).apply { level = lvl; this.color = if (maxed) Theme.GOLD else Theme.lighten(color, 0.15f); offColor = Theme.alpha(Theme.WHITE, 60) }
@@ -395,8 +409,8 @@ class ShopView(
         val lvl = Progress.level(u)
         val now = u.duration(lvl)
         val maxed = Progress.nextPrice(u) == null
-        return card(u.key, color, iconOf(u), u.name, blurb(u)) {
-            levelBody(this, u, color, "${fmt(now)} s", if (maxed) null else "${fmt(now + u.step)} s")
+        return card(u.key, color, iconOf(u), kit.ctx.gameText(u.name), blurb(u)) {
+            levelBody(this, u, color, kit.ctx.getString(R.string.text_seconds, fmt(now)), if (maxed) null else kit.ctx.getString(R.string.text_seconds, fmt(now + u.step)))
         }
     }
 
@@ -417,18 +431,18 @@ class ShopView(
     }
 
     private fun perkBlurb(u: Progress.Upgrade): String = when (u) {
-        Progress.FASTERSTART -> "More boost presses at the start of every run"
-        Progress.SAFESTART -> "Every run begins under a bubble"
-        Progress.COINVALUE -> "Every coin is worth more"
-        Progress.PORTALS -> "Portals to bonus worlds open sooner"
-        else -> "Mystery boxes turn up more often"
+        Progress.FASTERSTART -> kit.ctx.getString(R.string.text_more_boost_presses_at_the_start_of_every_run)
+        Progress.SAFESTART -> kit.ctx.getString(R.string.text_every_run_begins_under_a_bubble)
+        Progress.COINVALUE -> kit.ctx.getString(R.string.text_every_coin_is_worth_more)
+        Progress.PORTALS -> kit.ctx.getString(R.string.text_portals_to_bonus_worlds_open_sooner)
+        else -> kit.ctx.getString(R.string.text_mystery_boxes_turn_up_more_often)
     }
 
     private fun perkValue(u: Progress.Upgrade, lvl: Int): String = when (u) {
-        Progress.FASTERSTART -> "${5 + lvl} taps"
-        Progress.SAFESTART -> if (lvl == 0) "none" else "${fmt(3f + 1.5f * lvl)} s"
+        Progress.FASTERSTART -> kit.ctx.resources.getQuantityString(R.plurals.count_taps, 5 + lvl, 5 + lvl)
+        Progress.SAFESTART -> if (lvl == 0) kit.ctx.getString(R.string.text_none) else kit.ctx.getString(R.string.text_seconds, fmt(3f + 1.5f * lvl))
         Progress.COINVALUE -> "×${fmt(u.duration(lvl))}"
-        Progress.PORTALS -> "${110 - 14 * lvl} rows"
+        Progress.PORTALS -> kit.ctx.resources.getQuantityString(R.plurals.count_rows, 110 - 14 * lvl, 110 - 14 * lvl)
         else -> "×${fmt(1f + 0.5f * lvl)}"
     }
 
@@ -436,20 +450,20 @@ class ShopView(
         val color = perkColor(u)
         val lvl = Progress.level(u)
         val maxed = Progress.nextPrice(u) == null
-        return card(u.key, color, perkIcon(u), u.name, perkBlurb(u)) {
+        return card(u.key, color, perkIcon(u), kit.ctx.gameText(u.name), perkBlurb(u)) {
             levelBody(this, u, color, perkValue(u, lvl), if (maxed) null else perkValue(u, lvl + 1))
         }
     }
 
     /** Second wind: a stock of revives. */
-    private fun reviveCard(): View = card("revives", Theme.PINK, HeartIcon(Theme.WHITE), "Second wind", "Revive with a bubble") {
+    private fun reviveCard(): View = card("revives", Theme.PINK, HeartIcon(Theme.WHITE), kit.ctx.getString(R.string.text_second_wind), kit.ctx.getString(R.string.text_revive_with_a_bubble)) {
         addView(LinearLayout(activity).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
             clipChildren = false; clipToPadding = false
             addView(rack(3, Progress.revives, { HeartIcon(Theme.PINK) }, Theme.lighten(Theme.PINK, 0.4f)).also { nowViews["revives"] = it }, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
             addView(priceButton(if (Progress.revives >= Progress.MAX_REVIVES) null else Progress.REVIVE_PRICE, "revives", null, Stage.DEMO_REVIVE) { Progress.buyRevive() },
-                LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { leftMargin = dp(10f) })
+                LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { marginStart = dp(10f) })
         })
     }
 
@@ -499,7 +513,7 @@ class ShopView(
      * coins, then they fly from the balance into this button.
      */
     private fun priceButton(price: Int?, key: String, u: Progress.Upgrade?, demo: Int, buy: () -> Boolean): View {
-        if (price == null) return kit.pill("MAX", Theme.alpha(Theme.WHITE, 60), Theme.WHITE, 13f).apply { letterSpacing = 0.1f }
+        if (price == null) return kit.pill(kit.ctx.getString(R.string.text_max), Theme.alpha(Theme.WHITE, 60), Theme.WHITE, 13f).apply { letterSpacing = kit.tracking(0.1f) }
         val can = price <= Progress.coins
         lateinit var btn: CandyButton
         val fullWidth = key == "mystery" || key == "achievements" || key == "void"
@@ -514,7 +528,7 @@ class ShopView(
         return if (key == "void") FittedVoidPrice(activity, kit, btn, price) else btn
     }
 
-    private fun fmt(v: Float): String = if (v == v.toInt().toFloat()) v.toInt().toString() else "%.1f".format(v)
+    private fun fmt(v: Float): String = if (v == v.toInt().toFloat()) v.toInt().toString() else "%.1f".format(kit.ctx.resources.configuration.locales[0], v)
 
     /**
      * Paying, where you tapped: coins fly from the balance into the button

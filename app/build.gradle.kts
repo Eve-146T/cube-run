@@ -27,6 +27,9 @@ android {
         buildConfig = true
     }
 
+    // Every picker language must be available offline, including App Bundle installs.
+    bundle { language { enableSplit = false } }
+
     defaultConfig {
         applicationId = "cube.run"
         minSdk = 28

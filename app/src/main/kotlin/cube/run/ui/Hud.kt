@@ -8,6 +8,7 @@ import android.view.View
 import android.view.ViewTreeObserver
 import android.widget.FrameLayout
 import android.widget.LinearLayout
+import cube.run.GameActivity
 import cube.run.R
 import cube.run.core.Haptics
 import cube.run.core.SoundFx
@@ -69,8 +70,8 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false) : Fr
             gravity = Gravity.CENTER
             clipChildren = false; clipToPadding = false
             addView(haul)
-            addView(boxes, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { leftMargin = dp(8f) })
-            addView(bubbles, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { leftMargin = dp(8f) })
+            addView(boxes, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { marginStart = dp(8f) })
+            addView(bubbles, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { marginStart = dp(8f) })
         }, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = -dp(4f) })
     }
 
@@ -91,6 +92,7 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false) : Fr
             }
         }
     }
+    private var languageSheet: LanguageSheet? = null
     private var pauseSheet: PauseSheet? = null
     private var runOver: RunOverFlow? = null
     private var shopBox: RunOverFlow? = null
@@ -109,7 +111,7 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false) : Fr
         }
     }
     private val menu: MainMenu = MainMenu(activity, kit, { openShop() }, { openWardrobe() }, { openSections() }, { menu.pulseBank() },
-        openAchievements = { openAchievements() }, openingEntrance = openingEntrance)
+        openAchievements = { openAchievements() }, openLanguages = { openLanguages() }, openingEntrance = openingEntrance)
 
     /** One launch clock owns the fade. Controls are laid out at their final positions from frame one. */
     fun setOpeningProgress(amount: Float) {
@@ -119,14 +121,13 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false) : Fr
             if (opening) { opening = false; scheduleShopPreparation() }
         }
     }
-
     init {
         isClickable = false
         isFocusable = false
         clipChildren = false; clipToPadding = false
         addView(menu, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
         addView(topBox, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT).apply { topMargin = dp(44f) })
-        addView(pauseChip, LayoutParams(dp(48f), dp(52f)).apply { gravity = Gravity.TOP or Gravity.END; topMargin = dp(48f); rightMargin = dp(14f) })
+        addView(pauseChip, LayoutParams(dp(48f), dp(52f)).apply { gravity = Gravity.TOP or Gravity.END; topMargin = dp(48f); marginEnd = dp(14f) })
         addView(achievementToast, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT).apply {
             gravity = Gravity.BOTTOM; bottomMargin = dp(32f); leftMargin = dp(22f); rightMargin = dp(22f)
         })
@@ -136,9 +137,10 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false) : Fr
         topBox.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ -> positionJackpot() }
         setBubbles(Progress.bubbles)
         setOnApplyWindowInsetsListener { _, insets ->
-            val (_, t, r, b) = insetsOf(insets)
+            val (l, t, r, b) = insetsOf(insets)
+            val endInset = if (layoutDirection == View.LAYOUT_DIRECTION_RTL) l else r
             (topBox.layoutParams as LayoutParams).topMargin = maxOf(dp(44f), t + dp(6f))
-            (pauseChip.layoutParams as LayoutParams).apply { topMargin = maxOf(dp(48f), t + dp(10f)); rightMargin = dp(14f) + r }
+            (pauseChip.layoutParams as LayoutParams).apply { topMargin = maxOf(dp(48f), t + dp(10f)); marginEnd = dp(14f) + endInset }
             topBox.requestLayout(); pauseChip.requestLayout()
             (achievementToast.layoutParams as LayoutParams).bottomMargin = dp(32f) + b
             insets
@@ -150,8 +152,20 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false) : Fr
     override fun onAttachedToWindow() {
         super.onAttachedToWindow()
         if (!opening) scheduleShopPreparation()
-        postDelayed(pollAchievements, 500)
+        if (runStarted) postDelayed(pollAchievements, 500)
     }
+
+    fun settleLanguageTransition() {
+        menu.settleLanguageTransition()
+        languageSheet?.settleEntrance()
+    }
+
+    fun showLanguagesAfterChange() {
+        openLanguages()
+        settleLanguageTransition()
+    }
+
+    fun resumeLanguageIdle() = menu.resumeLanguageIdle()
 
     override fun onDetachedFromWindow() {
         removeCallbacks(prepareShop)
@@ -188,13 +202,14 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false) : Fr
 
     /** System Back only navigates out of the two stores. */
     fun navigateBack() {
+        languageSheet?.let { it.dismiss(); return }
         if (runStarted || pauseSheet != null || runOver != null) return
         if (shopBox != null || voidPurchase != null) return // keep purchased presentations intact
         val current = page
         if (current is ShopView || current is WardrobeView || current is AchievementsView) current.navigateBack()
     }
 
-    private fun pageOpen() = page != null || runStarted
+    private fun pageOpen() = page != null || languageSheet != null || runStarted
 
     private fun open(p: Page) {
         Stage.homeScreen = false
@@ -236,6 +251,21 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false) : Fr
         setBubbles(Progress.bubbles)
         menu.refresh()
         Anim.repaint(this)
+    }
+
+    private fun openLanguages() {
+        if (pageOpen()) return
+        Stage.homeScreen = false
+        removeCallbacks(prepareShop)
+        val sheet = LanguageSheet(activity, kit, { code ->
+            (activity as GameActivity).changeLanguage(code)
+        }, {
+            languageSheet = null
+            Stage.homeScreen = true
+            scheduleShopPreparation()
+        })
+        languageSheet = sheet
+        addView(sheet, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
     }
 
     private fun openShop() {
@@ -432,7 +462,7 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false) : Fr
     }
 
     private fun refreshBubbleLabel() {
-        kit.labelOf(bubbles).text = if (bubbleCooldown > 0) "${bubbleCooldown}s" else "×$bubbleStock"
+        kit.labelOf(bubbles).text = if (bubbleCooldown > 0) kit.ctx.getString(R.string.text_seconds, bubbleCooldown.toString()) else "×$bubbleStock"
         bubbles.alpha = if (bubbleCooldown > 0) .65f else 1f
         bubbles.visibility = if ((bubbleStock > 0 || bubbleCooldown > 0) && runStarted) VISIBLE else GONE
     }
@@ -460,7 +490,7 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false) : Fr
                     Stage.boostRequests.incrementAndGet()
                     SoundFx.play("tap", rate = 1.1f + b.taps * 0.1f); Haptics.click()
                 }
-                addView(b, LayoutParams(dp(84f), dp(160f)).apply { gravity = Gravity.TOP or Gravity.END; topMargin = dp(116f); rightMargin = dp(10f) })
+                addView(b, LayoutParams(dp(84f), dp(160f)).apply { gravity = Gravity.TOP or Gravity.END; topMargin = dp(116f); marginEnd = dp(10f) })
                 boost = b
                 Anim.popIn(b, 250, 0.4f, 420)
             }
@@ -469,7 +499,7 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false) : Fr
             val b = boost ?: return
             boost = null
             b.taps = taps
-            b.move().translationX(dpf(120f)).alpha(0f).setDuration(260).setInterpolator(Anim.ease).withEndAction {
+            b.move().translationX(dpf(if (layoutDirection == View.LAYOUT_DIRECTION_RTL) -120f else 120f)).alpha(0f).setDuration(260).setInterpolator(Anim.ease).withEndAction {
                 removeView(b)
                 positionJackpot()
             }.start()
@@ -481,6 +511,8 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false) : Fr
     fun hideOptions() {
         Stage.homeScreen = false
         runStarted = true
+        removeCallbacks(pollAchievements)
+        postDelayed(pollAchievements, 500)
         // Purchases and result-screen unlocks belong on the achievement page, not the next run.
         Achievements.drainUnlocks()
         achievementToast.reset()

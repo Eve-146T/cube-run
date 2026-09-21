@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="languages_title">Languages</string>
+    <string name="cd_languages">Choose language</string>
+    <string name="language_option">%1$s, %2$s</string>
+    <string name="country_us">United States</string>
+    <string name="country_germany">Germany</string>
+    <string name="country_israel">Israel</string>
+    <string name="tap_to_start">TAP TO START</string>
+    <string name="language_switch_cost">%1$d coins per switch</string>
+    <string name="language_insufficient">You need %1$d coins to switch languages.</string>
+</resources>

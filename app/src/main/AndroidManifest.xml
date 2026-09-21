@@ -11,6 +11,7 @@
         android:roundIcon="@mipmap/ic_launcher"
         android:theme="@style/GameTheme"
         android:allowBackup="true"
+        android:supportsRtl="true"
         android:enableOnBackInvokedCallback="true">
 
         <activity

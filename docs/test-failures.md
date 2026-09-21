@@ -17,3 +17,39 @@
 - Failure: the bot's pre-test preference backup was smaller than 512 bytes because Cube Run had never been installed or launched on the wiped emulator.
 - Classification: environment/setup problem
 - Resolution: installed and initialized the baseline app once, then reran the same recording command successfully.
+
+## 2026-09-21 — Integration build could not access the Gradle cache
+
+- Revision: `achievements-translations` merge in progress at `31c8973`
+- Command: `./gradlew :app:assembleDebug`
+- Environment: repository sandbox
+- Failure: the Gradle wrapper could not create its distribution lock under `/home/user1/.gradle` because the cache was mounted read-only. No build task ran.
+- Classification: environment problem
+- Resolution: reran the build with access to the existing Gradle user cache.
+
+## 2026-09-21 — Combined focused instrumentation run stopped reporting progress
+
+- Revision: `achievements-translations` merge in progress at `31c8973`
+- Command: `./gradlew :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=cube.run.ui.LanguageTest,cube.run.ui.AchievementsInteractionTest,cube.run.ui.AchievementAlignmentTest`
+- Device: `eve-pool-1` Android 35 emulator (`emulator-5554`)
+- Failure: the runner completed 1 of 8 tests, then produced no progress or failure for more than five minutes while the app remained responsive. The run was interrupted.
+- Classification: test-runner or test-interaction problem under investigation
+- Resolution: split the combined selection into individual test classes to isolate the stalled class.
+
+## 2026-09-21 — Language visual test process was killed by package cleanup
+
+- Revision: `achievements-translations` merge in progress at `31c8973`
+- Test: `cube.run.ui.LanguageTest.rtlVisualReviewCoversAbilitiesShardsPauseAndRewards`
+- Command/device: isolated `LanguageTest` run on `eve-pool-1` Android 35 (`emulator-5554`)
+- Failure: Android killed `cube.run` for `deletePackageX` while the test was starting, immediately after the prior interrupted Gradle run; no application exception was logged and the instrumentation process was reported as crashed.
+- Classification: environment/test-runner cleanup race
+- Resolution: waited for the interrupted runner's package cleanup to finish, then reran the class on the same emulator.
+
+## 2026-09-21 — Language visual test waited indefinitely for UI idle
+
+- Revision: `achievements-translations` merge in progress at `31c8973`
+- Test: `cube.run.ui.LanguageTest.rtlVisualReviewCoversAbilitiesShardsPauseAndRewards`
+- Command/device: isolated `LanguageTest` run on `eve-pool-1` Android 35 (`emulator-5554`)
+- Failure: the test remained on the responsive Hebrew main menu while `waitForIdleSync` did not return; a thread/CPU check showed the render loop active and the test runner waiting.
+- Classification: stale test synchronization; Cube Run's continuous GL rendering and menu animation do not guarantee Android's global UI-idle condition. Achievement polling on the idle menu added another needless periodic wakeup but was not the sole cause.
+- Resolution: use the test's existing targeted view-state waits plus a short post-tap settle instead of `waitForIdleSync`; start achievement polling only when a run starts (or when a HUD is reattached during a run), then rerun the language class directly.

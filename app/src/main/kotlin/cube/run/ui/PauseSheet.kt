@@ -29,18 +29,18 @@ class PauseSheet(
             gravity = Gravity.CENTER_VERTICAL
             clipChildren = false; clipToPadding = false
             addView(kit.chip(R.drawable.ic_back, Theme.CARD_ALT, Theme.INK, activity.getString(R.string.cd_back)) { dismiss() }, LinearLayout.LayoutParams(dp(42f), dp(46f)))
-            addView(kit.text("PAUSED", 24f, Theme.INK, 700, Gravity.START).apply { letterSpacing = 0.06f },
-                LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply { leftMargin = dp(12f) })
+            addView(kit.text(kit.ctx.getString(R.string.text_paused), 24f, Theme.INK, 700, Gravity.START).apply { letterSpacing = kit.tracking(0.06f) },
+                LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply { marginStart = dp(12f) })
         }, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
 
-        card.addView(kit.button("RESUME", Theme.PLAY, UiKit.Size.BIG) { dismiss() },
+        card.addView(kit.button(kit.ctx.getString(R.string.text_resume), Theme.PLAY, UiKit.Size.BIG) { dismiss() },
             LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(20f) })
-        card.addView(kit.button("RESTART", Theme.SKY, UiKit.Size.BIG) { onRestart() },
+        card.addView(kit.button(kit.ctx.getString(R.string.text_restart), Theme.SKY, UiKit.Size.BIG) { onRestart() },
             LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(12f) })
-        card.addView(kit.button("MENU", Theme.LAVENDER, UiKit.Size.BIG) { onMenu() },
+        card.addView(kit.button(kit.ctx.getString(R.string.text_menu), Theme.LAVENDER, UiKit.Size.BIG) { onMenu() },
             LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(12f) })
 
-        card.addView(divider(), LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(2f)).apply { topMargin = dp(18f); leftMargin = dp(20f); rightMargin = dp(20f) })
+        card.addView(divider(), LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(2f)).apply { topMargin = dp(18f); marginStart = dp(20f); marginEnd = dp(20f) })
         card.addView(LinearLayout(activity).apply {
             orientation = LinearLayout.HORIZONTAL
             clipChildren = false; clipToPadding = false
@@ -53,7 +53,7 @@ class PauseSheet(
                     }
                 }), LinearLayout.LayoutParams(size, size + dp(4f)))
             addView(kit.toggle(R.drawable.ic_haptic_on, R.drawable.ic_haptic_off, activity.getString(R.string.cd_haptics), Theme.SKY,
-                { Settings.hapticsEnabled }, { Settings.setHapticsEnabled(it) }), LinearLayout.LayoutParams(size, size + dp(4f)).apply { leftMargin = dp(14f) })
+                { Settings.hapticsEnabled }, { Settings.setHapticsEnabled(it) }), LinearLayout.LayoutParams(size, size + dp(4f)).apply { marginStart = dp(14f) })
         }, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(16f) })
     }
 }

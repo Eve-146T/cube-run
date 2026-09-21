@@ -21,6 +21,49 @@ import android.view.View
 /** Single-game launcher host: builds the HUD over the libGDX surface and runs Cube Run. */
 class GameActivity : AndroidApplication() {
 
+    override fun attachBaseContext(newBase: android.content.Context) {
+        super.attachBaseContext(cube.run.data.Languages.wrap(newBase))
+    }
+
+    private var languageResources: android.content.res.Resources? = null
+    override fun getResources(): android.content.res.Resources = languageResources ?: super.getResources()
+    private lateinit var hostSession: GameHostSession
+    private var changingLanguage = false
+
+    /** Rebuild only the localized overlay; the GL surface and world keep running uninterrupted. */
+    fun changeLanguage(code: String) {
+        if (changingLanguage || code == cube.run.data.Languages.current(this)) return
+        val parent = hud.parent as? FrameLayout ?: return
+        require(cube.run.data.Languages.options.any { it.code == code })
+        if (!Progress.payLanguageSwitch(cube.run.data.Languages.current(this), code)) {
+            android.widget.Toast.makeText(this, getString(R.string.language_insufficient, 500), android.widget.Toast.LENGTH_SHORT).show()
+            return
+        }
+        changingLanguage = true
+        cube.run.data.Languages.select(this, code)
+        val previous = hud
+        previous.settleLanguageTransition()
+        languageResources = cube.run.data.Languages.wrap(baseContext).resources
+        hud = Hud(this).apply {
+            layoutDirection = resources.configuration.layoutDirection
+            setBest(Scores.best(SCORE_ID))
+            showLanguagesAfterChange()
+            alpha = 0f
+        }
+        hostSession.attach(hud)
+        parent.addView(hud, FrameLayout.LayoutParams(-1, -1))
+        // Block taps during the crossfade, including outside-menu taps, until both trees settle.
+        val blocker = View(this).apply { isClickable = true; importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO }
+        parent.addView(blocker, FrameLayout.LayoutParams(-1, -1))
+        previous.animate().alpha(0f).setDuration(180).start()
+        hud.animate().alpha(1f).setDuration(180).withEndAction {
+            parent.removeView(previous)
+            parent.removeView(blocker)
+            changingLanguage = false
+            hud.resumeLanguageIdle()
+        }.start()
+    }
+
     private lateinit var hud: Hud
     private var openingClock: cube.run.intro.OpeningClock? = null
     private var gameSurface: SurfaceView? = null
@@ -43,6 +86,7 @@ class GameActivity : AndroidApplication() {
             intent.getIntExtra("bonusnow", -2).let { if (it >= -1) Settings.testBonusNow = it }
         }
         val session = GameHostSession(this, SCORE_ID)
+        hostSession = session
         // RESTART relaunches with this extra: the run begins on the first frame, no "tap to start"
         val launchOpening = !intent.hasExtra(Hud.EXTRA_AUTOSTART) && savedInstanceState == null
         val clock = if (launchOpening) cube.run.intro.OpeningClock(cube.run.intro.LaunchAppearance.saved(this)).also { openingClock = it } else null
@@ -224,7 +268,7 @@ class GameActivity : AndroidApplication() {
         goFullscreen()
     }
 
-    private companion object {
-        const val SCORE_ID = "cuberun"
+    companion object {
+        private const val SCORE_ID = "cuberun"
     }
 }

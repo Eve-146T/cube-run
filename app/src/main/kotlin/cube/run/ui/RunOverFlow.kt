@@ -1,5 +1,7 @@
 package cube.run.ui
 
+import cube.run.R
+
 import android.animation.ValueAnimator
 import android.annotation.SuppressLint
 import android.app.Activity
@@ -83,12 +85,13 @@ class RunOverFlow(
 
     /** Slide the old page out to the left, the new one in from the right. */
     private fun swap(next: View) {
+        val direction = if (resources.configuration.layoutDirection == View.LAYOUT_DIRECTION_RTL) -1 else 1
         page?.let { old ->
-            old.move().alpha(0f).translationX(-dpf(60f)).setDuration(160).withEndAction { removeView(old) }.start()
+            old.move().alpha(0f).translationX(-dpf(60f) * direction).setDuration(160).withEndAction { removeView(old) }.start()
         }
         page = next
         addView(next, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
-        Anim.slideIn(next, 0, dpf(70f), 260)
+        Anim.slideIn(next, 0, dpf(70f) * direction, 260)
     }
 
     /** Start the destination immediately; the window transition keeps these results visible until it is ready. */
@@ -102,7 +105,7 @@ class RunOverFlow(
 
     /** A soft hint that breathes at the bottom of a page (hide it with visibility, not alpha). */
     private fun tapHint(text: String): TextView = kit.stageText(text, 14f, Theme.alpha(Theme.WHITE, 220), weight = 600, stroke = 2f).apply {
-        letterSpacing = 0.14f
+        letterSpacing = kit.tracking(0.14f)
         anims.add(Anim.breathe(this, 0.5f, 1f, 700))
     }
 
@@ -114,7 +117,7 @@ class RunOverFlow(
         setPadding(dp(6f), dp(10f), dp(6f), dp(10f))
         if (icon != null) addView(ImageView(activity).apply { setImageDrawable(icon) }, LinearLayout.LayoutParams(dp(26f), dp(26f)).apply { bottomMargin = dp(4f) })
         addView(kit.stageText(value, 22f, color, stroke = 2.5f).apply { maxLines = 1 })
-        addView(kit.text(label.uppercase(), 10f, Theme.alpha(Theme.WHITE, 200), 700).apply { letterSpacing = 0.1f; maxLines = 1 })
+        addView(kit.text(label.uppercase(kit.ctx.resources.configuration.locales[0]), 10f, Theme.alpha(Theme.WHITE, 200), 700).apply { letterSpacing = kit.tracking(0.1f); maxLines = 1 })
     }
 
     /** The glass the results sit on. */
@@ -156,13 +159,18 @@ class RunOverFlow(
         if (isNewBest) host.addView(CelebrationView(activity, focusY = 0.17f, rays = false, count = 160), LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
 
         // the column: (NEW RECORD!) the score, then ONE card with the stars and the stats
-        val column = LinearLayout(activity).apply {
+        val column = object : LinearLayout(activity) {
+            override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
+                // Measure the complete result, then fit it as a unit; never squeeze away the coin total.
+                super.onMeasure(widthMeasureSpec, MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED))
+            }
+        }.apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER_HORIZONTAL
             clipChildren = false; clipToPadding = false
         }
         if (isNewBest) { // the one line of words worth having
-            val r = kit.stageText("NEW RECORD!", 30f, Theme.YELLOW, stroke = 4.5f).apply { letterSpacing = 0.06f; alpha = 0f }
+            val r = kit.stageText(kit.ctx.getString(R.string.text_new_record), 30f, Theme.YELLOW, stroke = 4.5f).apply { letterSpacing = kit.tracking(0.06f); alpha = 0f }
             record = r
             column.addView(r)
         }
@@ -183,16 +191,16 @@ class RunOverFlow(
             val n = starCount()
             for (i in 0 until 5) {
                 addView(ImageView(activity).apply { setImageDrawable(StarIcon(Theme.YELLOW, i < n)); alpha = 0f },
-                    LinearLayout.LayoutParams(dp(if (i == 2) 44f else 36f), dp(if (i == 2) 44f else 36f)).apply { leftMargin = dp(3f); rightMargin = dp(3f); gravity = Gravity.CENTER_VERTICAL })
+                    LinearLayout.LayoutParams(dp(if (i == 2) 44f else 36f), dp(if (i == 2) 44f else 36f)).apply { marginStart = dp(3f); marginEnd = dp(3f); gravity = Gravity.CENTER_VERTICAL })
             }
         }
         card.addView(stars, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, dp(48f)))
         card.addView(View(activity).apply { background = android.graphics.drawable.GradientDrawable().apply { cornerRadius = dpf(2f); setColor(Theme.alpha(Theme.WHITE, 70)) } },
-            LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(2f)).apply { topMargin = dp(10f); leftMargin = dp(10f); rightMargin = dp(10f) })
+            LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(2f)).apply { topMargin = dp(10f); marginStart = dp(10f); marginEnd = dp(10f) })
         val stats = LinearLayout(activity).apply {
             orientation = LinearLayout.HORIZONTAL
             clipChildren = false; clipToPadding = false
-            val coinCell = cell(CoinIcon(), "+0", "coins", Theme.YELLOW)
+            val coinCell = cell(CoinIcon(), "+0", kit.ctx.getString(R.string.text_coins), Theme.YELLOW)
             coinText = coinCell.getChildAt(1) as TextView
             addView(coinCell, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
         }
@@ -203,8 +211,8 @@ class RunOverFlow(
                 for (kind in cube.run.data.Shards.all) {
                     val count = shards.getOrElse(kind.id) { 0 }
                     if (count > 0) addView(kit.iconPill(ShardIcon(Theme.hsv(kind.hue, .6f, 1f)), "+$count", Theme.WHITE, 16f,
-                        fill = Theme.alpha(Theme.WHITE, 25)).apply { contentDescription = "$count ${kind.name} collected" },
-                        LinearLayout.LayoutParams(-2, -2).apply { leftMargin = dp(5f); rightMargin = dp(5f) })
+                        fill = Theme.alpha(Theme.WHITE, 25)).apply { contentDescription = kit.ctx.getString(R.string.text_shards_collected, count, kit.ctx.gameText(kind.name)) },
+                        LinearLayout.LayoutParams(-2, -2).apply { marginStart = dp(5f); marginEnd = dp(5f) })
                 }
             }
             card.addView(collected, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(8f) })
@@ -217,7 +225,16 @@ class RunOverFlow(
         host.addView(column, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT).apply {
             gravity = Gravity.TOP; topMargin = dp(200f) // the stage frames the cube at 156 dp
         })
-        host.addView(tapHint(if (boxes > 0) "TAP TO CONTINUE" else "TAP FOR THE MENU"), LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT).apply {
+        fun fitResults() {
+            if (host.height <= 0 || column.height <= 0) return
+            val available = (host.height - dp(200f) - dp(86f)).coerceAtLeast(1)
+            val scale = minOf(1f, available.toFloat() / column.height)
+            column.pivotX = column.width / 2f; column.pivotY = 0f
+            column.scaleX = scale; column.scaleY = scale
+        }
+        host.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ -> fitResults() }
+        column.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ -> fitResults() }
+        host.addView(tapHint(if (boxes > 0) kit.ctx.getString(R.string.text_tap_to_continue) else kit.ctx.getString(R.string.text_tap_for_the_menu)), LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT).apply {
             gravity = Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL; bottomMargin = dp(32f)
         })
         swap(host)
@@ -324,14 +341,14 @@ class RunOverFlow(
             gravity = Gravity.CENTER_HORIZONTAL
             setPadding(dp(20f), 0, dp(20f), 0)
             clipChildren = false; clipToPadding = false
-            heading = kit.stageText(if (boxes == 1) "MYSTERY BOX" else "MYSTERY BOXES", 28f, Theme.LAVENDER, stroke = 4f).apply {
-                letterSpacing = 0.06f; setSingleLine(); setHorizontallyScrolling(false)
+            heading = kit.stageText(kit.ctx.resources.getQuantityString(R.plurals.mystery_boxes, boxes), 28f, Theme.LAVENDER, stroke = 4f).apply {
+                letterSpacing = kit.tracking(0.06f); setSingleLine(); setHorizontallyScrolling(false)
             }
             addView(heading, LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT))
             boxRack = LinearLayout(activity).apply { // one icon per box; opened ones go quiet
                 orientation = LinearLayout.HORIZONTAL
                 clipChildren = false; clipToPadding = false
-                for (i in 0 until boxes) addView(ImageView(activity).apply { setImageDrawable(BoxIcon()) }, LinearLayout.LayoutParams(dp(24f), dp(24f)).apply { leftMargin = dp(3f); rightMargin = dp(3f) })
+                for (i in 0 until boxes) addView(ImageView(activity).apply { setImageDrawable(BoxIcon()) }, LinearLayout.LayoutParams(dp(24f), dp(24f)).apply { marginStart = dp(3f); marginEnd = dp(3f) })
             }
             addView(boxRack, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(4f) })
         }
@@ -364,7 +381,7 @@ class RunOverFlow(
                 background = kit.cardDrawable(Theme.CARD, null, 26f)
                 alpha = 0f
                 rewardSub = kit.text("", 12f, Theme.MUTED, 700).apply {
-                    tag = "gift_reward_category"; letterSpacing = 0.1f; setSingleLine(); setHorizontallyScrolling(false)
+                    tag = "gift_reward_category"; letterSpacing = kit.tracking(0.1f); setSingleLine(); setHorizontallyScrolling(false)
                 }
                 rewardBig = kit.text("", 36f, Theme.INK, 700).apply {
                     tag = "gift_reward_value"; setSingleLine(); setHorizontallyScrolling(false)
@@ -373,8 +390,8 @@ class RunOverFlow(
                 addView(rewardBig, LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT))
             }
             addView(rewardCard, LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT))
-            boxHint = tapHint("TAP TO OPEN").apply {
-                tag = "gift_footer_hint"; letterSpacing = .08f; setSingleLine(); setHorizontallyScrolling(false)
+            boxHint = tapHint(kit.ctx.getString(R.string.text_tap_to_open)).apply {
+                tag = "gift_footer_hint"; letterSpacing = kit.tracking(.08f); setSingleLine(); setHorizontallyScrolling(false)
             }
             // A reserved footer keeps the reward in place as the next-action wording changes.
             addView(boxHint, LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, dp(48f)).apply { topMargin = dp(12f) })
@@ -400,7 +417,8 @@ class RunOverFlow(
         boxRewardReady = false; skipBoxAnimation = false
         rewardBeat?.cancel(); rewardBeat = null
         boxesLeft--
-        boxHint?.visibility = INVISIBLE
+        boxHint?.text = kit.ctx.getString(R.string.text_tap_to_skip)
+        boxHint?.visibility = VISIBLE
         rewardCard?.move()?.alpha(0f)?.scaleX(0.7f)?.scaleY(0.7f)?.setDuration(150)?.start()
         Stage.openRequests.incrementAndGet() // the game shakes + opens it, then calls onBoxOpened
     }
@@ -417,22 +435,22 @@ class RunOverFlow(
         when (kind) {
             Progress.BoxReward.SKIN -> {
                 rare = true
-                sub.text = "NEW ${Wardrobe.label(cat)}!"
+                sub.text = kit.ctx.getString(R.string.text_new_cosmetic, kit.ctx.gameText(Wardrobe.label(cat)))
                 sub.setTextColor(Theme.darken(Theme.PINK, .35f))
-                val name = Wardrobe.name(cat, id).uppercase()
+                val name = kit.ctx.gameText(Wardrobe.name(cat, id)).uppercase(kit.ctx.resources.configuration.locales[0])
                 rewardLabel = { name }
             }
             Progress.BoxReward.SHARDS -> {
                 val k = cube.run.data.Shards.get(id)
                 val col = Theme.darken(Theme.hsv(k.hue, 0.7f, 0.9f), .45f)
                 rare = amount >= 20
-                sub.text = k.name.uppercase()
+                sub.text = kit.ctx.gameText(k.name).uppercase(kit.ctx.resources.configuration.locales[0])
                 sub.setTextColor(col)
                 rewardLabel = { px -> rewardWithIcon("+$amount", px, ShardIcon(Theme.hsv(k.hue, 0.75f, 1f))) }
             }
             Progress.BoxReward.BUBBLE -> {
                 rare = false
-                sub.text = "BUBBLE SHIELD"
+                sub.text = kit.ctx.getString(R.string.text_bubble_shield_upper)
                 sub.setTextColor(Theme.darken(Theme.CYAN, .5f))
                 rewardLabel = { "+$amount" }
             }
@@ -472,7 +490,9 @@ class RunOverFlow(
             for (i in host.childCount - 1 downTo 0) if (host.getChildAt(i) is CelebrationView) host.removeViewAt(i)
         }
         boxBusy = false
-        boxHint?.text = if (boxesLeft > 0) "TAP FOR THE NEXT BOX" else if (boxesOnly) "TAP TO RETURN" else "TAP FOR THE MENU"
+        boxHint?.text = if (boxesLeft > 0) kit.ctx.getString(R.string.text_tap_for_the_next_box)
+        else if (boxesOnly) kit.ctx.getString(R.string.text_tap_to_return)
+        else kit.ctx.getString(R.string.text_tap_for_the_menu)
         boxHint?.visibility = VISIBLE
     }
 

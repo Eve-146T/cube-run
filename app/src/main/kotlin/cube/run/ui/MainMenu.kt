@@ -31,6 +31,7 @@ class MainMenu(
     private val openSections: () -> Unit,
     private val onDevToggled: () -> Unit,
     private val openAchievements: () -> Unit = {},
+    private val openLanguages: () -> Unit = {},
     private var openingEntrance: Boolean = false,
 ) : FrameLayout(activity) {
 
@@ -51,12 +52,13 @@ class MainMenu(
     private val letters = ArrayList<View>()
 
     private fun word(text: String, color: Int): LinearLayout = LinearLayout(activity).apply {
+        layoutDirection = View.LAYOUT_DIRECTION_LTR // The brand keeps its letter order in every language.
         orientation = LinearLayout.HORIZONTAL
         clipChildren = false; clipToPadding = false
         for (ch in text) {
             val v = kit.stageText(ch.toString(), 62f, color, stroke = 7f).apply { setLayerType(View.LAYER_TYPE_HARDWARE, null) }
             letters.add(v)
-            addView(v, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { leftMargin = -dp(6f); rightMargin = -dp(6f) })
+            addView(v, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { marginStart = -dp(6f); marginEnd = -dp(6f) })
         }
     }
 
@@ -87,34 +89,42 @@ class MainMenu(
     private val bestRow = kit.iconText(TrophyIcon(), "", 22f, Theme.WHITE, stage = true, iconDp = 28f).apply { visibility = GONE }
     private val bank = kit.iconPill(CoinIcon(), "0", Theme.INK, 16f).apply { setOnClickListener { openShop() } }
     private val bubbles = kit.iconPill(BubbleIcon(), "", Theme.INK, 16f, Theme.lighten(Theme.CYAN, 0.55f)).apply { visibility = GONE; setOnClickListener { openShop() } }
-    private val tapHint = kit.stageText("TAP TO START", 22f, Theme.WHITE, stroke = 3f).apply { letterSpacing = 0.12f }
+    private val tapHint = kit.stageText(activity.getString(R.string.tap_to_start), 22f, Theme.WHITE, stroke = 3f).apply {
+        letterSpacing = if (resources.configuration.layoutDirection == View.LAYOUT_DIRECTION_RTL) 0f else 0.12f
+    }
+
+    private val languageChip = kit.chip(R.drawable.ic_language, Theme.SKY, Theme.INK,
+        activity.getString(R.string.cd_languages)) { openLanguages() }
 
     private val leftChips = LinearLayout(activity).apply {
         orientation = LinearLayout.HORIZONTAL
         gravity = Gravity.BOTTOM
         clipChildren = false; clipToPadding = false
         val size = dp(44f)
-        for (column in 0..1) {
+        for (column in 0..2) {
             addView(LinearLayout(activity).apply {
                 orientation = LinearLayout.VERTICAL
                 clipChildren = false; clipToPadding = false
-                if (BuildConfig.DEBUG) {
+                if (BuildConfig.DEBUG && column < 2) {
                     val debug = if (column == 0) kit.toggle(R.drawable.ic_dev_on, R.drawable.ic_dev_off, activity.getString(R.string.cd_dev), Theme.ORANGE,
                         { Settings.devMode }, { Settings.setDevMode(it); if (it) Progress.enterDev() else Progress.leaveDev(); onDevToggled() })
                     else kit.chip(R.drawable.ic_sections, Theme.WHITE, Theme.INK, activity.getString(R.string.cd_sections)) { openSections() }
                     addView(debug, LinearLayout.LayoutParams(size, size + dp(4f)).apply { bottomMargin = dp(10f) })
                 }
-                val toggle = if (column == 0) kit.toggle(R.drawable.ic_sound_on, R.drawable.ic_sound_off, activity.getString(R.string.cd_sound), Theme.SKY,
-                    { Settings.soundEnabled }, { enabled ->
-                        if (Settings.soundEnabled != enabled) {
-                            Settings.setSoundEnabled(enabled)
-                            Progress.recordMuteToggle()
-                        }
-                    })
-                else kit.toggle(R.drawable.ic_haptic_on, R.drawable.ic_haptic_off, activity.getString(R.string.cd_haptics), Theme.SKY,
-                    { Settings.hapticsEnabled }, { Settings.setHapticsEnabled(it) })
+                val toggle = when (column) {
+                    0 -> kit.toggle(R.drawable.ic_sound_on, R.drawable.ic_sound_off, activity.getString(R.string.cd_sound), Theme.SKY,
+                        { Settings.soundEnabled }, { enabled ->
+                            if (Settings.soundEnabled != enabled) {
+                                Settings.setSoundEnabled(enabled)
+                                Progress.recordMuteToggle()
+                            }
+                        })
+                    1 -> kit.toggle(R.drawable.ic_haptic_on, R.drawable.ic_haptic_off, activity.getString(R.string.cd_haptics), Theme.SKY,
+                        { Settings.hapticsEnabled }, { Settings.setHapticsEnabled(it) })
+                    else -> languageChip
+                }
                 addView(toggle, LinearLayout.LayoutParams(size, size + dp(4f)))
-            }, LinearLayout.LayoutParams(size, LinearLayout.LayoutParams.WRAP_CONTENT).apply { if (column > 0) leftMargin = dp(8f) })
+            }, LinearLayout.LayoutParams(size, LinearLayout.LayoutParams.WRAP_CONTENT).apply { if (column > 0) marginStart = dp(8f) })
         }
     }
 
@@ -130,7 +140,7 @@ class MainMenu(
         addView(kit.chip(R.drawable.ic_skins, Theme.GRAPE, Theme.WHITE, activity.getString(R.string.cd_skins)) { openWardrobe() }.apply { val p = dp(13f); setPadding(p, p, p, p) },
             LinearLayout.LayoutParams(size, size + dp(4f)))
         addView(kit.chip(R.drawable.ic_shop, Theme.GOLD, Theme.INK, activity.getString(R.string.cd_shop)) { openShop() }.apply { val p = dp(13f); setPadding(p, p, p, p) },
-            LinearLayout.LayoutParams(size, size + dp(4f)).apply { leftMargin = dp(10f) })
+            LinearLayout.LayoutParams(size, size + dp(4f)).apply { marginStart = dp(10f) })
     }
 
     /** Keep a real gutter beside the settings on narrow phones, even after the third chip appears. */
@@ -138,8 +148,8 @@ class MainMenu(
         val cutouts = rootWindowInsets?.let(::insetsOf)
         val available = MeasureSpec.getSize(widthMeasureSpec) - (cutouts?.get(0) ?: 0) - (cutouts?.get(2) ?: 0)
         val count = if (Progress.achievementsUnlocked) 3 else 2
-        val separateRows = available < dp(28f + 96f + 12f) + dp(48f) * count + dp(10f) * (count - 1)
-        val settingsWidth = if (separateRows) 0 else dp(96f + 12f)
+        val separateRows = available < dp(28f + 132f + 16f + 12f) + dp(48f) * count + dp(10f) * (count - 1)
+        val settingsWidth = if (separateRows) 0 else dp(132f + 16f)
         val chipSize = ((available - dp(28f) - settingsWidth - dp(10f) * (count - 1)) / count)
             .coerceIn(dp(48f), dp(58f))
         for (i in 0 until rightChips.childCount) {
@@ -171,19 +181,22 @@ class MainMenu(
         isFocusable = false
         clipChildren = false; clipToPadding = false
         addView(top, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT).apply { topMargin = dp(70f) })
-        addView(bank, LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT).apply { gravity = Gravity.TOP or Gravity.END; topMargin = dp(40f); rightMargin = dp(14f) })
-        addView(bubbles, LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT).apply { gravity = Gravity.TOP or Gravity.START; topMargin = dp(40f); leftMargin = dp(14f) })
+        addView(bank, LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT).apply { gravity = Gravity.TOP or Gravity.END; topMargin = dp(40f); marginEnd = dp(14f) })
+        addView(bubbles, LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT).apply { gravity = Gravity.TOP or Gravity.START; topMargin = dp(40f); marginStart = dp(14f) })
         addView(middle, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT).apply { gravity = Gravity.CENTER; topMargin = dp(40f) })
-        addView(leftChips, LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT).apply { gravity = Gravity.BOTTOM or Gravity.START; leftMargin = dp(14f); bottomMargin = dp(28f) })
-        addView(rightChips, LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT).apply { gravity = Gravity.BOTTOM or Gravity.END; rightMargin = dp(14f); bottomMargin = dp(26f) })
+        addView(leftChips, LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT).apply { gravity = Gravity.BOTTOM or Gravity.START; marginStart = dp(14f); bottomMargin = dp(28f) })
+        addView(rightChips, LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT).apply { gravity = Gravity.BOTTOM or Gravity.END; marginEnd = dp(14f); bottomMargin = dp(26f) })
         setOnApplyWindowInsetsListener { _, insets ->
-            val (l, t, r, b) = insetsOf(insets)
+            val (physicalLeft, t, physicalRight, b) = insetsOf(insets)
+            val rtl = layoutDirection == View.LAYOUT_DIRECTION_RTL
+            val l = if (rtl) physicalRight else physicalLeft
+            val r = if (rtl) physicalLeft else physicalRight
             (top.layoutParams as LayoutParams).topMargin = maxOf(dp(70f), t + dp(40f))
             // the same corner as every page's balance pill (page padding max(36, t+6) + 4): it never shifts between screens
-            (bank.layoutParams as LayoutParams).apply { topMargin = maxOf(dp(40f), t + dp(10f)); rightMargin = dp(14f) + r }
-            (bubbles.layoutParams as LayoutParams).apply { topMargin = maxOf(dp(40f), t + dp(10f)); leftMargin = dp(14f) + l }
-            (leftChips.layoutParams as LayoutParams).apply { leftMargin = dp(14f) + l; bottomMargin = dp(28f) + b }
-            (rightChips.layoutParams as LayoutParams).apply { rightMargin = dp(14f) + r; bottomMargin = dp(26f) + b }
+            (bank.layoutParams as LayoutParams).apply { topMargin = maxOf(dp(40f), t + dp(10f)); marginEnd = dp(14f) + r }
+            (bubbles.layoutParams as LayoutParams).apply { topMargin = maxOf(dp(40f), t + dp(10f)); marginStart = dp(14f) + l }
+            (leftChips.layoutParams as LayoutParams).apply { marginStart = dp(14f) + l; bottomMargin = dp(28f) + b }
+            (rightChips.layoutParams as LayoutParams).apply { marginEnd = dp(14f) + r; bottomMargin = dp(26f) + b }
             requestLayout()
             insets
         }
@@ -208,10 +221,22 @@ class MainMenu(
         Anim.popIn(bank, 260, 0.6f)
         Anim.popIn(bubbles, 300, 0.6f)
         Anim.riseIn(middle, 320, dpf(24f))
-        Anim.stagger(leftChips, dpf(40f), 280, 60)
-        Anim.stagger(rightChips, dpf(40f), 420, 80)
+        for (chip in toolbarChips()) Anim.riseIn(chip, 280, dpf(40f))
         anims.add(Anim.breathe(tapHint, 0.55f, 1f, 750))
         logo.postDelayed(startRipple, 620)
+    }
+
+    /** A locale crossfade keeps the menu in place instead of replaying its launch entrance. */
+    fun settleLanguageTransition() {
+        setShown(true)
+        for (part in listOf(logo, bestRow, tapHint)) Anim.reset(part)
+        for (chip in toolbarChips()) Anim.reset(chip)
+        for (letter in letters) Anim.reset(letter)
+    }
+
+    fun resumeLanguageIdle() {
+        anims.add(Anim.breathe(tapHint, 0.55f, 1f, 750))
+        logo.post(startRipple)
     }
 
     /** Re-read the bank / stock / best (after the shop, the wardrobe, a dev toggle). */
@@ -234,6 +259,15 @@ class MainMenu(
     val shopBalance: LinearLayout get() = bank
     private var shopNavigating = false
 
+    /** Animate actual controls together, including the nested utility/debug rows. */
+    private fun toolbarChips(): List<View> = buildList {
+        for (i in 0 until leftChips.childCount) {
+            val row = leftChips.getChildAt(i) as LinearLayout
+            for (j in 0 until row.childCount) add(row.getChildAt(j))
+        }
+        for (i in 0 until rightChips.childCount) add(rightChips.getChildAt(i))
+    }
+
     // During shop navigation these controls draw over the departing sheet, but the shop owns input.
     override fun dispatchTouchEvent(event: MotionEvent): Boolean =
         if (shopNavigating) false else super.dispatchTouchEvent(event)
@@ -244,7 +278,7 @@ class MainMenu(
         for (a in anims) a.pause()
         Anim.cancelTree(this)
         for (v in listOf(top, logo, bestRow, middle, leftChips, rightChips, bank, bubbles)) Anim.reset(v)
-        for (group in listOf(leftChips, rightChips)) for (i in 0 until group.childCount) Anim.reset(group.getChildAt(i))
+        for (chip in toolbarChips()) Anim.reset(chip)
         setShopProgress(0f)
     }
 

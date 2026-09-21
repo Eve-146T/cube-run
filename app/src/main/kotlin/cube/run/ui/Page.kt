@@ -59,19 +59,20 @@ abstract class Page(
     }
 
     init {
+        layoutDirection = resources.configuration.layoutDirection // Also applies while a shop is prepared offscreen.
         isClickable = true // the page owns every touch: the game must not start under it
         if (!dark) background = kit.pageBackground()
 
         titleView = if (dark) kit.stageText(title, 26f, gravity = Gravity.START)
         else kit.text(title, 26f, Theme.INK, 700, gravity = Gravity.START)
-        titleView.letterSpacing = 0.04f
+        titleView.letterSpacing = kit.tracking(0.04f)
         topBar.apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
             clipChildren = false; clipToPadding = false
             setPadding(dp(14f), dp(10f), dp(16f), dp(6f))
             if (back) addView(kit.backButton { onBack() }, LinearLayout.LayoutParams(dp(46f), dp(50f)))
-            addView(titleView, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply { leftMargin = dp(12f) })
+            addView(titleView, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply { marginStart = dp(12f) })
         }
         content.clipChildren = false; content.clipToPadding = false // rows inside (the wardrobe's tabs) must not be clipped by their own row while they rise
         body.apply {
@@ -108,7 +109,7 @@ abstract class Page(
 
     /** The corner slot (a balance): pinned top-right exactly where the menu keeps its bank pill, so it never shifts between screens. */
     protected fun addRight(v: View) {
-        addView(v, LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT).apply { gravity = Gravity.TOP or Gravity.END; topMargin = dp(4f); rightMargin = dp(14f) })
+        addView(v, LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT).apply { gravity = Gravity.TOP or Gravity.END; topMargin = dp(4f); marginEnd = dp(14f) })
     }
 
     /** The back button. Pages that need to tidy up first override this and call [close]. */
