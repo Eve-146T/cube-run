@@ -228,13 +228,13 @@ internal class AchievementCards(
         LinearLayout(activity).apply {
             orientation = LinearLayout.VERTICAL
             val definition = state.definition
-            val target = definition.thresholds[tier] + if (definition.id == "runner") 1 else 0
+            // Good Runner asks you to beat its number, not to reach one more than it: the
+            // counter always shows the number on the medal.
+            val target = definition.thresholds[tier]
             val ready = state.claimableTier != null
             val fraction = if (ready) 1f else state.fraction
-            // Good Runner means beating its number; once it is beaten, show the number it beat.
-            val shown = if (ready) definition.thresholds[tier] else target
             val counter = if (definition.id == "bounces") "Best: ${number(state.value)} / ${number(target)}"
-                else "${number(if (ready) shown else minOf(state.value, target))} / ${number(shown)}"
+                else "${number(if (ready) target else minOf(state.value, target))} / ${number(target)}"
             addView(kit.stageText(counter, 14f, if (ready) Theme.MINT else Theme.WHITE, gravity = Gravity.START, stroke = 1.5f)
                 .apply { maxLines = 1; tag = "achievement-counter" })
             addView(AchievementProgressBar(activity, kit, if (ready) Theme.MINT else color, fraction,

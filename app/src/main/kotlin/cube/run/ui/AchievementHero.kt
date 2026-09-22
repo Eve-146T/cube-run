@@ -70,7 +70,7 @@ internal class AchievementHero(context: Context, private val kit: UiKit, onClaim
         for (s in states) if (s.definition.tiered) for (t in 0 until s.earnedTiers) tallies[t]++ else if (s.earnedTiers > 0) tallies[4]++
         for (i in 0..4) {
             tallyIcons[i].setImageDrawable(if (i == 4) AchievementCheckIcon() else MedalIcon(medalColor(i), tallies[i] > 0, i == 3, dark = true, ribbon = false))
-            tallyIcons[i].alpha = if (tallies[i] > 0 || i < 4) 1f else .45f
+            tallyIcons[i].alpha = if (tallies[i] > 0) 1f else .32f
             tallyCounts[i].text = number(tallies[i])
             tallyCounts[i].setTextColor(if (tallies[i] > 0) Theme.WHITE else Theme.alpha(Theme.WHITE, 120))
         }
