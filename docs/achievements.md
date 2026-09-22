@@ -15,41 +15,45 @@ power-up pickups and wall bounces were not previously recorded, so those counter
 begin with this version. Purchasing the unlock acknowledges existing medals
 quietly rather than replaying notifications.
 
-One scrolling collection contains all eleven achievements in the shop's card style:
-coloured header bands with circular icon badges, dark tinted bodies, and a subdued,
-opaque navy-to-teal backdrop. Ink labels on the bands and white progress counters
-separate the content clearly. The list clips below the header and coin bank. Each family
-has a visual centred on its badge, a connected medal track,
-animated progress, and a reserved reward area. Bronze, silver, gold, and diamond
-differ in colour; diamond also has its own silhouette. Medal faces and connectors
-share one centre line. The current medal gets a round ring, earned medals are solid,
-and future medals are faint. Numbers always use groups of three,
-such as `500,000`, regardless of the device locale.
+The page is a trophy room on a deep indigo-to-teal backdrop. It opens with a trophy
+inside a ring that fills with the share of all 26 medals earned, the count under it,
+and a tally of bronze, silver, gold, diamond and completed challenges. One gold
+CLAIM ALL button collects every waiting reward at once; it is only there while
+something is waiting, and it shrinks away once it has paid.
 
-An earned tier offers a gold CLAIM button. Its matching target shows a full bar;
-claiming flies coins into the bank and advances the card to the next pending
-claim or goal. Previously earned tiers remain claimable. Bronze/silver/gold/diamond
-pay 250/750/2,000/5,000 coins per family. Big Bubble and Cookie Clicker each pay
-2,000; Bouncer, Stay Centered, Homeress, and Gambliphobic each pay 1,500.
-The claim marker and coin balance persist together, and each tier pays once.
-Claim bonuses enter the bank without advancing the lifetime-coin counter.
-Completed challenges show a green check and their claim status. Bouncer retains
-its personal best, including after claiming; the other challenges hide completed progress.
-Good Runner uses the subtitle “Single-run score” and shows progress only beside its
-bar, without a duplicate Best label. It reconciles older saved scores immediately.
-Power Collector and Mystery Seeker use “Power Ups collected” and “Mystery boxes opened”.
-After all rewards are collected, the
-card contracts to a compact Claimed state with a green check. Future payouts appear
-as an inline coin amount such as `+750`, with no separate panel or reward label;
-only available claims use the bright gold button.
+Below that, two labelled groups. MEDALS holds the five tiered families as wide
+cards in the shop's card style: a glossy coloured band with a circular icon badge,
+the four medals on one track with each target written under its medal, and the next
+goal with its payout. The link between two medals fills as you approach the next one.
+The current medal wears a ring, a reward waiting to be claimed glows and beats, claimed
+medals are solid and later ones are faint. CHALLENGES holds the six one-off dares as
+tiles, two to a row, dropping to one per row on narrow screens or at large text sizes;
+tiles in a row share the taller one's height, so their goals line up. Numbers always use
+groups of three, such as `500,000`, regardless of the device locale; medal targets are
+written short (`5K`, `500K`). The list clips below the header and coin bank.
 
-| Achievement | Bronze | Silver | Gold | Diamond |
-| --- | ---: | ---: | ---: | ---: |
-| Good Runner | >500 | >1,000 | >2,000 | >5,000 |
-| Lifetime Coins | 5,000 | 25,000 | 100,000 | 500,000 |
-| Unlocked Cubes | 5 | 10 | 15 | 24 |
-| Power Collector | 100 | 1,000 | 5,000 | 10,000 |
-| Mystery Seeker | 10 | 50 | 100 | 300 |
+A card with a reward waiting is lit: a gold edge and a sheen that sweeps across its band
+every few seconds. Claiming — from the card or from CLAIM ALL — flies coins into the
+bank, then the medal that was claimed stamps down onto the fresh card inside two rings of
+its own colour. Fully claimed families recede into slate with a green check.
+
+Bronze/silver/gold/diamond pay 250/750/2,000/5,000 coins per family. Big Bubble and
+Cookie Clicker each pay 2,000; Bouncer, Stay Centered, Homeress, and Gambliphobic each
+pay 1,500. Previously earned tiers remain claimable. The claim marker and coin balance
+persist together, and each tier pays once. Claim bonuses enter the bank without advancing
+the lifetime-coin counter. Completed challenges show a green check and their claim status.
+Bouncer retains its personal best, including after claiming; the other challenges hide
+completed progress. Good Runner uses the subtitle “Single-run score” and shows progress
+only beside its bar, without a duplicate Best label; once its number is beaten, the counter
+shows the number it beat. It reconciles older saved scores immediately. Power Collector and
+Mystery Seeker use “Power Ups collected” and “Mystery boxes opened”. Future payouts appear
+as an inline coin amount such as `+750`, with no separate panel or reward label; only
+available claims use the bright gold button.
+
+The tiered thresholds, bronze through diamond: Good Runner beats 500, 1,000, 2,000
+and 5,000 points in one run; Lifetime Coins collects 5,000, 25,000, 100,000 and
+500,000; Unlocked Cubes owns 5, 10, 15 and 24; Power Collector picks up 100, 1,000,
+5,000 and 10,000 power-ups; Mystery Seeker opens 10, 50, 100 and 300 boxes.
 
 Big Bubble requires 1,000 stocked bubbles at once. Bouncer requires 67 deliberate
 side-wall hits in one run. Holding a smooth drag beyond an edge does not repeatedly
@@ -132,7 +136,7 @@ part of this reward pool, including after discovery.
 The bottom shop item appears at 100,000 lifetime coins, or immediately in dev mode. It is a
 black card holding a live black hole (a smooth tilted accretion disk, a lensed ring over the
 shadow, stars creeping inwards, a faint nebula, a glow creeping round the card's edge), the
-void's current line, and the price on a void-violet slab with the number in gold. No progress
+void's current line, and the same gold price button as every other card. No progress
 towards the discoveries is shown: every offering should feel hopeless.
 
 Paying plays a show on the 3D shop stage (`game.stage.VoidShow`, drawn by
@@ -155,11 +159,9 @@ wardrobe.
 With `n` previous offerings, the next costs `5,000 + 2,500n + 500n²` coins.
 Costs rise in clean 500-coin steps, with a defensive cap of one billion coins.
 
-| Offering completed | Newly purchasable cosmetic | Price |
-| ---: | --- | ---: |
-| 10 | Black void cube | 300,000 |
-| 20 | Afterimage trail | 500,000 |
-| 30 | Event horizon bubble | 750,000 |
+The tenth completed offering reveals the black void cube (300,000 coins), the
+twentieth the afterimage trail (500,000), and the thirtieth the event horizon
+bubble (750,000).
 
 These are discoveries, not automatic ownership grants. The main shop always keeps
 one offering with its current dialogue and next price. Discovered cosmetics appear

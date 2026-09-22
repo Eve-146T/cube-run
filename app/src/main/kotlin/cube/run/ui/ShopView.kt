@@ -526,9 +526,7 @@ class ShopView(
         val can = price <= Progress.coins
         lateinit var btn: CandyButton
         val fullWidth = key == "mystery" || key == "achievements" || key == "void"
-        // The void's price sits on a void-violet slab, its number in gold: what you give away.
-        val slab = if (key == "void") VOID_SLAB else Theme.GOLD
-        btn = kit.button(kit.coins(price, if (fullWidth) 19f else 15f), if (can) slab else Theme.alpha(Theme.WHITE, 46),
+        btn = kit.button(kit.coins(price, if (fullWidth) 19f else 15f), if (can) Theme.GOLD else Theme.alpha(Theme.WHITE, 46),
             if (fullWidth) UiKit.Size.NORMAL else UiKit.Size.SMALL) {
             if (paying || closing || progress < 1f) return@button
             val before = Progress.coins
@@ -536,7 +534,6 @@ class ShopView(
             pay(btn, before, key, u, demo, if (key == "mystery") before - price else Progress.coins)
         }
         if (!can) btn.setTextColor(Theme.alpha(Theme.WHITE, 170))
-        else if (key == "void") btn.setTextColor(Theme.YELLOW)
         return if (key == "void") FittedVoidPrice(activity, kit, btn, price) else btn
     }
 
@@ -729,5 +726,3 @@ private class ResetProgressSheet(
         super.onMeasure(widthMeasureSpec, heightMeasureSpec)
     }
 }
-
-private const val VOID_SLAB = 0xFF4B2A9E.toInt()

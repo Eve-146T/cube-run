@@ -20,7 +20,7 @@ import kotlin.math.sin
 /**
  * The void's shop card: a black slab with a live black hole in it that slowly swallows the
  * stars around it, a soft nebula behind it, a glow that creeps round the card's edge like an
- * event horizon, the last thing the void said, and the price on a void-violet slab. There is
+ * event horizon, the last thing the void said, and the gold price button every card uses. There is
  * deliberately no progress shown: every offering should feel hopeless. Paying hands over to
  * the 3D show (game.stage.VoidShow).
  */
