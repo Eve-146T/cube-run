@@ -22,7 +22,7 @@ object VoidBeats {
     /** The void says its piece. */
     const val SPEAK = 4.15f
     /** The camera heads back to the shop. A tap after the blast skips straight here. */
-    const val RETURN = 6.6f
+    const val RETURN = 6.2f
     /** The shop sheet rises back once the cube is clear of it. */
     const val SHEET = RETURN + 0.35f
     const val END = RETURN + 0.95f

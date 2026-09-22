@@ -180,8 +180,8 @@ class VoidShow(private val game: Gdx3DGame, private val player: Player) {
         if (crossed(COLLAPSE + 0.1f)) SoundFx.play("rise", rate = 1.3f, vol = 0.55f)
         if (crossed(NOVA)) nova()
         if (crossed(NOVA + 0.14f)) { // hot shards, once the white-out has cleared
-            game.burst3d(tmp.set(hole), white, n = 20, speed = 16f, size = 0.08f, life = 0.55f, gravity = 0f)
-            game.burst3d(tmp, orange, n = 16, speed = 11f, size = 0.09f, life = 0.7f, gravity = 0f)
+            game.burst3d(tmp.set(hole), white, n = 18, speed = 15f, size = 0.15f, life = 0.6f, gravity = 0f)
+            game.burst3d(tmp, orange, n = 16, speed = 10f, size = 0.17f, life = 0.8f, gravity = 0f)
         }
         if (crossed(REBIRTH + 0.45f)) {
             SoundFx.play("pop", rate = 0.85f); SoundFx.play("success", rate = 0.75f, vol = 0.6f); Haptics.success()
@@ -222,19 +222,21 @@ class VoidShow(private val game: Gdx3DGame, private val player: Player) {
         if (t < REBIRTH) {
             val u = ((t - PULL) / (TAKEN - PULL)).coerceIn(0f, 1f)
             val e = u * u
-            // Up and round into the hole, ending behind its centre so the horizon closes over it.
-            val endZ = hole.z - 2.2f
-            cubeX = home.x + (hole.x - home.x) * e + 1.4f * sin(e * PI.toFloat()) * (1f - e * 0.5f)
-            cubeY = home.y + 0.25f * tremble + (hole.y - home.y - 0.25f * tremble) * e + 0.04f * sin(t * 41f) * tremble * (1f - e)
-            // It falls back behind the hole early, so the horizon covers it rather than a flat plank crossing it.
-            cubeZ = home.z + (endZ - home.z) * kotlin.math.sqrt(u)
+            // Swung out round the side of the hole on the disk, drawn into a long streak, then
+            // swept round behind it: the horizon closes over the last of it.
+            val swing = sin(u * PI.toFloat())
+            onDisk(tmp2, -0.35f + 2.2f * u * u, MAX_R * (2.3f - 1.3f * u))
+            val lift = (1f - VoidBeats.span(u, 0f, 0.45f))
+            cubeX = tmp2.x * (1f - lift) + home.x * lift
+            cubeY = (tmp2.y * (1f - lift) + (home.y + 0.25f * tremble) * lift) + 0.04f * sin(t * 41f) * tremble * lift
+            cubeZ = tmp2.z * (1f - lift) + home.z * lift - 0.6f * swing
             // Stretch along the pull: the cube's long axis points at the hole.
             val dx = hole.x - cubeX; val dy = hole.y - cubeY
             val aim = -Math.toDegrees(atan2(dx.toDouble(), dy.toDouble())).toFloat()
-            stretch = e
-            cubeTip = aim * (0.3f * tremble + 0.7f * u)
+            stretch = VoidBeats.span(u, 0.1f, 0.7f)
+            cubeTip = aim * (0.3f * tremble + 0.7f * u) + 70f * stretch
             spin = 45f + 160f * tremble + 500f * e
-            cubeScale = if (t >= TAKEN) 0f else 1f - e.pow(4f)
+            cubeScale = if (t >= TAKEN) 0f else 1f - VoidBeats.span(u, 0.7f, 1f)
             cubeGlow = (0.35f * tremble + 0.65f * e).coerceIn(0f, 1f)
             darkness = e
         } else {
@@ -255,7 +257,7 @@ class VoidShow(private val game: Gdx3DGame, private val player: Player) {
         SoundFx.play("boom", rate = 1.1f, vol = 0.6f)
         SoundFx.play("fanfare", rate = 0.6f, vol = 0.7f)
         Haptics.heavy(); Haptics.success()
-        game.flash(white, 0.35f)
+        game.flash(white, 0.2f)
     }
 
     private fun finish() {
@@ -274,11 +276,11 @@ class VoidShow(private val game: Gdx3DGame, private val player: Player) {
         if (t < REBIRTH) glowCol.set(violet).lerp(ember, darkness) else glowCol.set(white)
         val s = max(0.001f, cubeScale)
         player.voidPose(time, baseHue, cubeX, cubeY, cubeZ, cubeYaw, cubeTip,
-            s * (1f - 0.72f * stretch), s * (1f + 2.8f * stretch), s * (1f - 0.72f * stretch), cubeGlow, glowCol)
+            s * (1f - 0.78f * stretch), s * (1f + 3.6f * stretch), s * (1f - 0.78f * stretch), cubeGlow, glowCol)
     }
 
     /** How far the stage is inside the show (0 = the shop's own shot, 1 = the show's). */
-    val depth get() = VoidBeats.span(t, 0f, 0.9f) * (1f - VoidBeats.span(t, RETURN, RETURN + 0.55f))
+    val depth get() = VoidBeats.span(t, 0f, 0.9f) * (1f - VoidBeats.span(t, RETURN - 0.25f, RETURN + 0.55f))
 
     /** How much of the shop's own sunburst is left: it spins up and is sucked away first. */
     val raysKept get() = 1f - VoidBeats.span(t, 0f, 0.8f) * (1f - VoidBeats.span(t, RETURN, RETURN + 0.55f))
@@ -346,7 +348,7 @@ class VoidShow(private val game: Gdx3DGame, private val player: Player) {
                 onDisk(tmp, -0.3f + 2.6f * PI.toFloat() * v.pow(1.5f), MAX_R * (2.5f - 1.6f * v.pow(1.2f)))
             }
             // Shrinking, reddening and going dark as they reach the horizon.
-            val burn = ((u - 0.6f) / 0.4f).coerceIn(0f, 1f)
+            val burn = ((u - 0.35f) / 0.55f).coerceIn(0f, 1f)
             val size = coins[o + 5] * (1f - 0.75f * u)
             colA.set(gold).lerp(orange, burn).lerp(ember, burn * burn)
             colB.set(face).lerp(orange, burn).lerp(ember, burn * burn)
@@ -388,15 +390,15 @@ class VoidShow(private val game: Gdx3DGame, private val player: Player) {
         val appear = VoidBeats.span(t, 0.15f, 0.9f)
         // The show's own short clock: the game's running time is too large for mediump shaders.
         val spinUp = 1f + 2.4f * heat + 2f * VoidBeats.span(t, PULL, TAKEN) + 7f * collapse
-        r.drawHole(cam, hole, radius, t + 7f, heat, spinUp, appear * fade * (1f + 0.35f * gulp + 0.8f * collapse), appear * fade, DISK_TILT)
+        if (t < NOVA) r.drawHole(cam, hole, radius, t + 7f, heat, spinUp, appear * fade * (1f + 0.35f * gulp + 0.8f * collapse), appear * fade, DISK_TILT)
         // As it shrinks to nothing, what is left is light, not a black dot.
         val spark = VoidBeats.span(t, COLLAPSE + 0.3f, NOVA)
         if (spark > 0.01f && t < NOVA) r.drawGlow(cam, hole, 0.3f + 0.9f * spark, white, 2.2f * spark)
         if (t < NOVA) return
 
         // The flash: a white-out from the core that is gone in a few frames.
-        val flash = ((t - NOVA) / 0.12f).coerceIn(0f, 1f)
-        if (flash < 1f) r.drawGlow(cam, hole, 40f, white, 3f * (1f - flash))
+        val flash = ((t - NOVA) / 0.16f).coerceIn(0f, 1f)
+        if (flash < 1f) r.drawGlow(cam, hole, 40f, lilac, 1.15f * min(1f, flash * 5f) * (1f - flash))
         val p = ((t - NOVA) / 1.4f).coerceIn(0f, 1f)
         if (p < 1f) {
             // A white-hot core that holds, cools through orange and shrinks away.
@@ -438,7 +440,7 @@ class VoidShow(private val game: Gdx3DGame, private val player: Player) {
 
     private companion object {
         const val MAX_R = 1.5f
-        const val DISK_TILT = 11f
+        const val DISK_TILT = 16f
         const val RING_TILT = 38f
         const val COIN_FLIGHT = 0.9f
     }

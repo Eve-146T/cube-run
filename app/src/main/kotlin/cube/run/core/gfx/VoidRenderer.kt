@@ -59,7 +59,7 @@ class VoidRenderer(mb: ModelBuilder) : Disposable {
         varying float v_rim;
         void main() {
             // Pure black; only the last sliver of the edge catches light (the photon sphere).
-            float edge = pow(v_rim, 16.0) * 0.55;
+            float edge = 0.0 * v_rim; // no outline: the lensed ring around it does the edge
             gl_FragColor = vec4(u_rimColor * edge, 1.0);
         }
     """)
@@ -137,11 +137,11 @@ class VoidRenderer(mb: ModelBuilder) : Disposable {
             float ang = atan(v_uv.y, v_uv.x);
             // The far side of the disk, lensed into a ring: bright over the top, thinner beneath.
             float over = 0.5 + 0.5 * sin(ang + u_tilt); // 1 straight over the top
-            float band = exp(-pow((d - 1.2) / (0.14 + 0.22 * over), 2.0)) * (0.6 + 0.9 * over);
+            float band = exp(-pow((d - 1.1) / (0.05 + 0.1 * over), 2.0)) * (0.7 + 1.2 * over);
             // The photon ring: thin, brighter on the approaching (left) side, melting into the arc.
             float photon = exp(-pow((d - 1.03) / 0.02, 2.0)) * (0.35 + 0.35 * cos(ang - 3.14159));
             float swirl = 0.75 + 0.25 * sin(ang * 6.0 - u_time * 2.4 + d * 9.0);
-            float glow = exp(-(d - 1.0) * 2.2) * 0.18;
+            float glow = exp(-(d - 1.0) * 3.0) * 0.1;
             vec3 cool = mix(vec3(0.62, 0.45, 1.0), vec3(1.0, 0.62, 0.22), u_heat);
             vec3 col = cool * (band * (0.35 + 0.95 * over) * swirl + glow) + vec3(1.0, 0.96, 1.0) * photon * 0.9;
             gl_FragColor = vec4(col * u_alpha, 1.0);
