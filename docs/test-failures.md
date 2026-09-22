@@ -104,7 +104,7 @@
 - Command/device: `./gradlew :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=cube.run.ui.AchievementsHardwareFlowTest,cube.run.ui.AchievementDevModeUiTest -Pandroid.testInstrumentationRunnerArguments.captureHardwareAchievements=true` on the shared moto g(7) power (`ZY323NNKTB`, Android 15)
 - Failure: "Instrumentation run failed due to Process crashed" after about 10.5 minutes with no application exception; logcat shows `cube.run` being updated by another session's install at 10:00:26 and the process killed with signal 9. No test log lines appeared for the ten minutes before that.
 - Classification: environment problem (another agent installed its build on the shared phone). While investigating, the test's void-return assertions also turned out to be stale for the redesign: they require a circular mask that uncovers transparent pixels, and the new return is an opaque picture of the shop unwinding out of the hole.
-- Resolution: rewrote the return assertions for the new design (the scene stays fully opaque and less of the void's dark remains at each later point) and reran once the phone was free.
+- Resolution: the 2D scene was later replaced by a 3D show on the GL stage, so the return assertions were rewritten again around the GL-driven overlay (it covers and blocks the HUD, follows `Stage.voidClock`, and hands the shop back in place); a stage that never answers is covered by `voidOverlayReleasesTheHudWhenTheStageNeverAnswers`.
 
 ## 2026-09-22 — Void purchase hardware flow never finishes
 
