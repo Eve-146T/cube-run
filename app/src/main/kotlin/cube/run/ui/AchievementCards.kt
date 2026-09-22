@@ -65,7 +65,7 @@ internal class AchievementCards(
                 when {
                     it < state.earnedTiers -> Theme.lighten(medalColor(it), .25f)
                     it == state.earnedTiers -> Theme.WHITE
-                    else -> Theme.alpha(Theme.WHITE, 110)
+                    else -> Theme.alpha(Theme.WHITE, 168)
                 }
             }), LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(2f) })
             // Once every medal is collected the track says it all: no dead reward row.
@@ -83,9 +83,15 @@ internal class AchievementCards(
             orientation = LinearLayout.VERTICAL
             clipChildren = false; clipToPadding = false
             background = surface(state)
+            if (state.allClaimed) {
+                // A finished tile is a short card like any other: its band keeps the top corners
+                // and stops above the lip, instead of one flat slab stretched down the row.
+                addView(band(state, tile = true), LinearLayout.LayoutParams(-1, -2))
+                addView(View(activity), LinearLayout.LayoutParams(-1, dp(10f) + kit.CARD_LIP))
+                return@apply
+            }
             // The band takes any height the row gives the tile, so neighbouring tiles line up their goals.
             addView(band(state, tile = true), LinearLayout.LayoutParams(-1, 0, 1f))
-            if (state.allClaimed) return@apply
             val body = LinearLayout(activity).apply {
                 orientation = LinearLayout.VERTICAL
                 clipChildren = false; clipToPadding = false
@@ -106,7 +112,6 @@ internal class AchievementCards(
         val color = if (state.allClaimed) Theme.lerp(bright, 0xFF3F4D70.toInt(), .55f) else bright
         val ink = if (state.allClaimed) Theme.WHITE else Theme.onColor(color)
         val complete = state.nextTarget == null
-        val closed = state.allClaimed && !definition.tiered
         val best = if (definition.id == "bounces") "Best: ${number(state.value)} bounces" else null
         val subtitle = if (state.allClaimed) best?.let { "Claimed · $it" } ?: "Claimed" else when (definition.id) {
             "runner" -> "Single-run score"
@@ -141,15 +146,14 @@ internal class AchievementCards(
             maxLines = if (tile) 4 else 2
             tag = if (best != null && complete) "achievement_best_${definition.id}" else "achievement_subtitle_${definition.id}"
         }
-        return SheenBand(activity, if (closed) floatArrayOf(radius, radius, radius, radius, radius, radius, radius, radius)
-            else floatArrayOf(radius, radius, radius, radius, 0f, 0f, 0f, 0f)).apply {
+        return SheenBand(activity, floatArrayOf(radius, radius, radius, radius, 0f, 0f, 0f, 0f)).apply {
             shine = state.claimableTier != null
             background = GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM,
                 intArrayOf(Theme.lighten(color, .14f), color)).apply { cornerRadii = corners }
             if (tile) {
                 orientation = LinearLayout.VERTICAL
-                gravity = if (closed) Gravity.CENTER_VERTICAL else Gravity.TOP
-                setPadding(dp(12f), dp(12f), dp(12f), dp(12f) + if (closed) kit.CARD_LIP else 0)
+                gravity = Gravity.TOP
+                setPadding(dp(12f), dp(12f), dp(12f), dp(12f))
                 addView(FrameLayout(activity).apply {
                     addView(badge, FrameLayout.LayoutParams(dp(46f), dp(46f), Gravity.START or Gravity.CENTER_VERTICAL))
                     check?.let { addView(it, FrameLayout.LayoutParams(dp(28f), dp(28f), Gravity.END or Gravity.CENTER_VERTICAL)) }
@@ -233,8 +237,11 @@ internal class AchievementCards(
             val target = definition.thresholds[tier]
             val ready = state.claimableTier != null
             val fraction = if (ready) 1f else state.fraction
+            // Good Runner has to be beaten, not matched: on the exact boundary say so, rather
+            // than showing a full-looking 1,000 / 1,000 with no reward behind it.
+            val beat = definition.id == "runner" && !ready && state.value >= target
             val counter = if (definition.id == "bounces") "Best: ${number(state.value)} / ${number(target)}"
-                else "${number(if (ready) target else minOf(state.value, target))} / ${number(target)}"
+                else "${number(if (ready) target else minOf(state.value, target))} / ${number(if (beat) target + 1 else target)}"
             addView(kit.stageText(counter, 14f, if (ready) Theme.MINT else Theme.WHITE, gravity = Gravity.START, stroke = 1.5f)
                 .apply { maxLines = 1; tag = "achievement-counter" })
             addView(AchievementProgressBar(activity, kit, if (ready) Theme.MINT else color, fraction,
@@ -252,9 +259,9 @@ internal class AchievementCards(
             tag = "achievement_claim_${state.definition.id}"
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER
-            minimumWidth = if (wide) 0 else dp(112f); minimumHeight = dp(44f)
-            setPadding(dp(8f), dp(4f), dp(8f), dp(4f))
-            addView(kit.iconText(CoinIcon(), "+${number(amount)}", 16f, Theme.YELLOW, iconDp = 20f).apply { gravity = Gravity.CENTER })
+            minimumWidth = if (wide) 0 else dp(104f); minimumHeight = dp(34f)
+            setPadding(dp(8f), dp(2f), dp(8f), dp(2f))
+            addView(kit.iconText(CoinIcon(), "+${number(amount)}", 14f, Theme.alpha(Theme.YELLOW, 225), iconDp = 17f).apply { gravity = Gravity.CENTER })
             contentDescription = "Reward: ${number(amount)} coins, locked"
             importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_YES
         }
@@ -379,7 +386,9 @@ internal class SheenBand(context: Context, val corners: FloatArray) : LinearLayo
     private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
     private val clip = Path()
     private val box = RectF()
-    private val born = SystemClock.uptimeMillis() + (Math.random() * 900).toLong()
+    private val seen = android.graphics.Rect()
+    /** Set on the first draw with the band actually on screen: a card below the fold still gets its sweeps. */
+    private var born = 0L
 
     override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
         super.onSizeChanged(w, h, oldw, oldh)
@@ -391,7 +400,12 @@ internal class SheenBand(context: Context, val corners: FloatArray) : LinearLayo
         super.dispatchDraw(canvas)
         if (!shine || width == 0) return
         if (sweeps >= SWEEPS) return
+        if (born == 0L) {
+            if (!isShown || !getLocalVisibleRect(seen)) return
+            born = SystemClock.uptimeMillis() + 260L
+        }
         val elapsed = SystemClock.uptimeMillis() - born
+        if (elapsed < 0L) { postDelayed({ Anim.repaint(this) }, -elapsed); return }
         sweeps = (elapsed / SWEEP_EVERY).toInt()
         val t = elapsed.mod(SWEEP_EVERY)
         if (t < SWEEP) {
@@ -426,8 +440,11 @@ private class MedalLink(context: Context, private val from: Int, private val to:
         paint.shader = null; paint.color = Theme.alpha(Theme.WHITE, 56)
         canvas.drawRoundRect(box, r, r, paint)
         if (fill <= 0f) return
-        box.right = maxOf(width * fill.coerceIn(0f, 1f), height.toFloat())
-        paint.shader = LinearGradient(0f, 0f, width.toFloat(), 0f, from, to, Shader.TileMode.CLAMP)
+        // The track mirrors in Hebrew, so the link has to grow from the same end the medals do.
+        val rtl = layoutDirection == LAYOUT_DIRECTION_RTL
+        val length = maxOf(width * fill.coerceIn(0f, 1f), height.toFloat())
+        if (rtl) box.left = width - length else box.right = length
+        paint.shader = LinearGradient(if (rtl) width.toFloat() else 0f, 0f, if (rtl) 0f else width.toFloat(), 0f, from, to, Shader.TileMode.CLAMP)
         canvas.drawRoundRect(box, r, r, paint)
         paint.shader = null
     }
@@ -445,6 +462,8 @@ private class TierLabels(context: Context, kit: UiKit, private val track: ViewGr
 
     init { importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO }
 
+    private val full = paint.textSize
+
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
         val metrics = paint.fontMetrics
         setMeasuredDimension(MeasureSpec.getSize(widthMeasureSpec), (metrics.descent - metrics.ascent + 1f).toInt())
@@ -452,6 +471,13 @@ private class TierLabels(context: Context, kit: UiKit, private val track: ViewGr
 
     override fun onDraw(canvas: Canvas) {
         val medals = (0 until track.childCount).map(track::getChildAt).filterIsInstance<ImageView>()
+        if (medals.isEmpty()) return
+        // Enlarged text must not push the outer labels off their medals: shrink to the pitch instead.
+        val pitch = if (medals.size > 1) (medals.last().left - medals.first().left).toFloat() / (medals.size - 1)
+            else width.toFloat()
+        paint.textSize = full
+        val widest = labels.maxOfOrNull(paint::measureText) ?: 0f
+        if (widest > pitch - 2f && widest > 0f) paint.textSize = full * ((pitch - 2f) / widest).coerceIn(.6f, 1f)
         val baseline = -paint.fontMetrics.ascent
         for ((i, medal) in medals.withIndex()) {
             val label = labels.getOrNull(i) ?: continue
@@ -547,7 +573,8 @@ internal class AchievementProgressBar(context: Context, private val kit: UiKit, 
         rect.set(0f, 0f, width.toFloat(), height.toFloat())
         paint.color = Theme.alpha(Theme.WHITE, 50); canvas.drawRoundRect(rect, radius, radius, paint)
         if (amount > 0f) {
-            rect.right = maxOf(width * amount, height.toFloat())
+            val length = maxOf(width * amount, height.toFloat())
+            if (layoutDirection == LAYOUT_DIRECTION_RTL) rect.left = width - length else rect.right = length
             val cap = minOf(radius, rect.width() / 2f)
             paint.color = Theme.darken(color, .18f); canvas.drawRoundRect(rect, cap, cap, paint)
             rect.bottom -= kit.dpf(2f)

@@ -40,7 +40,7 @@ internal class AchievementHero(context: Context, private val kit: UiKit, onClaim
         clipChildren = false; clipToPadding = false
         setPadding(0, kit.dp(2f), 0, kit.dp(4f))
         importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_YES
-        addView(ring, LayoutParams(kit.dp(140f), kit.dp(140f)))
+        addView(ring, LayoutParams(kit.dp(118f), kit.dp(118f)))
         addView(total, LayoutParams(-2, -2).apply { topMargin = kit.dp(2f) })
         addView(LinearLayout(context).apply {
             orientation = HORIZONTAL
@@ -53,13 +53,13 @@ internal class AchievementHero(context: Context, private val kit: UiKit, onClaim
                 addView(tallyIcons[i].apply { setPadding(kit.dp(2f), kit.dp(2f), kit.dp(2f), kit.dp(2f)) }, LayoutParams(kit.dp(32f), kit.dp(32f)))
                 addView(tallyCounts[i], LayoutParams(-2, -2))
             }, LayoutParams(-2, -2).apply { if (i > 0) marginStart = kit.dp(if (i == 4) 26f else 14f) })
-        }, LayoutParams(-2, -2).apply { topMargin = kit.dp(10f) })
+        }, LayoutParams(-2, -2).apply { topMargin = kit.dp(8f) })
         claimAll = kit.button("", Theme.GOLD) { onClaimAll(claimAll) }.apply {
             tag = "achievement_claim_all"
             maxLines = 1
             visibility = GONE // nothing waiting until bind says so
         }
-        addView(claimAll, LayoutParams(-1, -2).apply { topMargin = kit.dp(16f); marginStart = kit.dp(20f); marginEnd = kit.dp(20f) })
+        addView(claimAll, LayoutParams(-1, -2).apply { topMargin = kit.dp(12f); marginStart = kit.dp(20f); marginEnd = kit.dp(20f) })
     }
 
     /** Show [states]; [animate] rolls the ring and the total from where they were. */
@@ -72,14 +72,14 @@ internal class AchievementHero(context: Context, private val kit: UiKit, onClaim
             tallyIcons[i].setImageDrawable(if (i == 4) AchievementCheckIcon() else MedalIcon(medalColor(i), tallies[i] > 0, i == 3, dark = true, ribbon = false))
             tallyIcons[i].alpha = if (tallies[i] > 0) 1f else .32f
             tallyCounts[i].text = number(tallies[i])
-            tallyCounts[i].setTextColor(if (tallies[i] > 0) Theme.WHITE else Theme.alpha(Theme.WHITE, 120))
+            tallyCounts[i].setTextColor(if (tallies[i] > 0) Theme.WHITE else Theme.alpha(Theme.WHITE, 175))
         }
         val from = if (earned < 0) 0 else earned
         earned = now
         ring.fillTo(if (max == 0) 0f else now / max.toFloat(), animate, delay)
         if (animate && now != from) {
             total.text = "$from / $max"
-            postDelayed({ Anim.countTo(total, from, now, 1100L) { "$it / $max" } }, delay)
+            postDelayed({ Anim.countTo(total, from, now, 850L) { "$it / $max" } }, delay)
         } else total.text = "$now / $max"
         contentDescription = "$now of $max achievements earned"
 
@@ -168,7 +168,7 @@ private class TrophyRing(context: Context, private val kit: UiKit) : View(contex
             floatArrayOf(0f, .6f, 1f), Shader.TileMode.CLAMP)
         val light = Theme.lighten(0xFF3B2F86.toInt(), .05f)
         inner = RadialGradient(cx, cy - radius * .25f, radius * 1.1f, intArrayOf(light, 0xFF1B1644.toInt()), null, Shader.TileMode.CLAMP)
-        sweep = SweepGradient(cx, cy, intArrayOf(medalColor(0), medalColor(1), Theme.YELLOW, medalColor(3), medalColor(0)), null).apply {
+        sweep = SweepGradient(cx, cy, intArrayOf(Theme.lighten(medalColor(0), .3f), medalColor(1), Theme.YELLOW, medalColor(3), Theme.lighten(medalColor(0), .3f)), null).apply {
             setLocalMatrix(Matrix().apply { setRotate(-90f, cx, cy) })
         }
         disc.reset(); disc.addCircle(cx, cy, radius - stroke / 2f, Path.Direction.CW)
@@ -204,8 +204,10 @@ private class TrophyRing(context: Context, private val kit: UiKit) : View(contex
             paint.strokeWidth = stroke; paint.alpha = 255; canvas.drawArc(arc, -90f, sweepAngle, false, paint)
             paint.shader = null
             val end = Math.toRadians((-90f + sweepAngle).toDouble())
-            paint.style = Paint.Style.FILL; paint.color = Theme.WHITE
-            canvas.drawCircle(cx + r * cos(end).toFloat(), cy + r * sin(end).toFloat(), stroke * .3f, paint)
+            val ex = cx + r * cos(end).toFloat(); val ey = cy + r * sin(end).toFloat()
+            paint.style = Paint.Style.FILL
+            paint.color = Theme.alpha(Theme.WHITE, 70); canvas.drawCircle(ex, ey, stroke * .55f, paint)
+            paint.color = Theme.alpha(Theme.WHITE, 190); canvas.drawCircle(ex, ey, stroke * .24f, paint)
         }
         paint.style = Paint.Style.FILL
         val cup = r * 1.1f

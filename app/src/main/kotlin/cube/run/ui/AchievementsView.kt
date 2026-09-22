@@ -124,8 +124,9 @@ class AchievementsView(activity: Activity, kit: UiKit, onClose: () -> Unit) :
                 celebrate(fresh, state.definition, tier)
                 SoundFx.play("success", rate = 1.2f, vol = .5f)
                 Haptics.success()
+                // The hero can shrink (its CLAIM ALL leaves): let the stamp land first.
+                postDelayed({ hero.bind(Achievements.snapshot(), animate = true) }, 700L)
             }
-            hero.bind(Achievements.snapshot(), animate = true)
         })
         countBank(before, ms)
     }
@@ -154,8 +155,9 @@ class AchievementsView(activity: Activity, kit: UiKit, onClose: () -> Unit) :
                     SoundFx.play("coin", rate = 1.2f + i * .08f, vol = .4f); Haptics.tick()
                 }, i * 110L)
                 postDelayed({ SoundFx.play("success", rate = 1.2f, vol = .5f); Haptics.success() }, claimed.size * 110L)
+                // Every stamp lands before the hero closes its button up and the list shifts.
+                postDelayed({ hero.bind(Achievements.snapshot(), animate = true) }, claimed.size * 110L + 700L)
             }
-            hero.bind(Achievements.snapshot(), animate = true)
         })
         countBank(before, ms)
     }
@@ -166,9 +168,9 @@ class AchievementsView(activity: Activity, kit: UiKit, onClose: () -> Unit) :
     }
 
     /** Swap a family's card for its current state, in place (list or grid). */
-    private fun rebuild(definition: Achievements.Definition): View {
-        val old = rows.findViewWithTag<View>("achievement_card_${definition.id}")
-        val parent = old.parent as ViewGroup
+    private fun rebuild(definition: Achievements.Definition): View? {
+        val old = rows.findViewWithTag<View>("achievement_card_${definition.id}") ?: return null
+        val parent = old.parent as? ViewGroup ?: return null
         val index = parent.indexOfChild(old)
         val params = old.layoutParams
         parent.removeViewAt(index)
@@ -196,7 +198,8 @@ class AchievementsView(activity: Activity, kit: UiKit, onClose: () -> Unit) :
     }
 
     /** The claimed medal (or a challenge's badge) stamps down onto its freshly lit card. */
-    private fun celebrate(card: View, definition: Achievements.Definition, tier: Int) {
+    private fun celebrate(card: View?, definition: Achievements.Definition, tier: Int) {
+        card ?: return
         PayFx.flash(card, dpf(20f))
         val target = if (definition.tiered) card.findViewWithTag<View>("achievement_medal_${definition.id}_$tier")
             else card.findViewWithTag("achievement_icon_${definition.id}")
@@ -250,7 +253,8 @@ class AchievementsView(activity: Activity, kit: UiKit, onClose: () -> Unit) :
     override fun dispatchTouchEvent(event: MotionEvent): Boolean =
         if (paying) true else super.dispatchTouchEvent(event)
 
-    override fun onBack() { if (!paying) close() }
+    // Touches are swallowed while the coins fly, but leaving the page never is.
+    override fun onBack() = close()
 }
 
 /** Night indigo into deep teal, with a warm glow where the trophy stands and two cool ones lower down. */
