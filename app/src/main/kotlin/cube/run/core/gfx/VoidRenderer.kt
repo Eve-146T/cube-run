@@ -137,7 +137,7 @@ class VoidRenderer(mb: ModelBuilder) : Disposable {
             float ang = atan(v_uv.y, v_uv.x);
             // The far side of the disk, lensed into a ring: bright over the top, thinner beneath.
             float over = 0.5 + 0.5 * sin(ang + u_tilt); // 1 straight over the top
-            float band = exp(-pow((d - 1.18) / (0.12 + 0.16 * over), 2.0));
+            float band = exp(-pow((d - 1.2) / (0.14 + 0.22 * over), 2.0)) * (0.6 + 0.9 * over);
             // The photon ring: thin, brighter on the approaching (left) side, melting into the arc.
             float photon = exp(-pow((d - 1.03) / 0.02, 2.0)) * (0.35 + 0.35 * cos(ang - 3.14159));
             float swirl = 0.75 + 0.25 * sin(ang * 6.0 - u_time * 2.4 + d * 9.0);

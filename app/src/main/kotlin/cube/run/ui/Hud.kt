@@ -301,21 +301,16 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false) : Fr
             Stage.voidCoinX = at.x / width.coerceAtLeast(1); Stage.voidCoinY = at.y / height.coerceAtLeast(1)
         }
         // A beat for the press to land where you tapped, then the sheet drops away.
-        shop?.animate()?.translationY(height * .35f)?.alpha(0f)?.setStartDelay(160)?.setDuration(420)
-            ?.setInterpolator(Anim.ease)?.setUpdateListener { Anim.repaint(this) }?.start()
+        shop?.stepAside(away = true)
         lateinit var fx: VoidShowOverlay
         fx = VoidShowOverlay(activity, kit, Progress.voidLine, onReturn = {
             onCovered() // the next offering is in place before the page comes back
-            // Opaque at once, sliding up: never a see-through sheet over the stage.
-            shop?.alpha = 1f
-            shop?.animate()?.translationY(0f)?.setStartDelay(0)?.setDuration(560)
-                ?.setInterpolator(Anim.ease)?.setUpdateListener { Anim.repaint(this) }?.start()
+            shop?.stepAside(away = false)
         }, onEnd = {
             if (voidPurchase === fx) {
                 voidPurchase = null
                 removeView(fx)
-                shop?.animate()?.cancel()
-                shop?.translationY = 0f; shop?.alpha = 1f
+                shop?.stepAside(away = false, instant = true)
                 shop?.importantForAccessibility = oldShopAccessibility ?: IMPORTANT_FOR_ACCESSIBILITY_AUTO
                 menu.importantForAccessibility = oldMenuAccessibility
                 onFinished()
@@ -324,7 +319,8 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false) : Fr
         })
         voidPurchase = fx
         addView(fx, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
-        Stage.voidRequests.incrementAndGet()
+        // The stage starts as the sheet starts to move, so the camera never drags the cube under it.
+        postDelayed({ if (voidPurchase === fx) Stage.voidRequests.incrementAndGet() }, 120)
     }
 
     private fun centreOf(v: View): android.graphics.PointF {

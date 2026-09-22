@@ -81,6 +81,26 @@ class ShopView(
 
     internal fun darknessFocus(): View? = cards["darkness"]
 
+    /**
+     * The void show wants the whole stage: the sheet drops away and the header fades in place
+     * (a header translated over the GL surface paints a frame late). [away] = false brings the
+     * sheet back opaque, sliding up; [instant] snaps to the resting state.
+     */
+    internal fun stepAside(away: Boolean, instant: Boolean = false) {
+        content.animate().cancel(); topBar.animate().cancel()
+        if (instant) { content.translationY = 0f; content.alpha = 1f; topBar.alpha = 1f; return }
+        if (away) {
+            content.animate().translationY(height * .45f).alpha(0f).setStartDelay(120).setDuration(380)
+                .setInterpolator(Anim.ease).setUpdateListener { Anim.repaint(this) }.start()
+            topBar.animate().alpha(0f).setStartDelay(120).setDuration(260).setUpdateListener { Anim.repaint(this) }.start()
+        } else {
+            content.alpha = 1f
+            content.animate().translationY(0f).setStartDelay(0).setDuration(560)
+                .setInterpolator(Anim.ease).setUpdateListener { Anim.repaint(this) }.start()
+            topBar.animate().alpha(1f).setStartDelay(260).setDuration(300).setUpdateListener { Anim.repaint(this) }.start()
+        }
+    }
+
     // Keep a payment's target fixed until it settles, including the short coin flight.
     override fun dispatchTouchEvent(event: MotionEvent): Boolean =
         if (paying) true else super.dispatchTouchEvent(event)

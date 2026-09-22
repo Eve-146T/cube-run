@@ -2,10 +2,6 @@ package cube.run.ui
 
 import android.annotation.SuppressLint
 import android.content.Context
-import android.graphics.Color
-import android.text.SpannableString
-import android.text.Spanned
-import android.text.style.ForegroundColorSpan
 import android.view.Gravity
 import android.view.MotionEvent
 import android.widget.FrameLayout
@@ -30,7 +26,7 @@ internal class VoidShowOverlay(
 ) : FrameLayout(context) {
     private val words = kit.stageText("", 26f).apply {
         gravity = Gravity.CENTER
-        setShadowLayer(0f, 0f, 0f, 0) // no drop shadow (it would also show the untyped words)
+        setShadowLayer(0f, 0f, 0f, 0) // no drop shadows
         importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO
     }
     private var started = false
@@ -94,9 +90,7 @@ internal class VoidShowOverlay(
         if (chars != shown) {
             if (chars > shown && chars > 0 && !line[chars - 1].isWhitespace()) SoundFx.play("tap", rate = .55f + (chars * 7 % 5) * .03f, vol = .25f)
             shown = chars
-            words.text = SpannableString(line).apply {
-                if (chars < line.length) setSpan(ForegroundColorSpan(Color.TRANSPARENT), chars, line.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
-            }
+            words.text = typed(chars)
             if (chars == line.length) contentDescription = line
         }
         words.alpha = 1f - VoidBeats.span(t, VoidBeats.RETURN - 0.3f, VoidBeats.RETURN)
@@ -104,6 +98,29 @@ internal class VoidShowOverlay(
         // The sheet only rises once the camera has carried the cube clear of it.
         if (!returned && t >= VoidBeats.SHEET) { returned = true; onReturn() }
         Anim.repaint(this)
+    }
+
+    private var breaks: IntArray? = null
+
+    /**
+     * The first [chars] of the line, broken where the whole sentence will break, so each line
+     * grows from the centre and nothing re-wraps while it types.
+     */
+    private fun typed(chars: Int): String {
+        val width = words.width - words.totalPaddingLeft - words.totalPaddingRight
+        val ends = breaks ?: if (width <= 0) return line.substring(0, chars) else
+            android.text.StaticLayout.Builder.obtain(line, 0, line.length, words.paint, width).build().let { layout ->
+                IntArray(layout.lineCount) { layout.getLineEnd(it) }
+            }.also { breaks = it }
+        val out = StringBuilder()
+        var start = 0
+        for (end in ends) {
+            if (chars <= start) break
+            if (out.isNotEmpty()) out.append('\n')
+            out.append(line, start, minOf(chars, end).coerceAtLeast(start))
+            start = end
+        }
+        return out.toString().trimEnd()
     }
 
     private fun finish() {

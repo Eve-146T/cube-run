@@ -460,7 +460,7 @@ class Player(private val game: Gdx3DGame, private val rnd: Random) {
         emissive.color.set(voidEmissive).lerp(glowCol.r * 0.3f, glowCol.g * 0.3f, glowCol.b * 0.3f, 1f, glow)
         inst.transform.setToTranslation(x, y, z).rotate(Vector3.Z, tip).rotate(Vector3.Y, yaw).rotate(Vector3.X, 12f).scale(sx * 0.9f, sy * 0.9f, sz * 0.9f)
         val pulse = glowScale(time)
-        shellBlend.opacity = shellOpacity(time) + 0.15f * glow
+        shellBlend.opacity = shellOpacity(time)
         shellInst.transform.setToTranslation(x, y, z).rotate(Vector3.Z, tip).rotate(Vector3.Y, yaw).rotate(Vector3.X, 12f).scale(sx * pulse, sy * pulse, sz * pulse)
     }
 
