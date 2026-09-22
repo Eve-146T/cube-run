@@ -160,13 +160,17 @@ class AbilityVisualReviewTest {
                             }))
                             call(game, "collectCoin", Coin(0f, .5f, 0f), 0f)
                         }
-                        capture("jackpot-overlay", 350)
+                        gl { Stage.paused = false }
+                        capture("jackpot-rise", 900)
                         if (InstrumentationRegistry.getArguments().getString("jackpotOnly") == "true") {
-                            capture("jackpot-impact", 350)
-                            capture("jackpot-shower", 650)
-                            capture("jackpot-tail", 1000)
-                            capture("jackpot-finished", 1700)
+                            capture("jackpot-burst", 600)
+                            capture("jackpot-fountain", 1400)
+                            capture("jackpot-slam", 1500)
+                            capture("jackpot-gather", 900)
+                            capture("jackpot-return", 900)
+                            capture("jackpot-finished", 1200)
                         }
+                        gl { Stage.paused = true }
                     }
                     if (skin == 22) {
                         gl { game ->

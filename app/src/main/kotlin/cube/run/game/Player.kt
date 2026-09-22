@@ -416,6 +416,29 @@ class Player(private val game: Gdx3DGame, private val rnd: Random) {
         px = x; py = yy
     }
 
+    /**
+     * The jackpot pose at ([x],[y]): turned [yaw], tipped [tip], its colour
+     * blended [gold] of the way to [goldCol]. Leaves [px]/[py] alone, so the
+     * run resumes from where the cube actually was.
+     */
+    fun jackpotPose(time: Float, baseHue: Float, x: Float, y: Float, yaw: Float, tip: Float, scale: Float, gold: Float, goldCol: Color) {
+        zappyFx?.clear()
+        hsvInto(col, skin.hueAt(time, baseHue), skin.sat, skin.valueAt(time)).lerp(goldCol, gold)
+        visualTime = time
+        hsvInto(shellCol, skin.hueAt(time, baseHue), skin.sat * 0.9f, 1f).lerp(goldCol, gold)
+        // The Gambler already strobes yellow: the jackpot makes the cube shine from within instead.
+        // The run's next update resets the emission through openingMaterial.
+        val material = inst.materials.first()
+        val glow = material.get(ColorAttribute.Emissive) as? ColorAttribute
+            ?: ColorAttribute.createEmissive(0f, 0f, 0f, 1f).also { material.set(it) }
+        glow.color.set(goldCol.r * 0.32f * gold, goldCol.g * 0.24f * gold, goldCol.b * 0.05f * gold, 1f)
+        val sc = 0.9f * scale
+        inst.transform.setToTranslation(x, y, 0f).rotate(Vector3.Y, yaw).rotate(Vector3.X, tip).scale(sc, sc, sc)
+        val pulse = glowScale(time) * scale * (1f + 0.12f * gold)
+        shellBlend.opacity = shellOpacity(time) + 0.1f * gold
+        shellInst.transform.setToTranslation(x, y, 0f).rotate(Vector3.Y, yaw).rotate(Vector3.X, tip).scale(pulse, pulse, pulse)
+    }
+
     private fun shellOpacity(time: Float): Float {
         if (skin.id == Skins.VOID_ID) return .025f + .012f * sin(time * 1.8f)
         val glow = ((0.22f + 0.08f * sin(time * 6f)) * skin.glow).coerceAtMost(0.75f)

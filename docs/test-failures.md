@@ -1,5 +1,13 @@
 # Test failure history
 
+## 2026-09-22 — Developer Gambler achievement total read before the jackpot show banked it
+
+- Revision: `jackpot` based on `0c94532`, working changes (3D jackpot show).
+- Test: `EquippedAbilitiesTest.developerGamblerUsesTheSameJackpotAndNeverCollectsOrdinaryBoxes`.
+- Command/device: `ANDROID_SERIAL=ZY323NNKTB ./gradlew :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=cube.run.ui.JackpotCounterTest,cube.run.game.EquippedAbilitiesTest,cube.run.game.LotteryRulesTest`, moto g(7) power, Android 15.
+- Failure: `expected:<250000> but was:<0>` for `Progress.achievementCoins` right after the winning coin.
+- Classification: stale expectation. The run owns the win at once (`coinsRun` was correct), but the HUD haul and the achievement total now update when the show's counter lands in the coin pill (`JackpotBeats.BANKED`). The test now plays the show out before checking; `gamblerForfeitsOrdinaryLootAndRichCoinsGiveThreeTickets` was adjusted the same way before it could fail.
+
 ## 2026-09-21 — Jackpot instrumentation exited after APK replacement
 
 - Revision: `jackpot` based on `884170f`, working changes.

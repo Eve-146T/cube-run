@@ -99,6 +99,11 @@ class EquippedAbilitiesTest {
         }
     }
     private fun coin(game: CubeRun) = call(game, "collectCoin", Coin(0f, .5f, 0f), 0f)
+    /** Play a running jackpot show to its end; the HUD total only follows when its counter lands. */
+    private fun finishJackpot(game: CubeRun) {
+        var frames = 0
+        while (Stage.jackpotClock >= 0f && frames++ < 1000) game.tick(1f / 60f)
+    }
     private fun pickup(game: CubeRun, kind: Int) {
         val row = Row(0f, arrayListOf()).apply { pickup = kind }
         call(game, "collectPickup", row, 0f)
@@ -182,7 +187,40 @@ class EquippedAbilitiesTest {
         pickup(game, Pickup.BOX)
         assertEquals(2 * Lottery.JACKPOT, read<Int>(game, "coinsRun"))
         assertEquals("Lottery boxes never enter the ordinary opening queue", 0, read<Int>(game, "boxesRun"))
-        assertEquals(2 * Lottery.JACKPOT, Progress.achievementCoins)
+        finishJackpot(game)
+        assertEquals("Wins during one show are counted in together", 2 * Lottery.JACKPOT, Progress.achievementCoins)
+    }
+
+    @Test fun jackpotHoldsTheRunClearsTheRoadAndShowsTheWinWhenTheCounterLands() = fixture(1) { game ->
+        val track = read<Track>(game, "track")
+        val session = game.session
+        val shown = field(session, "coinsV").get(session) as java.util.concurrent.atomic.AtomicInteger
+        val ahead = Row(-20f, arrayListOf(cube.run.game.track.Ob(com.badlogic.gdx.graphics.Color.RED, 0f, .5f, .5f,
+            cube.run.game.track.ObType.SOLID, 1f, 1f, 1f))).apply { pop = 1f }
+        track.rows.add(ahead)
+        field(game, "lottery").set(game, Lottery(Draws(0.0)))
+        coin(game)
+        assertEquals("The win belongs to the run at once", Lottery.JACKPOT, read<Int>(game, "coinsRun"))
+        assertEquals(0f, Stage.jackpotClock, 0f)
+        assertEquals(Lottery.JACKPOT, Stage.jackpotAmount)
+        val dist = read<Float>(game, "dist")
+        val step = 1f / 60f
+        fun advanceTo(seconds: Float) { while (Stage.jackpotClock in 0f..seconds) game.tick(step) }
+        advanceTo(cube.run.core.JackpotBeats.BURST - .1f)
+        assertEquals("The road waits for the burst", 1, ahead.obs.size)
+        assertEquals("The HUD still shows the old haul while the counter rolls", 0, shown.get())
+        advanceTo(cube.run.core.JackpotBeats.BURST + 1f)
+        assertTrue("The shockwave shattered the obstacle ahead", ahead.obs.isEmpty())
+        assertEquals("Nothing scrolls while the show plays", dist, read<Float>(game, "dist"), 0f)
+        advanceTo(cube.run.core.JackpotBeats.BANKED + .05f)
+        assertEquals("The haul shows the win when the counter lands", Lottery.JACKPOT, shown.get())
+        var frames = 0
+        while (Stage.jackpotClock >= 0f && frames++ < 600) game.tick(step)
+        assertEquals("The show ends and hands the clock back", -1f, Stage.jackpotClock, 0f)
+        assertEquals(0, Stage.jackpotAmount)
+        game.tick(step)
+        assertTrue("The run moves again", read<Float>(game, "dist") > dist)
+        assertEquals(Lottery.JACKPOT, read<Int>(game, "coinsRun"))
     }
 
     @Test fun missedBoxesCountOnlyAfterPassingAndOnlyOnceWhileAlive() = fixture(0) { game ->
@@ -210,6 +248,7 @@ class EquippedAbilitiesTest {
         val initialBoxes = read<Int>(game, "boxesRun")
         pickup(game, Pickup.BOX)
         assertEquals(initialBoxes, read<Int>(game, "boxesRun"))
+        finishJackpot(game)
         assertEquals(Lottery.JACKPOT, Progress.achievementCoins)
     }
 }

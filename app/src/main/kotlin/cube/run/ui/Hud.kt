@@ -100,7 +100,10 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false) : Fr
     @Volatile private var giftReturnGeneration = 0
     private var voidPurchase: VoidPurchaseView? = null
     private val achievementToast = AchievementToast(activity, kit)
-    private val jackpotToast = JackpotToast(activity, kit)
+    private val jackpotCounter = JackpotCounter(activity, kit, { haulCentre() }) { showing ->
+        // the BOOST chevrons stand aside while the jackpot plays
+        boost?.move()?.alpha(if (showing) 0f else 1f)?.setDuration(220)?.start()
+    }
     private val pollAchievements = object : Runnable {
         override fun run() {
             if (!isAttachedToWindow) return
@@ -131,10 +134,7 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false) : Fr
         addView(achievementToast, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT).apply {
             gravity = Gravity.BOTTOM; bottomMargin = dp(32f); leftMargin = dp(22f); rightMargin = dp(22f)
         })
-        addView(jackpotToast, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT).apply {
-            leftMargin = dp(14f); rightMargin = dp(14f)
-        })
-        topBox.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ -> positionJackpot() }
+        addView(jackpotCounter, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
         setBubbles(Progress.bubbles)
         setOnApplyWindowInsetsListener { _, insets ->
             val (l, t, r, b) = insetsOf(insets)
@@ -241,7 +241,7 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false) : Fr
         removeCallbacks(prepareShop)
         preparedShop = null
         achievementToast.reset()
-        jackpotToast.reset()
+        jackpotCounter.reset()
         bonusVisited.clear()
         score = 0; scoreText.text = "0"
         runCoins = 0; kit.labelOf(haul).text = "0"
@@ -424,27 +424,26 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false) : Fr
 
     /** Coins collected this run: the counter pops on each pickup. */
     fun setRunCoins(v: Int) {
+        val jump = v - runCoins >= 1000 // a jackpot landing in the pill gets a real pop
         runCoins = v
         kit.labelOf(haul).text = number(v)
-        Anim.pulse(haul, 1.18f, 160)
+        if (jump) Anim.pulse(haul, 1.45f, 320) else Anim.pulse(haul, 1.18f, 160)
     }
 
-    /** Coins are already in the run haul; celebrate without changing the saved bank. */
+    /** The 3D jackpot show began: its counter rolls the win into the haul, which updates when it lands. */
     fun showJackpot(amount: Int) {
         if (!runStarted || runOver != null || amount <= 0) return
-        positionJackpot()
-        jackpotToast.show(amount)
+        jackpotCounter.show()
     }
 
-    private fun positionJackpot() {
-        val params = jackpotToast.layoutParams as? LayoutParams ?: return
-        val top = topBox.bottom + dp(10f)
-        val right = if ((0 until childCount).any { getChildAt(it) is BoostArrows }) dp(104f) else dp(14f)
-        if (params.topMargin != top || params.rightMargin != right) {
-            params.topMargin = top
-            params.rightMargin = right
-            jackpotToast.layoutParams = params
-        }
+    private val haulAt = IntArray(2)
+    private val hudAt = IntArray(2)
+
+    /** Where the counter lands: the coin pill's centre, in this view's coordinates. */
+    private fun haulCentre(): android.graphics.PointF? {
+        if (!haul.isLaidOut || topBox.visibility != VISIBLE) return null
+        haul.getLocationInWindow(haulAt); getLocationInWindow(hudAt)
+        return android.graphics.PointF(haulAt[0] - hudAt[0] + haul.width / 2f, haulAt[1] - hudAt[1] + haul.height / 2f)
     }
 
     fun setBoxes(n: Int) {
@@ -501,10 +500,8 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false) : Fr
             b.taps = taps
             b.move().translationX(dpf(if (layoutDirection == View.LAYOUT_DIRECTION_RTL) -120f else 120f)).alpha(0f).setDuration(260).setInterpolator(Anim.ease).withEndAction {
                 removeView(b)
-                positionJackpot()
             }.start()
         }
-        positionJackpot()
     }
 
     /** A run has begun: the menu drops away, the HUD and the pause chip pop in. */
@@ -517,8 +514,8 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false) : Fr
         Achievements.drainUnlocks()
         achievementToast.reset()
         achievementToast.setRunActive(true)
-        jackpotToast.reset()
-        jackpotToast.setRunActive(true)
+        jackpotCounter.reset()
+        jackpotCounter.setRunActive(true)
         page?.let { removeView(it); page = null }
         menu.hide()
         setBubbles(bubbleStock)
@@ -535,14 +532,14 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false) : Fr
         if (!runStarted || runOver != null || pauseSheet != null) return
         Stage.paused = true
         achievementToast.setRunActive(false)
-        jackpotToast.setRunActive(false)
+        jackpotCounter.setRunActive(false)
         pauseChip.visibility = INVISIBLE
         val sheet = PauseSheet(activity, kit,
             onResume = {
                 pauseSheet = null
                 Stage.paused = false
                 achievementToast.setRunActive(true)
-                jackpotToast.setRunActive(true)
+                jackpotCounter.setRunActive(true)
                 pauseChip.visibility = VISIBLE
                 Anim.popIn(pauseChip, 0, 0.6f)
             },
@@ -575,7 +572,7 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false) : Fr
 
     fun showRunOver(score: Int, best: Int, isNewBest: Boolean, coins: Int, boxes: Int, shards: IntArray = IntArray(3)) {
         achievementToast.setRunActive(false)
-        jackpotToast.reset()
+        jackpotCounter.reset()
         if (Stage.botPlaying && Settings.devMode) {
             relaunch(autoStart = true, idleBot = true)
             return

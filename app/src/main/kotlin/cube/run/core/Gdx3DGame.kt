@@ -382,6 +382,9 @@ abstract class Gdx3DGame(val session: GameSession) : ApplicationAdapter(), Touch
         slowLeft = max(slowLeft, seconds)
     }
 
+    /** Drop any hit-stop at once: a show that owns the clock must not play in slow motion. */
+    fun releaseSlowMo() { slowLeft = 0f; timeScale = 1f }
+
     /** Cube-shard explosion at a world position. Allocation-free in steady state (pooled). */
     fun burst3d(at: Vector3, color: Color, n: Int = 14, speed: Float = 6f, size: Float = 0.16f, life: Float = 0.8f, gravity: Float = 14f, biasZ: Float = 0f) =
         shards.burst(at, color, n, speed, size, life, gravity, biasZ)
