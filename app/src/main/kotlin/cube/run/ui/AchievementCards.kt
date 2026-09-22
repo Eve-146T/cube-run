@@ -203,7 +203,7 @@ internal class AchievementCards(
                     }
                     else -> null
                 }
-                if (tier == state.claimableTier) Anim.cancelOnDetach(this, Anim.heartbeat(this, 1.12f, 1000))
+                if (tier == state.claimableTier) Anim.cancelOnDetach(this, beat(this))
                 contentDescription = "${medalName(tier)}: ${when {
                     tier < state.claimedTiers -> "claimed"
                     tier < state.earnedTiers -> "reward ready"
@@ -271,6 +271,18 @@ internal class AchievementCards(
             contentDescription = "Claim ${number(amount)} coins for ${state.definition.title}"
         }
         return button
+    }
+
+    /** A handful of beats on the medal that is waiting, then it settles: the page must reach idle. */
+    private fun beat(v: View): ValueAnimator = ValueAnimator.ofFloat(1f, 1.14f, 1f).apply {
+        duration = 950; repeatCount = 5
+        interpolator = Anim.ease
+        addUpdateListener {
+            val k = it.animatedValue as Float
+            v.scaleX = k; v.scaleY = k
+            Anim.repaint(v)
+        }
+        start()
     }
 
     /** A card face with a darker lip under it. Waiting rewards get a gold edge; claimed ones fade back. */
@@ -356,13 +368,14 @@ internal class ChallengeGrid(context: Context, private val kit: UiKit) : ViewGro
 }
 
 /**
- * A card's coloured band. While a reward waits on its card, a soft sheen sweeps across it every
- * few seconds, clipped to the band's rounded corners.
+ * A card's coloured band. When a reward is waiting on its card, a soft sheen sweeps across it a
+ * few times, clipped to the band's rounded corners, and then the band goes quiet.
  */
 @SuppressLint("ViewConstructor")
 internal class SheenBand(context: Context, val corners: FloatArray) : LinearLayout(context) {
     var shine = false
         set(value) { field = value; setWillNotDraw(!value); invalidate() }
+    private var sweeps = 0
     private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
     private val clip = Path()
     private val box = RectF()
@@ -377,7 +390,10 @@ internal class SheenBand(context: Context, val corners: FloatArray) : LinearLayo
     override fun dispatchDraw(canvas: Canvas) {
         super.dispatchDraw(canvas)
         if (!shine || width == 0) return
-        val t = (SystemClock.uptimeMillis() - born).mod(SWEEP_EVERY)
+        if (sweeps >= SWEEPS) return
+        val elapsed = SystemClock.uptimeMillis() - born
+        sweeps = (elapsed / SWEEP_EVERY).toInt()
+        val t = elapsed.mod(SWEEP_EVERY)
         if (t < SWEEP) {
             val p = t / SWEEP.toFloat()
             val x = -width * .5f + width * 2f * (p * p * (3f - 2f * p))
@@ -396,6 +412,7 @@ internal class SheenBand(context: Context, val corners: FloatArray) : LinearLayo
     private companion object {
         const val SWEEP = 900L
         const val SWEEP_EVERY = 3200L
+        const val SWEEPS = 3
     }
 }
 

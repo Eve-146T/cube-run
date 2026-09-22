@@ -1,5 +1,14 @@
 # Test failure history
 
+## 2026-09-22 — Trophy-room idle animation stalled the achievement UI suite
+
+- Revision: `jackpot` at `3e1ff83` (the rebuilt achievement page).
+- Tests: `AchievementDevModeUiTest` (all), `AchievementAlignmentTest`, `AchievementToastTest`.
+- Command/device: `./gradlew :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=cube.run.ui.AchievementAlignmentTest,cube.run.ui.AchievementDevModeUiTest,cube.run.ui.AchievementToastTest`, moto g(7) power (ZY323NNKTB), Android 15.
+- Failure: two problems. `developerCanClaimOnceWithoutRedundantRunnerBestAndProgressPersists` died on activity destroy with `NullPointerException: ... View.dispatchDetachedFromWindow()` on a null child, and the suite crawled: `bouncerPersonalBestRemainsVisibleBeforeCompletionAndAfterClaim` alone took 9 minutes, so a first attempt was abandoned as hung.
+- Classification: two application bugs in the new page. The claim stamp's rings removed themselves from an `onAnimationEnd` that also fires on cancel, so a cancel during the window's detach walk left a hole in the parent's children. Separately the trophy ring repainted every frame for its turning rays, and the waiting medal beat forever, so the page never went idle — `ActivityScenario.onActivity` waits for global UI idle (the same cause recorded for the jackpot toast on 2026-09-21).
+- Resolution: the ring stamp ignores cancelled animations; the ring's rays are now still, the medal beats six times and the card sheen sweeps three times, so everything settles. All 8 tests pass, and the suite went from over 14 minutes to 47 seconds.
+
 ## 2026-09-22 — Developer Gambler achievement total read before the jackpot show banked it
 
 - Revision: `jackpot` based on `0c94532`, working changes (3D jackpot show).

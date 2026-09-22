@@ -8,11 +8,9 @@ import android.graphics.Matrix
 import android.graphics.Paint
 import android.graphics.Path
 import android.graphics.RadialGradient
-import android.graphics.Rect
 import android.graphics.RectF
 import android.graphics.Shader
 import android.graphics.SweepGradient
-import android.os.SystemClock
 import android.view.Gravity
 import android.view.View
 import android.widget.ImageView
@@ -132,8 +130,8 @@ internal class AchievementHero(context: Context, private val kit: UiKit, onClaim
 
 /**
  * A trophy in a ring of every medal colour. The ring fills to the share of achievements earned,
- * a bright spark riding its leading end; slow sunburst rays turn behind the cup while it is on
- * screen.
+ * a bright spark riding its leading end, over a still sunburst behind the cup. Nothing here
+ * repaints once the fill has landed: a page that never goes idle stalls instrumented tests.
  */
 private class TrophyRing(context: Context, private val kit: UiKit) : View(context) {
     private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
@@ -141,7 +139,6 @@ private class TrophyRing(context: Context, private val kit: UiKit) : View(contex
     private val arc = RectF()
     private val rays = Path()
     private val disc = Path()
-    private val seen = Rect()
     private var amount = 0f
     private var animator: ValueAnimator? = null
     private var glow: RadialGradient? = null
@@ -192,10 +189,8 @@ private class TrophyRing(context: Context, private val kit: UiKit) : View(contex
         paint.style = Paint.Style.FILL
         paint.shader = glow; canvas.drawCircle(cx, cy, minOf(width, height) / 2f, paint)
         paint.shader = inner; canvas.drawCircle(cx, cy, r - stroke / 2f, paint); paint.shader = null
-        // The rays turn by the clock, so they keep their place however often the page repaints.
         val saved = canvas.save()
         canvas.clipPath(disc)
-        canvas.rotate((SystemClock.uptimeMillis() % 30000L) * .012f, cx, cy)
         paint.color = Theme.alpha(Theme.WHITE, 20); canvas.drawPath(rays, paint)
         canvas.restoreToCount(saved)
         arc.set(cx - r, cy - r, cx + r, cy + r)
@@ -216,7 +211,5 @@ private class TrophyRing(context: Context, private val kit: UiKit) : View(contex
         val cup = r * 1.1f
         trophy.setBounds((cx - cup / 2f).toInt(), (cy - cup / 2f - kit.dpf(2f)).toInt(), (cx + cup / 2f).toInt(), (cy + cup / 2f - kit.dpf(2f)).toInt())
         trophy.draw(canvas)
-        if (isShown && getLocalVisibleRect(seen)) postInvalidateOnAnimation()
-        else postDelayed({ invalidate() }, 250)
     }
 }
