@@ -61,6 +61,18 @@ object Stage {
     /** Coins the playing jackpot pays (several simultaneous wins add up). GL-owned. */
     @Volatile var jackpotAmount = 0
 
+    /** The shop asked the void to take its offering (see [VoidBeats]). */
+    val voidRequests = AtomicInteger(0)
+    /** A tap after the blast: skip to the shop's return. */
+    val voidSkips = AtomicInteger(0)
+    /** Seconds into the void show, or -1 when none is playing. GL-owned. */
+    @Volatile var voidClock = -1f
+    /** How much of the offering has gone down the hole (0..1): the bank drains coin by coin. GL-owned. */
+    @Volatile var voidFed = 0f
+    /** Where on screen (0..1 from the top-left) the coins leave from: the bank pill. */
+    @Volatile var voidCoinX = 0.8f
+    @Volatile var voidCoinY = 0.07f
+
     /** Dev tool: the pause card asked for the run to end now (crash → results). */
     @Volatile var endRun = false
 
@@ -106,6 +118,9 @@ object Stage {
         endRun = false
         jackpotClock = -1f
         jackpotAmount = 0
+        voidRequests.set(0)
+        voidSkips.set(0)
+        voidClock = -1f
         openRequests.set(0)
         skipBoxRequests.set(0)
         giftShowing = false

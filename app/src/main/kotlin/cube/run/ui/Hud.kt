@@ -98,7 +98,7 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false) : Fr
     private var shopBox: RunOverFlow? = null
     private var giftReturnCover: View? = null
     @Volatile private var giftReturnGeneration = 0
-    private var voidPurchase: VoidPurchaseView? = null
+    private var voidPurchase: VoidShowOverlay? = null
     private val achievementToast = AchievementToast(activity, kit)
     private val jackpotCounter = JackpotCounter(activity, kit, { haulCentre() }) { showing ->
         // the BOOST chevrons stand aside while the jackpot plays
@@ -285,6 +285,11 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false) : Fr
         if (!pageOpen() && Progress.achievementsUnlocked) open(AchievementsView(activity, kit) { closed() })
     }
 
+    /**
+     * The void takes its offering on the 3D stage (game.stage.VoidShow): the shop page drops
+     * away so the show has the whole screen, only the bank stays up (its coins pour into the
+     * hole), and the page rises back, already showing the next offering, when the show says so.
+     */
     private fun showVoidPurchase(onCovered: () -> Unit, onFinished: () -> Unit) {
         if (voidPurchase != null) return
         val shop = page as? ShopView
@@ -292,46 +297,37 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false) : Fr
         val oldMenuAccessibility = menu.importantForAccessibility
         shop?.importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS
         menu.importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS
-        lateinit var fx: VoidPurchaseView
-        // The clue stays in the dialogue; discovered cosmetics are found in the wardrobe.
-        fx = VoidPurchaseView(activity, Progress.voidLine) {
-            // Rebuild and lay out the evolving card behind an opaque frame. The first
-            // visible shop frame is already settled at the same end of the list.
-            onCovered()
-            viewTreeObserver.addOnPreDrawListener(object : ViewTreeObserver.OnPreDrawListener {
-                override fun onPreDraw(): Boolean {
-                    viewTreeObserver.removeOnPreDrawListener(this)
-                    if (voidPurchase === fx) {
-                        val item = shop?.darknessFocus()
-                        // A tap can leave the price flush with the viewport edge. Settle its
-                        // full face and lower margin while the opaque scene still covers it.
-                        item?.findViewWithTag<android.view.View>("void_price_button")?.let { price ->
-                            price.requestRectangleOnScreen(android.graphics.Rect(0, -dp(8f),
-                                price.width, price.height + dp(16f)), true)
-                        }
-                        val hostPosition = IntArray(2); val itemPosition = IntArray(2)
-                        getLocationInWindow(hostPosition)
-                        item?.getLocationInWindow(itemPosition)
-                        val x = item?.let { itemPosition[0] - hostPosition[0] + it.width / 2f } ?: width / 2f
-                        val y = item?.let { itemPosition[1] - hostPosition[1] + it.height / 2f } ?: height * .7f
-                        fx.returnTo(x, y) {
-                            voidPurchase = null
-                            removeView(fx)
-                            shop?.importantForAccessibility = oldShopAccessibility ?: IMPORTANT_FOR_ACCESSIBILITY_AUTO
-                            menu.importantForAccessibility = oldMenuAccessibility
-                            onFinished()
-                            item?.let { Anim.pulse(it, 1.018f, 280) }
-                            Anim.repaint(this@Hud)
-                        }
-                    }
-                    return true
-                }
-            })
-            requestLayout()
+        centreOf(menu.shopBalance).let { at ->
+            Stage.voidCoinX = at.x / width.coerceAtLeast(1); Stage.voidCoinY = at.y / height.coerceAtLeast(1)
         }
+        shop?.animate()?.translationY(height * .35f)?.alpha(0f)?.setDuration(420)
+            ?.setInterpolator(Anim.ease)?.setUpdateListener { Anim.repaint(this) }?.start()
+        lateinit var fx: VoidShowOverlay
+        fx = VoidShowOverlay(activity, kit, Progress.voidLine, onReturn = {
+            onCovered() // the next offering is in place before the page comes back
+            shop?.animate()?.translationY(0f)?.alpha(1f)?.setDuration(560)
+                ?.setInterpolator(Anim.ease)?.setUpdateListener { Anim.repaint(this) }?.start()
+        }, onEnd = {
+            if (voidPurchase === fx) {
+                voidPurchase = null
+                removeView(fx)
+                shop?.animate()?.cancel()
+                shop?.translationY = 0f; shop?.alpha = 1f
+                shop?.importantForAccessibility = oldShopAccessibility ?: IMPORTANT_FOR_ACCESSIBILITY_AUTO
+                menu.importantForAccessibility = oldMenuAccessibility
+                onFinished()
+                Anim.repaint(this@Hud)
+            }
+        })
         voidPurchase = fx
         addView(fx, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
-        fx.play()
+        Stage.voidRequests.incrementAndGet()
+    }
+
+    private fun centreOf(v: View): android.graphics.PointF {
+        val host = IntArray(2); val at = IntArray(2)
+        getLocationInWindow(host); v.getLocationInWindow(at)
+        return android.graphics.PointF(at[0] - host[0] + v.width / 2f, at[1] - host[1] + v.height / 2f)
     }
 
     private fun openPurchasedBox(reward: Progress.BoxReward) {

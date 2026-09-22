@@ -96,3 +96,21 @@
 - Failure: Kotlin compilation failed because removing the Hebrew language charge also removed the `Progress` import from `GameActivity`, where two unrelated calls still use it.
 - Classification: application compile error
 - Resolution: restored the shared import and reran the build.
+
+## 2026-09-22 — Void purchase hardware flow killed mid-run
+
+- Revision: `jackpot` at `1c31c8c` with the uncommitted void-purchase redesign
+- Test: `cube.run.ui.AchievementsHardwareFlowTest.actualShopButtonsAndRunEventsReachThePlayer`
+- Command/device: `./gradlew :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=cube.run.ui.AchievementsHardwareFlowTest,cube.run.ui.AchievementDevModeUiTest -Pandroid.testInstrumentationRunnerArguments.captureHardwareAchievements=true` on the shared moto g(7) power (`ZY323NNKTB`, Android 15)
+- Failure: "Instrumentation run failed due to Process crashed" after about 10.5 minutes with no application exception; logcat shows `cube.run` being updated by another session's install at 10:00:26 and the process killed with signal 9. No test log lines appeared for the ten minutes before that.
+- Classification: environment problem (another agent installed its build on the shared phone). While investigating, the test's void-return assertions also turned out to be stale for the redesign: they require a circular mask that uncovers transparent pixels, and the new return is an opaque picture of the shop unwinding out of the hole.
+- Resolution: rewrote the return assertions for the new design (the scene stays fully opaque and less of the void's dark remains at each later point) and reran once the phone was free.
+
+## 2026-09-22 — Void purchase hardware flow never finishes
+
+- Revision: `jackpot` at `1c31c8c` with the uncommitted void-purchase redesign
+- Test: `cube.run.ui.AchievementsHardwareFlowTest.actualShopButtonsAndRunEventsReachThePlayer`
+- Command/device: same class filter as the entry above, on the moto g(7) power (`ZY323NNKTB`); the phone was otherwise idle this time
+- Failure: the runner logged `started:` at 10:05:21 and then nothing for more than 15 minutes; the run was stopped by hand. The first run of the day showed the same silence before another session's install killed it.
+- Classification: hanging test, not yet localized. It matches the known global-UI-idle wait under continuous GL rendering (see the 2026-09-21 LanguageTest entry), but whether the void card's always-on animation contributes was not established.
+- Resolution: stopped. The void purchase was verified on the phone by hand instead (screen recordings of the whole purchase, frame-by-frame review); this test needs a launch that does not wait for global idle before it can be relied on again.

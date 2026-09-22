@@ -129,16 +129,21 @@ part of this reward pool, including after discovery.
 
 ## The void
 
-The bottom shop item appears at 100,000 lifetime coins, or immediately in dev mode. It uses a nearly black
-surface, a layered square aperture, and evolving dialogue. Payment immediately opens an
-opaque fullscreen scene above the whole HUD, including the shared coin balance.
-Gold coins and dust spiral into a contracting rim, pale rings expand at impact,
-and the next line appears. Milestone offerings keep the discovery in the dialogue;
-the cosmetic itself is found in the wardrobe. The background stays opaque through
-the final frame; the updated offering lays out and restores its scroll position before a 580 ms circular mask
-contracts back into that item. This return reveals the shop gradually while
-keeping the remaining void opaque.
-Touches and Back are blocked during payment, and backgrounding pauses the reveal.
+The bottom shop item appears at 100,000 lifetime coins, or immediately in dev mode. It is a
+black card holding a live black hole (a tilted accretion disk, its far side lensed over the
+shadow, stars creeping inwards), the void's current line, and the price. No progress
+towards the discoveries is shown: every offering should feel hopeless.
+
+Paying hands the card's hole to a fullscreen scene above the whole HUD. A picture of the
+screen (the 3D stage copied from its surface, the HUD drawn over it) spirals down the hole
+while coins spill out of the balance pill after it and the disk burns gold. The hole gulps
+(one soft ring, no shake), drifts to the middle of a dark starfield and types its next line
+letter by letter. A tap finishes the line, and a second tap moves on. Then the hole flies home,
+shrinks to the card's size and spits a picture of the updated shop back out around
+itself, landing exactly on the live layout before the scene is removed. The balance keeps
+its old number until then and rolls down afterwards. Milestone offerings keep the discovery in the dialogue;
+the cosmetic itself is found in the wardrobe. Touches and Back are blocked during payment,
+and backgrounding pauses the scene.
 
 With `n` previous offerings, the next costs `5,000 + 2,500n + 500n²` coins.
 Costs rise in clean 500-coin steps, with a defensive cap of one billion coins.

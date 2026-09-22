@@ -20,7 +20,7 @@ import kotlin.random.Random
  *
  * Available sound names (pitch-shift with `rate` 0.5..2.0 for variety):
  *  tap, blip, pop, place, perfect, combo, success, fail,
- *  whoosh, boom, coin, rise, slide, fanfare
+ *  whoosh, boom, coin, rise, slide, fanfare, drain
  */
 object SoundFx {
     // Investigation hooks: inactive in ordinary runs and release builds.
@@ -42,7 +42,7 @@ object SoundFx {
             val p = SoundPool.Builder().setMaxStreams(12).setAudioAttributes(attrs).build()
             pool = p
             val dir = File(ctx.cacheDir, "sfx").apply { mkdirs() }
-            val names = listOf("tap", "blip", "pop", "place", "perfect", "combo", "success", "fail", "whoosh", "boom", "coin", "rise", "slide", "fanfare")
+            val names = listOf("tap", "blip", "pop", "place", "perfect", "combo", "success", "fail", "whoosh", "boom", "coin", "rise", "slide", "fanfare", "drain")
             fun file(name: String) = File(dir, if (name == "coin") "coin-chime-v2.wav" else "$name.wav")
             // Installed games already have these WAVs. Do not synthesize all samples again.
             if (names.any { !file(it).exists() || file(it).length() == 0L }) {
@@ -105,6 +105,7 @@ object SoundFx {
         },
         "slide" to lowpassed(130, 0.22) { _, p -> noise() * sin(p * PI).pow(0.8) * 0.8 },
         "fanfare" to fanfare(),
+        "drain" to drain(),
     )
 
     private const val TAU = 2.0 * PI
@@ -178,6 +179,22 @@ object SoundFx {
             }
         }
         return ShortArray(n) { (out[it].coerceIn(-1.0, 1.0) * 30000).toInt().toShort() }
+    }
+
+    /**
+     * The void swallowing the shop: a swirling tone that sinks from a whistle to a rumble
+     * over 1.3 s and stops dead where the gulp lands.
+     */
+    private fun drain(): ShortArray {
+        var phase = 0.0
+        var swirl = 0.0
+        return lowpassed(1300, 0.2) { _, p ->
+            val f = 55.0 + 520.0 * (1.0 - p).pow(2.2)
+            phase += f / SR
+            swirl += (4.0 + 16.0 * p) / SR
+            val env = p.pow(0.45) * (1.0 - ((p - 0.93) / 0.07).coerceIn(0.0, 1.0))
+            (sin(phase * TAU) * 0.75 * (0.65 + 0.35 * sin(swirl * TAU)) + noise() * 0.3 * p) * env
+        }
     }
 
     // ------------------------------------------------------------------- wav

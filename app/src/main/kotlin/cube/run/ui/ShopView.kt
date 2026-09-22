@@ -493,19 +493,8 @@ class ShopView(
             LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
     }
 
-    private fun voidCard(): View = LinearLayout(activity).apply {
-        orientation = LinearLayout.VERTICAL
-        gravity = Gravity.CENTER_HORIZONTAL
-        setPadding(dp(20f), dp(24f), dp(20f), dp(20f))
-        background = GradientDrawable().apply { cornerRadius = dpf(24f); setColor(0xff030408.toInt()); setStroke(dp(1f), 0xff555463.toInt()) }
-        cards["void"] = this
-        addView(VoidSigilView(activity), LinearLayout.LayoutParams(dp(106f), dp(106f)))
-        addView(kit.text("???", 22f, Theme.WHITE, 700), LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(8f) })
-        addView(kit.text(Progress.voidLine, 16f, 0xffc9c5d7.toInt(), 500).apply { minHeight = dp(52f); gravity = Gravity.CENTER },
-            LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(6f); bottomMargin = dp(18f) })
-        addView(priceButton(Progress.voidPrice, "void", null, 0) { Progress.buyVoid() },
-            LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
-    }
+    private fun voidCard(): View = VoidCardView(activity, kit, Progress.voidLine,
+        priceButton(Progress.voidPrice, "void", null, 0) { Progress.buyVoid() }).also { cards["void"] = it }
 
     /**
      * Gold when affordable, a quiet glass slab when not, a MAX badge when
@@ -542,9 +531,24 @@ class ShopView(
         if (key == "void") {
             // The void takes over immediately. Its opaque scene owns the payment animation
             // and sits above the shared menu bank, outside this page's inset content.
+            // The coins pour out of the bank into the hole on the 3D stage: the balance drops
+            // by each coin as it goes down (Stage.voidFed), and lands exactly on the new bank.
             balanceCount?.cancel()
-            kit.labelOf(balance).text = displayedBalance.toString()
-            onVoidPurchase({ if (isAttachedToWindow && !closing) render() }, { paying = false })
+            val label = kit.labelOf(balance)
+            Stage.voidFed = 0f
+            val drain = object : Runnable {
+                override fun run() {
+                    val fed = Stage.voidFed
+                    label.text = (before - ((before - displayedBalance) * fed.toDouble()).toLong()).toString()
+                    if (fed < 1f && paying && isAttachedToWindow) postOnAnimation(this)
+                }
+            }
+            postOnAnimation(drain)
+            onVoidPurchase({ if (isAttachedToWindow && !closing) render() }) {
+                paying = false
+                removeCallbacks(drain)
+                label.text = displayedBalance.toString()
+            }
             return
         }
         val ms = PayFx.fly(this, kit, balance, btn, n = 6, onDone = {

@@ -439,6 +439,37 @@ class Player(private val game: Gdx3DGame, private val rnd: Random) {
         shellInst.transform.setToTranslation(x, y, 0f).rotate(Vector3.Y, yaw).rotate(Vector3.X, tip).scale(pulse, pulse, pulse)
     }
 
+    private val voidEmissive = Color()
+    private var voidEmissiveSaved = false
+
+    /**
+     * The void show's pose at ([x],[y],[z]): turned [yaw], tipped [tip] about the view axis,
+     * stretched to ([sx],[sy],[sz]) and glowing [glow] of the way to [glowCol] from within.
+     * Leaves [px]/[py] alone; [endVoidPose] gives the skin its own glow back.
+     */
+    fun voidPose(time: Float, baseHue: Float, x: Float, y: Float, z: Float, yaw: Float, tip: Float,
+                 sx: Float, sy: Float, sz: Float, glow: Float, glowCol: Color) {
+        zappyFx?.clear()
+        hsvInto(col, skin.hueAt(time, baseHue), skin.sat, skin.valueAt(time)).lerp(glowCol, glow * 0.6f)
+        visualTime = time
+        hsvInto(shellCol, skin.hueAt(time, baseHue), skin.sat * 0.9f, 1f).lerp(glowCol, glow)
+        val material = inst.materials.first()
+        val emissive = material.get(ColorAttribute.Emissive) as? ColorAttribute
+            ?: ColorAttribute.createEmissive(0f, 0f, 0f, 1f).also { material.set(it) }
+        if (!voidEmissiveSaved) { voidEmissive.set(emissive.color); voidEmissiveSaved = true }
+        emissive.color.set(voidEmissive).lerp(glowCol.r * 0.5f, glowCol.g * 0.5f, glowCol.b * 0.5f, 1f, glow)
+        inst.transform.setToTranslation(x, y, z).rotate(Vector3.Z, tip).rotate(Vector3.Y, yaw).rotate(Vector3.X, 12f).scale(sx * 0.9f, sy * 0.9f, sz * 0.9f)
+        val pulse = glowScale(time)
+        shellBlend.opacity = shellOpacity(time) + 0.15f * glow
+        shellInst.transform.setToTranslation(x, y, z).rotate(Vector3.Z, tip).rotate(Vector3.Y, yaw).rotate(Vector3.X, 12f).scale(sx * pulse, sy * pulse, sz * pulse)
+    }
+
+    fun endVoidPose() {
+        if (!voidEmissiveSaved) return
+        (inst.materials.first().get(ColorAttribute.Emissive) as? ColorAttribute)?.color?.set(voidEmissive)
+        voidEmissiveSaved = false
+    }
+
     private fun shellOpacity(time: Float): Float {
         if (skin.id == Skins.VOID_ID) return .025f + .012f * sin(time * 1.8f)
         val glow = ((0.22f + 0.08f * sin(time * 6f)) * skin.glow).coerceAtMost(0.75f)

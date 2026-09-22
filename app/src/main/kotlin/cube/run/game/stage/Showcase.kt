@@ -56,6 +56,7 @@ class Showcase(private val game: Gdx3DGame, private val player: Player, private 
     private val tmp = Vector3()
     private val tmpCol = Color()
     private val demos = Demos(game, player, bubble)
+    private val void = VoidShow(game, player)
     private var enterT = 0f
     private var trailMix = 0f      // eased 0..1: the cube is out on its trail loop
     private var bubbleMix = 0f     // eased 0..1: the wardrobe bubble is inflated
@@ -94,10 +95,12 @@ class Showcase(private val game: Gdx3DGame, private val player: Player, private 
         val k = if (shop) shopMix else min(1f, enterT * 2.8f)
         bgTop.set(skyTopSave).lerp(stageTop, k)
         bgBottom.set(skyBottomSave).lerp(stageBottom, k)
+        void.tintSky(bgTop, bgBottom)
     }
 
     fun exit(bgTop: Color, bgBottom: Color) {
         active = false
+        void.cancel()
         if (shop) player.restoreMenuPose(game.time)
         bgTop.set(skyTopSave); bgBottom.set(skyBottomSave)
     }
@@ -165,7 +168,16 @@ class Showcase(private val game: Gdx3DGame, private val player: Player, private 
         if (shop) player.blendFromMenu(shopMix, shopSpin + kickA + playYaw, time)
         if (trailMix > 0.08f) player.emitTrail(dt, time, x - 0.3f * cos(time * 1.4f), y, 0.3f, boost = 1.6f * trailMix, scale = 2.4f)
         demos.update(dt, time, player.px, player.py)
+        // The void takes its offering on the shop stage (see VoidShow).
+        if (Stage.voidRequests.getAndSet(0) > 0 && shop && !void.active) {
+            demos.reset()
+            void.start(player.px, player.py)
+        }
+        void.update(dt)
+        if (void.active) void.posePlayer(time, baseHue)
     }
+
+    fun dispose() = void.dispose()
 
     fun aim(rig: RunCamera) {
         when (Stage.mode) {
@@ -179,6 +191,7 @@ class Showcase(private val game: Gdx3DGame, private val player: Player, private 
             game.cam.direction.lerp(menuCameraDirection, 1f - shopMix).nor()
             game.cam.up.lerp(menuCameraUp, 1f - shopMix).nor()
             game.cam.fieldOfView += (menuFov - game.cam.fieldOfView) * (1f - shopMix)
+            void.aimCamera(game.cam)
         }
     }
 
@@ -189,10 +202,12 @@ class Showcase(private val game: Gdx3DGame, private val player: Player, private 
             val a = time * 0.9f + i * 0.785f
             val r = (2.1f + 0.25f * sin(time * 2f + i)) * t
             val y = player.py + 0.5f * sin(time * 1.6f + i * 1.3f)
-            val s = (0.07f + 0.05f * (0.5f + 0.5f * sin(time * 5f + i * 2f))) * (if (shop) shopMix else 1f)
+            val s = (0.07f + 0.05f * (0.5f + 0.5f * sin(time * 5f + i * 2f))) * (if (shop) shopMix else 1f) *
+                (if (void.active) 1f - void.depth else 1f) // the void's stars take their place
             game.worldBoxSpin(player.px + cos(a) * r, y, sin(a) * r, s, s, s, time * 120f + i * 45f, spark)
         }
         demos.render(time)
+        if (void.active) void.render(time)
     }
 
     /** The sunburst behind the cube: the results' hype pattern, a soft one in the shop, a flash on a wardrobe switch. */
@@ -205,8 +220,11 @@ class Showcase(private val game: Gdx3DGame, private val player: Player, private 
                 game.sunburstBehind(shapes, player.px, player.py, 0f, 3f, 12f * g, 14, time * 18f, rayCol, (if (Stage.resultRecord) 0.5f else 0.36f) * g, 0.5f)
             }
             Stage.SHOP -> {
+                // While the void plays, the shop's rays are the first thing it swallows.
+                val kept = if (void.active) void.raysKept else 1f
                 hsvInto(rayCol, 46f, 0.45f, 0.9f)
-                game.sunburstBehind(shapes, player.px, player.py, 0f, 3f, 10f * g, 12, time * 14f, rayCol, 0.28f * g, 0.45f)
+                if (kept > 0.01f) game.sunburstBehind(shapes, player.px, player.py, 0f, 3f, 10f * g * kept, 12, time * (14f + 400f * (1f - kept)), rayCol, 0.28f * g * kept, 0.45f)
+                if (void.active) void.renderShapes(shapes, time)
             }
             else -> if (pop > 0.01f) {
                 val p = min(1f, pop)
@@ -218,5 +236,6 @@ class Showcase(private val game: Gdx3DGame, private val player: Player, private 
     fun renderBlended(cam: PerspectiveCamera, time: Float) {
         if (bubbleMix > 0.01f) bubble.showcase(cam, time, player.px, player.py, inflate = bubbleMix)
         demos.renderBlended(cam, time)
+        if (void.active) void.renderBlended(cam, time)
     }
 }

@@ -882,6 +882,6 @@ class CubeRun(session: GameSession, private val autoStart: Boolean = false, priv
         }
     }
     override fun pause() { idlePilot.stop(); super.pause() }
-    override fun dispose() { idlePilot.close(); super.dispose() }
+    override fun dispose() { idlePilot.close(); showcase.dispose(); super.dispose() }
 
 }
