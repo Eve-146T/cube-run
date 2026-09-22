@@ -64,12 +64,14 @@ class VoidShow(private val game: Gdx3DGame, private val player: Player) {
     private val ember = Color(0.45f, 0.04f, 0.1f, 1f) // coins burning up at the horizon
     private val white = Color(1f, 1f, 1f, 1f)
     private val glowCol = Color()
+    private val cubeCol = Color()
     private val colA = Color()
     private val colB = Color()
     private val voidTop = Color.valueOf("150a36")
     private val voidBottom = Color.valueOf("020008")
-    private val novaTop = Color.valueOf("8f7ad8")
-    private val novaBottom = Color.valueOf("3b1a6e")
+    // The sky only warms a little at the blast: the light belongs to the core, not a screen wash.
+    private val novaTop = Color.valueOf("3a2470")
+    private val novaBottom = Color.valueOf("170a33")
     private val orange = hsvInto(Color(), 26f, 0.85f, 1f)
     private val cyan = hsvInto(Color(), 195f, 0.35f, 1f)
     private val ringRight = Vector3()
@@ -180,8 +182,8 @@ class VoidShow(private val game: Gdx3DGame, private val player: Player) {
         if (crossed(COLLAPSE + 0.1f)) SoundFx.play("rise", rate = 1.3f, vol = 0.55f)
         if (crossed(NOVA)) nova()
         if (crossed(NOVA + 0.14f)) { // hot shards, once the white-out has cleared
-            game.burst3d(tmp.set(hole), white, n = 18, speed = 15f, size = 0.15f, life = 0.6f, gravity = 0f)
-            game.burst3d(tmp, orange, n = 16, speed = 10f, size = 0.17f, life = 0.8f, gravity = 0f)
+            game.burst3d(tmp.set(hole), gold, n = 14, speed = 8f, size = 0.14f, life = 0.55f, gravity = 0f)
+            game.burst3d(tmp, orange, n = 16, speed = 6f, size = 0.16f, life = 0.7f, gravity = 0f)
         }
         if (crossed(REBIRTH + 0.45f)) {
             SoundFx.play("pop", rate = 0.85f); SoundFx.play("success", rate = 0.75f, vol = 0.6f); Haptics.success()
@@ -243,7 +245,7 @@ class VoidShow(private val game: Gdx3DGame, private val player: Player) {
         SoundFx.play("boom", rate = 1.1f, vol = 0.6f)
         SoundFx.play("fanfare", rate = 0.6f, vol = 0.7f)
         Haptics.heavy(); Haptics.success()
-        game.flash(white, 0.2f)
+        game.flash(white, 0.1f)
     }
 
     private fun finish() {
@@ -346,12 +348,14 @@ class VoidShow(private val game: Gdx3DGame, private val player: Player) {
             game.worldCoin(tmp.x, tmp.y, tmp.z, size * 0.64f, size * 0.56f, coins[o + 4] + u * 1100f, colB)
         }
         val gather = ((t - REBIRTH) / 0.45f).coerceIn(0f, 1f)
+        hsvInto(cubeCol, player.skin.hueAt(time, 0f), player.skin.sat, player.skin.valueAt(time))
         if (t >= REBIRTH && gather < 1f) for (i in 0 until shardCount) {
             val o = i * 4
             // Flying in and snapping onto the cube's faces.
             val d = 0.45f + 2.8f * (1f - gather).pow(2f)
             val s = 0.26f * (1f - 0.3f * gather)
-            game.worldBoxSpin(home.x + shards[o] * d, home.y + shards[o + 1] * d, shards[o + 2] * d, s, s, s, shards[o + 3] + gather * 720f, player.trailCol())
+            // In the cube's own colour, so the shards become the cube rather than turning into it.
+            game.worldBoxSpin(home.x + shards[o] * d, home.y + shards[o + 1] * d, shards[o + 2] * d, s, s, s, shards[o + 3] + gather * 720f, cubeCol)
         }
     }
 
@@ -388,7 +392,7 @@ class VoidShow(private val game: Gdx3DGame, private val player: Player) {
 
         // The flash: a white-out from the core that is gone in a few frames.
         val flash = ((t - NOVA) / 0.16f).coerceIn(0f, 1f)
-        if (flash < 1f) r.drawGlow(cam, hole, 40f, lilac, 0.7f * min(1f, flash * 5f) * (1f - flash))
+        if (flash < 1f) r.drawGlow(cam, hole, 6.5f, lilac, 1.1f * min(1f, flash * 5f) * (1f - flash)) // a bloom round the core, not a screen wash
         val p = ((t - NOVA) / 1.4f).coerceIn(0f, 1f)
         if (p < 1f) {
             // A white-hot core that holds, cools through orange and shrinks away.

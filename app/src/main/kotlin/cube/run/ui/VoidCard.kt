@@ -50,7 +50,7 @@ internal class VoidCardView(context: Context, kit: UiKit, line: String, price: V
         // The price slab punches out past its own bounds when you pay: never clip it.
         clipChildren = false; clipToPadding = false
         setPadding(kit.dp(20f), kit.dp(4f), kit.dp(20f), kit.dp(22f))
-        addView(sigil, LayoutParams(LayoutParams.MATCH_PARENT, kit.dp(172f)))
+        addView(sigil, LayoutParams(LayoutParams.MATCH_PARENT, kit.dp(158f)))
         addView(kit.text(line, 19f, 0xfff1eaff.toInt(), 700).apply { minHeight = kit.dp(50f); gravity = Gravity.CENTER },
             LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT))
         addView(price, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT).apply { topMargin = kit.dp(18f) })
@@ -62,8 +62,9 @@ internal class VoidCardView(context: Context, kit: UiKit, line: String, price: V
     override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
         super.onSizeChanged(w, h, oldw, oldh)
         edge = SweepGradient(w / 2f, h / 2f,
-            intArrayOf(0x00000000, 0x00000000, 0x559b5cff, 0xffd9c4ff.toInt(), 0x559b5cff, 0x00000000, 0x00000000),
-            floatArrayOf(0f, .5f, .7f, .78f, .86f, .95f, 1f))
+            // Two glints on opposite sides, circling the card like light round a horizon.
+            intArrayOf(0x00000000, 0x889b5cff.toInt(), 0xffd9c4ff.toInt(), 0x889b5cff.toInt(), 0x00000000, 0x889b5cff.toInt(), 0xffd9c4ff.toInt(), 0x889b5cff.toInt(), 0x00000000),
+            floatArrayOf(0f, .12f, .2f, .28f, .5f, .62f, .7f, .78f, 1f))
     }
 
     override fun onDraw(c: Canvas) {
@@ -110,7 +111,7 @@ internal class VoidCardView(context: Context, kit: UiKit, line: String, price: V
 internal class VoidSigilView(context: Context) : View(context) {
     private val hole = VoidHole()
     /** Shadow radius in px, shared with the purchase scene so the hand-over is seamless. */
-    val radius get() = min(width, height) * .17f
+    val radius get() = min(width, height) * .21f
 
     init { importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO }
 

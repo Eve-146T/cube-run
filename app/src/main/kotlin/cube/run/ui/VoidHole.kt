@@ -64,9 +64,6 @@ internal class VoidHole {
         paint.strokeCap = Paint.Cap.BUTT
         val lensHot = mix(0xfffff6ff.toInt(), 0xffffe6a8.toInt(), h)
         val lensCool = mix(0xff8a5cff.toInt(), Theme.GOLD, h)
-        oval.set(-r * 1.28f, -r * 1.28f, r * 1.28f, r * 1.28f)
-        paint.strokeWidth = r * .42f; paint.color = lensCool; paint.alpha = (alpha * 38).toInt()
-        c.drawArc(oval, 0f, 360f, false, paint)
         oval.set(-r * 1.1f, -r * 1.1f, r * 1.1f, r * 1.1f)
         for (k in 0 until 12) { // brightest straight over the top
             val mid = 180f + (k + .5f) * 15f
@@ -85,8 +82,7 @@ internal class VoidHole {
         // The photon ring: a hairline, brighter on the approaching (left) side.
         paint.style = Paint.Style.STROKE; paint.strokeWidth = r * .03f
         oval.set(-r * 1.02f, -r * 1.02f, r * 1.02f, r * 1.02f)
-        paint.color = 0xfffbf6ff.toInt(); paint.alpha = (alpha * 220).toInt(); c.drawArc(oval, 90f, 180f, false, paint)
-        paint.alpha = (alpha * 90).toInt(); c.drawArc(oval, 270f, 180f, false, paint)
+        paint.color = 0xfffbf6ff.toInt(); paint.alpha = (alpha * 170).toInt(); c.drawArc(oval, 150f, 90f, false, paint)
 
         // The near half crosses in front of the shadow.
         disk(c, r, tilt, 0f, alpha, h)
@@ -99,7 +95,7 @@ internal class VoidHole {
     private val diskShader = android.graphics.ComposeShader(
         RadialGradient(0f, 0f, 1f,
             intArrayOf(0x00ffffff, 0x00ffffff, 0xfffff4fb.toInt(), 0xffc9a8ff.toInt(), 0xcc6a3de0.toInt(), 0x552a1480, 0x00000000),
-            floatArrayOf(0f, .27f, .3f, .4f, .58f, .8f, 1f), Shader.TileMode.CLAMP),
+            floatArrayOf(0f, .2f, .23f, .34f, .55f, .8f, 1f), Shader.TileMode.CLAMP),
         android.graphics.LinearGradient(-1f, 0f, 1f, 0f, intArrayOf(0xffffffff.toInt(), 0xccffffff.toInt(), 0x44ffffff), null, Shader.TileMode.CLAMP),
         android.graphics.PorterDuff.Mode.MULTIPLY)
 

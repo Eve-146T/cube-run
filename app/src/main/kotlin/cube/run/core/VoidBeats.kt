@@ -14,15 +14,15 @@ object VoidBeats {
     const val PULL = 1.75f
     const val TAKEN = 2.75f
     /** The disk spins up as the hole shrinks to a single point of light. */
-    const val COLLAPSE = 2.75f
+    const val COLLAPSE = 2.5f
     /** It goes supernova. */
-    const val NOVA = 3.3f
+    const val NOVA = 3.05f
     /** The cube is assembled again from shards where it was. */
-    const val REBIRTH = 3.8f
+    const val REBIRTH = 3.55f
     /** The void says its piece. */
-    const val SPEAK = 4.15f
+    const val SPEAK = 3.9f
     /** The camera heads back to the shop. A tap after the blast skips straight here. */
-    const val RETURN = 6.2f
+    const val RETURN = 6.0f
     /** The shop sheet rises back once the cube is clear of it. */
     const val SHEET = RETURN + 0.35f
     const val END = RETURN + 0.95f
