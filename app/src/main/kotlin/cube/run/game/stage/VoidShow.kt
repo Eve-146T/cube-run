@@ -61,14 +61,14 @@ class VoidShow(private val game: Gdx3DGame, private val player: Player) {
     private val face = hsvInto(Color(), 50f, 0.55f, 1f)
     private val rose = hsvInto(Color(), 320f, 0.6f, 1f)
     private val teal = hsvInto(Color(), 190f, 0.6f, 0.9f)
-    private val ember = Color(0.45f, 0.04f, 0.1f, 1f)
+    private val ember = Color(0.45f, 0.04f, 0.1f, 1f) // coins burning up at the horizon
     private val white = Color(1f, 1f, 1f, 1f)
     private val glowCol = Color()
     private val colA = Color()
     private val colB = Color()
     private val voidTop = Color.valueOf("150a36")
     private val voidBottom = Color.valueOf("020008")
-    private val novaTop = Color.valueOf("bfe9ff")
+    private val novaTop = Color.valueOf("8f7ad8")
     private val novaBottom = Color.valueOf("3b1a6e")
     private val orange = hsvInto(Color(), 26f, 0.85f, 1f)
     private val cyan = hsvInto(Color(), 195f, 0.35f, 1f)
@@ -80,11 +80,8 @@ class VoidShow(private val game: Gdx3DGame, private val player: Player) {
     private var cubeY = 0f
     private var cubeZ = 0f
     private var cubeYaw = 0f
-    private var cubeTip = 0f
-    private var stretch = 0f
     private var cubeScale = 1f
     private var cubeGlow = 0f
-    private var darkness = 0f
     private var spin = 0f
 
     // The hole.
@@ -175,8 +172,11 @@ class VoidShow(private val game: Gdx3DGame, private val player: Player) {
 
         // ---- beats
         if (crossed(0.9f)) { SoundFx.play("boom", rate = 0.5f, vol = 0.7f); Haptics.heavy() }
-        if (crossed(PULL)) { SoundFx.play("rise", rate = 0.5f, vol = 0.8f); SoundFx.play("whoosh", rate = 0.55f, vol = 0.9f) }
-        if (crossed(TAKEN - 0.08f)) { SoundFx.play("boom", rate = 0.6f, vol = 0.7f); Haptics.heavy() }
+        if (crossed(0.4f)) { // the cube is gone: a little puff where it was
+            SoundFx.play("pop", rate = 0.6f, vol = 0.6f)
+            game.burst3d(tmp.set(home).add(0f, 0.3f, 0f), lilac, n = 12, speed = 2.5f, size = 0.07f, life = 0.4f, gravity = 0f)
+        }
+        if (crossed(PULL)) SoundFx.play("rise", rate = 0.5f, vol = 0.7f)
         if (crossed(COLLAPSE + 0.1f)) SoundFx.play("rise", rate = 1.3f, vol = 0.55f)
         if (crossed(NOVA)) nova()
         if (crossed(NOVA + 0.14f)) { // hot shards, once the white-out has cleared
@@ -218,31 +218,17 @@ class VoidShow(private val game: Gdx3DGame, private val player: Player) {
     }
 
     private fun poseCube(dt: Float) {
-        val tremble = VoidBeats.span(t, FEED, PULL)
         if (t < REBIRTH) {
-            val u = ((t - PULL) / (TAKEN - PULL)).coerceIn(0f, 1f)
-            val e = u * u
-            // Swung out round the side of the hole on the disk, drawn into a long streak, then
-            // swept round behind it: the horizon closes over the last of it.
-            val swing = sin(u * PI.toFloat())
-            onDisk(tmp2, -0.35f + 2.2f * u * u, MAX_R * (2.3f - 1.3f * u))
-            val lift = (1f - VoidBeats.span(u, 0f, 0.45f))
-            cubeX = tmp2.x * (1f - lift) + home.x * lift
-            cubeY = (tmp2.y * (1f - lift) + (home.y + 0.25f * tremble) * lift) + 0.04f * sin(t * 41f) * tremble * lift
-            cubeZ = tmp2.z * (1f - lift) + home.z * lift - 0.6f * swing
-            // Stretch along the pull: the cube's long axis points at the hole.
-            val dx = hole.x - cubeX; val dy = hole.y - cubeY
-            val aim = -Math.toDegrees(atan2(dx.toDouble(), dy.toDouble())).toFloat()
-            stretch = VoidBeats.span(u, 0.1f, 0.7f)
-            cubeTip = aim * (0.3f * tremble + 0.7f * u) + 70f * stretch
-            spin = 45f + 160f * tremble + 500f * e
-            cubeScale = if (t >= TAKEN) 0f else 1f - VoidBeats.span(u, 0.7f, 1f)
-            cubeGlow = (0.35f * tremble + 0.65f * e).coerceIn(0f, 1f)
-            darkness = e
+            // The cube is not part of the offering: it slips out of sight as the hole opens,
+            // and only comes back when it is rebuilt after the blast.
+            val gone = VoidBeats.span(t, 0.05f, 0.4f)
+            cubeX = home.x; cubeY = home.y + 0.3f * gone; cubeZ = home.z
+            cubeScale = if (gone >= 1f) 0f else 1f - gone
+            spin = 45f + 700f * gone
+            cubeGlow = gone
         } else {
-            // Rebuilt from shards: they fly in, then it pops back to full size.
+            // Rebuilt from shards: they fly in, then it eases back to full size.
             cubeX = home.x; cubeY = home.y; cubeZ = 0f
-            stretch = 0f; cubeTip = 0f; darkness = 0f
             val r = t - (REBIRTH + 0.3f)
             val grow = (r / 0.3f).coerceIn(0f, 1f)
             cubeScale = if (r < 0f) 0f else grow * grow * (3f - 2f * grow) * (1f + 0.12f * sin(grow * PI.toFloat()))
@@ -272,11 +258,12 @@ class VoidShow(private val game: Gdx3DGame, private val player: Player) {
     // ---------------------------------------------------------------- pose, camera, sky
 
     fun posePlayer(time: Float, baseHue: Float) {
-        // Violet as it is drawn in, then burnt to a dark ember; white-hot as it is rebuilt.
-        if (t < REBIRTH) glowCol.set(violet).lerp(ember, darkness) else glowCol.set(white)
+        // Violet as it slips away; white-hot as it is rebuilt.
+        if (t < REBIRTH) glowCol.set(violet) else glowCol.set(white)
         val s = max(0.001f, cubeScale)
-        player.voidPose(time, baseHue, cubeX, cubeY, cubeZ, cubeYaw, cubeTip,
-            s * (1f - 0.78f * stretch), s * (1f + 3.6f * stretch), s * (1f - 0.78f * stretch), cubeGlow, glowCol)
+        // On the way back the cube eases into the shop's own pose, so nothing resets at the end.
+        player.voidPose(time, baseHue, cubeX, cubeY, cubeZ, cubeYaw, 0f, s, s, s, cubeGlow, glowCol,
+            toNormal = VoidBeats.span(t, RETURN - 0.2f, END - 0.25f))
     }
 
     /** How far the stage is inside the show (0 = the shop's own shot, 1 = the show's). */
@@ -284,6 +271,9 @@ class VoidShow(private val game: Gdx3DGame, private val player: Player) {
 
     /** How much of the shop's own sunburst is left: it spins up and is sucked away first. */
     val raysKept get() = 1f - VoidBeats.span(t, 0f, 0.8f) * (1f - VoidBeats.span(t, RETURN, RETURN + 0.55f))
+
+    /** Extra spin (degrees per second) for the shop's rays: only while they are being sucked in, never on the way back. */
+    val raySpin get() = if (t < RETURN) 380f * VoidBeats.span(t, 0f, 0.7f) else 0f
 
     /**
      * Blends the shop camera (already aimed this frame) to the show's: pulled back so the
@@ -398,7 +388,7 @@ class VoidShow(private val game: Gdx3DGame, private val player: Player) {
 
         // The flash: a white-out from the core that is gone in a few frames.
         val flash = ((t - NOVA) / 0.16f).coerceIn(0f, 1f)
-        if (flash < 1f) r.drawGlow(cam, hole, 40f, lilac, 1.15f * min(1f, flash * 5f) * (1f - flash))
+        if (flash < 1f) r.drawGlow(cam, hole, 40f, lilac, 0.7f * min(1f, flash * 5f) * (1f - flash))
         val p = ((t - NOVA) / 1.4f).coerceIn(0f, 1f)
         if (p < 1f) {
             // A white-hot core that holds, cools through orange and shrinks away.

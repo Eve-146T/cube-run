@@ -36,6 +36,7 @@ class Showcase(private val game: Gdx3DGame, private val player: Player, private 
     private var shopMix = 0f
     val menuVisibility: Float get() = 1f - shopMix
     private var shopSpin = 0f
+    private var rayAngle = 0f
     private var playYaw = 0f
     private var playVelocity = 0f
     private var playLift = 0f
@@ -80,6 +81,7 @@ class Showcase(private val game: Gdx3DGame, private val player: Player, private 
         }
         enterT = 0f
         shopSpin = 0f
+        rayAngle = game.time * 14f
         playYaw = 0f; playVelocity = 0f; playLift = 0f; playLiftVelocity = 0f
         trailMix = 0f; bubbleMix = 0f; kickV = 0f; kickA = 0f; pop = 0f; wide = 0f
         demos.reset()
@@ -175,6 +177,8 @@ class Showcase(private val game: Gdx3DGame, private val player: Player, private 
             void.start(player.px, player.py)
         }
         void.update(dt)
+        // The shop's rays turn at their own pace; the void only whips them round as it sucks them in.
+        rayAngle += dt * (14f + (if (void.active) void.raySpin else 0f))
         if (void.active) void.posePlayer(time, baseHue)
     }
 
@@ -224,7 +228,7 @@ class Showcase(private val game: Gdx3DGame, private val player: Player, private 
                 // While the void plays, the shop's rays are the first thing it swallows.
                 val kept = if (void.active) void.raysKept else 1f
                 hsvInto(rayCol, 46f, 0.45f, 0.9f)
-                if (kept > 0.01f) game.sunburstBehind(shapes, player.px, player.py, 0f, 3f, 10f * g * kept, 12, time * (14f + 400f * (1f - kept)), rayCol, 0.28f * g * kept, 0.45f)
+                if (kept > 0.01f) game.sunburstBehind(shapes, player.px, player.py, 0f, 3f, 10f * g * kept, 12, rayAngle, rayCol, 0.28f * g * kept, 0.45f)
                 if (void.active) void.renderShapes(shapes, time)
             }
             else -> if (pop > 0.01f) {

@@ -448,7 +448,9 @@ class Player(private val game: Gdx3DGame, private val rnd: Random) {
      * Leaves [px]/[py] alone; [endVoidPose] gives the skin its own glow back.
      */
     fun voidPose(time: Float, baseHue: Float, x: Float, y: Float, z: Float, yaw: Float, tip: Float,
-                 sx: Float, sy: Float, sz: Float, glow: Float, glowCol: Color) {
+                 sx: Float, sy: Float, sz: Float, glow: Float, glowCol: Color, toNormal: Float = 0f) {
+        // The pose the stage would show without the void, captured before it is overridden.
+        voidNormalBody.set(inst.transform); voidNormalShell.set(shellInst.transform)
         zappyFx?.clear()
         hsvInto(col, skin.hueAt(time, baseHue), skin.sat, skin.valueAt(time)).lerp(glowCol, glow * 0.35f)
         visualTime = time
@@ -462,6 +464,23 @@ class Player(private val game: Gdx3DGame, private val rnd: Random) {
         val pulse = glowScale(time)
         shellBlend.opacity = shellOpacity(time)
         shellInst.transform.setToTranslation(x, y, z).rotate(Vector3.Z, tip).rotate(Vector3.Y, yaw).rotate(Vector3.X, 12f).scale(sx * pulse, sy * pulse, sz * pulse)
+        if (toNormal > 0f) { // ease into the stage's own pose, so handing back never snaps
+            mixPose(inst.transform, voidNormalBody, toNormal)
+            mixPose(shellInst.transform, voidNormalShell, toNormal)
+        }
+    }
+
+    private val voidNormalBody = Matrix4()
+    private val voidNormalShell = Matrix4()
+    private val mixA = Vector3(); private val mixB = Vector3()
+    private val mixSa = Vector3(); private val mixSb = Vector3()
+    private val mixQa = Quaternion(); private val mixQb = Quaternion()
+
+    private fun mixPose(pose: Matrix4, target: Matrix4, amount: Float) {
+        pose.getTranslation(mixA); target.getTranslation(mixB)
+        pose.getScale(mixSa); target.getScale(mixSb)
+        pose.getRotation(mixQa, true); target.getRotation(mixQb, true)
+        pose.set(mixA.lerp(mixB, amount), mixQa.slerp(mixQb, amount), mixSa.lerp(mixSb, amount))
     }
 
     fun endVoidPose() {

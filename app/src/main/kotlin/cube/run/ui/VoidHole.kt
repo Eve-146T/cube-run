@@ -52,37 +52,41 @@ internal class VoidHole {
 
         c.rotate(-12f)
         val spin = time * (1f + h * 3.2f)
-        val tilt = .27f
+        val tilt = .33f
 
-        // The far half of the disk, dimmed; the shadow will cover its middle.
-        disk(c, r, tilt, 180f, alpha * .55f, h)
+        // The far half of the disk; the shadow will cover its middle.
+        disk(c, r, tilt, 180f, alpha, h) // same brightness as the near half: no seam where they meet
         clumps(c, r, tilt, spin, back = true, alpha = alpha, h = h)
 
-        // Lensing: light from behind the hole bends over the top (bright) and under it (faint).
-        // Overlapping strokes blend into one glowing arc rather than separate rings.
+        // Lensing: the far side of the disk bent into a crisp ring over the top, fainter beneath,
+        // inside a soft glow.
         paint.style = Paint.Style.STROKE
         paint.strokeCap = Paint.Cap.BUTT
         val lensHot = mix(0xfffff6ff.toInt(), 0xffffe6a8.toInt(), h)
-        val lensCool = mix(0xff7c4dff.toInt(), Theme.GOLD, h)
-        for (k in 0..9) {
-            val rr = r * (1.05f + k * .045f)
-            oval.set(-rr, -rr, rr, rr)
-            paint.strokeWidth = r * .09f
-            paint.color = mix(lensHot, lensCool, k / 9f)
-            val fade = 1f - k / 10f
-            paint.alpha = (alpha * 150 * fade * fade).toInt()
-            c.drawArc(oval, 186f, 168f, false, paint)
-            paint.alpha = (alpha * 55 * fade * fade).toInt()
-            c.drawArc(oval, 14f, 152f, false, paint)
+        val lensCool = mix(0xff8a5cff.toInt(), Theme.GOLD, h)
+        oval.set(-r * 1.28f, -r * 1.28f, r * 1.28f, r * 1.28f)
+        paint.strokeWidth = r * .42f; paint.color = lensCool; paint.alpha = (alpha * 38).toInt()
+        c.drawArc(oval, 0f, 360f, false, paint)
+        oval.set(-r * 1.1f, -r * 1.1f, r * 1.1f, r * 1.1f)
+        for (k in 0 until 12) { // brightest straight over the top
+            val mid = 180f + (k + .5f) * 15f
+            val over = sin(Math.toRadians((mid - 180f).toDouble())).toFloat()
+            paint.strokeWidth = r * (.07f + .06f * over); paint.color = mix(lensCool, lensHot, .4f + .6f * over)
+            paint.alpha = (alpha * (120 + 135 * over)).toInt()
+            c.drawArc(oval, 180f + k * 15f - .5f, 16f, false, paint)
         }
+        paint.strokeWidth = r * .05f; paint.color = lensCool; paint.alpha = (alpha * 110).toInt()
+        c.drawArc(oval, 10f, 160f, false, paint)
         paint.strokeCap = Paint.Cap.ROUND
 
         // The shadow, then the photon ring hugging it.
         paint.style = Paint.Style.FILL; paint.color = Color.BLACK; paint.alpha = (255 * alpha).toInt()
         c.drawCircle(0f, 0f, r, paint)
-        paint.style = Paint.Style.STROKE; paint.strokeWidth = r * .035f
-        paint.color = 0xfffbf6ff.toInt(); paint.alpha = (alpha * 240).toInt()
-        c.drawCircle(0f, 0f, r * 1.015f, paint)
+        // The photon ring: a hairline, brighter on the approaching (left) side.
+        paint.style = Paint.Style.STROKE; paint.strokeWidth = r * .03f
+        oval.set(-r * 1.02f, -r * 1.02f, r * 1.02f, r * 1.02f)
+        paint.color = 0xfffbf6ff.toInt(); paint.alpha = (alpha * 220).toInt(); c.drawArc(oval, 90f, 180f, false, paint)
+        paint.alpha = (alpha * 90).toInt(); c.drawArc(oval, 270f, 180f, false, paint)
 
         // The near half crosses in front of the shadow.
         disk(c, r, tilt, 0f, alpha, h)
@@ -90,35 +94,29 @@ internal class VoidHole {
         c.restore()
     }
 
-    private fun disk(c: Canvas, r: Float, tilt: Float, start: Float, alpha: Float, h: Float) {
-        paint.style = Paint.Style.STROKE
-        paint.strokeCap = Paint.Cap.BUTT
-        val hot = mix(0xfffff4fb.toInt(), 0xffffe08a.toInt(), h)
-        val cool = mix(0xff4b2bb8.toInt(), 0xffff5a2e.toInt(), h * .7f)
-        // A soft bloom under the disk, then tightly packed bands that read as one glowing plane.
-        val bloom = r * 1.95f
-        oval.set(-bloom, -bloom * tilt, bloom, bloom * tilt)
-        paint.strokeWidth = r * 1.1f
-        paint.color = mix(0xff6a3dff.toInt(), Theme.GOLD, h)
-        beamed(c, start, alpha * 60f)
-        for (k in 0..11) {
-            val rr = r * (1.25f + k * .13f)
-            oval.set(-rr, -rr * tilt, rr, rr * tilt)
-            paint.strokeWidth = r * .17f
-            paint.color = mix(hot, cool, (k / 11f).pow(.8f))
-            beamed(c, start, alpha * (235f - k * 15f))
-        }
-        paint.strokeCap = Paint.Cap.ROUND
-    }
+    // One smooth disk: a radial temperature gradient (white-hot inner edge to violet, fading out),
+    // multiplied by a left-to-right falloff for Doppler beaming. Built once; only matrices move.
+    private val diskShader = android.graphics.ComposeShader(
+        RadialGradient(0f, 0f, 1f,
+            intArrayOf(0x00ffffff, 0x00ffffff, 0xfffff4fb.toInt(), 0xffc9a8ff.toInt(), 0xcc6a3de0.toInt(), 0x552a1480, 0x00000000),
+            floatArrayOf(0f, .27f, .3f, .4f, .58f, .8f, 1f), Shader.TileMode.CLAMP),
+        android.graphics.LinearGradient(-1f, 0f, 1f, 0f, intArrayOf(0xffffffff.toInt(), 0xccffffff.toInt(), 0x44ffffff), null, Shader.TileMode.CLAMP),
+        android.graphics.PorterDuff.Mode.MULTIPLY)
 
-    /** Doppler beaming: the approaching (left) side burns brighter than the receding right. */
-    private fun beamed(c: Canvas, start: Float, peak: Float) {
-        for (s in 0 until 9) {
-            val mid = start + (s + .5f) * 20f
-            val approaching = .5f - .5f * cos(Math.toRadians(mid.toDouble())).toFloat()
-            paint.alpha = (peak * (.3f + .7f * approaching)).toInt().coerceIn(0, 255)
-            c.drawArc(oval, start + s * 20f - .6f, 21.2f, false, paint)
-        }
+    private fun disk(c: Canvas, r: Float, tilt: Float, start: Float, alpha: Float, h: Float) {
+        val outer = r * 4.8f
+        shaderMatrix.setScale(outer, outer * tilt)
+        diskShader.setLocalMatrix(shaderMatrix)
+        paint.style = Paint.Style.FILL
+        paint.shader = diskShader
+        paint.alpha = (255 * alpha).toInt()
+        // The far half (start 180) above the centre line, the near half below it.
+        val saved = c.save()
+        if (start >= 180f) c.clipRect(-outer, -outer, outer, 0f) else c.clipRect(-outer, 0f, outer, outer)
+        oval.set(-outer, -outer * tilt, outer, outer * tilt)
+        c.drawOval(oval, paint)
+        c.restoreToCount(saved)
+        paint.shader = null
     }
 
     private fun clumps(c: Canvas, r: Float, tilt: Float, spin: Float, back: Boolean, alpha: Float, h: Float) {
@@ -134,7 +132,7 @@ internal class VoidHole {
             val approaching = .5f - .5f * cos(Math.toRadians(mid.toDouble())).toFloat() // 1 on the left
             paint.strokeWidth = r * .035f * clump[3]
             paint.color = mix(0xffe9dcff.toInt(), Theme.GOLD, h)
-            paint.alpha = (alpha * (if (back) .5f else 1f) * (30 + 120 * approaching)).toInt()
+            paint.alpha = (alpha * (if (back) .4f else .7f) * (20 + 90 * approaching)).toInt()
             c.drawArc(oval, angle, clump[2] * (1f + h), false, paint)
         }
     }
