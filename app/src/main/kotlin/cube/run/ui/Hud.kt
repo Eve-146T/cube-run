@@ -131,7 +131,9 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false) : Fr
         addView(achievementToast, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT).apply {
             gravity = Gravity.BOTTOM; bottomMargin = dp(32f); leftMargin = dp(22f); rightMargin = dp(22f)
         })
-        addView(jackpotToast, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
+        addView(jackpotToast, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT).apply {
+            leftMargin = dp(14f); rightMargin = dp(14f)
+        })
         topBox.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ -> positionJackpot() }
         setBubbles(Progress.bubbles)
         setOnApplyWindowInsetsListener { _, insets ->
@@ -435,7 +437,14 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false) : Fr
     }
 
     private fun positionJackpot() {
-        jackpotToast.bringToFront()
+        val params = jackpotToast.layoutParams as? LayoutParams ?: return
+        val top = topBox.bottom + dp(10f)
+        val right = if ((0 until childCount).any { getChildAt(it) is BoostArrows }) dp(104f) else dp(14f)
+        if (params.topMargin != top || params.rightMargin != right) {
+            params.topMargin = top
+            params.rightMargin = right
+            jackpotToast.layoutParams = params
+        }
     }
 
     fun setBoxes(n: Int) {

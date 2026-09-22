@@ -188,7 +188,7 @@ class CubeRun(session: GameSession, private val autoStart: Boolean = false, priv
 
     override fun paused(): Boolean {
         if (Stage.paused) { player.clearJumpInput(); idlePilot.stop() }
-        return Stage.paused || Stage.jackpotCelebrating
+        return Stage.paused
     }
 
     private fun start() {
@@ -428,10 +428,6 @@ class CubeRun(session: GameSession, private val autoStart: Boolean = false, priv
         coinsRun = coinsRunF.toInt()
         session.setCoins(coinsRun)
         session.jackpotWon(coinsRun - before)
-        fx.pickup(trackArt.gold, player.px, 0f)
-        SoundFx.play("perfect", rate = .85f)
-        burst3d(phasePosition.set(player.px, player.py + .5f, 0f), trackArt.gold, n = 48, speed = 7f, size = .14f, life = 1f)
-        rig.punch(.75f)
     }
 
     private fun bubbleDurationMultiplier() = runSkin.powerupDurationMultiplier * runBubble.durationMultiplier
