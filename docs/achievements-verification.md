@@ -283,3 +283,19 @@ Build and lint pass. Evidence is in `.build-tmp/hardware/abilities-24-core-01`,
 `abilities-24-regression-01`, and `abilities-24-visual-01`; build logs use
 `abilities-24-build-02.log`. Reviewed Lottery, Midas, and Floaty panels directly
 from the phone. All device phases restored and byte-verified the original save.
+
+## Trophy-room achievement page — 2026-09-22
+
+Rebuilt the achievement page (`AchievementsView`, `AchievementCards`,
+`AchievementHero`, `AchievementIcons`): a trophy ring with the share of all 26
+medals earned, medal and challenge tallies, one CLAIM ALL button, the five tiered
+families as medal cards with each target under its medal, and the six challenges
+as a two-column tile grid. The void's price button went back to the shop's gold
+one.
+
+Physical Moto G7 Power (ZY323NNKTB): `AchievementAlignmentTest`,
+`AchievementDevModeUiTest` and `AchievementToastTest` pass 8/8, and the run
+dropped from over 14 minutes to 47 seconds once the page was made to settle.
+Build and lint pass. Checked on the phone at three save states — a new account
+with nothing earned, a mixed account, and everything claimed — plus a recording
+of opening the page and collecting every reward with CLAIM ALL.
