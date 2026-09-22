@@ -130,21 +130,23 @@ part of this reward pool, including after discovery.
 ## The void
 
 The bottom shop item appears at 100,000 lifetime coins, or immediately in dev mode. It is a
-black card holding a live black hole (a tilted accretion disk, its far side lensed over the
-shadow, stars creeping inwards), the void's current line, and the price. No progress
+black card holding a live black hole (a smooth tilted accretion disk, a lensed ring over the
+shadow, stars creeping inwards, a faint nebula, a glow creeping round the card's edge), the
+void's current line, and the price on a void-violet slab with the number in gold. No progress
 towards the discoveries is shown: every offering should feel hopeless.
 
 Paying plays a show on the 3D shop stage (`game.stage.VoidShow`, drawn by
 `core.gfx.VoidRenderer`, timed by `core.VoidBeats`). The button punches in, then the shop
-sheet drops away and its header fades in place; only the bank pill stays. The sky drains and
-a black hole opens above the cube. Coins arc out of the bank, which drops by one coin's worth
-as each leaves, then fall onto the disk and orbit down, reddening into the horizon. The cube
-is pulled up, stretched, and falls behind the horizon. The disk spins up, the stars drain in,
-and the hole shrinks to a point of light. It goes supernova: a white-out, a cooling core,
+sheet drops away and its header fades in place; only the bank pill stays. The cube slips out
+of sight (it takes no part in the offering), the sky drains and a black hole opens. Coins arc
+out of the bank, which drops by one coin's worth as each leaves, then fall onto the disk and
+orbit down, reddening into the horizon. The disk spins up, the stars drain in,
+and the hole shrinks to a point of light. It goes supernova: a soft lilac bloom, a cooling core,
 soft shockwave rings in the disk's plane and hot shards. A pulsar is left sweeping its beams
 through a nebula. The cube is rebuilt from shards, the void types its next line (centred, line
 by line) in `ui.VoidShowOverlay`, and the camera returns before the sheet slides back up with
-the next offering in place. A tap after the blast skips to the return. The GL thread owns the
+the next offering in place. On the way back the cube eases into the shop's own pose and the
+shop's rays keep their normal pace, so nothing snaps when the show hands over. A tap after the blast skips to the return. The GL thread owns the
 clock (`Stage.voidClock`), so backgrounding pauses both halves together; touches and Back are
 blocked throughout. The shaders compile while the shop sits idle, so the tap never stalls.
 Milestone offerings keep the discovery in the dialogue; the cosmetic itself is found in the
