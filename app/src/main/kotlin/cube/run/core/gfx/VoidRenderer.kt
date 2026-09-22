@@ -58,8 +58,8 @@ class VoidRenderer(mb: ModelBuilder) : Disposable {
         uniform vec3 u_rimColor;
         varying float v_rim;
         void main() {
-            // Pure black, but a hairline of light clings to the very edge (the photon sphere).
-            float edge = pow(v_rim, 9.0);
+            // Pure black; only the last sliver of the edge catches light (the photon sphere).
+            float edge = pow(v_rim, 16.0) * 0.55;
             gl_FragColor = vec4(u_rimColor * edge, 1.0);
         }
     """)
@@ -138,7 +138,8 @@ class VoidRenderer(mb: ModelBuilder) : Disposable {
             // The far side of the disk, lensed into a ring: bright over the top, thinner beneath.
             float over = 0.5 + 0.5 * sin(ang + u_tilt); // 1 straight over the top
             float band = exp(-pow((d - 1.18) / (0.12 + 0.16 * over), 2.0));
-            float photon = exp(-pow((d - 1.035) / 0.025, 2.0));
+            // The photon ring: thin, brighter on the approaching (left) side, melting into the arc.
+            float photon = exp(-pow((d - 1.03) / 0.02, 2.0)) * (0.35 + 0.35 * cos(ang - 3.14159));
             float swirl = 0.75 + 0.25 * sin(ang * 6.0 - u_time * 2.4 + d * 9.0);
             float glow = exp(-(d - 1.0) * 2.2) * 0.18;
             vec3 cool = mix(vec3(0.62, 0.45, 1.0), vec3(1.0, 0.62, 0.22), u_heat);
@@ -166,14 +167,25 @@ class VoidRenderer(mb: ModelBuilder) : Disposable {
         uniform float u_gas;
         uniform float u_seed;
         uniform float u_time;
+        uniform float u_ring;
         varying vec2 v_uv;
         void main() {
             float d = length(v_uv);
-            // A soft gaussian glow; as gas it is torn into slowly turning wisps.
-            float core = exp(-d * d * 5.0);
-            float a = atan(v_uv.y, v_uv.x);
-            float wisp = 0.55 + 0.25 * sin(a * 3.0 + u_seed + u_time * 0.4 + d * 5.0) + 0.2 * sin(a * 5.0 - u_seed * 1.7 - u_time * 0.3 + d * 8.0);
-            float light = mix(core, core * wisp, u_gas) * (1.0 - smoothstep(0.8, 1.0, d));
+            float light;
+            if (u_ring > 0.0) {
+                // A soft-edged ring at radius u_ring: bright leading edge, a fading wake inside it.
+                float lead = exp(-pow((d - u_ring) / 0.035, 2.0));
+                float wake = exp(-pow((d - u_ring * 0.85) / 0.12, 2.0)) * 0.35;
+                light = (lead + wake) * (1.0 - smoothstep(0.9, 1.0, d));
+            } else {
+                // A soft gaussian glow; as gas it is torn by layered, non-repeating folds.
+                float core = exp(-d * d * 4.0);
+                vec2 p = v_uv * 2.3 + vec2(u_seed, -u_seed * 0.7);
+                float n = sin(p.x * 1.7 + sin(p.y * 2.3 + u_time * 0.25)) * sin(p.y * 1.3 - sin(p.x * 1.9 - u_time * 0.2));
+                n += 0.5 * sin(p.x * 3.9 - p.y * 3.1 + u_seed * 2.0 + u_time * 0.3) * sin(p.y * 4.3 + p.x * 1.1);
+                float gasLight = core * clamp(0.45 + 0.55 * n, 0.0, 1.0);
+                light = mix(core, gasLight, u_gas) * (1.0 - smoothstep(0.75, 1.0, d));
+            }
             gl_FragColor = vec4(u_color * light * u_alpha, 1.0);
         }
     """)
@@ -266,14 +278,18 @@ class VoidRenderer(mb: ModelBuilder) : Disposable {
      * A camera-facing glow of radius [size] at [center]: a hot core, a star, or (with [gas] = 1)
      * a torn wisp of nebula. Additive, depth-tested.
      */
-    fun drawGlow(cam: Camera, center: Vector3, size: Float, color: Color, alpha: Float, gas: Float = 0f, seed: Float = 0f, time: Float = 0f) {
+    fun drawGlow(cam: Camera, center: Vector3, size: Float, color: Color, alpha: Float, gas: Float = 0f, seed: Float = 0f, time: Float = 0f,
+                 ring: Float = 0f, planeRight: Vector3? = null, planeUp: Vector3? = null) {
         if (alpha <= 0.003f || size <= 0f) return
         Gdx.gl.glEnable(GL20.GL_DEPTH_TEST)
         Gdx.gl.glDepthMask(false)
         Gdx.gl.glEnable(GL20.GL_BLEND)
         Gdx.gl.glBlendFunc(GL20.GL_ONE, GL20.GL_ONE)
-        right.set(cam.direction).crs(cam.up).nor()
-        up.set(right).crs(cam.direction).nor()
+        if (planeRight != null && planeUp != null) { right.set(planeRight); up.set(planeUp) } // lying in a plane
+        else {
+            right.set(cam.direction).crs(cam.up).nor()
+            up.set(right).crs(cam.direction).nor()
+        }
         glowShader.bind()
         glowShader.setUniformMatrix("u_projViewTrans", cam.combined)
         glowShader.setUniformf("u_center", center)
@@ -285,6 +301,7 @@ class VoidRenderer(mb: ModelBuilder) : Disposable {
         glowShader.setUniformf("u_gas", gas)
         glowShader.setUniformf("u_seed", seed)
         glowShader.setUniformf("u_time", time)
+        glowShader.setUniformf("u_ring", ring)
         quad.render(glowShader, GL20.GL_TRIANGLES)
         restore()
     }

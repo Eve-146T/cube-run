@@ -18,11 +18,11 @@ object VoidBeats {
     /** It goes supernova. */
     const val NOVA = 3.3f
     /** The cube is assembled again from shards where it was. */
-    const val REBIRTH = 3.9f
+    const val REBIRTH = 3.8f
     /** The void says its piece. */
-    const val SPEAK = 4.35f
+    const val SPEAK = 4.15f
     /** The camera heads back to the shop. A tap after the blast skips straight here. */
-    const val RETURN = 7.2f
+    const val RETURN = 6.6f
     /** The shop sheet rises back once the cube is clear of it. */
     const val SHEET = RETURN + 0.35f
     const val END = RETURN + 0.95f

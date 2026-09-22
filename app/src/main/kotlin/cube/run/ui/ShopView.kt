@@ -531,6 +531,9 @@ class ShopView(
         if (key == "void") {
             // The void takes over immediately. Its opaque scene owns the payment animation
             // and sits above the shared menu bank, outside this page's inset content.
+            // Where you tapped: the button punches in and the card's hole flares before the sheet drops.
+            Anim.pulse(btn, 1.1f, 200)
+            cards["void"]?.let { Anim.pulse(it, 1.03f, 260) }
             // The coins pour out of the bank into the hole on the 3D stage: the balance drops
             // by each coin as it goes down (Stage.voidFed), and lands exactly on the new bank.
             balanceCount?.cancel()

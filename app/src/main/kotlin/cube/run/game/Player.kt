@@ -450,14 +450,14 @@ class Player(private val game: Gdx3DGame, private val rnd: Random) {
     fun voidPose(time: Float, baseHue: Float, x: Float, y: Float, z: Float, yaw: Float, tip: Float,
                  sx: Float, sy: Float, sz: Float, glow: Float, glowCol: Color) {
         zappyFx?.clear()
-        hsvInto(col, skin.hueAt(time, baseHue), skin.sat, skin.valueAt(time)).lerp(glowCol, glow * 0.6f)
+        hsvInto(col, skin.hueAt(time, baseHue), skin.sat, skin.valueAt(time)).lerp(glowCol, glow * 0.35f)
         visualTime = time
         hsvInto(shellCol, skin.hueAt(time, baseHue), skin.sat * 0.9f, 1f).lerp(glowCol, glow)
         val material = inst.materials.first()
         val emissive = material.get(ColorAttribute.Emissive) as? ColorAttribute
             ?: ColorAttribute.createEmissive(0f, 0f, 0f, 1f).also { material.set(it) }
         if (!voidEmissiveSaved) { voidEmissive.set(emissive.color); voidEmissiveSaved = true }
-        emissive.color.set(voidEmissive).lerp(glowCol.r * 0.5f, glowCol.g * 0.5f, glowCol.b * 0.5f, 1f, glow)
+        emissive.color.set(voidEmissive).lerp(glowCol.r * 0.3f, glowCol.g * 0.3f, glowCol.b * 0.3f, 1f, glow)
         inst.transform.setToTranslation(x, y, z).rotate(Vector3.Z, tip).rotate(Vector3.Y, yaw).rotate(Vector3.X, 12f).scale(sx * 0.9f, sy * 0.9f, sz * 0.9f)
         val pulse = glowScale(time)
         shellBlend.opacity = shellOpacity(time) + 0.15f * glow

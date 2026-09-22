@@ -300,12 +300,15 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false) : Fr
         centreOf(menu.shopBalance).let { at ->
             Stage.voidCoinX = at.x / width.coerceAtLeast(1); Stage.voidCoinY = at.y / height.coerceAtLeast(1)
         }
-        shop?.animate()?.translationY(height * .35f)?.alpha(0f)?.setDuration(420)
+        // A beat for the press to land where you tapped, then the sheet drops away.
+        shop?.animate()?.translationY(height * .35f)?.alpha(0f)?.setStartDelay(160)?.setDuration(420)
             ?.setInterpolator(Anim.ease)?.setUpdateListener { Anim.repaint(this) }?.start()
         lateinit var fx: VoidShowOverlay
         fx = VoidShowOverlay(activity, kit, Progress.voidLine, onReturn = {
             onCovered() // the next offering is in place before the page comes back
-            shop?.animate()?.translationY(0f)?.alpha(1f)?.setDuration(560)
+            // Opaque at once, sliding up: never a see-through sheet over the stage.
+            shop?.alpha = 1f
+            shop?.animate()?.translationY(0f)?.setStartDelay(0)?.setDuration(560)
                 ?.setInterpolator(Anim.ease)?.setUpdateListener { Anim.repaint(this) }?.start()
         }, onEnd = {
             if (voidPurchase === fx) {
