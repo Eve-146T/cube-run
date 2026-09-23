@@ -280,7 +280,7 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false) : Fr
         menu.bringToFront() // corner controls return above the sheet instead of flashing out from beneath it
     }
     private fun openWardrobe() { if (!pageOpen()) open(WardrobeView(activity, kit) { closed() }) }
-    private fun openSections() { if (!pageOpen()) open(SectionsView(activity, kit) { closed() }) }
+    private fun openSections() { if (!pageOpen()) open(SectionsView(activity, kit, reloadMenu = { relaunch(autoStart = false) }) { closed() }) }
     private fun openAchievements() {
         if (!pageOpen() && Progress.achievementsUnlocked) open(AchievementsView(activity, kit) { closed() })
     }

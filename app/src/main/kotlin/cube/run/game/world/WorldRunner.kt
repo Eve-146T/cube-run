@@ -72,6 +72,7 @@ class WorldRunner(private val game: Gdx3DGame, private val scenery: Scenery, pri
 
     /** Called with the running row count; drops the next gate when it is time. */
     fun onRow(rowsPassed: Int) {
+        if (cube.run.data.Settings.performanceCourse) return
         if (pendingWorld != null || rowsPassed - lastSwitchRow < rowsPerWorld) return
         lastSwitchRow = rowsPassed
         if (order.isEmpty()) order = ArrayList((0 until Worlds.all.size).filter { it != world.id }.shuffled(rnd))

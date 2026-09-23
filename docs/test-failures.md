@@ -149,3 +149,18 @@
 - Failure: dedicated coin comparison found four differing channels (one pixel, max delta 38) at yaw phase 9 with translucent coins. Existing batch comparisons and all 26 achievement tests passed.
 - Classification: renderer rounding at a projected edge. Reordered GPU world-position arithmetic to match the CPU reference's left-to-right additions rather than adding the translation last. Exact comparison retained.
 - Resolution: exact 96-state framebuffer rerun passed after matching coordinate arithmetic order (no tolerance or fixture removal).
+
+## 2026-09-23 — performance course shortcut localization gate
+
+- Revision: performance shortcut work on `c96b35a`.
+- Command: `./gradlew :app:assembleDebug :app:assembleDebugAndroidTest :app:lintDebug --max-workers=1` (two builds while the focused test was being added).
+- Failure: lint reported four `MissingTranslation` errors for the new debug course labels in German and Hebrew. Both APKs compiled.
+- Classification: incomplete UI resources. Added the four labels in both supported translations and reran the gate.
+- Resolution: final debug APK, instrumentation APK and lint gate passed; both focused course tests passed on emulator-5560.
+
+## 2026-09-23 — animated menu accessibility dump
+
+- Revision: performance shortcut work on `c96b35a`; emulator-5560 at 540×960, density 240.
+- Command: `adb -s emulator-5560 shell uiautomator dump /sdcard/course-ui.xml`.
+- Failure: the accessibility dump could not obtain an idle state while the main menu animated; no dump file was created.
+- Classification: inspection-tool limitation, not an application failure. Used actual screenshot coordinates for the tap-only flow and inspected screenshots and recordings instead. Course selection, retry, normal exit, Red Pill exit and section exit all worked.

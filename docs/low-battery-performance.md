@@ -148,3 +148,41 @@ The final candidate has not been tested on a cold Pixel 7a at 5%, and the measur
 CPU improvement must not be presented as proof that the reported device stall is
 resolved. The separate branch is ready for that hardware follow-up without any
 visual-quality or frame-rate reductions.
+
+## Tap-accessible debug course
+
+The debug APK now has **TEST PERFORMANCE** below the main menu's start hint.
+Tap it, choose **DENSE COIN COURSE**, then tap to start on the returning menu.
+The course repeats MOTHERLODE in Lava Caves with seed 73; entering a run resets
+the seed, so time spent on the menu cannot change the layout. It keeps the
+selected cube and ordinary controls, with all scene geometry and visual effects.
+No magnet, skin or special ability is granted. The developer bank is available
+while testing, but the original bank/developer setting is restored on exit.
+
+The test course suppresses surprise upgrades, bonus portals and biome changes.
+Restart keeps the selection. To leave, use **Pause → Menu → Test Performance →
+Play Normally**; selecting another section or the Red Pill course also exits
+performance mode. The existing menu relaunch disposes the previous GL resources.
+Selection is process-scoped and does not survive a fresh app process. Release
+APKs do not show this shortcut or enable this course mode.
+
+### Shortcut verification
+
+Debug app/test APK assembly and Android lint passed ([build log](low-battery-reference/test-course-build.txt)).
+Both focused `PerformanceCourseTest` checks passed on emulator-5560
+([test log](low-battery-reference/test-course-instrumentation.txt)): fixed dense
+coin layout, no course pickups/portals, unchanged equipment, restored bank, and
+ordinary portals and biome changes after leaving the course. The renderer was
+unchanged by this follow-up, so the earlier 41 regression checks were retained.
+
+Inspected the actual app at 540×960, density 240: visible shortcut, course picker,
+run start, lane change, pause/retry, normal-play return, Red Pill exit and another
+section exit. The original bank returned to zero after Play Normally. The
+[menu](low-battery-reference/course-menu.png),
+[active picker](low-battery-reference/course-active-picker.png) and
+[restored menu](low-battery-reference/course-restored-menu.png) show the compact
+layout; a fresh independent reviewer found no actionable defects. Inspected
+14-second start/menu and 8-second continuous-run recordings, with sampled
+[start sequence](low-battery-reference/course-motion-sheet.jpg) and
+[run motion](low-battery-reference/course-running-motion.jpg). Local full videos
+are under `captures/low-battery/performance-course*.mp4`.

@@ -77,8 +77,10 @@ class GameActivity : AndroidApplication() {
 
         // Debug builds only: adb shortcuts for testing individual sections and worlds.
         if (BuildConfig.DEBUG) {
+            if (intent.hasExtra("section") || intent.hasExtra("pillworld") || intent.hasExtra("bonusnow"))
+                Settings.leavePerformanceCourse()
             // Opt-in APK preset: survives launcher starts and RESTART without adb extras.
-            if (BuildConfig.JACKPOT_TEST_WORLD) {
+            if (BuildConfig.JACKPOT_TEST_WORLD && !Settings.performanceCourse) {
                 Settings.setDevMode(true)
                 Progress.enterDev()
                 Settings.testSection = 56 // MOTHERLODE: an obstacle-free field of coins.
