@@ -18,6 +18,7 @@ interface GameSession {
 
     /** Accepted lane changes and road remaps, reported immediately rather than sampled per frame. */
     fun laneChanged(lane: Int, laneCount: Int) {}
+    fun userLaneSwipe(from: Int, to: Int) {}
 
     /** A physical track coin was collected, even if its net coin reward is zero. */
     fun coinPickedUp() {}
@@ -27,6 +28,14 @@ interface GameSession {
 
     /** Present a jackpot already included in the run coin total; never bank it twice. */
     fun jackpotWon(amount: Int) {}
+    fun nearMiss() {}
+    fun powerupPickedUp() {}
+    fun boxCollected() {}
+    fun coalCollected() {}
+    fun fullKitHeld() {}
+    fun distanceCovered(metres: Int) {}
+    fun runSeconds(seconds: Int) {}
+    fun runCrashed(seconds: Float) {}
 
     /** Coins collected so far this run (banked into [Progress] at game over). */
     fun setCoins(v: Int) {}

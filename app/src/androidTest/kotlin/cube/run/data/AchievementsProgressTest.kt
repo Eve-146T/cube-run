@@ -310,7 +310,7 @@ class AchievementsProgressTest {
         val reward = Progress.buyMysteryBox(bubbleRoll)!!
         assertEquals(Progress.BoxReward.BUBBLE, reward.kind)
         assertEquals(0, Progress.coins); assertEquals(reward.amount, Progress.bubbles)
-        assertEquals("boxes", Achievements.drainUnlocks().single().definition.id)
+        assertTrue(Achievements.drainUnlocks().any { it.definition.id == "boxes" })
         Progress.init(context); assertEquals(10, Progress.boxesOpened); assertEquals(reward.amount, Progress.bubbles)
     }
 
@@ -397,7 +397,7 @@ class AchievementsProgressTest {
             assertEquals(1, state("coins").earnedTiers)
             session.gameOver()
         }
-        assertEquals(setOf("runner", "coins", "homeress"), Achievements.drainUnlocks().map { it.definition.id }.toSet())
+        assertEquals(setOf("runner", "coins", "homeress", "untouchable"), Achievements.drainUnlocks().map { it.definition.id }.toSet())
         assertEquals(250, Achievements.claim("runner"))
         assertEquals(0, Achievements.claim("runner"))
         Settings.setDevMode(false); Progress.leaveDev(); Progress.init(context)

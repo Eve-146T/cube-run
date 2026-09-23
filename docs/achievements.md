@@ -16,17 +16,17 @@ begin with this version. Purchasing the unlock acknowledges existing medals
 quietly rather than replaying notifications.
 
 The page is a trophy room on a deep indigo-to-teal backdrop. It opens with a trophy
-inside a ring that fills with the share of all 26 medals earned, the count under it,
+inside a ring that fills with the share of all 68 medals and challenges earned, the count under it,
 and a tally of bronze, silver, gold, diamond and completed challenges. One gold
 CLAIM ALL button collects every waiting reward at once; it is only there while
 something is waiting, and it shrinks away once it has paid.
 
-Below that, two labelled groups. MEDALS holds the five tiered families as wide
+Below that, two labelled groups. MEDALS holds the eleven tiered families as wide
 cards in the shop's card style: a glossy coloured band with a circular icon badge,
 the four medals on one track with each target written under its medal, and the next
 goal with its payout. The link between two medals fills as you approach the next one.
 The current medal wears a ring, a reward waiting to be claimed glows and beats, claimed
-medals are solid and later ones are faint. CHALLENGES holds the six one-off dares as
+medals are solid and later ones are faint. CHALLENGES holds the 24 one-off dares as
 tiles, two to a row, dropping to one per row on narrow screens or at large text sizes;
 tiles in a row share the taller one's height, so their goals line up. Numbers always use
 groups of three, such as `500,000`, regardless of the device locale; medal targets are
@@ -54,6 +54,15 @@ The tiered thresholds, bronze through diamond: Good Runner beats 500, 1,000, 2,0
 and 5,000 points in one run; Lifetime Coins collects 5,000, 25,000, 100,000 and
 500,000; Unlocked Cubes owns 5, 10, 15 and 24; Power Collector picks up 100, 1,000,
 5,000 and 10,000 power-ups; Mystery Seeker opens 10, 50, 100 and 300 boxes.
+
+The added families are Globetrotter (1/2/3/4 distinct bonus worlds across runs),
+Long Hauler (10,000/100,000/500,000/2,000,000 metres across runs), Shardsmith
+(25/100/250/750 collected shards), Regular (10/100/500/2,000 started runs),
+Bubble Popper (10/100/500/2,000 spent stocked bubbles), and Near Miss
+(50/500/2,500/10,000 near-miss bonuses). Portal Hopper waits for the portal rework.
+Stage Fright counts terminal crashes within two seconds of starting, excluding
+revived crashes. Bankrupt needs a paid transaction that takes a positive balance
+to zero, so an empty new account does not qualify.
 
 Big Bubble requires 1,000 stocked bubbles at once. Bouncer requires 67 deliberate
 side-wall hits in one run. Holding a smooth drag beyond an edge does not repeatedly

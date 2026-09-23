@@ -88,6 +88,40 @@ object Progress {
         private set
     private val perkLevels = HashMap<String, Int>()
     private val shardCounts = IntArray(Shards.all.size)
+    private val achievementMetrics = HashMap<String, Int>()
+    private var shopSpendSerial = 0
+    private var shopOpenSerial = -1
+
+    fun metric(id: String): Int = achievementMetrics[id] ?: 0
+
+    @Synchronized fun addMetric(id: String, amount: Int = 1) {
+        if (amount <= 0) return
+        val next = saturatedAdd(metric(id), amount)
+        if (next == metric(id)) return
+        achievementMetrics[id] = next
+        prefs.edit().putInt("metric_$id", next).apply()
+        Achievements.evaluate()
+    }
+
+    @Synchronized fun bestMetric(id: String, value: Int) {
+        if (value <= metric(id)) return
+        achievementMetrics[id] = value
+        prefs.edit().putInt("metric_$id", value).apply()
+        Achievements.evaluate()
+    }
+
+    @Synchronized fun markMetricBit(id: String, bit: Int) {
+        if (bit !in 0..30) return
+        bestMetric(id, metric(id) or (1 shl bit))
+    }
+
+    @Synchronized fun shopOpened() { shopOpenSerial = shopSpendSerial }
+    @Synchronized fun shopClosed() {
+        if (shopOpenSerial < 0) return
+        if (shopSpendSerial == shopOpenSerial) addMetric("just_browsing")
+        else { achievementMetrics["just_browsing"] = 0; prefs.edit().putInt("metric_just_browsing", 0).apply() }
+        shopOpenSerial = -1
+    }
 
     // ---- wardrobe: equipped ids + owned bitmasks (item 0 of each is always owned)
     @Volatile var skin: Int = 0
@@ -165,6 +199,7 @@ object Progress {
         if (!voidAvailable || !spend(voidPrice)) return false
         voidPurchases = (voidPurchases.toLong() + 1).coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
         prefs.edit().putInt("void_purchases", voidPurchases).apply()
+        Achievements.evaluate()
         return true
     }
 
@@ -281,6 +316,10 @@ object Progress {
         maxRunMissedBoxes = prefs.getInt("max_run_missed_boxes", 0).coerceIn(0, 10)
         totalMuteToggles = prefs.getInt("total_mute_toggles", 0).coerceAtLeast(0)
         voidPurchases = prefs.getInt("void_purchases", 0).coerceAtLeast(0)
+        achievementMetrics.clear()
+        for (definition in Achievements.all) achievementMetrics[definition.id] = prefs.getInt("metric_${definition.id}", 0).coerceAtLeast(0)
+        achievementMetrics["regular"] = maxOf(metric("regular"), runs)
+        shopSpendSerial = 0; shopOpenSerial = -1
         unbankedRunCoins = 0
         prefs.edit().putInt("achievement_best_score", bestRunScore).putInt("max_bubbles", maxBubbles).apply()
         Achievements.init(prefs)
@@ -368,8 +407,9 @@ object Progress {
 
     /** One more run finished (for the stats). */
     @Synchronized fun countRun() {
-        runs += 1
+        runs = saturatedAdd(runs, 1)
         prefs.edit().putInt("runs", runs).putInt("achievement_best_score", bestRunScore).putInt("max_run_bounces", maxRunBounces).apply()
+        Achievements.evaluate()
     }
 
     fun payLanguageSwitch(from: String, to: String): Boolean = spend(Languages.switchCost(from, to))
@@ -378,6 +418,10 @@ object Progress {
         if (n < 0 || n > coins) return false
         coins -= n
         prefs.edit().putInt("coins", coins).apply()
+        if (n > 0) {
+            shopSpendSerial++
+            if (coins == 0) bestMetric("bankrupt", 1)
+        }
         return true
     }
 
@@ -433,6 +477,7 @@ object Progress {
         if (bubbles <= 0) return false
         if (saveChance > 0f && random.nextFloat() < saveChance) return true
         bubbles -= 1
+        addMetric("bubble_popper")
         prefs.edit().putInt("bubbles", bubbles).apply()
         recordBubbles()
         return true
@@ -451,6 +496,7 @@ object Progress {
         if (kind !in shardCounts.indices || n <= 0) return
         shardCounts[kind] += n
         prefs.edit().putInt("shards_$kind", shardCounts[kind]).apply()
+        addMetric("shardsmith", n)
     }
 
     /** Spend the shards a shard-only skin asks for and own it. False when it is not that kind of skin, or there are not enough. */

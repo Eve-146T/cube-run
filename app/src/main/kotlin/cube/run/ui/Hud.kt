@@ -80,6 +80,7 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false) : Fr
     private var best = 0
     private var world = ""
     private var runStarted = false
+    private var runPauseResumes = 0
     private var page: Page? = null
     private var preparedShop: ShopView? = null
     private var opening = openingEntrance
@@ -231,6 +232,7 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false) : Fr
         onProgressReset = ::refreshAfterProgressReset) {
         page = null
         menu.finishShop()
+        Progress.shopClosed()
         Stage.homeScreen = true
         setBubbles(Progress.bubbles)
         scheduleShopPreparation()
@@ -270,6 +272,7 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false) : Fr
 
     private fun openShop() {
         if (pageOpen()) return
+        Progress.shopOpened()
         Stage.homeScreen = false
         removeCallbacks(prepareShop)
         val shop = preparedShop?.takeIf { it.isCurrent() } ?: newShop()
@@ -503,6 +506,7 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false) : Fr
     fun hideOptions() {
         Stage.homeScreen = false
         runStarted = true
+        runPauseResumes = 0
         removeCallbacks(pollAchievements)
         postDelayed(pollAchievements, 500)
         // Purchases and result-screen unlocks belong on the achievement page, not the next run.
@@ -531,6 +535,10 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false) : Fr
         pauseChip.visibility = INVISIBLE
         val sheet = PauseSheet(activity, kit,
             onResume = {
+                if (animate) {
+                    runPauseResumes++
+                    Progress.bestMetric("nervous_tic", runPauseResumes.coerceAtMost(50))
+                }
                 pauseSheet = null
                 Stage.paused = false
                 achievementToast.setRunActive(true)

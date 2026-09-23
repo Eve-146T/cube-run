@@ -115,7 +115,7 @@ class AchievementsInteractionTest {
                 SystemClock.sleep(500)
                 lateinit var baseline: IntArray
                 scenario.onActivity {
-                    assertEquals(11, descendants(page(it)).count { view -> view.tag?.toString()?.startsWith("achievement_card_") == true })
+                    assertEquals(Achievements.all.size, descendants(page(it)).count { view -> view.tag?.toString()?.startsWith("achievement_card_") == true })
                     assertTrue("Lifetime target uses US grouping", descendants(tag(page(it), "achievement_card_coins")).filterIsInstance<TextView>()
                         .any { view -> view.text.toString().contains("500,000") })
                     baseline = headerPixels(page(it))

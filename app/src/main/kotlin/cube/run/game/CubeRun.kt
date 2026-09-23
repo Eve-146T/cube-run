@@ -246,6 +246,7 @@ class CubeRun(session: GameSession, private val autoStart: Boolean = false, priv
             bubble.duration = bubbleDuration()
         }
         session.runStarted()
+        if (bonus in 0..3) session.setBonus(bonus)
         session.laneChanged(player.lane, Lanes.count)
         refreshJumpAbility()
         fx.runStart(worldHue())
@@ -263,6 +264,7 @@ class CubeRun(session: GameSession, private val autoStart: Boolean = false, priv
         if (dead) return
         if (BuildConfig.DEBUG && testCrashObserver != null) { testCrashObserver!!.invoke(); return }
         if (Progress.useRevive()) { secondWind(); return }
+        session.runCrashed(runT)
         dead = true
         player.setFlying(false)
         fx.crash(player.px, player.py, player.col)
@@ -341,6 +343,7 @@ class CubeRun(session: GameSession, private val autoStart: Boolean = false, priv
         session.addScore(if (x2) 2 else 1)
         fx.rowPassed()
         if (row.minClear < 0.34f) { // shaved it — reward a close dodge with an air-rush
+            session.nearMiss()
             session.addScore(if (x2) nearMissBonus * 2 else nearMissBonus)
             fx.nearMiss(player.px, player.py)
         }
@@ -353,6 +356,7 @@ class CubeRun(session: GameSession, private val autoStart: Boolean = false, priv
         session.coinPickedUp()
         val value = Progress.coinValue * (if (bonus == Bonus.KALEIDO) 2f else 1f)
         if (Skins.Ability.COAL in runSkin.abilities) {
+            session.coalCollected()
             SoundFx.play("tap", rate = .75f, vol = .35f)
             burst3d(phasePosition.set(coin.x, coin.y, cz), trackArt.coal, n = 6, speed = 2.5f, size = .12f, life = .35f)
             return
@@ -378,7 +382,10 @@ class CubeRun(session: GameSession, private val autoStart: Boolean = false, priv
     private fun collectPickup(row: Row, cz: Float) {
         val kind = row.pickup
         row.pickup = Pickup.NONE
-        if (kind != Pickup.NONE && kind != Pickup.BOX && Pickup.shardType(kind) < 0) Progress.recordPowerup()
+        if (kind != Pickup.NONE && kind != Pickup.BOX && Pickup.shardType(kind) < 0) {
+            Progress.recordPowerup()
+            session.powerupPickedUp()
+        }
         when (kind) {
             Pickup.SHARD_EMBER, Pickup.SHARD_FROST, Pickup.SHARD_VOID -> {
                 session.addShard(Pickup.shardType(kind))
@@ -390,6 +397,7 @@ class CubeRun(session: GameSession, private val autoStart: Boolean = false, priv
                 fx.pickup(hsvInto(tmpCol, 190f, 0.5f, 1f), row.pickupX, cz)
             }
             Pickup.BOX -> {
+                session.boxCollected()
                 if (Skins.Ability.LOTTERY in runSkin.abilities) {
                     val won = lottery.collectBox()
                     awardJackpot(won)
@@ -505,7 +513,8 @@ class CubeRun(session: GameSession, private val autoStart: Boolean = false, priv
         val laneTravel = sw * (0.32f - 0.20f * Settings.smoothSensitivity) // finger px per lane
         val rawTarget = smoothAnchorLane + ((x - smoothAnchorX) / laneTravel).roundToInt()
         val target = rawTarget.coerceIn(0, Lanes.last)
-        player.moveToLane(target)
+        val fromLane = player.lane
+        if (player.moveToLane(target)) session.userLaneSwipe(fromLane, target)
         val wall = when { rawTarget < 0 -> -1; rawTarget > Lanes.last -> 1; else -> 0 }
         if (wall != 0 && wall != smoothWall) sideBounce(wall)
         smoothWall = wall
@@ -537,7 +546,10 @@ class CubeRun(session: GameSession, private val autoStart: Boolean = false, priv
         when (dir) {
             LEFT, RIGHT -> {
                 val d = if (dir == LEFT) -1 else 1
-                if (player.lane + d in 0..Lanes.last) player.moveToLane(player.lane + d)
+                if (player.lane + d in 0..Lanes.last) {
+                    val fromLane = player.lane
+                    if (player.moveToLane(fromLane + d)) session.userLaneSwipe(fromLane, fromLane + d)
+                }
                 else sideBounce(d)
             }
             UP -> player.jump()
@@ -629,6 +641,7 @@ class CubeRun(session: GameSession, private val autoStart: Boolean = false, priv
         if (started && !dead) {
             jetBoost += ((if (player.flying) 1f else 0f) - jetBoost) * min(1f, dt * 2f)
             runT += dt
+            session.runSeconds(runT.toInt())
             val ease = min(1f, runT / 1.5f).let { it * it * it * (it * (it * 6f - 15f) + 10f) } // the start: the road winds up, the camera drops in
             rig.intro = introAtStart + (1f - introAtStart) * ease
             spd = 4.5f + (difficulty.speed() * runSkin.speedMultiplier * (1f + jetSpeedUp * jetBoost) - 4.5f) * ease
@@ -647,6 +660,7 @@ class CubeRun(session: GameSession, private val autoStart: Boolean = false, priv
         }
         val mv = spd * dt
         dist += mv
+        if (started && !dead) session.distanceCovered(dist.toInt())
         Lanes.tick(dt)
         track.alignLaneSpacing()
         Terrain.scroll(mv, dt)
@@ -693,6 +707,7 @@ class CubeRun(session: GameSession, private val autoStart: Boolean = false, priv
         if (started && !dead) {
             powerUps.magnet.tick(dt)
             powerUps.mult.tick(dt)
+            if (bubble.active && powerUps.magnet.active && powerUps.mult.active && powerUps.jet.active) session.fullKitHeld()
             if (powerUps.jet.tick(dt)) endJet()
             else if (player.flying) { // keep the landing point current; glide down through the last seconds
                 val left = powerUps.jet.left
