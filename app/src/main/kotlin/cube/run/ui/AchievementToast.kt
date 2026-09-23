@@ -11,6 +11,7 @@ import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
 import cube.run.data.Achievements
+import cube.run.R
 import cube.run.ui.Anim.move
 
 /** A quiet run companion: one award at a time, no sounds, and generous breathing room. */
@@ -139,10 +140,10 @@ class AchievementToast(activity: Activity, private val kit: UiKit) : FrameLayout
         pending.remove(first.key)
         val color = if (unlock.definition.tiered) medalColor(unlock.tier) else Theme.MINT
         badge.setImageDrawable(if (unlock.definition.tiered) MedalIcon(color, true, unlock.tier == 3) else AchievementCheckIcon())
-        title.text = unlock.definition.title
+        title.text = context.gameText(unlock.definition.title)
         val reward = Achievements.reward(unlock.definition, unlock.tier)
         detail.text = kit.coins(number(reward), 12f)
-        card.contentDescription = "${title.text}. ${unlock.tierName}. Reward: ${number(reward)} coins."
+        card.contentDescription = context.getString(R.string.cd_achievement_reward, title.text, context.gameText(unlock.tierName), number(reward))
         showing = true
         currentUnlock = unlock
         card.visibility = VISIBLE

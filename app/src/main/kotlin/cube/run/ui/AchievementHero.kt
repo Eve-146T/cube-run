@@ -16,6 +16,7 @@ import android.view.View
 import android.widget.ImageView
 import android.widget.LinearLayout
 import cube.run.data.Achievements
+import cube.run.R
 import kotlin.math.cos
 import kotlin.math.sin
 
@@ -81,15 +82,15 @@ internal class AchievementHero(context: Context, private val kit: UiKit, onClaim
             total.text = "$from / $max"
             postDelayed({ Anim.countTo(total, from, now, 850L) { "$it / $max" } }, delay)
         } else total.text = "$now / $max"
-        contentDescription = "$now of $max achievements earned"
+        contentDescription = context.getString(R.string.cd_achievements_earned, now, max)
 
         val waiting = states.sumOf { s ->
             val first = s.claimableTier ?: return@sumOf 0
             (first until s.earnedTiers).sumOf { Achievements.reward(s.definition, it) }
         }
         if (waiting > 0) {
-            claimAll.text = android.text.SpannableStringBuilder("CLAIM ALL ").append(kit.coins(number(waiting), 18f))
-            claimAll.contentDescription = "Claim all rewards, ${number(waiting)} coins"
+            claimAll.text = android.text.SpannableStringBuilder(context.getString(R.string.achievements_claim_all)).append(" ").append(kit.coins(number(waiting), 18f))
+            claimAll.contentDescription = context.getString(R.string.cd_claim_all_rewards, number(waiting))
             claimAll.isEnabled = true
             if (claimAll.visibility != VISIBLE) { claimAll.visibility = VISIBLE; claimAll.alpha = 1f; claimAll.scaleX = 1f; claimAll.scaleY = 1f }
         } else if (claimAll.visibility == VISIBLE) {

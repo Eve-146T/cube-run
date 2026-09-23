@@ -303,7 +303,7 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false) : Fr
         // A beat for the press to land where you tapped, then the sheet drops away.
         shop?.stepAside(away = true)
         lateinit var fx: VoidShowOverlay
-        fx = VoidShowOverlay(activity, kit, Progress.voidLine, onReturn = {
+        fx = VoidShowOverlay(activity, kit, activity.gameText(Progress.voidLine), onReturn = {
             onCovered() // the next offering is in place before the page comes back
             shop?.stepAside(away = false)
         }, onEnd = {

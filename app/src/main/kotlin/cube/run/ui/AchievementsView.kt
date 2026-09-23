@@ -22,6 +22,7 @@ import cube.run.core.Haptics
 import cube.run.core.SoundFx
 import cube.run.data.Achievements
 import cube.run.data.Progress
+import cube.run.R
 
 /**
  * The trophy room. A trophy ring up top shows how much of everything is earned and collects
@@ -31,7 +32,7 @@ import cube.run.data.Progress
  */
 @SuppressLint("ViewConstructor")
 class AchievementsView(activity: Activity, kit: UiKit, onClose: () -> Unit) :
-    Page(activity, kit, "ACHIEVEMENTS", dark = true, onClosed = onClose) {
+    Page(activity, kit, activity.getString(R.string.achievements_title), dark = true, onClosed = onClose) {
     private val rows = LinearLayout(activity).apply {
         orientation = LinearLayout.VERTICAL
         setPadding(dp(14f), dp(4f), dp(14f), dp(28f))
@@ -80,11 +81,11 @@ class AchievementsView(activity: Activity, kit: UiKit, onClose: () -> Unit) :
         val medals = states.filter { it.definition.tiered }
         val challenges = states.filterNot { it.definition.tiered }
         rows.addView(hero, LinearLayout.LayoutParams(-1, -2))
-        rows.addView(section("MEDALS", "${medals.sumOf { it.earnedTiers }} / ${medals.sumOf { it.definition.thresholds.size }}"),
+        rows.addView(section(activity.getString(R.string.achievements_medals), "${medals.sumOf { it.earnedTiers }} / ${medals.sumOf { it.definition.thresholds.size }}"),
             LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(22f); bottomMargin = dp(10f) })
         for ((index, state) in medals.withIndex()) rows.addView(cards.card(state, index),
             LinearLayout.LayoutParams(-1, -2).apply { if (index > 0) topMargin = dp(12f) })
-        rows.addView(section("CHALLENGES", "${challenges.count { it.earnedTiers > 0 }} / ${challenges.size}"),
+        rows.addView(section(activity.getString(R.string.achievements_challenges), "${challenges.count { it.earnedTiers > 0 }} / ${challenges.size}"),
             LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(24f); bottomMargin = dp(10f) })
         for ((index, state) in challenges.withIndex()) grid.addView(cards.card(state, medals.size + index))
         rows.addView(grid, LinearLayout.LayoutParams(-1, -2))

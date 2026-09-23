@@ -10,6 +10,7 @@ import android.graphics.Shader
 import android.view.View
 import android.widget.FrameLayout
 import cube.run.core.JackpotBeats
+import cube.run.R
 import cube.run.core.Stage
 import kotlin.math.exp
 import kotlin.math.max
@@ -94,7 +95,7 @@ class JackpotCounter(context: Context, private val kit: UiKit, private val targe
         badge.value = JackpotBeats.rolled(amount, t)
         if (!announced && t >= JackpotBeats.SLAM) {
             announced = true
-            badge.contentDescription = "Jackpot. ${number(amount)} coins."
+            badge.contentDescription = context.getString(R.string.cd_jackpot_win, number(amount))
         }
         // Pop in with an overshoot; a kick on every slam; a pulse while the digits race.
         val inT = ((t - JackpotBeats.BURST) / 0.45f).coerceIn(0f, 1f)

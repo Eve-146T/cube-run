@@ -1,5 +1,14 @@
 # Test failure history
 
+## 2026-09-23 — Localization lint rejected literal percentages
+
+- Revision: `jackpot` at `adde49b` with uncommitted translations
+- Check: `:app:lintDebug`
+- Command/device: `./gradlew :app:assembleDebug :app:lintDebug --offline`, local build
+- Failure: `StringFormatInvalid` in new English and German ability descriptions: literal percent signs were interpreted as format conversions.
+- Classification: application resource error
+- Resolution: marked the affected non-format strings `formatted="false"` in all three catalogs and reran lint.
+
 ## 2026-09-22 — Trophy-room idle animation stalled the achievement UI suite
 
 - Revision: `jackpot` at `3e1ff83` (the rebuilt achievement page).
