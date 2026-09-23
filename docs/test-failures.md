@@ -132,3 +132,20 @@
 - Failure: the runner logged `started:` at 10:05:21 and then nothing for more than 15 minutes; the run was stopped by hand. The first run of the day showed the same silence before another session's install killed it.
 - Classification: hanging test, not yet localized. It matches the known global-UI-idle wait under continuous GL rendering (see the 2026-09-21 LanguageTest entry), but whether the void card's always-on animation contributes was not established.
 - Resolution: stopped. The void purchase was verified on the phone by hand instead (screen recordings of the whole purchase, frame-by-frame review); this test needs a launch that does not wait for global idle before it can be relied on again.
+
+## 2026-09-23 — low-battery-performance baseline capture overlap
+
+- Revision: jackpot base `0ff04de`; device Moto G7 Power `ZY323NNKTB`.
+- Command: `am instrument -w -e class cube.run.game.RunPerformanceTest -e bot false -e audio on -e section 8 -e world 2 -e modes cruise,hills,jet,second-wind -e seconds 30`.
+- Failure: baseline and sampling instrumentation returned `Process crashed` after a second instrumentation launch overlapped the still-running first launch. No AndroidRuntime exception was logged.
+- Classification: test orchestration/environment problem. Discarded both runs, reran sequentially, and wait for each instrumentation process before subsequent phone operations.
+
+- Follow-up: the sequential retry also stopped after cruise. Android ActivityManager confirms an unrelated APK install at 09:23:24 killed `cube.run` (`stop cube.run due to installPackageLI`); this was not an application crash. Recorded the interruption, reinstalled the retained baseline and reran successfully. Further phone installs stopped once competing use was confirmed.
+
+## 2026-09-23 — instanced coin exact framebuffer edge
+
+- Revision: low-battery-performance work in progress on `0ff04de`; emulator-5560, GLES3.
+- Command: `am instrument -w -e class cube.run.game.CoinBatchTest,cube.run.game.BatchVisibilityTest,cube.run.data.AchievementsProgressTest cube.run.test/androidx.test.runner.AndroidJUnitRunner`.
+- Failure: dedicated coin comparison found four differing channels (one pixel, max delta 38) at yaw phase 9 with translucent coins. Existing batch comparisons and all 26 achievement tests passed.
+- Classification: renderer rounding at a projected edge. Reordered GPU world-position arithmetic to match the CPU reference's left-to-right additions rather than adding the translation last. Exact comparison retained.
+- Resolution: exact 96-state framebuffer rerun passed after matching coordinate arithmetic order (no tolerance or fixture removal).

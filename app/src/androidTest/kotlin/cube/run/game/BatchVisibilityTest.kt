@@ -97,7 +97,7 @@ class BatchVisibilityTest {
                             boxes.terrain = terrain; coins.terrain = terrain
                             fun draw(cull: Boolean, instanced: Boolean = cull): ByteArray {
                                 boxes.begin(if (cull) camera else null, instanced = instanced)
-                                coins.begin(if (cull) camera else null)
+                                coins.begin(if (cull) camera else null, instanced = instanced)
                                 // Near/behind camera, both screen edges and beyond the far plane.
                                 for (row in -2..24) {
                                     val z = -row * 3f

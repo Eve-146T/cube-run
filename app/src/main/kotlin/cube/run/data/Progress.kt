@@ -191,6 +191,8 @@ object Progress {
     }
     @Synchronized fun clearRunCoins() { unbankedRunCoins = 0 }
 
+    private val scoreMilestones = intArrayOf(500, 1000, 2000, 5000)
+
     /** May be called during a run, allowing milestones to surface while playing. */
     @Synchronized fun recordRunProgress(score: Int, sideBounces: Int) {
         val best = maxOf(bestRunScore, score)
@@ -199,7 +201,7 @@ object Progress {
         // Avoid a disk write each frame. Tier crossings persist immediately; the
         // final exact score is saved by countRun, with periodic crash recovery.
         val persist = bounces != maxRunBounces || best / 100 != bestRunScore / 100 ||
-            intArrayOf(500, 1000, 2000, 5000).any { bestRunScore <= it && best > it }
+            scoreMilestones.any { bestRunScore <= it && best > it }
         bestRunScore = best; maxRunBounces = bounces
         if (persist) prefs.edit().putInt("achievement_best_score", best).putInt("max_run_bounces", bounces).apply()
         Achievements.evaluate()

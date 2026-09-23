@@ -1,0 +1,32 @@
+Thread filter: GLThread; sampled CPU total 2498.2 ms
+Self ms | Inclusive ms | Method
+  2230.2 |       2230.2 | com.google.android.gles_jni.EGLImpl.eglSwapBuffers
+    48.4 |         48.4 | android.opengl.GLES20.glBufferData
+    17.2 |         17.2 | java.lang.Float.intBitsToFloat
+    13.9 |         13.9 | java.lang.Float.floatToRawIntBits
+    12.9 |         12.9 | com.badlogic.gdx.utils.BufferUtils.copyJni
+    12.3 |         12.3 | kotlin.jvm.internal.Intrinsics.checkNotNullParameter
+     8.1 |          8.1 | android.media.SoundPool._play
+     8.0 |         38.1 | java.lang.Math.abs
+     6.4 |          6.4 | android.opengl.GLES20.glUniformMatrix4fv
+     5.1 |          5.1 | com.badlogic.gdx.utils.TimSort.rangeCheck
+     4.9 |         22.8 | cube.run.game.world.Scenery.spike
+     3.5 |          3.5 | com.badlogic.gdx.math.Matrix4.set
+     3.3 |          5.4 | cube.run.core.GameHostSession.ui
+     3.1 |          4.3 | java.util.ArrayList$Itr.next
+     3.1 |          3.1 | android.opengl.GLES20.glClear
+     2.8 |          2.8 | java.util.ArrayList.iterator
+     2.8 |          2.8 | cube.run.game.CubeRun.groundAt
+     2.6 |          2.6 | java.lang.Object.notifyAll
+     2.6 |          2.6 | cube.run.core.GameHostSession.setBoost
+     2.5 |          2.5 | kotlin.jvm.internal.Intrinsics.checkNotNull
+     2.2 |          2.2 | java.util.ComparableTimSort.mergeHi
+     2.2 |          2.2 | java.lang.ref.Reference.getReferent
+     2.2 |          2.2 | android.os.MessageQueue.nativeWake
+     2.2 |         31.1 | cube.run.game.track.TrackRenderer.render
+     2.2 |          2.2 | com.badlogic.gdx.graphics.glutils.ShaderProgram.checkManaged
+     2.1 |         10.6 | cube.run.core.gfx.WorldBoxBatch.box
+     2.1 |          2.1 | android.opengl.GLES20.glUseProgram
+     2.1 |          2.1 | cube.run.game.world.Fog.at
+     2.1 |          2.1 | cube.run.game.Lanes.getCount
+     2.1 |          2.1 | cube.run.data.Trails$Trail.getRate
