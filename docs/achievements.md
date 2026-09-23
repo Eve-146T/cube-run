@@ -60,7 +60,7 @@ Long Hauler (10,000/100,000/500,000/2,000,000 metres across runs), Shardsmith
 (25/100/250/750 collected shards), Regular (10/100/500/2,000 started runs),
 Bubble Popper (10/100/500/2,000 spent stocked bubbles), and Near Miss
 (50/500/2,500/10,000 near-miss bonuses). Portal Hopper waits for the portal rework.
-Stage Fright counts terminal crashes within two seconds of starting, excluding
+Stage Fright counts terminal crashes within two seconds of crossing the start gate, excluding
 revived crashes. Bankrupt needs a paid transaction that takes a positive balance
 to zero, so an empty new account does not qualify.
 

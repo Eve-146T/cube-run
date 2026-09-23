@@ -102,6 +102,7 @@ class CubeRun(session: GameSession, private val autoStart: Boolean = false, priv
     private var rowsPassed = 0
     private var curTier = 0          // last tier reached (a chime marks each unlock)
     private var runT = 0f            // seconds since the run began (the start ease)
+    private var startGateRunT = -1f  // Stage Fright starts when the gate actually passes the cube
     private var introT = 0f          // seconds since launch (the menu shot's swoop in)
     private var introAtStart = 0f    // where the swoop was when the run began (the start eases on from there)
     private var skyBlend = 0f        // 1 → 0: the stage's sky fading back into the world's after a page closes
@@ -207,6 +208,7 @@ class CubeRun(session: GameSession, private val autoStart: Boolean = false, priv
         lottery = Lottery(rnd, if (Settings.devMode) Lottery.DEV_COIN_CHANCE else Lottery.COIN_CHANCE)
         phaseUsed = false; phasedObstacle = null; lastTapT = -9f
         runT = 0f
+        startGateRunT = -1f
         sideBounces = 0; smoothWall = 0
         introAtStart = rig.intro
         scenery.release() // the start gate comes at you
@@ -264,7 +266,7 @@ class CubeRun(session: GameSession, private val autoStart: Boolean = false, priv
         if (dead) return
         if (BuildConfig.DEBUG && testCrashObserver != null) { testCrashObserver!!.invoke(); return }
         if (Progress.useRevive()) { secondWind(); return }
-        session.runCrashed(runT)
+        if (startGateRunT >= 0f) session.runCrashed(runT - startGateRunT)
         dead = true
         player.setFlying(false)
         fx.crash(player.px, player.py, player.col)
@@ -691,7 +693,7 @@ class CubeRun(session: GameSession, private val autoStart: Boolean = false, priv
         }
         when (scenery.scroll(mv)) {
             Scenery.PASSED_WORLD -> worlds.gatePassed()?.let { fx.worldGate(worlds.gateColor()); rig.punch(0.7f); session.setWorld(it.name) }
-            Scenery.PASSED_START -> { fx.startGate(player.trailCol()); rig.punch(0.9f) }
+            Scenery.PASSED_START -> { startGateRunT = runT; fx.startGate(player.trailCol()); rig.punch(0.9f) }
         }
         if (live()) track.spawn(mv, worldHue(), session.score, dt)
 

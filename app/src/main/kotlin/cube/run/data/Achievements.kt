@@ -72,7 +72,7 @@ object Achievements {
         Definition("two_ez", "2EZ", "Make 50 pointless lane swipes and swipe straight back in one run.", intArrayOf(50), false),
         Definition("nervous_tic", "Nervous Tic", "Pause and resume 50 times in one run.", intArrayOf(50), false),
         Definition("silent_treatment", "Silent Treatment", "Finish a 100-point run with sound and haptics off using the free cube.", intArrayOf(1), false),
-        Definition("stage_fright", "Stage Fright", "End 25 runs within two seconds of starting.", intArrayOf(25), false),
+        Definition("stage_fright", "Stage Fright", "Crash within two seconds of the start gate in 25 runs.", intArrayOf(25), false),
     )
     private lateinit var prefs: SharedPreferences
     private val pending = LinkedHashMap<String, Unlock>()

@@ -26,7 +26,7 @@ import android.widget.LinearLayout
 import cube.run.data.Achievements
 
 /**
- * The achievement page's cards. The five medal families are wide cards: a glossy band (badge,
+ * The achievement page's cards. The medal families are wide cards: a glossy band (badge,
  * name, what counts), the four medals on one track with each target under its medal, then the
  * next goal and its payout. The one-off challenges are tiles for a two-column [ChallengeGrid].
  * A reward waiting to be claimed lights its card up: a gold edge, a sheen sweeping over the band
@@ -321,6 +321,30 @@ internal class AchievementCards(
             "homeress" -> Theme.GOLD
             "gambliphobic" -> Theme.LAVENDER
             "cookie" -> Theme.ORANGE
+            "globetrotter" -> Theme.SKY
+            "long_hauler" -> Theme.ORANGE
+            "shardsmith" -> Theme.LAVENDER
+            "regular" -> Theme.MINT
+            "bubble_popper" -> Theme.CYAN
+            "near_miss" -> Theme.BERRY
+            "untouchable" -> Theme.LIME
+            "house_loses" -> Theme.GOLD
+            "voidwalker" -> Theme.GRAPE
+            "greedy" -> Theme.YELLOW
+            "scenic_route" -> Theme.SKY
+            "coal_miner" -> 0xFF8994AD.toInt()
+            "magpie" -> Theme.GOLD
+            "shard_hunter" -> Theme.LAVENDER
+            "full_kit" -> Theme.MINT
+            "long_con" -> Theme.ORANGE
+            "insomniac" -> 0xFF5268A5.toInt()
+            "bankrupt" -> 0xFF8798B8.toInt()
+            "exactly_67" -> Theme.BERRY
+            "just_browsing" -> Theme.CYAN
+            "two_ez" -> Theme.LIME
+            "nervous_tic" -> Theme.PINK
+            "silent_treatment" -> 0xFF708BB3.toInt()
+            "stage_fright" -> Theme.BERRY
             else -> Theme.PINK
         }
     }

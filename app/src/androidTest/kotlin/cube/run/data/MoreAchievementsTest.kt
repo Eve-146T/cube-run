@@ -139,4 +139,35 @@ class MoreAchievementsTest {
             Settings.setSoundEnabled(sound); Settings.setHapticsEnabled(haptics)
         }
     }
+
+    @Test fun remainingTargetsCanBeReachedByTheirOrdinaryActions() {
+        InstrumentationRegistry.getInstrumentation().runOnMainSync {
+            Progress.addBubble(10)
+            repeat(10) { assertTrue(Progress.useBubble()) }
+            assertEquals(1, Achievements.snapshot().single { it.definition.id == "bubble_popper" }.earnedTiers)
+            Progress.addShards(0, 25)
+            assertEquals(1, Achievements.snapshot().single { it.definition.id == "shardsmith" }.earnedTiers)
+            repeat(10) { session() }
+            assertEquals(1, Achievements.snapshot().single { it.definition.id == "regular" }.earnedTiers)
+            val run = session()
+            repeat(50) { run.nearMiss() }
+            repeat(13) { run.boxCollected() }
+            run.distanceCovered(10_000)
+            repeat(50) {
+                run.userLaneSwipe(1, 0)
+                run.userLaneSwipe(0, 1)
+            }
+            for (id in listOf("near_miss", "greedy", "long_hauler", "two_ez"))
+                assertEquals(id, 1, Achievements.snapshot().single { it.definition.id == id }.earnedTiers)
+            repeat(100) { Progress.shopOpened(); Progress.shopClosed() }
+            assertEquals(100, value("just_browsing"))
+            val exact = session(); exact.setScore(67); exact.gameOver()
+            assertEquals(1, value("exactly_67"))
+        }
+        prefs.edit().putInt("coins", 100_000).putInt("total_coins", 100_000).commit()
+        Progress.init(context)
+        repeat(5) { assertTrue(Progress.buyVoid()) }
+        assertEquals(5, value("voidwalker"))
+        assertEquals(1, Achievements.snapshot().single { it.definition.id == "voidwalker" }.earnedTiers)
+    }
 }
