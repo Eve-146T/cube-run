@@ -192,6 +192,13 @@ internal class ChallengeIcon(private val id: String) : Icon() {
                 fill(Theme.INK); for (k in 0 until 8) canvas.drawRect(9f + k * 3.75f, if (k % 2 == 0) 8f else 12f, 12.75f + k * 3.75f, if (k % 2 == 0) 12f else 16f, paint)
                 burst(24f, 33f, Theme.BERRY)
             }
+            "neo" -> {
+                // The red pill: a glossy capsule lying at a tilt, with its seam.
+                canvas.rotate(-38f, 24f, 24f)
+                lipped(PILL_RED) { round(6f, 16f, 42f, 32f, 8f) }
+                line(24f, 16.5f, 24f, 31.5f, Theme.darken(PILL_RED, .25f), 1.6f)
+                fill(Theme.alpha(Theme.WHITE, 200)); round(11f, 19f, 21f, 22.5f, 1.75f)
+            }
         }
         canvas.restoreToCount(save)
         lastCanvas = null
@@ -280,5 +287,6 @@ internal class ChallengeIcon(private val id: String) : Icon() {
 
     private companion object {
         val centering = java.util.concurrent.ConcurrentHashMap<String, android.graphics.PointF>()
+        const val PILL_RED = 0xFFFF2E3F.toInt()
     }
 }

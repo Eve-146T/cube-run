@@ -319,7 +319,7 @@ object Progress {
         totalMuteToggles = prefs.getInt("total_mute_toggles", 0).coerceAtLeast(0)
         voidPurchases = prefs.getInt("void_purchases", 0).coerceAtLeast(0)
         achievementMetrics.clear()
-        for (definition in Achievements.all) achievementMetrics[definition.id] = prefs.getInt("metric_${definition.id}", 0).coerceAtLeast(0)
+        for (definition in Achievements.tracked) achievementMetrics[definition.id] = prefs.getInt("metric_${definition.id}", 0).coerceAtLeast(0)
         achievementMetrics["regular"] = maxOf(metric("regular"), runs)
         shopSpendSerial = 0; shopOpenSerial = -1
         unbankedRunCoins = 0

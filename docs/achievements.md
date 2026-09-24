@@ -16,17 +16,18 @@ begin with this version. Purchasing the unlock acknowledges existing medals
 quietly rather than replaying notifications.
 
 The page is a trophy room on a deep indigo-to-teal backdrop. The header puts the trophy ring
-(the share of all medals and challenges earned) beside the count. One gold CLAIM ALL button
-collects every waiting reward at once; it is only there while something is waiting, and it
-shrinks away once it has paid.
+(the share of all medals and challenges earned) beside the count. Rewards are claimed one card
+at a time; there is no claim-all button. The header and the first screenful of cards are built
+at once and the rest a few cards a frame, so the page opens without a pause (about 50 ms to
+the first frame on the Moto, down from about 300 ms).
 
 Below that, three labelled groups in one column, each sorted so that waiting rewards come
 first and then whatever is closest to its next goal. Every achievement is a white card: the
 icon on a disc of its colour, the name, and what counts. Under that, a waiting reward shows a
-wide gold CLAIM button with its payout; otherwise the count towards the next goal
-(`31,200 / 100,000`) with the payout at the far end. MEDALS cards end with their four medals on
+wide gold CLAIM button with its payout; otherwise just the count towards the next goal
+(`31,200 / 100,000`). What a reward pays stays a surprise until it can be claimed. MEDALS cards end with their four medals on
 one track, the link into the next medal filling as you approach it. CHALLENGES cards end with a
-bar, and yes-or-no dares (target 1) show only their payout. DONE collects everything fully
+bar, and yes-or-no dares (target 1) show nothing below their description until they are done. DONE collects everything fully
 claimed as slim rows with a check (tiered families wear a diamond). Numbers always use groups of
 three, such as `500,000`, regardless of the device locale. The list clips below the header and
 coin bank. The last card invites players to suggest an achievement as a GitHub issue.
@@ -34,8 +35,7 @@ coin bank. The last card invites players to suggest an achievement as a GitHub i
 A card with a reward waiting has a gold edge and a sheen that sweeps across it a few times.
 Claiming flips the card over its top edge like a flap. Its new face comes up with the claimed
 medal (or the challenge's badge) struck like a coin: it spins in, overshoots and settles inside
-a short gold sunburst, and the coins pour out of it into the bank. CLAIM ALL flips the ready
-cards in view one after another from the top; ready cards out of view just take their new face.
+a short gold sunburst, and the coins pour out of it into the bank.
 Fully claimed cards fade back with a green check.
 
 Bronze/silver/gold/diamond pay 250/750/2,000/5,000 coins per family. Big Bubble and
@@ -47,20 +47,26 @@ Bouncer retains its personal best, including after claiming; the other challenge
 completed progress. Good Runner uses the subtitle “Single-run score” and shows progress
 only beside its bar, without a duplicate Best label; once its number is beaten, the counter
 shows the number it beat. It reconciles older saved scores immediately. Power Collector and
-Mystery Seeker use “Power Ups collected” and “Mystery boxes opened”. Future payouts appear
-as an inline coin amount such as `+750`, with no separate panel or reward label; only
-available claims use the bright gold button.
+Mystery Seeker use “Power Ups collected” and “Mystery boxes opened”. Future payouts are not
+shown; only available claims show an amount, on the bright gold button.
 
 The tiered thresholds, bronze through diamond: Good Runner beats 500, 1,000, 2,000
 and 5,000 points in one run; Lifetime Coins collects 5,000, 25,000, 100,000 and
 500,000; Unlocked Cubes owns 5, 10, 15 and 24; Power Collector picks up 100, 1,000,
 5,000 and 10,000 power-ups; Mystery Seeker opens 10, 50, 100 and 300 boxes.
 
-The added families are Globetrotter (1/2/3/4 distinct bonus worlds across runs),
-Long Hauler (10,000/100,000/500,000/2,000,000 metres across runs), Shardsmith
+Globetrotter (1/2/3/4 distinct bonus worlds across runs) is parked until there are more
+bonus worlds: it keeps recording the worlds visited, so its progress is there when it comes
+back, but it is not on the page, in the totals or in unlock toasts. To bring it back, remove it
+from `Achievements.parked`.
+
+The added families are Long Hauler (10,000/100,000/500,000/2,000,000 metres across runs), Shardsmith
 (25/100/250/750 collected shards), Regular (10/100/500/2,000 started runs),
 Bubble Popper (10/100/500/2,000 spent stocked bubbles), and Near Miss
 (50/500/2,500/10,000 near-miss bonuses). Portal Hopper waits for the portal rework.
+Neo, described only as “???”, is earned when a red pill's effect runs out on its own, without a
+crash while it lasts; it pays 2,000. Red pills only appear once the run's score reaches 600,
+and then only 1 pickup slot in 30 becomes one.
 Stage Fright counts terminal crashes within two seconds of crossing the start gate, excluding
 revived crashes. Bankrupt needs a paid transaction that takes a positive balance
 to zero, so an empty new account does not qualify.

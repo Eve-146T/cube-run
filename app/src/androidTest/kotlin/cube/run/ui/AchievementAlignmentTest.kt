@@ -122,11 +122,8 @@ class AchievementAlignmentTest {
                             image.imageMatrix.mapPoints(mappedCenter)
                             assertEquals("${definition.id} ImageView matrix centers on the visible face", faceBounds.centerY(), mappedCenter[1] + image.paddingTop, tolerance)
                             if (!earned) {
-                                // A future payout is a quiet coin amount, never a panel or a button.
-                                val reward = descendants(page).single { it.tag == "achievement_claim_${definition.id}" }
-                                assertNull("${definition.id} future payout has no separate panel", reward.background)
-                                assertFalse("${definition.id} future payout is not a button", reward.isClickable)
-                                assertTrue("${definition.id} payout sits inside its card", reward.width > 0 && reward.right <= (reward.parent as View).width)
+                                // What a reward pays stays hidden until it can be claimed.
+                                assertTrue("${definition.id} shows no future payout", descendants(page).none { it.tag == "achievement_claim_${definition.id}" })
                             }
                         }
                         for (definition in Achievements.all.filter { it.tiered }) {

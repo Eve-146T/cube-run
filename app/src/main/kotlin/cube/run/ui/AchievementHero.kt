@@ -20,16 +20,13 @@ import kotlin.math.sin
 
 /**
  * The top of the achievement page: a trophy inside a ring that fills with everything earned so
- * far, the count beside it, and one gold button that collects every waiting reward at once.
- * The button is only there when something is waiting.
+ * far, and the count beside it.
  */
 @SuppressLint("ViewConstructor")
-internal class AchievementHero(context: Context, private val kit: UiKit, onClaimAll: (CandyButton) -> Unit) : LinearLayout(context) {
+internal class AchievementHero(context: Context, private val kit: UiKit) : LinearLayout(context) {
     private val ring = TrophyRing(context, kit)
     private val total = kit.stageText("", 34f, stroke = 3f).apply { tag = "achievement_total"; maxLines = 1 }
     private var earned = -1
-    lateinit var claimAll: CandyButton
-        private set
 
     init {
         orientation = VERTICAL
@@ -44,12 +41,6 @@ internal class AchievementHero(context: Context, private val kit: UiKit, onClaim
             addView(ring, LayoutParams(kit.dp(92f), kit.dp(92f)))
             addView(total, LayoutParams(-2, -2).apply { marginStart = kit.dp(14f) })
         }, LayoutParams(-2, -2))
-        claimAll = kit.button("", Theme.GOLD) { onClaimAll(claimAll) }.apply {
-            tag = "achievement_claim_all"
-            maxLines = 1
-            visibility = GONE // nothing waiting until bind says so
-        }
-        addView(claimAll, LayoutParams(-1, -2).apply { topMargin = kit.dp(14f) })
     }
 
     /** Show [states]; [animate] rolls the ring and the total from where they were. */
@@ -64,49 +55,6 @@ internal class AchievementHero(context: Context, private val kit: UiKit, onClaim
             postDelayed({ Anim.countTo(total, from, now, 850L) { "$it / $max" } }, delay)
         } else total.text = "$now / $max"
         contentDescription = context.getString(cube.run.R.string.achievement_earned_description, now, max)
-
-        val waiting = states.sumOf { s ->
-            val first = s.claimableTier ?: return@sumOf 0
-            (first until s.earnedTiers).sumOf { Achievements.reward(s.definition, it) }
-        }
-        if (waiting > 0) {
-            claimAll.text = android.text.SpannableStringBuilder(context.getString(cube.run.R.string.achievement_claim_all)).append(" ").append(kit.coins(number(waiting), 20f))
-            claimAll.contentDescription = context.getString(cube.run.R.string.achievement_claim_all_description, number(waiting))
-            claimAll.isEnabled = true
-            if (claimAll.visibility != VISIBLE) { claimAll.visibility = VISIBLE; claimAll.alpha = 1f; claimAll.scaleX = 1f; claimAll.scaleY = 1f }
-        } else if (claimAll.visibility == VISIBLE) {
-            if (!animate) claimAll.visibility = GONE
-            else collapse(claimAll)
-        }
-    }
-
-    /** The spent button shrinks away and the list closes up behind it. */
-    private fun collapse(v: View) {
-        val start = v.height
-        val params = v.layoutParams as LayoutParams
-        val margin = params.topMargin
-        ValueAnimator.ofFloat(1f, 0f).apply {
-            duration = 320; interpolator = Anim.ease
-            addUpdateListener {
-                val k = it.animatedValue as Float
-                v.alpha = k; v.scaleX = .8f + .2f * k; v.scaleY = .8f + .2f * k
-                params.height = (start * k).toInt(); params.topMargin = (margin * k).toInt()
-                v.layoutParams = params
-                Anim.repaint(v)
-            }
-            addListener(object : android.animation.AnimatorListenerAdapter() {
-                private var cancelled = false
-                override fun onAnimationCancel(animation: android.animation.Animator) { cancelled = true }
-                override fun onAnimationEnd(animation: android.animation.Animator) {
-                    if (cancelled) return
-                    v.visibility = GONE
-                    params.height = LayoutParams.WRAP_CONTENT; params.topMargin = margin
-                    v.layoutParams = params
-                }
-            })
-            Anim.cancelOnDetach(v, this)
-            start()
-        }
     }
 }
 

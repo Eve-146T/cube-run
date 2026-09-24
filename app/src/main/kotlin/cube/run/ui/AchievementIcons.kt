@@ -20,7 +20,7 @@ internal fun achievementIcon(id: String): android.graphics.drawable.Drawable = w
     "globetrotter", "long_hauler", "shardsmith", "regular", "bubble_popper", "near_miss",
     "untouchable", "house_loses", "voidwalker", "greedy", "scenic_route", "coal_miner",
     "magpie", "shard_hunter", "full_kit", "long_con", "insomniac", "bankrupt",
-    "exactly_67", "just_browsing", "two_ez", "nervous_tic", "silent_treatment", "stage_fright" -> ChallengeIcon(id)
+    "exactly_67", "just_browsing", "two_ez", "nervous_tic", "silent_treatment", "stage_fright", "neo" -> ChallengeIcon(id)
     else -> AchievementCubeIcon(collection = false)
 }
 

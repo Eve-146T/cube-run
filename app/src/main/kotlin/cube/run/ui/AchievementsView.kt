@@ -25,10 +25,11 @@ import cube.run.data.Achievements
 import cube.run.data.Progress
 
 /**
- * The trophy room. A trophy ring up top shows how much of everything is earned and collects
- * every waiting reward in one tap; below it the medal families, then the challenges, one card
- * per row. Claiming flips the card over like a flap: its new face comes up with the medal
- * just minted spinning in, and the reward pours out of that medal into the bank.
+ * The trophy room. A trophy ring up top shows how much of everything is earned; below it the
+ * medal families, then the challenges, one card per row. Claiming flips the card over like a
+ * flap: its new face comes up with the medal just minted spinning in, and the reward pours out
+ * of that medal into the bank. The first screenful is built at once and the rest a few cards a
+ * frame, so the page opens without a pause.
  */
 @SuppressLint("ViewConstructor")
 class AchievementsView(activity: Activity, kit: UiKit, onClose: () -> Unit) :
@@ -58,7 +59,7 @@ class AchievementsView(activity: Activity, kit: UiKit, onClose: () -> Unit) :
         addView(sheet)
     }
     private val cards = AchievementCards(activity, kit, ::claim)
-    private val hero = AchievementHero(activity, kit, ::claimAll)
+    private val hero = AchievementHero(activity, kit)
     private var paying = false
     private var bankCount: ValueAnimator? = null
 
@@ -86,24 +87,34 @@ class AchievementsView(activity: Activity, kit: UiKit, onClose: () -> Unit) :
         val allMedals = states.filter { it.definition.tiered }
         val allChallenges = states.filterNot { it.definition.tiered }
         rows.addView(hero, LinearLayout.LayoutParams(-1, -2))
+        // Everything below the hero, in order; each entry makes its view when its turn comes.
+        val later = ArrayList<() -> Unit>()
         fun list(states: List<Achievements.Snapshot>, first: Int, row: (Achievements.Snapshot, Int) -> View) {
-            for ((index, state) in states.withIndex()) rows.addView(row(state, first + index),
-                LinearLayout.LayoutParams(-1, -2).apply { if (index > 0) topMargin = dp(12f) })
+            for ((index, state) in states.withIndex()) later += {
+                rows.addView(row(state, first + index), LinearLayout.LayoutParams(-1, -2).apply { if (index > 0) topMargin = dp(12f) })
+            }
         }
         if (medals.isNotEmpty()) {
-            rows.addView(section(activity.getString(R.string.achievement_section_medals), "${allMedals.sumOf { it.earnedTiers }} / ${allMedals.sumOf { it.definition.thresholds.size }}"), sectionParams())
+            later += { rows.addView(section(activity.getString(R.string.achievement_section_medals), "${allMedals.sumOf { it.earnedTiers }} / ${allMedals.sumOf { it.definition.thresholds.size }}"), sectionParams()) }
             list(medals, 0) { state, i -> cards.card(state, i) }
         }
         if (challenges.isNotEmpty()) {
-            rows.addView(section(activity.getString(R.string.achievement_section_challenges), "${allChallenges.count { it.earnedTiers > 0 }} / ${allChallenges.size}"), sectionParams())
+            later += { rows.addView(section(activity.getString(R.string.achievement_section_challenges), "${allChallenges.count { it.earnedTiers > 0 }} / ${allChallenges.size}"), sectionParams()) }
             list(challenges, medals.size) { state, i -> cards.card(state, i) }
         }
         if (done.isNotEmpty()) {
-            rows.addView(section(activity.getString(R.string.achievement_section_done), "${done.size}"), sectionParams())
-            for ((index, state) in done.withIndex()) rows.addView(cards.doneChip(state),
-                LinearLayout.LayoutParams(-1, -2).apply { if (index > 0) topMargin = dp(8f) })
+            later += { rows.addView(section(activity.getString(R.string.achievement_section_done), "${done.size}"), sectionParams()) }
+            list(done, 0) { state, _ -> cards.doneChip(state) }
         }
-        rows.addView(suggestionCard(), LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(28f) })
+        later += { rows.addView(suggestionCard(), LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(28f) }) }
+        // A card costs a few milliseconds to make: build what the first screen shows now, the rest over the next frames.
+        repeat(minOf(FIRST_SCREEN, later.size)) { later.removeAt(0)() }
+        fun more() {
+            if (closing) return
+            repeat(minOf(PER_FRAME, later.size)) { later.removeAt(0)() }
+            if (later.isNotEmpty()) postOnAnimation(::more)
+        }
+        if (later.isNotEmpty()) postOnAnimation(::more)
         hero.bind(states, animate = true, delay = 260L)
     }
 
@@ -160,48 +171,6 @@ class AchievementsView(activity: Activity, kit: UiKit, onClose: () -> Unit) :
             hero.bind(Achievements.snapshot(), animate = true)
             paying = false
         }
-    }
-
-    /** Every waiting reward at once: the ready cards flip one after another, top to bottom, each paying out. */
-    private fun claimAll(button: CandyButton) {
-        if (paying || closing) return
-        val before = Progress.coins
-        val claimed = ArrayList<Pair<Achievements.Definition, Int>>()
-        for (state in Achievements.snapshot()) {
-            val first = state.claimableTier ?: continue
-            var last = first - 1
-            while (Achievements.claim(state.definition.id) > 0) last++
-            if (last >= first) claimed += state.definition to last
-        }
-        if (claimed.isEmpty()) return
-        paying = true
-        button.isEnabled = false
-        Haptics.click()
-        val seen = android.graphics.Rect()
-        // Cards out of sight just take their new face; the ones in view flip in turn.
-        val (shown, hidden) = claimed.partition { (definition, _) ->
-            rows.findViewWithTag<View>("achievement_card_${definition.id}")?.getLocalVisibleRect(seen) == true
-        }
-        for ((definition, _) in hidden) rebuild(definition)
-        if (shown.isEmpty()) {
-            countBank(before, 600L)
-            hero.bind(Achievements.snapshot(), animate = true)
-            SoundFx.play("success", rate = 1.2f, vol = .5f); Haptics.success()
-            paying = false
-            return
-        }
-        countBank(before, shown.size * STAGGER + 900L)
-        var left = shown.size
-        for ((i, pair) in shown.withIndex()) postDelayed({
-            if (!isAttachedToWindow) return@postDelayed
-            flipAndPay(pair.first, pair.second, coins = 3, sound = i) {} then {
-                if (--left == 0) {
-                    SoundFx.play("success", rate = 1.2f, vol = .5f); Haptics.success()
-                    hero.bind(Achievements.snapshot(), animate = true)
-                    paying = false
-                }
-            }
-        }, i * STAGGER)
     }
 
     /** A step that runs [next] when it is over. */
@@ -352,7 +321,8 @@ class AchievementsView(activity: Activity, kit: UiKit, onClose: () -> Unit) :
     override fun onBack() = close()
 
     private companion object {
-        const val STAGGER = 140L
+        const val FIRST_SCREEN = 5
+        const val PER_FRAME = 3
         const val SUGGEST_URL = "https://github.com/Eve-146T/cube-run/issues/new"
     }
 }

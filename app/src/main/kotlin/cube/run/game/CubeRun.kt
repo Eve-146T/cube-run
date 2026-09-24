@@ -717,7 +717,10 @@ class CubeRun(session: GameSession, private val autoStart: Boolean = false, priv
         }
         if (live()) track.spawn(mv, worldHue(), session.score, dt)
 
+        val pillWasOn = redPill.timer.active
         redPill.tick(dt, started && !dead)
+        // A crash stops the pill before it runs out, so only a survived trip ends on its own.
+        if (pillWasOn && !redPill.timer.active && started && !dead) session.redPillSurvived()
         bgTop.lerp(Color.BLACK, redPill.blend)
         bgBottom.lerp(Color.BLACK, redPill.blend)
         if (opening.active) {

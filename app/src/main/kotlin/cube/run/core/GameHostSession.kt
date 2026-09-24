@@ -141,6 +141,7 @@ class GameHostSession(
     }
     override fun coalCollected() { if (runHasStarted && !over.get()) Progress.addMetric("coal_miner") }
     override fun fullKitHeld() { if (runHasStarted && !over.get()) Progress.bestMetric("full_kit", 1) }
+    override fun redPillSurvived() { if (runHasStarted && !over.get()) Progress.bestMetric("neo", 1) }
     override fun distanceCovered(metres: Int) {
         if (!runHasStarted || over.get() || metres <= lastDistance) return
         observedDistance = metres

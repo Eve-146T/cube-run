@@ -31,6 +31,7 @@
     <string name="achievement_nervous_tic">Nervous Tic</string>
     <string name="achievement_silent_treatment">Silent Treatment</string>
     <string name="achievement_stage_fright">Stage Fright</string>
+    <string name="achievement_neo">Neo</string>
     <string name="achievement_goal_globetrotter">Bonus worlds visited</string>
     <string name="achievement_goal_long_hauler">Metres travelled</string>
     <string name="achievement_goal_shardsmith">Shards collected</string>
@@ -55,5 +56,6 @@
     <string name="achievement_goal_nervous_tic">Pause and resume 50 times in one run.</string>
     <string name="achievement_goal_silent_treatment">Finish a 100-point run with sound and haptics off using the free cube.</string>
     <string name="achievement_goal_stage_fright">Crash within two seconds of the start gate in 25 runs.</string>
+    <string name="achievement_goal_neo">\???</string>
     <string name="achievement_earned_description">%1$d of %2$d achievements earned</string>
 </resources>

@@ -34,13 +34,16 @@ object Achievements {
         definition.id == "cookie" -> 2000
         definition.id in setOf("greedy", "coal_miner", "full_kit", "insomniac", "bankrupt", "exactly_67", "nervous_tic", "silent_treatment", "stage_fright") -> 1500
         definition.id in setOf("scenic_route") -> 2500
-        definition.id in setOf("just_browsing", "two_ez", "untouchable", "house_loses", "voidwalker", "magpie", "shard_hunter", "long_con") -> 2000
+        definition.id in setOf("just_browsing", "two_ez", "untouchable", "house_loses", "voidwalker", "magpie", "shard_hunter", "long_con", "neo") -> 2000
         else -> 0
     }
 
     /** Claim the oldest unclaimed tier. The Progress lock owns the entire transaction. */
     fun claim(id: String): Int = Progress.claimAchievement(id)
-    val all = listOf(
+    /** Kept counting but not offered yet: Globetrotter comes back once there are more bonus worlds. */
+    private val parked = setOf("globetrotter")
+    /** Every achievement whose progress is recorded, offered or parked. */
+    val tracked = listOf(
         Definition("runner", "Good Runner", "Your highest score in a single run.", intArrayOf(500, 1000, 2000, 5000)),
         Definition("coins", "Lifetime Coins", "Collect coins from runs and mystery boxes.", intArrayOf(5000, 25000, 100000, 500000)),
         Definition("cubes", "Unlocked Cubes", "Build your cube collection.", intArrayOf(5, 10, 15, 24)),
@@ -76,7 +79,10 @@ object Achievements {
         Definition("nervous_tic", "Nervous Tic", "Pause and resume 50 times in one run.", intArrayOf(50), false),
         Definition("silent_treatment", "Silent Treatment", "Finish a 100-point run with sound and haptics off using the free cube.", intArrayOf(1), false),
         Definition("stage_fright", "Stage Fright", "Crash within two seconds of the start gate in 25 runs.", intArrayOf(25), false),
+        Definition("neo", "Neo", "???", intArrayOf(1), false),
     )
+    /** The achievements on offer. */
+    val all = tracked.filterNot { it.id in parked }
     private lateinit var prefs: SharedPreferences
     private val pending = LinkedHashMap<String, Unlock>()
     internal fun init(preferences: SharedPreferences) { prefs = preferences; synchronized(this) { pending.clear() }; evaluate(false) }

@@ -74,6 +74,29 @@ class AchievementsProgressTest {
         return session to player
     }
 
+    @Test fun neoIsEarnedOnlyWhenARedPillRunsOutDuringALiveRun() {
+        seed(unlocked = true)
+        InstrumentationRegistry.getInstrumentation().runOnMainSync {
+            val (session, _) = centeredRun()
+            assertEquals(0, state("neo").earnedTiers)
+            session.redPillSurvived()
+        }
+        assertEquals(1, state("neo").earnedTiers)
+        assertEquals(2000, Achievements.reward(state("neo").definition, 0))
+        Progress.init(context)
+        assertEquals("Neo survives a reload", 1, state("neo").earnedTiers)
+    }
+
+    @Test fun globetrotterIsParkedButKeepsCountingAcrossReloads() {
+        seed(unlocked = true)
+        assertTrue(Achievements.all.none { it.id == "globetrotter" })
+        assertTrue(Achievements.snapshot().none { it.definition.id == "globetrotter" })
+        Progress.markMetricBit("globetrotter", 0)
+        Progress.init(context)
+        Progress.markMetricBit("globetrotter", 2)
+        assertEquals("Worlds seen before a reload are kept", 0b101, Progress.metric("globetrotter"))
+    }
+
     @Test fun centeredChallengeUnlocksAtExactly100AndSurvivesLaterDepartureAndReload() {
         seed(unlocked = true)
         InstrumentationRegistry.getInstrumentation().runOnMainSync {

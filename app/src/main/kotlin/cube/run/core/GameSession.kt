@@ -33,6 +33,8 @@ interface GameSession {
     fun boxCollected() {}
     fun coalCollected() {}
     fun fullKitHeld() {}
+    /** A red pill ran its whole course without a crash. */
+    fun redPillSurvived() {}
     fun distanceCovered(metres: Int) {}
     fun runSeconds(seconds: Int) {}
     fun runCrashed(seconds: Float) {}

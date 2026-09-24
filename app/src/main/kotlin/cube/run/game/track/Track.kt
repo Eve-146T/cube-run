@@ -516,7 +516,8 @@ class Track(private val rnd: Random, private val fx: ObstacleFactory) {
     /**
      * Regular pickups on the walk lane. A shuffled bag prevents any one kind
      * from disappearing for a whole run; Lucky Box adds boxes to each bag.
-     * Red Pill slots only materialize 1 in 30 times in every ordinary run, including developer mode.
+     * Red Pill slots only materialize from a score of 600, then 1 in 30 times, in every ordinary run
+     * including developer mode.
      */
     private fun layPickup(row: Row, code: Int) {
         if (cube.run.BuildConfig.DEBUG && cube.run.BuildConfig.JACKPOT_TEST_WORLD) return
@@ -535,7 +536,7 @@ class Track(private val rnd: Random, private val fx: ObstacleFactory) {
         // Empty slots still consume the normal spacing: neither gated nor
         // skipped rare pickups turn into extra magnets, multipliers or bubbles.
         row.pickup = when (kind) {
-            Pickup.RED_PILL -> if (rnd.nextInt(30) == 0) kind else Pickup.NONE
+            Pickup.RED_PILL -> if (runScore >= 600 && rnd.nextInt(30) == 0) kind else Pickup.NONE
             Pickup.SHARD_EMBER -> if (runScore >= 100 && ++shardOffers % 2 == 0) Pickup.SHARD_EMBER + rnd.nextInt(3) else Pickup.NONE
             Pickup.JET -> if (runScore >= 100 && ++jetOffers % 2 == 0) kind else Pickup.NONE
             Pickup.BOX -> if (runScore >= 100 && ++boxOffers % 2 == 0) kind else Pickup.NONE

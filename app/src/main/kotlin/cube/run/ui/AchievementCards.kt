@@ -29,9 +29,9 @@ import cube.run.data.Achievements
 
 /**
  * The achievement page's cards: one white card per achievement, in a single column. The top row
- * is the badge, the name and what counts; below it how far along it is and what the next reward
- * pays. Medal families show their four medals on one track instead of a bar. A reward waiting to
- * be claimed puts a wide gold CLAIM button on its card; fully claimed ones fade back.
+ * is the badge, the name and what counts; below it how far along it is. What a reward pays stays
+ * a surprise until it can be claimed: then a wide gold CLAIM button shows it. Medal families show
+ * their four medals on one track instead of a bar; fully claimed ones fade back.
  */
 @SuppressLint("SetTextI18n")
 internal class AchievementCards(
@@ -59,9 +59,9 @@ internal class AchievementCards(
             val footer = LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(12f) }
             when {
                 state.claimableTier != null -> addView(claimButton(state), footer)
-                // A one-off dare is done or not: a "0 / 1" bar would only ever be empty.
-                !definition.tiered && definition.thresholds.single() == 1 -> addView(reward(state, tier), footer.apply { gravity = Gravity.END })
-                !complete -> addView(counterLine(state, tier), footer)
+                // A one-off dare is done or not: a "0 / 1" count would only ever read 0.
+                !definition.tiered && definition.thresholds.single() == 1 -> Unit
+                !complete -> addView(counterText(state, tier), footer)
             }
             if (definition.tiered) addView(medalTrack(state, tier).apply { tag = "achievement_progress_${definition.id}" },
                 LinearLayout.LayoutParams(-1, dp(40f)).apply { topMargin = dp(8f) })
@@ -137,24 +137,12 @@ internal class AchievementCards(
         }, LinearLayout.LayoutParams(dp(30f), dp(30f)).apply { marginStart = dp(8f) })
     }
 
-    /** "1,340 / 2,000" and, at the far end, what reaching it pays. */
-    private fun counterLine(state: Achievements.Snapshot, tier: Int): View = LinearLayout(activity).apply {
-        orientation = LinearLayout.HORIZONTAL
-        gravity = Gravity.CENTER_VERTICAL
-        addView(kit.text(counter(state, tier), 17f, Theme.INK, 700, Gravity.START).apply {
+    /** "1,340 / 2,000": how far towards the next goal. */
+    private fun counterText(state: Achievements.Snapshot, tier: Int): View =
+        kit.text(counter(state, tier), 17f, Theme.INK, 700, Gravity.START).apply {
             maxLines = 1; tag = "achievement-counter"
             // A long count shrinks rather than being cut off.
             setAutoSizeTextTypeUniformWithConfiguration(12, 17, 1, TypedValue.COMPLEX_UNIT_SP)
-        }, LinearLayout.LayoutParams(0, -2, 1f))
-        addView(reward(state, tier), LinearLayout.LayoutParams(-2, -2).apply { marginStart = dp(8f) })
-    }
-
-    /** What the next reward pays: a quiet coin amount, never a button. */
-    private fun reward(state: Achievements.Snapshot, tier: Int): View =
-        kit.iconText(CoinIcon(), "+${number(Achievements.reward(state.definition, tier))}", 17f, Theme.INK_SOFT, iconDp = 19f).apply {
-            tag = "achievement_claim_${state.definition.id}"
-            contentDescription = activity.getString(R.string.achievement_reward_locked, number(Achievements.reward(state.definition, tier)))
-            importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_YES
         }
 
     /**
@@ -288,6 +276,7 @@ internal class AchievementCards(
             "nervous_tic" -> Theme.PINK
             "silent_treatment" -> 0xFF708BB3.toInt()
             "stage_fright" -> Theme.BERRY
+            "neo" -> Theme.MINT
             else -> Theme.PINK
         }
     }

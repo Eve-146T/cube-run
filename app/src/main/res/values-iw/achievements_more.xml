@@ -31,6 +31,7 @@
     <string name="achievement_nervous_tic">טיק עצבני</string>
     <string name="achievement_silent_treatment">שתיקה רועמת</string>
     <string name="achievement_stage_fright">פחד במה</string>
+    <string name="achievement_neo">ניאו</string>
     <string name="achievement_goal_globetrotter">עולמות בונוס שביקרת</string>
     <string name="achievement_goal_long_hauler">מטרים שעברת</string>
     <string name="achievement_goal_shardsmith">שברים שנאספו</string>
@@ -55,5 +56,6 @@
     <string name="achievement_goal_nervous_tic">להשהות ולהמשיך 50 פעמים בריצה אחת.</string>
     <string name="achievement_goal_silent_treatment">לסיים ריצה של 100 נקודות בלי צליל ורטט עם הקובייה החינמית.</string>
     <string name="achievement_goal_stage_fright">להתרסק תוך שתי שניות משער הזינוק ב-25 ריצות.</string>
+    <string name="achievement_goal_neo">\???</string>
     <string name="achievement_earned_description">הושגו %1$d מתוך %2$d הישגים</string>
 </resources>

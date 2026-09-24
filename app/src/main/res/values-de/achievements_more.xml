@@ -31,6 +31,7 @@
     <string name="achievement_nervous_tic">Nervöser Tick</string>
     <string name="achievement_silent_treatment">Funkstille</string>
     <string name="achievement_stage_fright">Lampenfieber</string>
+    <string name="achievement_neo">Neo</string>
     <string name="achievement_goal_globetrotter">Bonuswelten besucht</string>
     <string name="achievement_goal_long_hauler">Zurückgelegte Meter</string>
     <string name="achievement_goal_shardsmith">Gesammelte Splitter</string>
@@ -55,5 +56,6 @@
     <string name="achievement_goal_nervous_tic">Pausiere und setze 50-mal in einem Lauf fort.</string>
     <string name="achievement_goal_silent_treatment">Beende mit dem Gratis-Würfel einen 100-Punkte-Lauf ohne Ton und Vibration.</string>
     <string name="achievement_goal_stage_fright">Crashe in 25 Läufen innerhalb von zwei Sekunden nach dem Starttor.</string>
+    <string name="achievement_goal_neo">\???</string>
     <string name="achievement_earned_description">%1$d von %2$d Erfolgen erreicht</string>
 </resources>

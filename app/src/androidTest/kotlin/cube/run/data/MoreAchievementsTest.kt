@@ -46,7 +46,7 @@ class MoreAchievementsTest {
         Progress.init(context)
     }
 
-    private fun value(id: String) = Achievements.snapshot().single { it.definition.id == id }.value
+    private fun value(id: String) = Achievements.snapshot(Achievements.tracked.single { it.id == id }).value
     private fun session() = GameHostSession(Activity(), "cuberun").also { it.runStarted() }
 
     @Test fun allSelectedAchievementsHaveTargetsAndPayouts() {

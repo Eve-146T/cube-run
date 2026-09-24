@@ -1,5 +1,4 @@
 <resources>
-    <string name="performance_test_menu">TEST PERFORMANCE</string>
     <string name="performance_test_title">PERFORMANCE TEST</string>
     <string name="performance_test_start">DENSE COIN COURSE</string>
     <string name="performance_test_description">Dense coins · fixed world · full visuals</string>
