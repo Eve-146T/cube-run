@@ -99,7 +99,11 @@ internal class AchievementCards(
             }, FrameLayout.LayoutParams(dp(24f), dp(24f), Gravity.END or Gravity.BOTTOM))
         }
         addView(badge, LinearLayout.LayoutParams(dp(66f), dp(66f)))
-        addView(kit.text(activity.achievementTitle(definition.id), 11f, Theme.alpha(Theme.WHITE, 230), 700).apply { maxLines = 2 },
+        addView(kit.text(activity.achievementTitle(definition.id), 11f, Theme.alpha(Theme.WHITE, 230), 700).apply {
+            maxLines = 2
+            setAutoSizeTextTypeUniformWithConfiguration(8, 11, 1, TypedValue.COMPLEX_UNIT_SP)
+            hyphenationFrequency = android.text.Layout.HYPHENATION_FREQUENCY_FULL
+        },
             LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(4f) })
         contentDescription = activity.getString(R.string.achievement_done_description, activity.achievementTitle(definition.id))
         setOnClickListener { Anim.popIn(badge, 0, 1.15f, 320); Haptics.tick() }
@@ -185,7 +189,12 @@ internal class AchievementCards(
                     orientation = LinearLayout.HORIZONTAL
                     gravity = Gravity.CENTER_VERTICAL
                     addView(badge, LinearLayout.LayoutParams(dp(38f), dp(38f)))
-                    addView(title.apply { textSize = 15f }, LinearLayout.LayoutParams(0, -2, 1f).apply { marginStart = dp(8f) })
+                    addView(title.apply {
+                        textSize = 15f
+                        // Long single words (German compounds) shrink, then hyphenate, never split at random.
+                        setAutoSizeTextTypeUniformWithConfiguration(11, 15, 1, TypedValue.COMPLEX_UNIT_SP)
+                        hyphenationFrequency = android.text.Layout.HYPHENATION_FREQUENCY_FULL
+                    }, LinearLayout.LayoutParams(0, -2, 1f).apply { marginStart = dp(8f) })
                     check?.let { addView(it, LinearLayout.LayoutParams(dp(24f), dp(24f)).apply { marginStart = dp(4f) }) }
                 }, LinearLayout.LayoutParams(-1, -2))
                 sub?.let { addView(it.apply { maxLines = 3 }, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(6f) }) }
