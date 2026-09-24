@@ -6,11 +6,13 @@ import android.view.Surface
 import android.view.SurfaceHolder
 import android.view.SurfaceView
 import android.view.MotionEvent
+import android.view.KeyEvent
 import android.widget.FrameLayout
 import com.badlogic.gdx.backends.android.AndroidApplication
 import com.badlogic.gdx.backends.android.AndroidApplicationConfiguration
 import cube.run.core.GameHostSession
 import cube.run.core.Stage
+import cube.run.core.PhysicalInput
 import cube.run.data.Progress
 import cube.run.data.Scores
 import cube.run.data.Settings
@@ -22,6 +24,17 @@ import android.view.View
 class GameActivity : AndroidApplication() {
 
     private lateinit var hud: Hud
+    private lateinit var game: CubeRun
+    private val physicalInput = PhysicalInput { action ->
+        Stage.userInteraction()
+        if (::hud.isInitialized && hud.handlePhysicalAction(action)) return@PhysicalInput
+        if (::game.isInitialized) {
+            val host = this
+            com.badlogic.gdx.Gdx.app.postRunnable {
+                if (!host.isFinishing && !host.isDestroyed) game.onPhysicalAction(action)
+            }
+        }
+    }
     private var openingClock: cube.run.intro.OpeningClock? = null
     private var gameSurface: SurfaceView? = null
     private var openingSplash: cube.run.intro.OpeningSplashHandoff? = null
@@ -52,7 +65,7 @@ class GameActivity : AndroidApplication() {
             else -> cube.run.data.Worlds.all.random().id
         }
         cube.run.intro.LaunchAppearance.remember(this, firstWorld)
-        val game = CubeRun(session, autoStart = intent.getBooleanExtra(Hud.EXTRA_AUTOSTART, false),
+        game = CubeRun(session, autoStart = intent.getBooleanExtra(Hud.EXTRA_AUTOSTART, false),
             idleBotStart = intent.getBooleanExtra(Hud.EXTRA_IDLE_BOT, false), launchOpening = launchOpening,
             openingClock = clock, firstWorld = firstWorld)
         val openingTouch = if (clock != null) cube.run.intro.NativeCubeView(this, clock,
@@ -194,10 +207,18 @@ class GameActivity : AndroidApplication() {
 
     override fun onWindowFocusChanged(hasFocus: Boolean) {
         super.onWindowFocusChanged(hasFocus)
+        if (!hasFocus) physicalInput.reset()
         if (hasFocus) goFullscreen()
     }
 
+    override fun dispatchKeyEvent(event: KeyEvent): Boolean =
+        physicalInput.key(event) || super.dispatchKeyEvent(event)
+
+    override fun dispatchGenericMotionEvent(event: MotionEvent): Boolean =
+        physicalInput.motion(event) || super.dispatchGenericMotionEvent(event)
+
     override fun dispatchTouchEvent(event: MotionEvent): Boolean {
+        if (event.actionMasked == MotionEvent.ACTION_DOWN && ::hud.isInitialized) hud.clearHardwareFocus()
         when (event.actionMasked) {
             MotionEvent.ACTION_DOWN, MotionEvent.ACTION_POINTER_DOWN -> Stage.userInteraction(down = true)
             MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> Stage.pointerDown = false
@@ -212,6 +233,7 @@ class GameActivity : AndroidApplication() {
 
     /** Leaving the app mid-run (home, a call) pauses it: the run resumes from the pause card. */
     override fun onPause() {
+        physicalInput.reset()
         Stage.userInteraction()
         openingClock?.pause()
         if (::hud.isInitialized) hud.autoPause()

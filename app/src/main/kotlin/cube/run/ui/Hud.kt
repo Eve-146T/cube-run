@@ -10,6 +10,7 @@ import cube.run.R
 import cube.run.core.Haptics
 import cube.run.core.SoundFx
 import cube.run.core.Stage
+import cube.run.core.PhysicalAction
 import cube.run.data.Settings
 import cube.run.data.Progress
 import cube.run.ui.Anim.move
@@ -90,6 +91,7 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false) : Fr
     }
     private var pauseSheet: PauseSheet? = null
     private var runOver: RunOverFlow? = null
+    private val hardwareNavigation = HardwareNavigation()
     private val menu: MainMenu = MainMenu(activity, kit, { openShop() }, { openWardrobe() }, { openSections() }, { menu.pulseBank() }, openingEntrance)
 
     /** One launch clock owns the fade. Controls are laid out at their final positions from frame one. */
@@ -126,6 +128,7 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false) : Fr
     }
 
     override fun onDetachedFromWindow() {
+        clearHardwareFocus()
         removeCallbacks(prepareShop)
         preparedShop = null
         super.onDetachedFromWindow()
@@ -145,7 +148,45 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false) : Fr
 
     private fun pageOpen() = page != null || runStarted
 
+    fun clearHardwareFocus() = hardwareNavigation.clear()
+
+    /** Return false only when the GL game should receive this action. */
+    fun handlePhysicalAction(action: PhysicalAction): Boolean {
+        if (opening) return false
+        if (action == PhysicalAction.BACK || action == PhysicalAction.PAUSE) {
+            clearHardwareFocus()
+            when {
+                pauseSheet != null -> pauseSheet?.dismiss()
+                page != null -> page?.navigateBack()
+                runOver == null -> pause()
+            }
+            return true
+        }
+        runOver?.let {
+            if (action == PhysicalAction.CONFIRM) it.confirm()
+            return true
+        }
+        val scope = pauseSheet ?: page ?: if (!runStarted) menu else null
+        if (scope != null) {
+            if (action.swipe != null) hardwareNavigation.move(scope, action, if (scope === menu) menu.startControl else null)
+            if (action == PhysicalAction.CONFIRM) {
+                val target = hardwareNavigation.target(scope)
+                if (scope === menu && (target == null || target === menu.startControl)) {
+                    clearHardwareFocus()
+                    return false
+                }
+                if (target != null) target.performClick()
+                else if (pauseSheet != null) pauseSheet?.dismiss()
+                else hardwareNavigation.move(scope, PhysicalAction.DOWN)
+            }
+            return true
+        }
+        if (action == PhysicalAction.BOOST) { boost?.performClick(); return true }
+        return false
+    }
+
     private fun open(p: Page) {
+        clearHardwareFocus()
         Stage.homeScreen = false
         page = p
         menu.setShown(false)
@@ -153,6 +194,7 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false) : Fr
     }
 
     private fun closed() {
+        clearHardwareFocus()
         Stage.homeScreen = true
         page = null
         menu.show()
@@ -161,6 +203,7 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false) : Fr
     }
 
     private fun newShop() = ShopView(activity, kit, menu.shopBalance, menu::setShopProgress) {
+        clearHardwareFocus()
         page = null
         menu.finishShop()
         Stage.homeScreen = true
@@ -170,6 +213,7 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false) : Fr
 
     private fun openShop() {
         if (pageOpen()) return
+        clearHardwareFocus()
         Stage.homeScreen = false
         removeCallbacks(prepareShop)
         val shop = preparedShop?.takeIf { it.isCurrent() } ?: newShop()
@@ -259,6 +303,7 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false) : Fr
 
     /** A run has begun: the menu drops away, the HUD and the pause chip pop in. */
     fun hideOptions() {
+        clearHardwareFocus()
         Stage.homeScreen = false
         runStarted = true
         page?.let { removeView(it); page = null }
@@ -275,10 +320,12 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false) : Fr
     /** Freeze the run under the pause card. No-op unless a run is live. */
     fun pause(animate: Boolean = true) {
         if (!runStarted || runOver != null || pauseSheet != null) return
+        clearHardwareFocus()
         Stage.paused = true
         pauseChip.visibility = INVISIBLE
         val sheet = PauseSheet(activity, kit,
             onResume = {
+                clearHardwareFocus()
                 pauseSheet = null
                 Stage.paused = false
                 pauseChip.visibility = VISIBLE
@@ -312,6 +359,7 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false) : Fr
     }
 
     fun showRunOver(score: Int, best: Int, isNewBest: Boolean, coins: Int, boxes: Int, shards: IntArray = IntArray(3)) {
+        clearHardwareFocus()
         if (Stage.botPlaying && Settings.devMode) {
             relaunch(autoStart = true, idleBot = true)
             return

@@ -87,6 +87,7 @@ class MainMenu(
     private val bank = kit.iconPill(CoinIcon(), "0", Theme.INK, 16f).apply { setOnClickListener { openShop() } }
     private val bubbles = kit.iconPill(BubbleIcon(), "", Theme.INK, 16f, Theme.lighten(Theme.CYAN, 0.55f)).apply { visibility = GONE; setOnClickListener { openShop() } }
     private val tapHint = kit.stageText("TAP TO START", 22f, Theme.WHITE, stroke = 3f).apply { letterSpacing = 0.12f }
+    val startControl: android.view.View get() = tapHint
 
     private val leftChips = LinearLayout(activity).apply {
         orientation = LinearLayout.HORIZONTAL

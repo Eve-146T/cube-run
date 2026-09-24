@@ -24,8 +24,11 @@ class JumpResponsivenessTest {
                 val sound = Settings.soundEnabled; val haptics = Settings.hapticsEnabled
                 try {
                     Settings.setSoundEnabled(false); Settings.setHapticsEnabled(false)
-                    Stage.paused = true
                     val game = Gdx.app.applicationListener as CubeRun
+                    // A first GL callback may precede deferred renderer setup.
+                    // Player takeoff emits shards, so finish startup first.
+                    game.onTap(0f, 0f)
+                    Stage.paused = true
                     val player: Player = value(game, "player")
                     fun step(dt: Float, ground: Float = 0f) = player.update(dt, 30f * dt, 10f, 200f, false, ground)
                     fun velocity() = value<Float>(player, "vy")

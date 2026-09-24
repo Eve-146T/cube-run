@@ -387,6 +387,15 @@ class CubeRun(session: GameSession, private val autoStart: Boolean = false, priv
 
     // ---------------------------------------------------------------- input
 
+    /** Called on the GL thread, through the same guarded actions as touch input. */
+    fun onPhysicalAction(action: cube.run.core.PhysicalAction) {
+        idlePilot.stop()
+        if (opening.active) { finishOpening(); return }
+        if (!started && !Stage.homeScreen) return
+        if (action == cube.run.core.PhysicalAction.CONFIRM) onTap(0f, 0f)
+        else action.swipe?.let { onSwipe(it) }
+    }
+
     override fun onDown(x: Float, y: Float) {
         idlePilot.stop()
         if (gift.active || showcase.active || Stage.paused) return

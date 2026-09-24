@@ -54,6 +54,8 @@ class RunOverFlow(
     private var rewardBeat: ValueAnimator? = null
     private var leaving = false
 
+    fun confirm() { if (!leaving) page?.performClick() }
+
     private fun later(ms: Long, action: () -> Unit) {
         val task = object : Runnable {
             override fun run() { pending.remove(this); action() }
