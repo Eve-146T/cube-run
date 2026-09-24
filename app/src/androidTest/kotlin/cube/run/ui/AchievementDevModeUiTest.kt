@@ -196,7 +196,7 @@ class AchievementDevModeUiTest {
             open(scenario, "openAchievements")
             scenario.onActivity {
                 val card = tagged(page(it), "achievement_card_bounces"); reveal(card)
-                assertEquals("Best: 42 / 67", (tagged(card, "achievement-counter") as TextView).text.toString())
+                assertEquals("Best: 42\u00A0/\u00A067", (tagged(card, "achievement-counter") as TextView).text.toString())
             }
             capture("bouncer-best-in-progress")
             close(scenario); Progress.recordRunProgress(0, 93)

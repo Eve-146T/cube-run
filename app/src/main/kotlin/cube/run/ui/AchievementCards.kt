@@ -113,6 +113,12 @@ internal class AchievementCards(
             orientation = LinearLayout.VERTICAL
             clipChildren = false; clipToPadding = false
             background = surface(state)
+            if (state.allClaimed) {
+                // Claimed on this visit (it moves to the DONE shelf next time): no payout left to show.
+                addView(band(state, tile = true), LinearLayout.LayoutParams(-1, 0, 1f))
+                addView(View(activity), LinearLayout.LayoutParams(-1, dp(10f) + kit.CARD_LIP))
+                return@apply
+            }
             // The band takes any height the row gives the tile, so neighbouring tiles line up their goals.
             addView(band(state, tile = true), LinearLayout.LayoutParams(-1, 0, 1f))
             val body = LinearLayout(activity).apply {
@@ -146,6 +152,12 @@ internal class AchievementCards(
             "cubes" -> "Cube collection"
             "powerups" -> "Power Ups collected"
             "boxes" -> "Mystery boxes opened"
+            "globetrotter" -> "Bonus worlds visited"
+            "long_hauler" -> "Metres travelled"
+            "shardsmith" -> "Shards collected"
+            "regular" -> "Runs started"
+            "bubble_popper" -> "Bubbles spent"
+            "near_miss" -> "Near misses"
             "bubbles" -> if (complete) "" else "Hold 1,000 bubbles at once"
             "bounces" -> if (complete) best.orEmpty() else "67 wall bounces in one run"
             "center" -> if (complete) "" else "Reach 100 without leaving the middle lane"
@@ -197,16 +209,28 @@ internal class AchievementCards(
                 addView(badge, LinearLayout.LayoutParams(dp(42f), dp(42f)))
                 addView(LinearLayout(activity).apply {
                     orientation = LinearLayout.VERTICAL
-                    addView(title.apply { textSize = 17f; maxLines = 1 })
-                    addView(kit.text(counter(state, tier), 12f, Theme.alpha(ink, 225), 700, Gravity.START).apply {
-                        maxLines = 1; tag = "achievement-counter"
-                    }, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(1f) })
+                    addView(title.apply {
+                        maxLines = 1
+                        setAutoSizeTextTypeUniformWithConfiguration(13, 17, 1, TypedValue.COMPLEX_UNIT_SP)
+                    }, LinearLayout.LayoutParams(-1, -2))
+                    sub?.let { addView(it.apply { maxLines = 1 }, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(1f) }) }
                 }, LinearLayout.LayoutParams(0, -2, 1f).apply { marginStart = dp(10f) })
-                if (state.allClaimed) check?.let { addView(it, LinearLayout.LayoutParams(dp(28f), dp(28f))) }
-                else addView(if (state.claimableTier != null) rewardAction(state, wide = false).apply { minimumWidth = 0 }
-                    else kit.iconText(CoinIcon(), "+${number(Achievements.reward(definition, tier))}", 13f, ink, iconDp = 15f).apply {
-                        tag = "achievement_claim_${definition.id}"
-                    }, LinearLayout.LayoutParams(-2, -2).apply { marginStart = dp(6f) })
+                when {
+                    state.allClaimed -> check?.let { addView(it, LinearLayout.LayoutParams(dp(28f), dp(28f))) }
+                    state.claimableTier != null -> addView(rewardAction(state, wide = false).apply { minimumWidth = 0 },
+                        LinearLayout.LayoutParams(-2, -2).apply { marginStart = dp(6f) })
+                    // Working towards a medal: how far along, and what it pays, stacked at the end.
+                    else -> addView(LinearLayout(activity).apply {
+                        orientation = LinearLayout.VERTICAL
+                        gravity = Gravity.END
+                        addView(kit.text(counter(state, tier, short = true), 13f, ink, 700, Gravity.END).apply {
+                            isSingleLine = true; tag = "achievement-counter"
+                        }, LinearLayout.LayoutParams(-2, -2).apply { gravity = Gravity.END })
+                        addView(kit.iconText(CoinIcon(), "+${number(Achievements.reward(definition, tier))}", 12f,
+                            Theme.alpha(ink, 210), iconDp = 14f).apply { tag = "achievement_claim_${definition.id}" },
+                            LinearLayout.LayoutParams(-2, -2).apply { topMargin = dp(2f) })
+                    }, LinearLayout.LayoutParams(-2, -2).apply { marginStart = dp(8f) })
+                }
             }
         }
     }
@@ -259,13 +283,14 @@ internal class AchievementCards(
      * the counter shows the number on the medal, and on the exact boundary says so rather than
      * showing a full-looking 1,000 / 1,000 with no reward behind it.
      */
-    private fun counter(state: Achievements.Snapshot, tier: Int): String {
+    private fun counter(state: Achievements.Snapshot, tier: Int, short: Boolean = false): String {
         val definition = state.definition
         val target = definition.thresholds[tier]
         val ready = state.claimableTier != null
         val beat = definition.id == "runner" && !ready && state.value >= target
-        return if (definition.id == "bounces") "Best: ${number(state.value)} / ${number(target)}"
-            else "${number(if (ready) target else minOf(state.value, target))} / ${number(if (beat) target + 1 else target)}"
+        // Non-breaking around the slash: a narrow column must never split the count over two lines.
+        return if (definition.id == "bounces") "Best: ${number(state.value)}\u00A0/\u00A0${number(target)}"
+            else "${number(if (ready) target else minOf(state.value, target))}\u00A0/\u00A0${(if (short) ::compact else ::number)(if (beat) target + 1 else target)}"
     }
 
     /** "1,340 / 2,000" over its bar. A reward ready to claim shows its target reached, in mint. */

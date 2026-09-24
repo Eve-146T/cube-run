@@ -15,22 +15,23 @@ power-up pickups and wall bounces were not previously recorded, so those counter
 begin with this version. Purchasing the unlock acknowledges existing medals
 quietly rather than replaying notifications.
 
-The page is a trophy room on a deep indigo-to-teal backdrop. It opens with a trophy
-inside a ring that fills with the share of all 68 medals and challenges earned, the count under it,
-and a tally of bronze, silver, gold, diamond and completed challenges. One gold
-CLAIM ALL button collects every waiting reward at once; it is only there while
-something is waiting, and it shrinks away once it has paid.
+The page is a trophy room on a deep indigo-to-teal backdrop. A compact header puts the trophy
+ring (the share of all medals and challenges earned) beside the count and a tally of bronze,
+silver, gold, diamond and completed challenges. One gold CLAIM ALL button collects every
+waiting reward at once; it is only there while something is waiting, and it shrinks away once
+it has paid.
 
-Below that, two labelled groups. MEDALS holds the eleven tiered families as wide
-cards in the shop's card style: a glossy coloured band with a circular icon badge,
-the four medals on one track with each target written under its medal, and the next
-goal with its payout. The link between two medals fills as you approach the next one.
-The current medal wears a ring, a reward waiting to be claimed glows and beats, claimed
-medals are solid and later ones are faint. CHALLENGES holds the 24 one-off dares as
-tiles, two to a row, dropping to one per row on narrow screens or at large text sizes;
-tiles in a row share the taller one's height, so their goals line up. Numbers always use
-groups of three, such as `500,000`, regardless of the device locale; medal targets are
-written short (`5K`, `500K`). The list clips below the header and coin bank.
+Below that, three labelled groups, each sorted so that waiting rewards come first and then
+whatever is closest to its next goal. MEDALS holds the tiered families as short cards: the
+coloured band carries the icon, name and what counts, with either the CLAIM button or the
+count towards the next medal (`31,200 / 100K`) and its payout; the body is just the four medals
+on one track with each target under its medal. The link between two medals fills as you
+approach the next one. CHALLENGES holds the one-off dares as tiles, two to a row, dropping to
+one per row on narrow screens or at large text sizes; the count and payout share a line above a
+full-width bar, and yes-or-no dares (target 1) show only their payout. DONE collects everything
+fully claimed as a shelf of badges with a check (tiered families wear a diamond), four to a row.
+Numbers always use groups of three, such as `500,000`, regardless of the device locale; medal
+targets are written short (`5K`, `500K`). The list clips below the header and coin bank.
 
 A card with a reward waiting is lit: a gold edge and a sheen that sweeps across its band
 every few seconds. Claiming — from the card or from CLAIM ALL — flies coins into the
