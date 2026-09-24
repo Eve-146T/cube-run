@@ -15,6 +15,7 @@ import kotlin.random.Random
  */
 object Progress {
     private lateinit var prefs: SharedPreferences
+    private lateinit var appContext: Context
 
     /**
      * A permanent upgrade: the duration of one power-up, bought one level at a
@@ -87,6 +88,40 @@ object Progress {
         private set
     private val perkLevels = HashMap<String, Int>()
     private val shardCounts = IntArray(Shards.all.size)
+    private val achievementMetrics = HashMap<String, Int>()
+    private var shopSpendSerial = 0
+    private var shopOpenSerial = -1
+
+    fun metric(id: String): Int = achievementMetrics[id] ?: 0
+
+    @Synchronized fun addMetric(id: String, amount: Int = 1) {
+        if (amount <= 0) return
+        val next = saturatedAdd(metric(id), amount)
+        if (next == metric(id)) return
+        achievementMetrics[id] = next
+        prefs.edit().putInt("metric_$id", next).apply()
+        Achievements.evaluate()
+    }
+
+    @Synchronized fun bestMetric(id: String, value: Int) {
+        if (value <= metric(id)) return
+        achievementMetrics[id] = value
+        prefs.edit().putInt("metric_$id", value).apply()
+        Achievements.evaluate()
+    }
+
+    @Synchronized fun markMetricBit(id: String, bit: Int) {
+        if (bit !in 0..30) return
+        bestMetric(id, metric(id) or (1 shl bit))
+    }
+
+    @Synchronized fun shopOpened() { shopOpenSerial = shopSpendSerial }
+    @Synchronized fun shopClosed() {
+        if (shopOpenSerial < 0) return
+        if (shopSpendSerial == shopOpenSerial) addMetric("just_browsing")
+        else { achievementMetrics["just_browsing"] = 0; prefs.edit().putInt("metric_just_browsing", 0).apply() }
+        shopOpenSerial = -1
+    }
 
     // ---- wardrobe: equipped ids + owned bitmasks (item 0 of each is always owned)
     @Volatile var skin: Int = 0
@@ -110,9 +145,147 @@ object Progress {
     @Volatile var boxesOpened: Int = 0
         private set
     private var boxCoinStreak = 0
+    const val ACHIEVEMENTS_PRICE = 3000
+    const val VOID_LIFETIME_GATE = 100000
+    @Volatile var achievementsUnlocked = false
+        private set
+    @Volatile var bestRunScore = 0
+        private set
+    /** Read both histories so an already-open activity cannot hide an older saved record. */
+    val achievementScore: Int get() = maxOf(bestRunScore,
+        if (::appContext.isInitialized) appContext.getSharedPreferences("scores", Context.MODE_PRIVATE)
+            .getInt("best_cuberun", 0) else 0)
+    @Volatile var totalPowerups = 0
+        private set
+    @Volatile var maxBubbles = 0
+        private set
+    @Volatile var maxRunBounces = 0
+        private set
+    @Volatile var bestCenteredScore = 0
+        private set
+    @Volatile var bestCoinlessScore = 0
+        private set
+    @Volatile var maxRunMissedBoxes = 0
+        private set
+    @Volatile var totalMuteToggles = 0
+        private set
+    @Volatile var voidPurchases = 0
+        private set
+    val voidAvailable: Boolean get() = Settings.devMode || totalCoins >= VOID_LIFETIME_GATE
+    /** Steadily rising offerings, rounded to 500 and capped safely below the bank limit. */
+    val voidPrice: Int get() = voidPurchases.coerceIn(0, 10000).toLong().let { n -> (5000L + n * 2500L + n * n * 500L).coerceAtMost(1_000_000_000L).toInt() }
+    val voidLine: String get() = voidLines.getOrElse(voidPurchases) { voidEchoes[(voidPurchases - voidLines.size).mod(voidEchoes.size)] }
+    private val voidLines = listOf(
+        "This upgrade does nothing.", "What did you think was going to happen?", "Do you never learn?",
+        "Still nothing.", "You could have bought something useful.", "The silence is getting expensive.",
+        "There is no refund in the dark.", "You are very persistent.", "One more will change nothing.", "Are you sure?",
+        "Fine.", "There was more.", "Don't look so pleased.", "The dark remembers you.", "Something follows.",
+        "You cannot see it yet.", "Keep walking.", "Even nothing leaves a trace.", "Almost a shadow.", "Look behind you.",
+        "A trail. For your trouble.", "You are still here.", "The silence has a shape.", "It is getting closer.",
+        "Something wants to keep you safe.", "Or keep you here.", "A little more darkness.", "You feel it now.",
+        "One thin veil.", "Breathe.", "The dark surrounds you."
+    )
+    private val voidEchoes = listOf("Nothing more. Probably.", "The void appreciates your donation.", "We have been here before.", "Still listening?", "The silence deepens.")
+
+    @Synchronized fun buyAchievements(): Boolean {
+        if (achievementsUnlocked || !spend(ACHIEVEMENTS_PRICE)) return false
+        achievementsUnlocked = true
+        prefs.edit().putBoolean("achievements_unlocked", true).apply()
+        Achievements.evaluate(false) // Existing progress is awarded quietly, never a popup avalanche.
+        return true
+    }
+
+    @Synchronized fun buyVoid(): Boolean {
+        if (!voidAvailable || !spend(voidPrice)) return false
+        voidPurchases = (voidPurchases.toLong() + 1).coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
+        prefs.edit().putInt("void_purchases", voidPurchases).apply()
+        Achievements.evaluate()
+        return true
+    }
+
+    fun secretAvailable(cat: Int, id: Int): Boolean = when {
+        cat == Wardrobe.CUBE && id == Skins.VOID_ID -> voidPurchases >= 10
+        cat == Wardrobe.TRAIL && id == Trails.VOID_ID -> voidPurchases >= 20
+        cat == Wardrobe.BUBBLE && id == BubbleSkins.VOID_ID -> voidPurchases >= 30
+        else -> true
+    }
+    private fun secret(cat: Int, id: Int): Boolean = when (cat) {
+        Wardrobe.CUBE -> id == Skins.VOID_ID
+        Wardrobe.TRAIL -> id == Trails.VOID_ID
+        else -> id == BubbleSkins.VOID_ID
+    }
+
+    @Volatile private var unbankedRunCoins = 0
+    val achievementCoins: Int get() = saturatedAdd(totalCoins, unbankedRunCoins)
+    /** Current run's unbanked earnings; clear immediately before addCoins banks them. */
+    @Synchronized fun recordRunCoins(unbanked: Int) {
+        val current = unbanked.coerceAtLeast(0)
+        if (unbankedRunCoins == current) return
+        unbankedRunCoins = current
+        Achievements.evaluate()
+    }
+    @Synchronized fun clearRunCoins() { unbankedRunCoins = 0 }
+
+    /** May be called during a run, allowing milestones to surface while playing. */
+    @Synchronized fun recordRunProgress(score: Int, sideBounces: Int) {
+        val best = maxOf(bestRunScore, score)
+        val bounces = maxOf(maxRunBounces, sideBounces)
+        if (best == bestRunScore && bounces == maxRunBounces) return
+        // Avoid a disk write each frame. Tier crossings persist immediately; the
+        // final exact score is saved by countRun, with periodic crash recovery.
+        val persist = bounces != maxRunBounces || best / 100 != bestRunScore / 100 ||
+            intArrayOf(500, 1000, 2000, 5000).any { bestRunScore <= it && best > it }
+        bestRunScore = best; maxRunBounces = bounces
+        if (persist) prefs.edit().putInt("achievement_best_score", best).putInt("max_run_bounces", bounces).apply()
+        Achievements.evaluate()
+    }
+    @Synchronized fun recordPowerup() {
+        totalPowerups = saturatedAdd(totalPowerups, 1)
+        prefs.edit().putInt("total_powerups", totalPowerups).apply()
+        Achievements.evaluate()
+    }
+    /** Only the live session, with an unbroken middle-lane history, may call this. */
+    @Synchronized fun recordCenteredScore(score: Int) {
+        val progress = score.coerceIn(0, 100)
+        if (progress <= bestCenteredScore) return
+        bestCenteredScore = progress
+        prefs.edit().putInt("best_centered_score", progress).apply()
+        Achievements.evaluate()
+    }
+    @Synchronized fun recordCoinlessScore(score: Int) {
+        val progress = score.coerceIn(0, 60)
+        if (progress <= bestCoinlessScore) return
+        bestCoinlessScore = progress
+        prefs.edit().putInt("best_coinless_score", progress).apply()
+        Achievements.evaluate()
+    }
+    @Synchronized fun recordMissedBoxes(count: Int) {
+        val progress = count.coerceIn(0, 10)
+        if (progress <= maxRunMissedBoxes) return
+        maxRunMissedBoxes = progress
+        prefs.edit().putInt("max_run_missed_boxes", progress).apply()
+        Achievements.evaluate()
+    }
+    /** Call only for a user changing the mute toggle, never settings initialization. */
+    @Synchronized fun recordMuteToggle() {
+        if (totalMuteToggles == Int.MAX_VALUE) return
+        totalMuteToggles++
+        prefs.edit().putInt("total_mute_toggles", totalMuteToggles).apply()
+        Achievements.evaluate()
+    }
+    private fun recordBubbles() {
+        if (bubbles > maxBubbles) {
+            maxBubbles = bubbles
+            prefs.edit().putInt("max_bubbles", maxBubbles).apply()
+        }
+        Achievements.evaluate()
+    }
+    private fun saturatedAdd(a: Int, b: Int): Int = (a.toLong() + b).coerceIn(0, Int.MAX_VALUE.toLong()).toInt()
+
 
     fun init(ctx: Context) {
-        prefs = ctx.applicationContext.getSharedPreferences("progress", Context.MODE_PRIVATE)
+        appContext = ctx.applicationContext
+        prefs = appContext.getSharedPreferences("progress", Context.MODE_PRIVATE)
         coins = prefs.getInt("coins", 0)
         if (prefs.contains(DEV_BANK)) leaveDev() // dev mode never survives a launch; neither does its bank
         bubbles = prefs.getInt("bubbles", 0)
@@ -133,9 +306,38 @@ object Progress {
         runs = prefs.getInt("runs", 0)
         boxesOpened = prefs.getInt("boxes_opened", 0)
         boxCoinStreak = prefs.getInt("box_coin_streak", 0).coerceIn(0, 2)
+        achievementsUnlocked = prefs.getBoolean("achievements_unlocked", false)
+        bestRunScore = maxOf(prefs.getInt("achievement_best_score", 0), ctx.applicationContext.getSharedPreferences("scores", Context.MODE_PRIVATE).getInt("best_cuberun", 0))
+        totalPowerups = prefs.getInt("total_powerups", 0)
+        maxBubbles = maxOf(bubbles, prefs.getInt("max_bubbles", 0))
+        maxRunBounces = prefs.getInt("max_run_bounces", 0)
+        bestCenteredScore = prefs.getInt("best_centered_score", 0).coerceIn(0, 100)
+        bestCoinlessScore = prefs.getInt("best_coinless_score", 0).coerceIn(0, 60)
+        maxRunMissedBoxes = prefs.getInt("max_run_missed_boxes", 0).coerceIn(0, 10)
+        totalMuteToggles = prefs.getInt("total_mute_toggles", 0).coerceAtLeast(0)
+        voidPurchases = prefs.getInt("void_purchases", 0).coerceAtLeast(0)
+        achievementMetrics.clear()
+        for (definition in Achievements.all) achievementMetrics[definition.id] = prefs.getInt("metric_${definition.id}", 0).coerceAtLeast(0)
+        achievementMetrics["regular"] = maxOf(metric("regular"), runs)
+        shopSpendSerial = 0; shopOpenSerial = -1
+        unbankedRunCoins = 0
+        prefs.edit().putInt("achievement_best_score", bestRunScore).putInt("max_bubbles", maxBubbles).apply()
+        Achievements.init(prefs)
         if (skin !in Skins.all.indices || !owns(Wardrobe.CUBE, skin)) skin = 0
         if (bubbleSkin !in BubbleSkins.all.indices || !owns(Wardrobe.BUBBLE, bubbleSkin)) bubbleSkin = 0
         if (trail !in Trails.all.indices || !owns(Wardrobe.TRAIL, trail)) trail = 0
+    }
+
+    /** Explicit developer reset: clear every saved game value while preserving app options. */
+    @Synchronized fun resetForDeveloper(): Boolean {
+        if (!Settings.devMode || !::prefs.isInitialized) return false
+        val progressSaved = prefs.edit().clear().commit()
+        val scoresSaved = appContext.getSharedPreferences("scores", Context.MODE_PRIVATE)
+            .edit().clear().commit()
+        // Reload every cached counter, equipped item and achievement queue from fresh defaults.
+        // The old pre-dev bank is intentionally gone too; toggling dev off must not restore it.
+        init(appContext)
+        return progressSaved && scoresSaved
     }
 
     fun level(u: Upgrade): Int = when (u) {
@@ -155,40 +357,76 @@ object Progress {
     // ---- dev mode: an unlimited bank while it is on, the real one back when it is off (or on the next launch)
     private const val DEV_BANK = "bank_before_dev"
 
-    fun enterDev() {
+    @Synchronized fun enterDev() {
         if (prefs.contains(DEV_BANK)) return
         prefs.edit().putInt(DEV_BANK, coins).putInt("coins", 9_999_999).apply()
         coins = 9_999_999
     }
 
-    fun leaveDev() {
+    @Synchronized fun leaveDev() {
         if (!prefs.contains(DEV_BANK)) return
         coins = prefs.getInt(DEV_BANK, coins)
         prefs.edit().remove(DEV_BANK).putInt("coins", coins).apply()
     }
 
-    fun addCoins(n: Int) {
+    /**
+     * The claim marker and bank change share one preferences transaction, under
+     * the same lock as purchases and run banking. Bonus coins intentionally do
+     * not increase totalCoins: claiming a milestone cannot earn another one.
+     */
+    @Synchronized internal fun claimAchievement(id: String): Int {
+        if (!achievementsUnlocked || !::prefs.isInitialized) return 0
+        val definition = Achievements.all.firstOrNull { it.id == id } ?: return 0
+        val state = Achievements.snapshot(definition)
+        val tier = state.claimableTier ?: return 0
+        val amount = state.rewardAmount ?: return 0
+        // Keep the reward available if the bank cannot fit the complete payout.
+        if (amount <= 0 || coins.toLong() + amount > Int.MAX_VALUE) return 0
+        // Dev mode replaces the spendable bank, but claims are permanent. Preserve
+        // their payout in the real bank too, so leaving dev cannot erase a reward.
+        val realBank = if (prefs.contains(DEV_BANK)) prefs.getInt(DEV_BANK, 0) else null
+        if (realBank != null && realBank.toLong() + amount > Int.MAX_VALUE) return 0
+        val balance = coins + amount
+        prefs.edit()
+            .putInt("coins", balance)
+            .putInt("achievement_$id", state.earnedTiers)
+            .putInt("achievement_claimed_$id", tier + 1)
+            .also { if (realBank != null) it.putInt(DEV_BANK, realBank + amount) }
+            .apply()
+        coins = balance
+        return amount
+    }
+
+    @Synchronized fun addCoins(n: Int) {
         if (n <= 0) return
-        coins += n
-        totalCoins += n
+        coins = saturatedAdd(coins, n)
+        totalCoins = saturatedAdd(totalCoins, n)
         prefs.edit().putInt("coins", coins).putInt("total_coins", totalCoins).apply()
+        Achievements.evaluate()
     }
 
     /** One more run finished (for the stats). */
-    fun countRun() {
-        runs += 1
-        prefs.edit().putInt("runs", runs).apply()
+    @Synchronized fun countRun() {
+        runs = saturatedAdd(runs, 1)
+        prefs.edit().putInt("runs", runs).putInt("achievement_best_score", bestRunScore).putInt("max_run_bounces", maxRunBounces).apply()
+        Achievements.evaluate()
     }
 
+    fun payLanguageSwitch(from: String, to: String): Boolean = spend(Languages.switchCost(from, to))
+
     private fun spend(n: Int): Boolean {
-        if (n > coins) return false
+        if (n < 0 || n > coins) return false
         coins -= n
         prefs.edit().putInt("coins", coins).apply()
+        if (n > 0) {
+            shopSpendSerial++
+            if (coins == 0) bestMetric("bankrupt", 1)
+        }
         return true
     }
 
     /** Buy the next level of [u]. Returns false when maxed or unaffordable. */
-    fun buyUpgrade(u: Upgrade): Boolean {
+    @Synchronized fun buyUpgrade(u: Upgrade): Boolean {
         val price = nextPrice(u) ?: return false
         if (!spend(price)) return false
         val lvl = level(u) + 1
@@ -203,7 +441,7 @@ object Progress {
         return true
     }
 
-    fun buyRevive(): Boolean {
+    @Synchronized fun buyRevive(): Boolean {
         if (revives >= MAX_REVIVES || !spend(REVIVE_PRICE)) return false
         revives += 1
         prefs.edit().putInt("revives", revives).apply()
@@ -211,52 +449,65 @@ object Progress {
     }
 
     /** Consume one second wind (GL thread, on a crash). Returns false when empty. */
-    fun useRevive(): Boolean {
+    @Synchronized fun useRevive(): Boolean {
         if (revives <= 0) return false
         revives -= 1
         prefs.edit().putInt("revives", revives).apply()
         return true
     }
 
-    fun buyBubble(): Boolean {
+    @Synchronized fun buyBubble(): Boolean {
         if (!spend(BUBBLE_PRICE)) return false
-        bubbles += 1
+        bubbles = saturatedAdd(bubbles, 1)
         prefs.edit().putInt("bubbles", bubbles).apply()
+        recordBubbles()
         return true
     }
 
     /** A bubble picked up on the track (GL thread): straight into the stash. */
-    fun addBubble(n: Int) {
-        bubbles += n
+    @Synchronized fun addBubble(n: Int) {
+        if (n <= 0) return
+        bubbles = saturatedAdd(bubbles, n)
         prefs.edit().putInt("bubbles", bubbles).apply()
+        recordBubbles()
     }
 
     /** Consume one stocked bubble (GL thread, on activation). Returns false when empty. */
-    fun useBubble(saveChance: Float = 0f, random: Random = Random.Default): Boolean {
+    @Synchronized fun useBubble(saveChance: Float = 0f, random: Random = Random.Default): Boolean {
         if (bubbles <= 0) return false
         if (saveChance > 0f && random.nextFloat() < saveChance) return true
         bubbles -= 1
+        addMetric("bubble_popper")
         prefs.edit().putInt("bubbles", bubbles).apply()
+        recordBubbles()
         return true
     }
 
     // ------------------------------------------------------------- shards
 
-    fun shards(kind: Int): Int = shardCounts.getOrElse(kind) { 0 }
+    /** Developer stock is virtual; real shard counts remain available when dev mode ends. */
+    fun shards(kind: Int): Int = when {
+        kind !in shardCounts.indices -> 0
+        Settings.devMode -> Int.MAX_VALUE
+        else -> shardCounts[kind]
+    }
 
     fun addShards(kind: Int, n: Int) {
         if (kind !in shardCounts.indices || n <= 0) return
         shardCounts[kind] += n
         prefs.edit().putInt("shards_$kind", shardCounts[kind]).apply()
+        addMetric("shardsmith", n)
     }
 
     /** Spend the shards a shard-only skin asks for and own it. False when it is not that kind of skin, or there are not enough. */
-    fun unlockWithShards(id: Int): Boolean {
+    @Synchronized fun unlockWithShards(id: Int): Boolean {
         val sk = Skins.get(id)
         if (!sk.shardOnly || owns(Wardrobe.CUBE, id)) return false
         if (shards(sk.shardType) < sk.shardsNeeded) return false
-        shardCounts[sk.shardType] -= sk.shardsNeeded
-        prefs.edit().putInt("shards_${sk.shardType}", shardCounts[sk.shardType]).apply()
+        if (!Settings.devMode) {
+            shardCounts[sk.shardType] -= sk.shardsNeeded
+            prefs.edit().putInt("shards_${sk.shardType}", shardCounts[sk.shardType]).apply()
+        }
         grant(Wardrobe.CUBE, id)
         return true
     }
@@ -270,7 +521,7 @@ object Progress {
     fun equipped(cat: Int): Int = when (cat) { Wardrobe.CUBE -> skin; Wardrobe.BUBBLE -> bubbleSkin; else -> trail }
 
     /** Every item of [cat] not yet owned and buyable (shard-only skins are never handed out or sold). */
-    fun unowned(cat: Int): List<Int> = (0 until Wardrobe.count(cat)).filter { !owns(cat, it) && !(cat == Wardrobe.CUBE && Skins.get(it).shardOnly) }
+    fun unowned(cat: Int): List<Int> = (0 until Wardrobe.count(cat)).filter { !owns(cat, it) && !secret(cat, it) && !(cat == Wardrobe.CUBE && Skins.get(it).shardOnly) }
 
     private fun grant(cat: Int, id: Int) {
         when (cat) {
@@ -278,9 +529,11 @@ object Progress {
             Wardrobe.BUBBLE -> { ownedBubbleSkins = ownedBubbleSkins or (1 shl id); prefs.edit().putInt("owned_bubble_skins", ownedBubbleSkins).apply() }
             else -> { ownedTrails = ownedTrails or (1 shl id); prefs.edit().putInt("owned_trails", ownedTrails).apply() }
         }
+        Achievements.evaluate()
     }
 
-    fun buy(cat: Int, id: Int): Boolean {
+    @Synchronized fun buy(cat: Int, id: Int): Boolean {
+        if (!secretAvailable(cat, id)) return false
         if (id !in 0 until Wardrobe.count(cat)) return false
         if (owns(cat, id)) return true
         if (cat == Wardrobe.CUBE && Skins.get(id).shardOnly) return false // shards only
@@ -289,7 +542,7 @@ object Progress {
         return true
     }
 
-    fun equip(cat: Int, id: Int) {
+    @Synchronized fun equip(cat: Int, id: Int) {
         if (!owns(cat, id)) return
         when (cat) {
             Wardrobe.CUBE -> { skin = id; prefs.edit().putInt("skin", id).apply() }
@@ -300,9 +553,15 @@ object Progress {
 
     // ------------------------------------------------------------- boxes
 
+    val mysteryBoxPrice: Int get() = BoxLoot.purchasePrice()
+    @Synchronized fun buyMysteryBox(random: Random = Random.Default): BoxReward? {
+        if (!spend(mysteryBoxPrice)) return null
+        return openBox(random)
+    }
+
     /** Open a mystery box: roll a reward and bank it immediately. */
-    fun openBox(random: Random = Random.Default): BoxReward {
-        boxesOpened += 1
+    @Synchronized fun openBox(random: Random = Random.Default): BoxReward {
+        boxesOpened = saturatedAdd(boxesOpened, 1)
         // Disjoint rolls: the old shard branch swallowed the entire bubble range.
         // After two coin boxes the next pull is guaranteed to be something else.
         val kind = BoxLoot.kind(random.nextFloat(), boxCoinStreak)
@@ -325,11 +584,11 @@ object Progress {
         boxCoinStreak = if (reward.kind == BoxReward.COINS) boxCoinStreak + 1 else 0
         prefs.edit().putInt("boxes_opened", boxesOpened).putInt("box_coin_streak", boxCoinStreak).apply()
         if (reward.kind == BoxReward.BUBBLE) {
-            bubbles += reward.amount
-            prefs.edit().putInt("bubbles", bubbles).apply()
+            addBubble(reward.amount)
         } else if (reward.kind == BoxReward.COINS) {
             addCoins(reward.amount)
         }
+        Achievements.evaluate()
         return reward
     }
 }

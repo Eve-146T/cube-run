@@ -27,6 +27,9 @@ android {
         buildConfig = true
     }
 
+    // Every picker language must be available offline, including App Bundle installs.
+    bundle { language { enableSplit = false } }
+
     defaultConfig {
         applicationId = "cube.run"
         minSdk = 28
@@ -34,6 +37,7 @@ android {
         versionCode = 11
         versionName = "2.4"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        buildConfigField("boolean", "JACKPOT_TEST_WORLD", "false")
     }
 
     // Keep release APKs free of Google's dependency-metadata signing block,
@@ -56,6 +60,7 @@ android {
 
     buildTypes {
         debug {
+            buildConfigField("boolean", "JACKPOT_TEST_WORLD", (providers.gradleProperty("jackpotTestWorld").orNull == "true").toString())
             // Let visual review captures coexist with builds from other worktrees.
             if (providers.gradleProperty("duckReview").orNull == "true") {
                 applicationIdSuffix = ".duckreview"

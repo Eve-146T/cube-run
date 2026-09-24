@@ -32,6 +32,8 @@ object Settings {
     /** Master toggle for haptic feedback. Read from the GL thread. */
     @Volatile var hapticsEnabled: Boolean = true
         private set
+    @Volatile var audioHapticRevision: Int = 0
+        private set
 
     /**
      * Dev mode: the section director cycles the sections under review and the
@@ -78,11 +80,13 @@ object Settings {
     }
 
     fun setSoundEnabled(v: Boolean) {
+        if (soundEnabled != v) audioHapticRevision++
         soundEnabled = v
         prefs.edit().putBoolean("sound_enabled", v).apply()
     }
 
     fun setHapticsEnabled(v: Boolean) {
+        if (hapticsEnabled != v) audioHapticRevision++
         hapticsEnabled = v
         prefs.edit().putBoolean("haptics_enabled", v).apply()
     }

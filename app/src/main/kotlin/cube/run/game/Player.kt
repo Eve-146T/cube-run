@@ -53,6 +53,18 @@ class Player(private val game: Gdx3DGame, private val rnd: Random) {
     var flyY = FLY_Y
     /** Zero-G: hover at [HOVER_Y], drift between lanes slowly, no jumping or rolling. */
     var hover = false
+    /** Equipped Eclipse ability, fixed for this run; wardrobe previews cannot grant it. */
+    var zappyEnabled = false
+        set(value) {
+            field = value
+            if (!value) zappyFx?.clear()
+            else if (::unit.isInitialized && zappyFx == null) zappyFx = ZappyFx(unit)
+        }
+    /** Cloud keeps the usual jump height, with a softer ascent and longer hang. */
+    var floaty = false
+    /** Set by the run: only an active Mint shield permits the airborne jump. */
+    var doubleJumpEnabled = false
+    private var airJumpAvailable = false
 
     var lane = 1
         private set
@@ -88,6 +100,9 @@ class Player(private val game: Gdx3DGame, private val rnd: Random) {
         private set
     private lateinit var shellInst: ModelInstance
     private lateinit var shellCol: Color
+    private var voidEdges = emptyArray<ModelInstance>()
+    private var visualTime = 0f
+    private var zappyFx: ZappyFx? = null
     private lateinit var shellBlend: BlendingAttribute
     private var curSkinId = -1
     var skin: Skins.Skin = Skins.get(0)
@@ -106,6 +121,8 @@ class Player(private val game: Gdx3DGame, private val rnd: Random) {
     /** The road changed shape (a portal): keep the cube on a lane that still exists. */
     fun remapLane(oldCount: Int, newCount: Int) {
         lane = (lane + (newCount - oldCount) / 2).coerceIn(0, newCount - 1)
+        if (zappyEnabled) px = laneX(lane)
+        game.session.laneChanged(lane, newCount)
     }
 
     fun init(baseHue: Float, time: Float) {
@@ -121,12 +138,19 @@ class Player(private val game: Gdx3DGame, private val rnd: Random) {
     private fun applySkin(baseHue: Float, time: Float) {
         curSkinId = wantedSkin()
         skin = Skins.get(curSkinId)
+        zappyFx?.clear()
         inst = ModelInstance(unit)
         if (skin.opacity < 1f) inst.materials.first().set(
             BlendingAttribute(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA, skin.opacity),
             DepthTestAttribute(GL20.GL_LEQUAL, 0f, 1f, false),
         )
         if (skin.id == 13) inst.materials.first().set(ColorAttribute.createEmissive(.24f, .25f, .26f, 1f))
+        if (skin.id == Skins.VOID_ID && voidEdges.isEmpty()) {
+            voidEdges = Array(12) { ModelInstance(unit).apply {
+                materials.first().set(ColorAttribute.createDiffuse(Color(.35f, .3f, .5f, 1f)),
+                    ColorAttribute.createEmissive(Color(.27f, .23f, .38f, 1f)))
+            } }
+        }
         col = (inst.materials.first().get(ColorAttribute.Diffuse) as ColorAttribute).color
         hsvInto(col, skin.hueAt(time, baseHue), skin.sat, skin.valueAt(time))
         shellInst = ModelInstance(unit) // pulsing translucent "glow" shell
@@ -145,8 +169,23 @@ class Player(private val game: Gdx3DGame, private val rnd: Random) {
     fun moveToLane(target: Int): Boolean {
         val t = target.coerceIn(0, Lanes.last)
         if (t == lane) return false
+        val from = px
         lane = t
-        SoundFx.play("whoosh", rate = 0.95f + rnd.nextFloat() * 0.15f)
+        game.session.laneChanged(lane, Lanes.count)
+        if (zappyEnabled) {
+            // Move the collision body now: no eased path, swept pickups, or extra invulnerability.
+            px = laneX(lane)
+            nudge = 0f
+            if (::inst.isInitialized) {
+                val effect = zappyFx ?: ZappyFx(unit).also { zappyFx = it }
+                effect.fire(from, px, inst.transform)
+                inst.transform.getTranslation(tmp)
+                inst.transform.setTranslation(px, tmp.y, tmp.z)
+                shellInst.transform.getTranslation(tmp)
+                shellInst.transform.setTranslation(px, tmp.y, tmp.z)
+            }
+            SoundFx.play("blip", rate = 1.8f, vol = .48f)
+        } else SoundFx.play("whoosh", rate = 0.95f + rnd.nextFloat() * 0.15f)
         Haptics.tick()
         return true
     }
@@ -160,6 +199,7 @@ class Player(private val game: Gdx3DGame, private val rnd: Random) {
     fun setFlying(on: Boolean) {
         if (flying == on) return
         clearJumpInput()
+        airJumpAvailable = false
         flying = on
         duckT = 0f
         flyY = FLY_Y
@@ -169,25 +209,35 @@ class Player(private val game: Gdx3DGame, private val rnd: Random) {
     /** Put the cube on a platform of height [h] (bubble save after a side hit). */
     fun forceGround(h: Float) {
         py = ground + h; air = false; vy = 0f
+        airJumpAvailable = false
         clearJumpInput()
     }
 
     fun jump() {
         if (flying || hover) return
-        if (air && coyoteLeft <= 0f) { jumpBuffer = 0.1f; return }
+        if (air && coyoteLeft <= 0f) {
+            if (doubleJumpEnabled && airJumpAvailable) {
+                airJumpAvailable = false
+                takeOff(extraJump = true)
+            } else jumpBuffer = 0.1f
+            return
+        }
         takeOff()
     }
 
     fun clearJumpInput() { coyoteLeft = 0f; jumpBuffer = 0f }
 
-    private fun takeOff() {
+    private fun takeOff(extraJump: Boolean = false) {
         clearJumpInput()
-        air = true; vy = 8.4f
+        if (!extraJump) airJumpAvailable = true
+        air = true; vy = if (floaty) 6.9f else 8.4f
         slamming = false
         duckT = 0f // jumping cancels a roll
-        SoundFx.play("whoosh", rate = 1.3f)
+        SoundFx.play("whoosh", rate = if (extraJump) 1.55f else 1.3f)
         Haptics.click()
-        game.burst3d(tmp.set(px, 0.1f, 0.3f), trailCol(), n = 6, speed = 2.5f, size = 0.08f, life = 0.35f)
+        game.burst3d(tmp.set(px, if (extraJump) py - .35f else .1f, .3f),
+            if (extraJump) Color(.5f, 1f, .8f, 1f) else trailCol(),
+            n = if (extraJump) 12 else 6, speed = 2.5f, size = .08f, life = .35f)
     }
 
     /** The run begins: a quick squash, then it springs off (a beat of anticipation). */
@@ -208,6 +258,7 @@ class Player(private val game: Gdx3DGame, private val rnd: Random) {
     /** A bounce pad: launched high, stretched tall, whatever you were doing. */
     fun launch(v: Float) {
         clearJumpInput()
+        airJumpAvailable = true
         air = true; vy = v; duckT = 0f; slamming = false
         stretch = 1f
     }
@@ -241,11 +292,14 @@ class Player(private val game: Gdx3DGame, private val rnd: Random) {
     fun update(dt: Float, mv: Float, time: Float, baseHue: Float, trail: Boolean, groundH: Float, stream: Float = 0f): Int {
         if (wantedSkin() != curSkinId) applySkin(baseHue, time) // a wardrobe change shows up live
         this.trail = Trails.get(wantedTrail())
+        zappyFx?.update(dt, mv)
         var event = EV_NONE
         coyoteLeft = max(0f, coyoteLeft - dt)
         jumpBuffer = max(0f, jumpBuffer - dt)
         val gy = ground + groundH
-        px += (laneX(lane) - px) * min(1f, dt * (if (hover) 4.5f else 13f)) // eased lane snap (a lazy drift in zero-g)
+        // Teleports stay centred while a portal animates lane spacing; ordinary skins ease.
+        if (zappyEnabled) px = laneX(lane)
+        else px += (laneX(lane) - px) * min(1f, dt * (if (hover) 4.5f else 13f))
         nudge *= max(0f, 1f - 10f * dt)
         // A portal changes the underlying world, not an active jetpack's altitude.
         // Keep hover set so flight expiry naturally returns to the floating road.
@@ -257,10 +311,11 @@ class Player(private val game: Gdx3DGame, private val rnd: Random) {
             py += (HOVER_Y + 0.15f * sin(time * 2.2f) - py) * min(1f, dt * 3f)
             air = false; vy = 0f
         } else if (air) {
-            vy -= 26f * dt
+            vy -= (if (floaty && !slamming) 16f else 26f) * dt
             py += vy * dt
             if (py <= gy && vy <= 0f) {
                 py = gy; air = false; vy = 0f
+                airJumpAvailable = false
                 if (!quietLanding) { SoundFx.play("pop", rate = 0.95f + rnd.nextFloat() * 0.12f); Haptics.click() }
                 quietLanding = false
                 game.burst3d(tmp.set(px, gy - 0.39f, 0.4f), trailCol(), n = 8, speed = 3.2f, size = 0.09f, life = 0.4f)
@@ -274,6 +329,7 @@ class Player(private val game: Gdx3DGame, private val rnd: Random) {
             if (gy - py > 0.45f) event = EV_SIDE_HIT else py = gy
         } else if (gy < py - 0.02f) {
             air = true; vy = 0f // walked off an edge
+            airJumpAvailable = true
             coyoteLeft = 0.1f
         }
         squash = max(0f, squash - dt * 5f)
@@ -295,6 +351,7 @@ class Player(private val game: Gdx3DGame, private val rnd: Random) {
         val duY = duck * 0.20f - lift // hug the ground while rolling
         // skin colours are pure functions of time — sampled every frame, no allocation
         hsvInto(col, skin.hueAt(time, baseHue), skin.sat, skin.valueAt(time))
+        visualTime = time
         hsvInto(shellCol, skin.hueAt(time, baseHue), skin.sat * 0.9f, 1f)
         openingMaterial(skin.opacity, if (skin.id == 13) 1f else 0f)
         val breathe = 1f + 0.03f * idleMix * sin(time * 2.4f)
@@ -323,6 +380,16 @@ class Player(private val game: Gdx3DGame, private val rnd: Random) {
         if (trailT < every) return
         trailT = 0f
         trailK++
+        if (t.id == Trails.VOID_ID) {
+            // Heavy black remnants hang in the air; a tiny cold edge marks each one.
+            tmpCol.set(.008f, .006f, .014f, 1f)
+            game.burst3d(tmp.set(x, y, z), tmpCol, n = 1, speed = .18f * scale,
+                size = .24f * scale, life = 1.25f, gravity = -.35f, biasZ = stream)
+            tmpCol.set(.65f, .57f, .86f, 1f)
+            game.burst3d(tmp.set(x + .12f * scale, y + .1f * scale, z), tmpCol, n = 1,
+                speed = .3f * scale, size = .025f * scale, life = .85f, gravity = -.5f, biasZ = stream)
+            return
+        }
         val c = if (t.mode == Trails.BODY) trailCol() else hsvInto(tmpCol, t.hueAt(time, trailK), t.sat, t.value)
         // shards stream back past the camera ([stream] ≈ half the run speed), so the trail reads as motion
         game.burst3d(tmp.set(x, y, z), c, n = t.count, speed = t.speed * scale, size = t.size * scale * 1.6f, life = t.life * 1.35f * (1f + (scale - 1f) * 0.5f), gravity = t.gravity, biasZ = stream)
@@ -333,9 +400,11 @@ class Player(private val game: Gdx3DGame, private val rnd: Random) {
      * bobbing. Colours keep animating so live skins show what they do.
      */
     fun showcase(time: Float, baseHue: Float, x: Float = 0f, y: Float = 0.75f, spin: Float = 45f, extraYaw: Float = 0f, scale: Float = 1f) {
+        zappyFx?.clear()
         if (wantedSkin() != curSkinId) applySkin(baseHue, time)
         trail = Trails.get(wantedTrail())
         hsvInto(col, skin.hueAt(time, baseHue), skin.sat, skin.valueAt(time))
+        visualTime = time
         hsvInto(shellCol, skin.hueAt(time, baseHue), skin.sat * 0.9f, 1f)
         val yy = y + 0.06f * sin(time * 2.2f)
         val yaw = time * spin + extraYaw
@@ -347,7 +416,81 @@ class Player(private val game: Gdx3DGame, private val rnd: Random) {
         px = x; py = yy
     }
 
+    /**
+     * The jackpot pose at ([x],[y]): turned [yaw], tipped [tip], its colour
+     * blended [gold] of the way to [goldCol]. Leaves [px]/[py] alone, so the
+     * run resumes from where the cube actually was.
+     */
+    fun jackpotPose(time: Float, baseHue: Float, x: Float, y: Float, yaw: Float, tip: Float, scale: Float, gold: Float, goldCol: Color) {
+        zappyFx?.clear()
+        hsvInto(col, skin.hueAt(time, baseHue), skin.sat, skin.valueAt(time)).lerp(goldCol, gold)
+        visualTime = time
+        hsvInto(shellCol, skin.hueAt(time, baseHue), skin.sat * 0.9f, 1f).lerp(goldCol, gold)
+        // The Gambler already strobes yellow: the jackpot makes the cube shine from within instead.
+        // The run's next update resets the emission through openingMaterial.
+        val material = inst.materials.first()
+        val glow = material.get(ColorAttribute.Emissive) as? ColorAttribute
+            ?: ColorAttribute.createEmissive(0f, 0f, 0f, 1f).also { material.set(it) }
+        glow.color.set(goldCol.r * 0.32f * gold, goldCol.g * 0.24f * gold, goldCol.b * 0.05f * gold, 1f)
+        val sc = 0.9f * scale
+        inst.transform.setToTranslation(x, y, 0f).rotate(Vector3.Y, yaw).rotate(Vector3.X, tip).scale(sc, sc, sc)
+        val pulse = glowScale(time) * scale * (1f + 0.12f * gold)
+        shellBlend.opacity = shellOpacity(time) + 0.1f * gold
+        shellInst.transform.setToTranslation(x, y, 0f).rotate(Vector3.Y, yaw).rotate(Vector3.X, tip).scale(pulse, pulse, pulse)
+    }
+
+    private val voidEmissive = Color()
+    private var voidEmissiveSaved = false
+
+    /**
+     * The void show's pose at ([x],[y],[z]): turned [yaw], tipped [tip] about the view axis,
+     * stretched to ([sx],[sy],[sz]) and glowing [glow] of the way to [glowCol] from within.
+     * Leaves [px]/[py] alone; [endVoidPose] gives the skin its own glow back.
+     */
+    fun voidPose(time: Float, baseHue: Float, x: Float, y: Float, z: Float, yaw: Float, tip: Float,
+                 sx: Float, sy: Float, sz: Float, glow: Float, glowCol: Color, toNormal: Float = 0f) {
+        // The pose the stage would show without the void, captured before it is overridden.
+        voidNormalBody.set(inst.transform); voidNormalShell.set(shellInst.transform)
+        zappyFx?.clear()
+        hsvInto(col, skin.hueAt(time, baseHue), skin.sat, skin.valueAt(time)).lerp(glowCol, glow * 0.35f)
+        visualTime = time
+        hsvInto(shellCol, skin.hueAt(time, baseHue), skin.sat * 0.9f, 1f).lerp(glowCol, glow)
+        val material = inst.materials.first()
+        val emissive = material.get(ColorAttribute.Emissive) as? ColorAttribute
+            ?: ColorAttribute.createEmissive(0f, 0f, 0f, 1f).also { material.set(it) }
+        if (!voidEmissiveSaved) { voidEmissive.set(emissive.color); voidEmissiveSaved = true }
+        emissive.color.set(voidEmissive).lerp(glowCol.r * 0.3f, glowCol.g * 0.3f, glowCol.b * 0.3f, 1f, glow)
+        inst.transform.setToTranslation(x, y, z).rotate(Vector3.Z, tip).rotate(Vector3.Y, yaw).rotate(Vector3.X, 12f).scale(sx * 0.9f, sy * 0.9f, sz * 0.9f)
+        val pulse = glowScale(time)
+        shellBlend.opacity = shellOpacity(time)
+        shellInst.transform.setToTranslation(x, y, z).rotate(Vector3.Z, tip).rotate(Vector3.Y, yaw).rotate(Vector3.X, 12f).scale(sx * pulse, sy * pulse, sz * pulse)
+        if (toNormal > 0f) { // ease into the stage's own pose, so handing back never snaps
+            mixPose(inst.transform, voidNormalBody, toNormal)
+            mixPose(shellInst.transform, voidNormalShell, toNormal)
+        }
+    }
+
+    private val voidNormalBody = Matrix4()
+    private val voidNormalShell = Matrix4()
+    private val mixA = Vector3(); private val mixB = Vector3()
+    private val mixSa = Vector3(); private val mixSb = Vector3()
+    private val mixQa = Quaternion(); private val mixQb = Quaternion()
+
+    private fun mixPose(pose: Matrix4, target: Matrix4, amount: Float) {
+        pose.getTranslation(mixA); target.getTranslation(mixB)
+        pose.getScale(mixSa); target.getScale(mixSb)
+        pose.getRotation(mixQa, true); target.getRotation(mixQb, true)
+        pose.set(mixA.lerp(mixB, amount), mixQa.slerp(mixQb, amount), mixSa.lerp(mixSb, amount))
+    }
+
+    fun endVoidPose() {
+        if (!voidEmissiveSaved) return
+        (inst.materials.first().get(ColorAttribute.Emissive) as? ColorAttribute)?.color?.set(voidEmissive)
+        voidEmissiveSaved = false
+    }
+
     private fun shellOpacity(time: Float): Float {
+        if (skin.id == Skins.VOID_ID) return .025f + .012f * sin(time * 1.8f)
         val glow = ((0.22f + 0.08f * sin(time * 6f)) * skin.glow).coerceAtMost(0.75f)
         return glow * if (skin.opacity < 1f) 0.35f else 1f
     }
@@ -376,7 +519,7 @@ class Player(private val game: Gdx3DGame, private val rnd: Random) {
         menuSpin = 0f
     }
 
-    private fun glowScale(time: Float) = 0.9f * (1.18f + 0.06f * sin(time * 8f))
+    private fun glowScale(time: Float) = if (skin.id == Skins.VOID_ID) .94f else 0.9f * (1.18f + 0.06f * sin(time * 8f))
 
     fun restoreMenuPose(time: Float) {
         blendFromMenu(0f, menuSpin, time)
@@ -449,7 +592,23 @@ class Player(private val game: Gdx3DGame, private val rnd: Random) {
             inst.transform.mulLeft(liftM); shellInst.transform.mulLeft(liftM)
         }
         batch.render(inst, env)
-        batch.render(shellInst, env)
+        if (skin.id == Skins.VOID_ID) {
+            // Hairline geometry preserves the black silhouette on every stage background.
+            val width = .013f + .003f * sin(visualTime * 1.8f)
+            var edge = 0
+            for (axis in 0..2) for (ai in 0..1) for (bi in 0..1) {
+                val a = ai * 2 - 1; val b = bi * 2 - 1
+                val e = voidEdges[edge++]
+                e.transform.set(inst.transform)
+                when (axis) {
+                    0 -> e.transform.translate(0f, a * .5f, b * .5f).scale(1.015f, width, width)
+                    1 -> e.transform.translate(a * .5f, 0f, b * .5f).scale(width, 1.015f, width)
+                    else -> e.transform.translate(a * .5f, b * .5f, 0f).scale(width, width, 1.015f)
+                }
+                batch.render(e, env)
+            }
+        } else batch.render(shellInst, env)
+        zappyFx?.render(batch, env, ground, inst.transform)
         if (ground != 0f) {
             liftM.setToTranslation(0f, -ground, 0f)
             inst.transform.mulLeft(liftM); shellInst.transform.mulLeft(liftM)

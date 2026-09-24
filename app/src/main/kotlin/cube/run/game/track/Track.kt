@@ -519,6 +519,7 @@ class Track(private val rnd: Random, private val fx: ObstacleFactory) {
      * Red Pill slots only materialize 1 in 30 times in every ordinary run, including developer mode.
      */
     private fun layPickup(row: Row, code: Int) {
+        if (cube.run.BuildConfig.DEBUG && cube.run.BuildConfig.JACKPOT_TEST_WORLD) return
         if (noPickups() || Step.isPlatform(code) || Step.isPad(code) || code == Step.TW || bonus == Bonus.FLOAT) return
         val galore = Settings.devMode // dev mode: a pickup every few rows, boxes included, so everything can be tried
         if (!galore && (rowsSpawned < pickupMinRows || rowsSincePickup < pickupSpacing)) return

@@ -67,6 +67,19 @@ class BubbleRenderer(mb: ModelBuilder) : Disposable {
                 return v * mix(vec3(1.0), clamp(p - 1.0, 0.0, 1.0), s);
             }
             vec4 film(float style, vec3 n, float band, float rim, float spec) {
+                if (style > 3.5) {
+                    // Keep the void lens inside film so wardrobe style transitions blend both ends.
+                    float ndv = abs(dot(n, normalize(v_view)));
+                    float angle = atan(n.y, n.x);
+                    float arc = smoothstep(-0.25, 0.6, sin(angle * 2.0 - u_time * 0.7));
+                    float edge = pow(1.0 - ndv, 5.0);
+                    float inner = exp(-abs(ndv - 0.3) * 65.0) * 0.16;
+                    vec3 cold = vec3(0.68, 0.59, 0.86);
+                    vec3 dark = vec3(0.008, 0.005, 0.016);
+                    float light = clamp(edge * (0.45 + 0.55 * arc) + inner, 0.0, 1.0);
+                    float opacity = (0.12 + edge * 0.82 + inner) * u_alpha;
+                    return vec4(mix(dark, cold, light), clamp(opacity, 0.0, 0.95));
+                }
                 float hue = mix(u_hueA, u_hueB, band) / 360.0;
                 if (style > 1.5 && style < 2.5) hue = fract(u_time * .045 + band * .35 + n.x * .15);
                 float flow = .5 + .5 * sin(n.y * 5.0 + n.x * 3.0 + u_time * 2.2);

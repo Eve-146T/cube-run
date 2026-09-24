@@ -118,6 +118,7 @@ class Row(var z: Float, val obs: ArrayList<Ob>, initialLaneWidth: Float = Lanes.
     var minClear = 99f            // tightest clearance seen while crossing (near-miss detect)
     var coins: ArrayList<Coin>? = null
     var pickup = Pickup.NONE
+    var pickupMissed = false
     var pickupX = 0f
     /** Idle rows are decoration before the run starts: coins only, never scored. */
     var idle = false

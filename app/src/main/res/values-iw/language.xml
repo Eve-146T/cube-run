@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="languages_title">שפות</string>
+    <string name="cd_languages">בחירת שפה</string>
+    <string name="language_option">%1$s, %2$s</string>
+    <string name="country_us">ארצות הברית</string>
+    <string name="country_germany">גרמניה</string>
+    <string name="country_israel">ישראל</string>
+    <string name="tap_to_start">הקשה להתחלה</string>
+    <string name="language_switch_cost">%1$d מטבעות לכל החלפה</string>
+    <string name="language_insufficient">צריך %1$d מטבעות כדי להחליף שפה.</string>
+</resources>
