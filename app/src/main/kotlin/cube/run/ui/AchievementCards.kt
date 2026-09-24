@@ -122,14 +122,13 @@ internal class AchievementCards(
             }
             addView(body, LinearLayout.LayoutParams(-1, -2))
             if (complete) body.addView(rewardAction(state, wide = true), LinearLayout.LayoutParams(-1, -2))
-            else body.addView(LinearLayout(activity).apply {
-                orientation = LinearLayout.HORIZONTAL
-                gravity = Gravity.BOTTOM
-                addView(goal(state, index, animateFill, 0, accent(definition.id)), LinearLayout.LayoutParams(0, -2, 1f))
-                addView(kit.iconText(CoinIcon(), "+${number(Achievements.reward(definition, 0))}", 12f,
-                    Theme.alpha(Theme.YELLOW, 225), iconDp = 14f).apply { tag = "achievement_claim_${definition.id}" },
-                    LinearLayout.LayoutParams(-2, -2).apply { marginStart = dp(8f); bottomMargin = dp(2f) })
-            }, LinearLayout.LayoutParams(-1, -2))
+            else {
+                val reward = kit.iconText(CoinIcon(), "+${number(Achievements.reward(definition, 0))}", 12f,
+                    Theme.alpha(Theme.YELLOW, 225), iconDp = 14f).apply { tag = "achievement_claim_${definition.id}" }
+                // A one-off dare is done or not: a "0 / 1" bar would only ever be empty.
+                if (definition.thresholds.single() == 1) body.addView(reward, LinearLayout.LayoutParams(-2, -2).apply { gravity = Gravity.END })
+                else body.addView(goal(state, index, animateFill, 0, accent(definition.id), trailing = reward), LinearLayout.LayoutParams(-1, -2))
+            }
         }
     }
 
@@ -270,14 +269,24 @@ internal class AchievementCards(
     }
 
     /** "1,340 / 2,000" over its bar. A reward ready to claim shows its target reached, in mint. */
-    private fun goal(state: Achievements.Snapshot, index: Int, animateFill: Boolean, tier: Int, color: Int): View =
+    private fun goal(state: Achievements.Snapshot, index: Int, animateFill: Boolean, tier: Int, color: Int, trailing: View? = null): View =
         LinearLayout(activity).apply {
             orientation = LinearLayout.VERTICAL
             val definition = state.definition
             val ready = state.claimableTier != null
             val fraction = if (ready) 1f else state.fraction
-            addView(kit.stageText(counter(state, tier), 13f, if (ready) Theme.MINT else Theme.WHITE, gravity = Gravity.START, stroke = 1.5f)
-                .apply { maxLines = 1; tag = "achievement-counter" })
+            // The payout shares the counter's line so the bar below can run the full width.
+            addView(LinearLayout(activity).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.CENTER_VERTICAL
+                addView(kit.stageText(counter(state, tier), 13f, if (ready) Theme.MINT else Theme.WHITE, gravity = Gravity.START, stroke = 1.5f)
+                    .apply {
+                        maxLines = 1; tag = "achievement-counter"
+                        // Narrow tiles shrink a long count rather than cut it off.
+                        setAutoSizeTextTypeUniformWithConfiguration(9, 13, 1, android.util.TypedValue.COMPLEX_UNIT_SP)
+                    }, LinearLayout.LayoutParams(0, -2, 1f))
+                trailing?.let { addView(it, LinearLayout.LayoutParams(-2, -2).apply { marginStart = dp(6f) }) }
+            }, LinearLayout.LayoutParams(-1, -2))
             addView(AchievementProgressBar(activity, kit, if (ready) Theme.MINT else color, fraction,
                 if (animateFill) 120L + index * 35L else 0L, animateFill,
                 fromFraction = if (!animateFill && !ready) 1f else null).apply {

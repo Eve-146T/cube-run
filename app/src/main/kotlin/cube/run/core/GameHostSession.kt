@@ -160,7 +160,9 @@ class GameHostSession(
         if (over.get()) return
         coinsV.set(v)
         Progress.recordRunCoins(v)
-        Progress.bestMetric("magpie", v.coerceAtMost(10000))
+        // Every coin of a record run would otherwise write the save and re-check every
+        // achievement; the run's best is recorded at game over, the medal the moment it is won.
+        if (v >= 10000) Progress.bestMetric("magpie", 10000)
         ui { it.setRunCoins(v) }
     }
 
@@ -204,6 +206,7 @@ class GameHostSession(
         val runCoins = coinsV.get()
         val boxes = boxesV.get()
         val runShards = IntArray(3) { shardsV.get(it) }
+        Progress.bestMetric("magpie", runCoins.coerceAtMost(10000))
         if (finalScore == 67) Progress.bestMetric("exactly_67", 1)
         if (finalScore >= 100 && silentAtStart && silentRevision == Settings.audioHapticRevision && !Settings.soundEnabled && !Settings.hapticsEnabled)
             Progress.bestMetric("silent_treatment", 1)
