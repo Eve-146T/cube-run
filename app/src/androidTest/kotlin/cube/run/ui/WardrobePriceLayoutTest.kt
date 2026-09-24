@@ -86,7 +86,7 @@ class WardrobePriceLayoutTest {
         val span = text.getSpans(0, text.length, CenteredImageSpan::class.java).single()
         assertEquals("Coin size uses the same physical pixels as the fitted text",
             (button.textSize * 1.15f).toInt(), span.drawable.bounds.width())
-        assertEquals("Buy $amount coins", button.contentDescription.toString())
+        assertEquals(button.context.getString(cube.run.R.string.cd_buy_coins, amount), button.contentDescription.toString())
     }
 
     @Test fun secretPricesFitNarrowLargeFontsAndNormalWidthWithoutClipping() = withFixture { activity ->
