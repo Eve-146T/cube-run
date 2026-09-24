@@ -27,7 +27,6 @@
     <string name="achievement_claimed_with_best">נאסף · %1$s</string>
     <string name="achievement_best_bounces">שיא: %1$s קפיצות</string>
     <string name="achievement_best_progress">שיא: %1$s / %2$s</string>
-    <string name="achievement_complete">הושלם</string>
     <string name="achievement_claim">איסוף</string>
     <string name="achievement_challenge_complete">האתגר הושלם</string>
     <string name="achievement_all_rewards_claimed">כל הפרסים נאספו</string>

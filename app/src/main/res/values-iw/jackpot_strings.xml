@@ -12,47 +12,12 @@
     
     
     
-    <string name="lottery_description">כל המטבעות שאוספים משמשים להשתתפות בהגרלה!\n\nהפרס הגדול הוא 250,000&#x2009;^1. אלה הסיכויים:</string>
-    <string name="lottery_dev_odds" formatted="false">2%</string>
-    <string name="lottery_coin_odds">1 ל־100,000</string>
-    <string name="lottery_box_odds" formatted="false">1.3%</string>
     
     <string name="cd_jackpot_win">פרס גדול. %1$s מטבעות.</string>
     <string name="cd_show_unknown_ability">הצגת יכולת לא ידועה</string>
     <string name="cd_hide_unknown_ability">הסתרת יכולת לא ידועה</string>
     <string name="cd_void_stirs">הריק מתעורר</string>
-    <string name="achievements_medals">מדליות</string>
-    <string name="achievements_challenges">אתגרים</string>
-    <string name="achievements_complete">הושלם</string>
-    <string name="achievements_claimed">נאסף</string>
-    <string name="achievements_claimed_best">נאסף · %1$s</string>
-    <string name="achievements_best_bounces">שיא: %1$s ניתורים</string>
-    <string name="achievements_best_progress">שיא: %1$s / %2$s</string>
-    <string name="achievements_sub_runner">ניקוד בריצה אחת</string>
-    <string name="achievements_sub_coins">סך הכול שנאסף</string>
-    <string name="achievements_sub_cubes">אוסף הקוביות</string>
-    <string name="achievements_sub_powerups">כוחות מיוחדים שנאספו</string>
-    <string name="achievements_sub_boxes">תיבות הפתעה שנפתחו</string>
-    <string name="achievements_sub_bubbles">להחזיק 1,000 בועות בו־זמנית</string>
-    <string name="achievements_sub_bounces">לנתר מהקיר 67 פעמים בריצה אחת</string>
-    <string name="achievements_sub_center">להגיע ל־100 נקודות בלי לעזוב את הנתיב האמצעי</string>
-    <string name="achievements_sub_homeress">לצבור 60 נקודות בלי לאסוף מטבע</string>
-    <string name="achievements_sub_gambliphobic">להחמיץ 10 תיבות הפתעה בריצה אחת</string>
-    <string name="achievements_sub_cookie">להפעיל ולכבות את הצליל 1,000 פעמים</string>
-    <string name="achievements_reward_ready">הפרס מוכן</string>
-    <string name="achievements_in_progress">בתהליך</string>
-    <string name="achievements_locked">נעול</string>
-    <string name="achievements_claim">לאסוף</string>
-    <string name="achievements_claim_all">לאסוף הכול</string>
-    <string name="cd_all_rewards_claimed">כל הפרסים נאספו</string>
     <string name="cd_challenge_complete">האתגר הושלם</string>
-    <string name="cd_medal_status">%1$s: %2$s</string>
-    <string name="cd_percent_complete">%1$d אחוזים הושלמו</string>
-    <string name="cd_reward_locked">פרס: %1$s מטבעות, נעול</string>
-    <string name="cd_claim_reward_for">איסוף %1$s מטבעות עבור %2$s</string>
-    <string name="cd_achievement_reward">%1$s. %2$s. פרס: %3$s מטבעות.</string>
-    <string name="cd_achievements_earned">הושגו %1$d מתוך %2$d הישגים</string>
-    <string name="cd_claim_all_rewards">איסוף כל הפרסים, %1$s מטבעות</string>
     <string name="achievement_runner">ריצה טובה</string>
     <string name="achievement_coins">מטבעות לכל החיים</string>
     <string name="achievement_cubes">קוביות שנפתחו</string>
@@ -66,9 +31,6 @@
     <string name="medal_bronze">ארד</string>
     <string name="medal_silver">כסף</string>
     <string name="medal_diamond">יהלום</string>
-    <string name="shop_mystery_blurb">מטבעות, בועות, רסיסים או עיצוב חדש</string>
-    <string name="shop_achievements_blurb">פתיחת האפשרות לצבור הישגים ולקבל פרסים!</string>
-    <string name="cd_achievements_unlocked">ההישגים נפתחו</string>
     <string name="cd_offer_coins">הצעת %1$s מטבעות</string>
     <string name="cd_buy_coins">קנייה תמורת %1$s מטבעות</string>
     <string name="wardrobe_buy">קנייה&#x2009;</string>

@@ -14,5 +14,4 @@
     <string name="ability_long_bubble">בועה ארוכה</string><string name="ability_long_bubble_detail" formatted="false">הבועה מחזיקה 30% יותר זמן!</string>
     <string name="lottery_explanation">כל המטבעות שנאספים מושקעים בהגרלה!\n\nהפרס הגדול הוא 250 אלף%1$s. אלה הסיכויים:</string>
     <string name="lottery_one_in">1 מתוך 100,000</string><string name="lottery_per_coin">לכל מטבע אחד של ערך</string><string name="lottery_per_box">לכל תיבת הפתעה</string>
-    <string name="jackpot_title">פרס גדול</string><string name="jackpot_description">פרס גדול. %1$s מטבעות.</string>
 </resources>

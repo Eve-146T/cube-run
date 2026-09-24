@@ -27,7 +27,6 @@
     <string name="achievement_claimed_with_best">Abgeholt · %1$s</string>
     <string name="achievement_best_bounces">Bestwert: %1$s Abpraller</string>
     <string name="achievement_best_progress">Bestwert: %1$s / %2$s</string>
-    <string name="achievement_complete">Geschafft</string>
     <string name="achievement_claim">ABHOLEN</string>
     <string name="achievement_challenge_complete">Herausforderung geschafft</string>
     <string name="achievement_all_rewards_claimed">Alle Belohnungen abgeholt</string>

@@ -191,7 +191,6 @@
     <string name="text_testing">TESTING %1$s</string>
     <string name="text_section_stats">tier %1$d · %2$s</string>
     <string name="text_seconds">%1$s s</string>
-    <string name="text_buy">BUY %1$s</string>
     <string name="text_new_cosmetic">NEW %1$s!</string>
     <string name="text_shards_collected">%1$d %2$s collected</string>
     <string name="text_unlock_shards">Unlock %1$s with %2$d %3$s</string>
@@ -200,7 +199,6 @@
     <string name="text_toggle_off">%1$s off</string>
     <string name="text_show_ability">Show %1$s ability</string>
     <string name="text_hide_ability">Hide %1$s ability</string>
-    <string name="text_ability_description">Ability: %1$s</string>
     <plurals name="count_taps"><item quantity="one">%d tap</item><item quantity="other">%d taps</item></plurals>
     <plurals name="count_rows"><item quantity="one">%d row</item><item quantity="other">%d rows</item></plurals>
     <plurals name="mystery_boxes"><item quantity="one">MYSTERY BOX</item><item quantity="other">MYSTERY BOXES</item></plurals>

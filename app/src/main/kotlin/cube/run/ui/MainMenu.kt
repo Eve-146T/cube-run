@@ -175,6 +175,11 @@ class MainMenu(
         gravity = Gravity.CENTER_HORIZONTAL
         clipChildren = false; clipToPadding = false
         addView(tapHint)
+        if (BuildConfig.DEBUG) addView(kit.button(activity.getString(R.string.performance_test_menu), Theme.CYAN, UiKit.Size.SMALL) {
+            openSections()
+        }.apply { tag = "performance_test_menu" }, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+            topMargin = dp(12f)
+        })
     }
 
     init {

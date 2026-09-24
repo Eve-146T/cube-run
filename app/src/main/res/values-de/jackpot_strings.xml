@@ -12,47 +12,12 @@
     
     
     
-    <string name="lottery_description">Alle gesammelten Münzen werden für die Lotterie eingesetzt!\n\nDer Jackpot beträgt 250.000&#x2009;^1. Deine Gewinnchancen:</string>
-    <string name="lottery_dev_odds" formatted="false">2 %</string>
-    <string name="lottery_coin_odds">1 zu 100.000</string>
-    <string name="lottery_box_odds" formatted="false">1,3 %</string>
     
     <string name="cd_jackpot_win">Jackpot. %1$s Münzen.</string>
     <string name="cd_show_unknown_ability">Unbekannte Fähigkeit anzeigen</string>
     <string name="cd_hide_unknown_ability">Unbekannte Fähigkeit ausblenden</string>
     <string name="cd_void_stirs">Die Leere regt sich</string>
-    <string name="achievements_medals">MEDAILLEN</string>
-    <string name="achievements_challenges">HERAUSFORDERUNGEN</string>
-    <string name="achievements_complete">Abgeschlossen</string>
-    <string name="achievements_claimed">Abgeholt</string>
-    <string name="achievements_claimed_best">Abgeholt · %1$s</string>
-    <string name="achievements_best_bounces">Bestwert: %1$s Abpraller</string>
-    <string name="achievements_best_progress">Bestwert: %1$s / %2$s</string>
-    <string name="achievements_sub_runner">Punkte in einem Lauf</string>
-    <string name="achievements_sub_coins">Insgesamt gesammelt</string>
-    <string name="achievements_sub_cubes">Würfelsammlung</string>
-    <string name="achievements_sub_powerups">Power-ups gesammelt</string>
-    <string name="achievements_sub_boxes">Überraschungsboxen geöffnet</string>
-    <string name="achievements_sub_bubbles">Besitze gleichzeitig 1.000 Blasen</string>
-    <string name="achievements_sub_bounces">67-mal in einem Lauf von der Wand abprallen</string>
-    <string name="achievements_sub_center">Erreiche 100 Punkte, ohne die mittlere Spur zu verlassen</string>
-    <string name="achievements_sub_homeress">Erreiche 60 Punkte, ohne eine Münze einzusammeln</string>
-    <string name="achievements_sub_gambliphobic">Verpasse 10 Überraschungsboxen in einem Lauf</string>
-    <string name="achievements_sub_cookie">Schalte den Ton 1.000-mal um</string>
-    <string name="achievements_reward_ready">Belohnung bereit</string>
-    <string name="achievements_in_progress">in Arbeit</string>
-    <string name="achievements_locked">gesperrt</string>
-    <string name="achievements_claim">ABHOLEN</string>
-    <string name="achievements_claim_all">ALLE ABHOLEN</string>
-    <string name="cd_all_rewards_claimed">Alle Belohnungen abgeholt</string>
     <string name="cd_challenge_complete">Herausforderung abgeschlossen</string>
-    <string name="cd_medal_status">%1$s: %2$s</string>
-    <string name="cd_percent_complete">Zu %1$d Prozent abgeschlossen</string>
-    <string name="cd_reward_locked">Belohnung: %1$s Münzen, gesperrt</string>
-    <string name="cd_claim_reward_for">%1$s Münzen für %2$s abholen</string>
-    <string name="cd_achievement_reward">%1$s. %2$s. Belohnung: %3$s Münzen.</string>
-    <string name="cd_achievements_earned">%1$d von %2$d Erfolgen erreicht</string>
-    <string name="cd_claim_all_rewards">Alle Belohnungen abholen, %1$s Münzen</string>
     <string name="achievement_runner">Guter Läufer</string>
     <string name="achievement_coins">Münzen fürs Leben</string>
     <string name="achievement_cubes">Freigeschaltete Würfel</string>
@@ -66,9 +31,6 @@
     <string name="medal_bronze">Bronze</string>
     <string name="medal_silver">Silber</string>
     <string name="medal_diamond">Diamant</string>
-    <string name="shop_mystery_blurb">Münzen, Blasen, Splitter oder ein neues Design</string>
-    <string name="shop_achievements_blurb">Schalte Erfolge frei und sammle Belohnungen!</string>
-    <string name="cd_achievements_unlocked">Erfolge freigeschaltet</string>
     <string name="cd_offer_coins">%1$s Münzen anbieten</string>
     <string name="cd_buy_coins">Für %1$s Münzen kaufen</string>
     <string name="wardrobe_buy">KAUFEN&#x2009;</string>

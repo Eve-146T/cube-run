@@ -12,47 +12,12 @@
     
     
     
-    <string name="lottery_description">All the coins you collect are spent on playing the Lottery!\n\nThe jackpot is 250k&#x2009;^1, here are the chances:</string>
-    <string name="lottery_dev_odds" formatted="false">2%</string>
-    <string name="lottery_coin_odds">1 in 100,000</string>
-    <string name="lottery_box_odds" formatted="false">1.3%</string>
     
     <string name="cd_jackpot_win">Jackpot. %1$s coins.</string>
     <string name="cd_show_unknown_ability">Show unknown ability</string>
     <string name="cd_hide_unknown_ability">Hide unknown ability</string>
     <string name="cd_void_stirs">The void stirs</string>
-    <string name="achievements_medals">MEDALS</string>
-    <string name="achievements_challenges">CHALLENGES</string>
-    <string name="achievements_complete">Complete</string>
-    <string name="achievements_claimed">Claimed</string>
-    <string name="achievements_claimed_best">Claimed · %1$s</string>
-    <string name="achievements_best_bounces">Best: %1$s bounces</string>
-    <string name="achievements_best_progress">Best: %1$s / %2$s</string>
-    <string name="achievements_sub_runner">Single-run score</string>
-    <string name="achievements_sub_coins">Collected over time</string>
-    <string name="achievements_sub_cubes">Cube collection</string>
-    <string name="achievements_sub_powerups">Power Ups collected</string>
-    <string name="achievements_sub_boxes">Mystery boxes opened</string>
-    <string name="achievements_sub_bubbles">Hold 1,000 bubbles at once</string>
-    <string name="achievements_sub_bounces">67 wall bounces in one run</string>
-    <string name="achievements_sub_center">Reach 100 without leaving the middle lane</string>
-    <string name="achievements_sub_homeress">Score 60 without picking up a coin</string>
-    <string name="achievements_sub_gambliphobic">Miss 10 mystery boxes in one run</string>
-    <string name="achievements_sub_cookie">Toggle sound 1,000 times</string>
-    <string name="achievements_reward_ready">reward ready</string>
-    <string name="achievements_in_progress">in progress</string>
-    <string name="achievements_locked">locked</string>
-    <string name="achievements_claim">CLAIM</string>
-    <string name="achievements_claim_all">CLAIM ALL</string>
-    <string name="cd_all_rewards_claimed">All rewards claimed</string>
     <string name="cd_challenge_complete">Challenge complete</string>
-    <string name="cd_medal_status">%1$s: %2$s</string>
-    <string name="cd_percent_complete">%1$d percent complete</string>
-    <string name="cd_reward_locked">Reward: %1$s coins, locked</string>
-    <string name="cd_claim_reward_for">Claim %1$s coins for %2$s</string>
-    <string name="cd_achievement_reward">%1$s. %2$s. Reward: %3$s coins.</string>
-    <string name="cd_achievements_earned">%1$d of %2$d achievements earned</string>
-    <string name="cd_claim_all_rewards">Claim all rewards, %1$s coins</string>
     <string name="achievement_runner">Good Runner</string>
     <string name="achievement_coins">Lifetime Coins</string>
     <string name="achievement_cubes">Unlocked Cubes</string>
@@ -66,9 +31,6 @@
     <string name="medal_bronze">Bronze</string>
     <string name="medal_silver">Silver</string>
     <string name="medal_diamond">Diamond</string>
-    <string name="shop_mystery_blurb">Coins, bubbles, shards or a new cosmetic</string>
-    <string name="shop_achievements_blurb">Unlock the ability to collect achievements!</string>
-    <string name="cd_achievements_unlocked">Achievements unlocked</string>
     <string name="cd_offer_coins">Offer %1$s coins</string>
     <string name="cd_buy_coins">Buy for %1$s coins</string>
     <string name="wardrobe_buy">BUY&#x2009;</string>

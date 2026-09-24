@@ -229,9 +229,9 @@ class ShopView(
             cards["darkness"] = darkness
             list.addView(darkness, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(28f) })
         }
-        if (Settings.devMode) list.addView(kit.button("RESET PROGRESS", Theme.BERRY) { confirmProgressReset() }.apply {
+        if (Settings.devMode) list.addView(kit.button(activity.getString(R.string.shop_reset_progress), Theme.BERRY) { confirmProgressReset() }.apply {
             tag = "reset_progress"
-            contentDescription = "Reset progress"
+            contentDescription = activity.getString(R.string.shop_reset_progress)
             setTextColor(Theme.WHITE)
             textSize = 16f
         }, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(28f) })
@@ -513,7 +513,7 @@ class ShopView(
             LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
     }
 
-    private fun voidCard(): View = VoidCardView(activity, kit, Progress.voidLine,
+    private fun voidCard(): View = VoidCardView(activity, kit, activity.gameText(Progress.voidLine),
         priceButton(Progress.voidPrice, "void", null, 0) { Progress.buyVoid() }).also { cards["void"] = it }
 
     /**
@@ -639,7 +639,7 @@ private class FittedVoidPrice(
         clipChildren = false; clipToPadding = false
         button.apply {
             tag = "void_price_button"
-            contentDescription = "Offer $amount coins"
+            contentDescription = context.getString(R.string.cd_offer_coins, amount)
             gravity = Gravity.CENTER
             minimumHeight = kit.dp(52f)
             setSingleLine()
@@ -698,21 +698,21 @@ private class ResetProgressSheet(
     private val onConfirm: () -> Boolean,
 ) : Sheet(activity, kit, onDismissed) {
     private var committing = false
-    private val explanation = kit.text("Delete all coins, upgrades, cosmetics, achievements and scores?\nThis cannot be undone.", 15f, Theme.INK, 500)
+    private val explanation = kit.text(context.getString(R.string.shop_reset_explanation), 15f, Theme.INK, 500)
 
     init {
         tag = "reset_progress_confirmation"
-        card.addView(kit.text("RESET PROGRESS?", 23f, Theme.INK, 700))
+        card.addView(kit.text(context.getString(R.string.shop_reset_question), 23f, Theme.INK, 700))
         card.addView(explanation, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(12f) })
-        card.addView(kit.button("CANCEL", Theme.LAVENDER) { if (!committing) dismiss() }.apply {
+        card.addView(kit.button(context.getString(R.string.shop_cancel), Theme.LAVENDER) { if (!committing) dismiss() }.apply {
             tag = "reset_progress_cancel"
         }, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(22f) })
-        card.addView(kit.button("RESET", Theme.BERRY) {
+        card.addView(kit.button(context.getString(R.string.shop_reset), Theme.BERRY) {
             if (!committing) {
                 committing = true
                 if (onConfirm()) dismiss() else {
                     committing = false
-                    explanation.text = "Couldn't save the reset. Please try again."
+                    explanation.text = context.getString(R.string.shop_reset_failed)
                 }
             }
         }.apply {

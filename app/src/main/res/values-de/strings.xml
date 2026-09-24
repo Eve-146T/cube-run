@@ -191,7 +191,6 @@
     <string name="text_testing">TEST: %1$s</string>
     <string name="text_section_stats">Stufe %1$d · %2$s</string>
     <string name="text_seconds">%1$s s</string>
-    <string name="text_buy">KAUFEN %1$s</string>
     <string name="text_new_cosmetic">NEU: %1$s!</string>
     <string name="text_shards_collected">%1$d %2$s gesammelt</string>
     <string name="text_unlock_shards">%1$s freischalten: %2$d %3$s</string>
@@ -200,7 +199,6 @@
     <string name="text_toggle_off">%1$s aus</string>
     <string name="text_show_ability">Fähigkeit %1$s anzeigen</string>
     <string name="text_hide_ability">Fähigkeit %1$s ausblenden</string>
-    <string name="text_ability_description">Fähigkeit: %1$s</string>
     <plurals name="count_taps"><item quantity="one">%d Tipp</item><item quantity="other">%d Tipps</item></plurals>
     <plurals name="count_rows"><item quantity="one">%d Reihe</item><item quantity="other">%d Reihen</item></plurals>
     <plurals name="mystery_boxes"><item quantity="one">ÜBERRASCHUNGSBOX</item><item quantity="other">ÜBERRASCHUNGSBOXEN</item></plurals>

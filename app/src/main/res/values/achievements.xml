@@ -27,7 +27,6 @@
     <string name="achievement_claimed_with_best">Claimed · %1$s</string>
     <string name="achievement_best_bounces">Best: %1$s bounces</string>
     <string name="achievement_best_progress">Best: %1$s / %2$s</string>
-    <string name="achievement_complete">Complete</string>
     <string name="achievement_claim">CLAIM</string>
     <string name="achievement_challenge_complete">Challenge complete</string>
     <string name="achievement_all_rewards_claimed">All rewards claimed</string>
