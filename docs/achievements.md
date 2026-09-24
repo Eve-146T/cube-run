@@ -15,28 +15,28 @@ power-up pickups and wall bounces were not previously recorded, so those counter
 begin with this version. Purchasing the unlock acknowledges existing medals
 quietly rather than replaying notifications.
 
-The page is a trophy room on a deep indigo-to-teal backdrop. A compact header puts the trophy
-ring (the share of all medals and challenges earned) beside the count and a tally of bronze,
-silver, gold, diamond and completed challenges. One gold CLAIM ALL button collects every
-waiting reward at once; it is only there while something is waiting, and it shrinks away once
-it has paid.
+The page is a trophy room on a deep indigo-to-teal backdrop. The header puts the trophy ring
+(the share of all medals and challenges earned) beside the count. One gold CLAIM ALL button
+collects every waiting reward at once; it is only there while something is waiting, and it
+shrinks away once it has paid.
 
-Below that, three labelled groups, each sorted so that waiting rewards come first and then
-whatever is closest to its next goal. MEDALS holds the tiered families as short cards: the
-coloured band carries the icon, name and what counts, with either the CLAIM button or the
-count towards the next medal (`31,200 / 100K`) and its payout; the body is just the four medals
-on one track with each target under its medal. The link between two medals fills as you
-approach the next one. CHALLENGES holds the one-off dares as tiles, two to a row, dropping to
-one per row on narrow screens or at large text sizes; the count and payout share a line above a
-full-width bar, and yes-or-no dares (target 1) show only their payout. DONE collects everything
-fully claimed as a shelf of badges with a check (tiered families wear a diamond), four to a row.
-Numbers always use groups of three, such as `500,000`, regardless of the device locale; medal
-targets are written short (`5K`, `500K`). The list clips below the header and coin bank.
+Below that, three labelled groups in one column, each sorted so that waiting rewards come
+first and then whatever is closest to its next goal. Every achievement is a white card: the
+icon on a disc of its colour, the name, and what counts. Under that, a waiting reward shows a
+wide gold CLAIM button with its payout; otherwise the count towards the next goal
+(`31,200 / 100,000`) with the payout at the far end. MEDALS cards end with their four medals on
+one track, the link into the next medal filling as you approach it. CHALLENGES cards end with a
+bar, and yes-or-no dares (target 1) show only their payout. DONE collects everything fully
+claimed as slim rows with a check (tiered families wear a diamond). Numbers always use groups of
+three, such as `500,000`, regardless of the device locale. The list clips below the header and
+coin bank. The last card invites players to suggest an achievement as a GitHub issue.
 
-A card with a reward waiting is lit: a gold edge and a sheen that sweeps across its band
-every few seconds. Claiming — from the card or from CLAIM ALL — flies coins into the
-bank, then the medal that was claimed stamps down onto the fresh card inside two rings of
-its own colour. Fully claimed families recede into slate with a green check.
+A card with a reward waiting has a gold edge and a sheen that sweeps across it a few times.
+Claiming flips the card over its top edge like a flap. Its new face comes up with the claimed
+medal (or the challenge's badge) struck like a coin: it spins in, overshoots and settles inside
+a short gold sunburst, and the coins pour out of it into the bank. CLAIM ALL flips the ready
+cards in view one after another from the top; ready cards out of view just take their new face.
+Fully claimed cards fade back with a green check.
 
 Bronze/silver/gold/diamond pay 250/750/2,000/5,000 coins per family. Big Bubble and
 Cookie Clicker each pay 2,000; Bouncer, Stay Centered, Homeress, and Gambliphobic each

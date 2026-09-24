@@ -44,7 +44,7 @@
     <string name="achievement_status_progress">in progress</string>
     <string name="achievement_status_locked">locked</string>
     <string name="achievement_suggest_title">Got another challenge?</string>
-    <string name="achievement_suggest_body">Suggest the next Cube Run achievement on Muxu.</string>
+    <string name="achievement_suggest_body">Suggest the next Cube Run achievement on GitHub.</string>
     <string name="achievement_suggest_button">SUGGEST AN ACHIEVEMENT</string>
     <string name="shop_mystery_box">Mystery box</string>
     <string name="shop_mystery_box_detail">Coins, bubbles, shards or a new cosmetic</string>

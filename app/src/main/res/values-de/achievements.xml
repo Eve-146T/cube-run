@@ -44,7 +44,7 @@
     <string name="achievement_status_progress">in Arbeit</string>
     <string name="achievement_status_locked">gesperrt</string>
     <string name="achievement_suggest_title">Noch eine Herausforderung?</string>
-    <string name="achievement_suggest_body">Schlag auf Muxu den nächsten Cube-Run-Erfolg vor.</string>
+    <string name="achievement_suggest_body">Schlag auf GitHub den nächsten Cube-Run-Erfolg vor.</string>
     <string name="achievement_suggest_button">ERFOLG VORSCHLAGEN</string>
     <string name="shop_mystery_box">Überraschungsbox</string>
     <string name="shop_mystery_box_detail">Münzen, Blasen, Splitter oder ein neues Aussehen</string>

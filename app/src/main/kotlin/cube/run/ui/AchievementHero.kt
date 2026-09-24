@@ -13,23 +13,20 @@ import android.graphics.Shader
 import android.graphics.SweepGradient
 import android.view.Gravity
 import android.view.View
-import android.widget.ImageView
 import android.widget.LinearLayout
 import cube.run.data.Achievements
 import kotlin.math.cos
 import kotlin.math.sin
 
 /**
- * The top of the achievement page, kept compact: a trophy inside a ring that fills with everything earned so
- * far, the medal haul by metal (and the challenges done), and one gold button that collects
- * every waiting reward at once. The button is only there when something is waiting.
+ * The top of the achievement page: a trophy inside a ring that fills with everything earned so
+ * far, the count beside it, and one gold button that collects every waiting reward at once.
+ * The button is only there when something is waiting.
  */
 @SuppressLint("ViewConstructor")
 internal class AchievementHero(context: Context, private val kit: UiKit, onClaimAll: (CandyButton) -> Unit) : LinearLayout(context) {
     private val ring = TrophyRing(context, kit)
-    private val total = kit.stageText("", 24f, stroke = 2.5f).apply { tag = "achievement_total"; maxLines = 1 }
-    private val tallyIcons = Array(5) { ImageView(context) }
-    private val tallyCounts = Array(5) { kit.stageText("0", 14f, stroke = 2f).apply { maxLines = 1 } }
+    private val total = kit.stageText("", 34f, stroke = 3f).apply { tag = "achievement_total"; maxLines = 1 }
     private var earned = -1
     lateinit var claimAll: CandyButton
         private set
@@ -40,51 +37,25 @@ internal class AchievementHero(context: Context, private val kit: UiKit, onClaim
         clipChildren = false; clipToPadding = false
         setPadding(0, kit.dp(2f), 0, kit.dp(4f))
         importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_YES
-        // Compact: the ring on the left, the total and the haul by metal beside it.
         addView(LinearLayout(context).apply {
             orientation = HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
             clipChildren = false; clipToPadding = false
-            addView(ring, LayoutParams(kit.dp(96f), kit.dp(96f)))
-            addView(LinearLayout(context).apply {
-                orientation = VERTICAL
-                gravity = Gravity.START
-                clipChildren = false; clipToPadding = false
-                addView(total.apply { gravity = Gravity.START }, LayoutParams(-2, -2).apply { marginStart = kit.dp(4f) })
-                addView(LinearLayout(context).apply {
-                    orientation = HORIZONTAL
-                    gravity = Gravity.CENTER_VERTICAL
-                    clipChildren = false; clipToPadding = false
-                    for (i in 0..4) addView(LinearLayout(context).apply {
-                        orientation = VERTICAL
-                        gravity = Gravity.CENTER_HORIZONTAL
-                        clipChildren = false; clipToPadding = false
-                        addView(tallyIcons[i].apply { setPadding(kit.dp(2f), kit.dp(2f), kit.dp(2f), kit.dp(2f)) }, LayoutParams(kit.dp(28f), kit.dp(28f)))
-                        addView(tallyCounts[i], LayoutParams(-2, -2))
-                    }, LayoutParams(-2, -2).apply { if (i > 0) marginStart = kit.dp(if (i == 4) 16f else 8f) })
-                }, LayoutParams(-2, -2).apply { topMargin = kit.dp(4f) })
-            }, LayoutParams(-2, -2).apply { marginStart = kit.dp(14f) })
+            addView(ring, LayoutParams(kit.dp(92f), kit.dp(92f)))
+            addView(total, LayoutParams(-2, -2).apply { marginStart = kit.dp(14f) })
         }, LayoutParams(-2, -2))
         claimAll = kit.button("", Theme.GOLD) { onClaimAll(claimAll) }.apply {
             tag = "achievement_claim_all"
             maxLines = 1
             visibility = GONE // nothing waiting until bind says so
         }
-        addView(claimAll, LayoutParams(-1, -2).apply { topMargin = kit.dp(12f); marginStart = kit.dp(6f); marginEnd = kit.dp(6f) })
+        addView(claimAll, LayoutParams(-1, -2).apply { topMargin = kit.dp(14f) })
     }
 
     /** Show [states]; [animate] rolls the ring and the total from where they were. */
     fun bind(states: List<Achievements.Snapshot>, animate: Boolean, delay: Long = 0L) {
         val max = states.sumOf { it.definition.thresholds.size }
         val now = states.sumOf { it.earnedTiers }
-        val tallies = IntArray(5)
-        for (s in states) if (s.definition.tiered) for (t in 0 until s.earnedTiers) tallies[t]++ else if (s.earnedTiers > 0) tallies[4]++
-        for (i in 0..4) {
-            tallyIcons[i].setImageDrawable(if (i == 4) AchievementCheckIcon() else MedalIcon(medalColor(i), tallies[i] > 0, i == 3, dark = true, ribbon = false))
-            tallyIcons[i].alpha = if (tallies[i] > 0) 1f else .32f
-            tallyCounts[i].text = number(tallies[i])
-            tallyCounts[i].setTextColor(if (tallies[i] > 0) Theme.WHITE else Theme.alpha(Theme.WHITE, 175))
-        }
         val from = if (earned < 0) 0 else earned
         earned = now
         ring.fillTo(if (max == 0) 0f else now / max.toFloat(), animate, delay)
@@ -99,7 +70,7 @@ internal class AchievementHero(context: Context, private val kit: UiKit, onClaim
             (first until s.earnedTiers).sumOf { Achievements.reward(s.definition, it) }
         }
         if (waiting > 0) {
-            claimAll.text = android.text.SpannableStringBuilder(context.getString(cube.run.R.string.achievement_claim_all)).append(" ").append(kit.coins(number(waiting), 18f))
+            claimAll.text = android.text.SpannableStringBuilder(context.getString(cube.run.R.string.achievement_claim_all)).append(" ").append(kit.coins(number(waiting), 20f))
             claimAll.contentDescription = context.getString(cube.run.R.string.achievement_claim_all_description, number(waiting))
             claimAll.isEnabled = true
             if (claimAll.visibility != VISIBLE) { claimAll.visibility = VISIBLE; claimAll.alpha = 1f; claimAll.scaleX = 1f; claimAll.scaleY = 1f }

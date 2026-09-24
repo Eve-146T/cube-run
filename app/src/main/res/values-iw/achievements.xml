@@ -44,7 +44,7 @@
     <string name="achievement_status_progress">בתהליך</string>
     <string name="achievement_status_locked">נעול</string>
     <string name="achievement_suggest_title">יש עוד אתגר?</string>
-    <string name="achievement_suggest_body">אפשר להציע ב־Muxu את ההישג הבא של Cube Run.</string>
+    <string name="achievement_suggest_body">אפשר להציע ב־GitHub את ההישג הבא של Cube Run.</string>
     <string name="achievement_suggest_button">הצעת הישג</string>
     <string name="shop_mystery_box">תיבת הפתעה</string>
     <string name="shop_mystery_box_detail">מטבעות, בועות, רסיסים או מראה חדש</string>
