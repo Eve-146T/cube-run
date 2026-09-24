@@ -205,3 +205,11 @@
 - Revision: unchanged `de2e823`; fresh Android 35 emulator, 720×1520, host GPU, initially 2 GiB then 1 GiB guest RAM.
 - Failure: under heavy concurrent host activity (about 20 GiB swapped), cold boot stalled; after boot the unchanged baseline cruise measured only 1.39 FPS, 594 ms median frame time. This is unsuitable for a renderer optimization comparison and is not a Cube Run regression attributable to the candidate.
 - Classification: environment/resource pressure. Stopped the run and its dedicated emulator; attempting a prepared, isolated read-only AVD instead of further cold-boot measurements.
+
+## 2026-09-24 — authorized severe Moto sweep interrupted by other applications
+
+- Revision: `5772ad7`; Moto G7 Power `ZY323NNKTB`, verified CPU caps 614400/633600 kHz and GPU cap 320 MHz.
+- Command: `tools/performance/throttle.py --serial ZY323NNKTB --out captures/severe-round/moto-all --timeout 450 -- adb -s ZY323NNKTB shell am instrument -w -e class cube.run.game.RunPerformanceTest -e bot true -e repeatable true -e world 2 -e section 56 -e modes five-boosts,cruise,hills,jet,wide,late,second-wind,matrix -e seconds 40 cube.run.test/androidx.test.runner.AndroidJUnitRunner`.
+- Failure: after user confirmation of availability, other sessions brought `straw.berry` (09:22:39) and `com.kinetic.sand` (09:22:57) forward. Cruise/hills timings include background gaps of 9.71/5.53 seconds and cannot establish rendering performance. Stopped Cube Run, resulting in instrumentation `Process crashed`; no application exception caused that stop.
+- Classification: environment interference. Discarded affected timings, stopped further phone testing after the user confirmed another session may control it. Opening five-boost result is preliminary (59.22 FPS, 22 frames over 25 ms); no complete 60 FPS gate passed.
+- Resolution: all 124 sampled CPU/GPU readings respected the caps. Watchdog restored and verified original ceilings, kernel floor, input boost, performance votes and service states. Retained evidence in `docs/severe-clock-reference/moto/`; exclusive hardware access remains necessary.

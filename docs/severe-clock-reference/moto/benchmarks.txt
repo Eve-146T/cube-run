@@ -1,0 +1,7 @@
+--------- beginning of main
+09-24 09:22:14.991  8108  8182 I RUN_BENCH: five-boosts frames=2074 frame=16.68/21.13/25.18/32.94 cpu=14.50/18.66/22.82/29.02 threadCpu=11.91/17.12/21.14/32.46 over25=22 over50=0 bot=true protectedHits=0 burst=none bursts=0 maxRows=18 maxSpeed=22.743645 allocBytes=832135200 gc=35 fps=59.22 measuredMs=35020.11
+09-24 09:22:15.076  8108  8129 I RUN_BOT : five-boosts alive=true seconds=40.067 decisions=137 gestures=0 acknowledged=0 ignoredJumps=0 score=10129 coins=516 protectedHits=0
+09-24 09:22:55.170  8108  8182 I RUN_BENCH: cruise frames=1242 frame=16.68/21.91/33.65/9708.06 cpu=14.58/19.21/29.21/50.12 threadCpu=10.95/14.88/19.07/21.74 over25=31 over50=4 bot=true protectedHits=0 burst=none bursts=0 maxRows=18 maxSpeed=30.0 allocBytes=509264736 gc=22 fps=35.46 measuredMs=35025.79
+09-24 09:22:55.356  8108  8129 I RUN_BOT : cruise alive=true seconds=40.208 decisions=103 gestures=0 acknowledged=0 ignoredJumps=0 score=10114 coins=971 protectedHits=0
+09-24 09:23:35.458  8108  8182 I RUN_BENCH: hills frames=1946 frame=16.63/20.69/25.39/5533.04 cpu=14.72/18.62/22.62/43.30 threadCpu=11.81/14.22/16.70/25.58 over25=21 over50=1 bot=true protectedHits=0 burst=none bursts=0 maxRows=18 maxSpeed=30.0 allocBytes=790479168 gc=32 fps=50.98 measuredMs=38171.92
+09-24 09:23:35.706  8108  8129 I RUN_BOT : hills alive=true seconds=40.277 decisions=137 gestures=0 acknowledged=0 ignoredJumps=0 score=10159 coins=1608 protectedHits=0

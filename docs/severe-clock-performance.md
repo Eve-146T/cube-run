@@ -58,9 +58,36 @@ and stalled the instrumentation launch; it was stopped and all services restored
 The initial run also overlapped another application's instrumentation. Its timing
 is excluded. Original CPU/GPU ceilings, input boost and power-service states were
 restored and read back before the Moto disconnected. It subsequently reappeared
-as **adb unauthorized**. Therefore the corrected severe-floor setup and the final
-particle optimization still need an exclusive, authorized Moto run. Emulator measurements must
-not be presented as evidence of 60 FPS on the severely throttled Moto.
+as **adb unauthorized**. Authorization was subsequently restored; the follow-up
+below validates the corrected clock setup. Emulator measurements must not be
+presented as evidence of 60 FPS on the severely throttled Moto.
+
+### Authorized physical follow-up
+
+The `5772ad7` APK was installed after the user confirmed the phone was free.
+A short watchdog smoke check passed, followed by a planned eight-mode sweep
+(`five-boosts,cruise,hills,jet,wide,late,second-wind,matrix`, 40 seconds each,
+world 2, section 56, repeatable course, bot enabled, normal sound and haptics).
+All 124 clock samples stayed within **614.4/633.6 MHz CPU and 320 MHz GPU**.
+The hidden kernel floor correction therefore works on this physical device.
+
+The opening five-boost window measured **59.22 FPS**, with frame p95 **21.13 ms**,
+p99 **25.18 ms**, maximum **32.94 ms**, and **22/2,074 frames over 25 ms**.
+This is a preliminary result, not a clean 60 FPS pass or an A/B improvement claim.
+Process allocations include the planning bot (832 MB and 35 collections in the
+35-second measured window); a follow-up must also measure without that overhead.
+
+The sweep was then interrupted: ActivityTaskManager records `straw.berry` launched
+at 09:22:39 and `com.kinetic.sand` at 09:22:57. Cube Run's lifecycle logs confirm
+pauses and resumes. Cruise's apparent 35.46 FPS includes a 9.71-second absence;
+hills' 50.98 FPS includes a 5.53-second absence. These two measurements are invalid,
+and later modes were not completed. Stopped only Cube Run upon confirming competing
+use. The instrumentation's `Process crashed` result reflects that deliberate stop.
+
+The watchdog restored and verified both CPU ceilings at 1,804,800 kHz, GPU ceiling
+725 MHz, kernel floor 1,094,400 kHz, original input-boost/performance votes and
+unchanged power-service states. Raw measurements, interference events and control
+snapshots are retained under [moto](severe-clock-reference/moto/).
 
 ## Repeating the physical test
 
@@ -101,7 +128,8 @@ labeled, and protected collisions are reported rather than treated as unaided pl
 Three host watchdog tests exercise the generated restoration script against a
 filesystem-backed fake adb: normal completion, failed child command, and a cap
 override detected before the child may launch. All three pass. This checks the
-control flow; it cannot establish how the Moto kernel responds to the new floor.
+control flow; the physical follow-up above separately verifies the Moto's floor
+and ceiling behavior.
 
 The final APK passed eight focused device tests on emulator-5584: box and particle pixel parity,
 96 coin/Matrix comparisons, terrain continuity, and four launch/background/recreate
@@ -128,5 +156,6 @@ not a frame-pacing measurement.
 
 **The 60 FPS goal under severe Moto throttling is not yet verified.** No FPS gain
 is claimed for the retained particle change from these host-contended experiments.
-The remaining blocker is accepting USB debugging on the Moto and reserving it for
-a controlled run; original phone settings were restored before authorization was lost.
+USB debugging is now authorized and severe clock enforcement is verified. The
+remaining blocker is concurrent phone use; the full scenario sweep needs an
+exclusive test window. Original phone settings have been restored and verified.
