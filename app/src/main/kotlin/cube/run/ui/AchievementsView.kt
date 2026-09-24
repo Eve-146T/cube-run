@@ -77,17 +77,30 @@ class AchievementsView(activity: Activity, kit: UiKit, onClose: () -> Unit) :
             addView(scroll, LinearLayout.LayoutParams(-1, 0, 1f))
         })
         val states = Achievements.snapshot()
-        val medals = states.filter { it.definition.tiered }
-        val challenges = states.filterNot { it.definition.tiered }
+        // Rewards waiting first, then whatever is closest to its next medal; finished ones go to the shelf.
+        val open = states.filterNot { it.allClaimed }
+            .sortedWith(compareBy<Achievements.Snapshot> { if (it.claimableTier != null) 0 else 1 }.thenByDescending { it.fraction })
+        val medals = open.filter { it.definition.tiered }
+        val challenges = open.filterNot { it.definition.tiered }
+        val done = states.filter { it.allClaimed }
+        val allMedals = states.filter { it.definition.tiered }
+        val allChallenges = states.filterNot { it.definition.tiered }
         rows.addView(hero, LinearLayout.LayoutParams(-1, -2))
-        rows.addView(section("MEDALS", "${medals.sumOf { it.earnedTiers }} / ${medals.sumOf { it.definition.thresholds.size }}"),
+        rows.addView(section("MEDALS", "${allMedals.sumOf { it.earnedTiers }} / ${allMedals.sumOf { it.definition.thresholds.size }}"),
             LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(22f); bottomMargin = dp(10f) })
         for ((index, state) in medals.withIndex()) rows.addView(cards.card(state, index),
-            LinearLayout.LayoutParams(-1, -2).apply { if (index > 0) topMargin = dp(12f) })
-        rows.addView(section("CHALLENGES", "${challenges.count { it.earnedTiers > 0 }} / ${challenges.size}"),
+            LinearLayout.LayoutParams(-1, -2).apply { if (index > 0) topMargin = dp(10f) })
+        rows.addView(section("CHALLENGES", "${allChallenges.count { it.earnedTiers > 0 }} / ${allChallenges.size}"),
             LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(24f); bottomMargin = dp(10f) })
         for ((index, state) in challenges.withIndex()) grid.addView(cards.card(state, medals.size + index))
         rows.addView(grid, LinearLayout.LayoutParams(-1, -2))
+        if (done.isNotEmpty()) {
+            rows.addView(section("DONE", "${done.size}"),
+                LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(24f); bottomMargin = dp(12f) })
+            rows.addView(ChallengeGrid(activity, kit, most = 4, narrowest = 72f, spacing = 8f).apply {
+                for (state in done) addView(cards.doneChip(state))
+            }, LinearLayout.LayoutParams(-1, -2))
+        }
         hero.bind(states, animate = true, delay = 260L)
     }
 

@@ -23,6 +23,7 @@ import android.view.animation.PathInterpolator
 import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
+import cube.run.core.Haptics
 import cube.run.data.Achievements
 
 /**
@@ -52,26 +53,55 @@ internal class AchievementCards(
             orientation = LinearLayout.VERTICAL
             clipChildren = false; clipToPadding = false
             background = surface(state)
-            addView(band(state, tile = false), LinearLayout.LayoutParams(-1, -2))
+            // The band carries everything to read (name, count, payout); the body is just the medals.
+            addView(band(state, tile = false, tier = tier), LinearLayout.LayoutParams(-1, -2))
             val body = LinearLayout(activity).apply {
                 orientation = LinearLayout.VERTICAL
                 clipChildren = false; clipToPadding = false
-                setPadding(dp(14f), dp(12f), dp(14f), dp(12f) + kit.CARD_LIP)
+                setPadding(dp(12f), dp(8f), dp(12f), dp(8f) + kit.CARD_LIP)
             }
             addView(body, LinearLayout.LayoutParams(-1, -2))
             val track = medalTrack(state, tier)
-            body.addView(track, LinearLayout.LayoutParams(-1, dp(44f)))
+            body.addView(track, LinearLayout.LayoutParams(-1, dp(38f)))
             body.addView(TierLabels(activity, kit, track, definition.thresholds.map(::compact), IntArray(4) {
                 when {
                     it < state.earnedTiers -> Theme.lighten(medalColor(it), .25f)
                     it == state.earnedTiers -> Theme.WHITE
                     else -> Theme.alpha(Theme.WHITE, 168)
                 }
-            }), LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(2f) })
-            // Once every medal is collected the track says it all: no dead reward row.
-            if (state.allClaimed) return@apply
-            body.addView(rewardRow(state, index, animateFill, tier), LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(10f) })
+            }), LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(1f) })
         }
+    }
+
+    /** A finished achievement on the DONE shelf: its badge, a check, and its name. */
+    fun doneChip(state: Achievements.Snapshot): View = LinearLayout(activity).apply {
+        val definition = state.definition
+        tag = "achievement_card_${definition.id}"
+        orientation = LinearLayout.VERTICAL
+        gravity = Gravity.CENTER_HORIZONTAL
+        clipChildren = false; clipToPadding = false
+        val accent = accent(definition.id)
+        val badge = FrameLayout(activity).apply {
+            clipChildren = false; clipToPadding = false
+            addView(ImageView(activity).apply {
+                tag = "achievement_icon_${definition.id}"
+                setImageDrawable(achievementIcon(definition.id))
+                setPadding(dp(12f), dp(11f), dp(12f), dp(13f))
+                background = LayerDrawable(arrayOf(
+                    GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(Theme.darken(accent, .35f)) },
+                    GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(Theme.lighten(accent, .12f)) },
+                )).apply { setLayerInset(1, 0, 0, 0, dp(3f)) }
+                importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
+            }, FrameLayout.LayoutParams(dp(60f), dp(60f), Gravity.CENTER))
+            addView(ImageView(activity).apply {
+                setImageDrawable(if (definition.tiered) MedalIcon(medalColor(3), true, true, dark = true, ribbon = false) else AchievementCheckIcon())
+            }, FrameLayout.LayoutParams(dp(24f), dp(24f), Gravity.END or Gravity.BOTTOM))
+        }
+        addView(badge, LinearLayout.LayoutParams(dp(66f), dp(66f)))
+        addView(kit.text(definition.title, 11f, Theme.alpha(Theme.WHITE, 230), 700).apply { maxLines = 2 },
+            LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(4f) })
+        contentDescription = "${definition.title}: complete"
+        setOnClickListener { Anim.popIn(badge, 0, 1.15f, 320); Haptics.tick() }
     }
 
     /** A challenge: badge and name on the band, then how far along it is and what it pays. */
@@ -83,29 +113,27 @@ internal class AchievementCards(
             orientation = LinearLayout.VERTICAL
             clipChildren = false; clipToPadding = false
             background = surface(state)
-            if (state.allClaimed) {
-                // A finished tile is a short card like any other: its band keeps the top corners
-                // and stops above the lip, instead of one flat slab stretched down the row.
-                addView(band(state, tile = true), LinearLayout.LayoutParams(-1, -2))
-                addView(View(activity), LinearLayout.LayoutParams(-1, dp(10f) + kit.CARD_LIP))
-                return@apply
-            }
             // The band takes any height the row gives the tile, so neighbouring tiles line up their goals.
             addView(band(state, tile = true), LinearLayout.LayoutParams(-1, 0, 1f))
             val body = LinearLayout(activity).apply {
                 orientation = LinearLayout.VERTICAL
                 clipChildren = false; clipToPadding = false
-                setPadding(dp(12f), dp(10f), dp(12f), dp(12f) + kit.CARD_LIP)
+                setPadding(dp(10f), dp(8f), dp(10f), dp(10f) + kit.CARD_LIP)
             }
             addView(body, LinearLayout.LayoutParams(-1, -2))
-            if (complete) body.addView(kit.stageText("Complete", 16f, Theme.MINT, stroke = 2f).apply { maxLines = 1 },
-                LinearLayout.LayoutParams(-1, -2))
-            else body.addView(goal(state, index, animateFill, 0, accent(definition.id)), LinearLayout.LayoutParams(-1, -2))
-            body.addView(rewardAction(state, wide = true), LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(8f) })
+            if (complete) body.addView(rewardAction(state, wide = true), LinearLayout.LayoutParams(-1, -2))
+            else body.addView(LinearLayout(activity).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.BOTTOM
+                addView(goal(state, index, animateFill, 0, accent(definition.id)), LinearLayout.LayoutParams(0, -2, 1f))
+                addView(kit.iconText(CoinIcon(), "+${number(Achievements.reward(definition, 0))}", 12f,
+                    Theme.alpha(Theme.YELLOW, 225), iconDp = 14f).apply { tag = "achievement_claim_${definition.id}" },
+                    LinearLayout.LayoutParams(-2, -2).apply { marginStart = dp(8f); bottomMargin = dp(2f) })
+            }, LinearLayout.LayoutParams(-1, -2))
         }
     }
 
-    private fun band(state: Achievements.Snapshot, tile: Boolean): LinearLayout {
+    private fun band(state: Achievements.Snapshot, tile: Boolean, tier: Int = 0): LinearLayout {
         val definition = state.definition
         val accent = accent(definition.id)
         val bright = Theme.lighten(accent, if (accent == Theme.GRAPE) .26f else .16f)
@@ -153,24 +181,33 @@ internal class AchievementCards(
             if (tile) {
                 orientation = LinearLayout.VERTICAL
                 gravity = Gravity.TOP
-                setPadding(dp(12f), dp(12f), dp(12f), dp(12f))
-                addView(FrameLayout(activity).apply {
-                    addView(badge, FrameLayout.LayoutParams(dp(46f), dp(46f), Gravity.START or Gravity.CENTER_VERTICAL))
-                    check?.let { addView(it, FrameLayout.LayoutParams(dp(28f), dp(28f), Gravity.END or Gravity.CENTER_VERTICAL)) }
+                setPadding(dp(10f), dp(10f), dp(10f), dp(10f))
+                addView(LinearLayout(activity).apply {
+                    orientation = LinearLayout.HORIZONTAL
+                    gravity = Gravity.CENTER_VERTICAL
+                    addView(badge, LinearLayout.LayoutParams(dp(38f), dp(38f)))
+                    addView(title.apply { textSize = 15f }, LinearLayout.LayoutParams(0, -2, 1f).apply { marginStart = dp(8f) })
+                    check?.let { addView(it, LinearLayout.LayoutParams(dp(24f), dp(24f)).apply { marginStart = dp(4f) }) }
                 }, LinearLayout.LayoutParams(-1, -2))
-                addView(title, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(8f) })
-                sub?.let { addView(it, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(3f) }) }
+                sub?.let { addView(it.apply { maxLines = 3 }, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(6f) }) }
             } else {
                 orientation = LinearLayout.HORIZONTAL
                 gravity = Gravity.CENTER_VERTICAL
-                setPadding(dp(14f), dp(12f), dp(14f), dp(12f))
-                addView(badge, LinearLayout.LayoutParams(dp(50f), dp(50f)))
+                setPadding(dp(12f), dp(10f), dp(10f), dp(10f))
+                badge.setPadding(dp(7f), dp(7f), dp(7f), dp(7f))
+                addView(badge, LinearLayout.LayoutParams(dp(42f), dp(42f)))
                 addView(LinearLayout(activity).apply {
                     orientation = LinearLayout.VERTICAL
-                    addView(title)
-                    sub?.let { addView(it, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(4f) }) }
-                }, LinearLayout.LayoutParams(0, -2, 1f).apply { marginStart = dp(12f) })
-                check?.let { addView(it, LinearLayout.LayoutParams(dp(30f), dp(30f)).apply { marginStart = dp(6f) }) }
+                    addView(title.apply { textSize = 17f; maxLines = 1 })
+                    addView(kit.text(counter(state, tier), 12f, Theme.alpha(ink, 225), 700, Gravity.START).apply {
+                        maxLines = 1; tag = "achievement-counter"
+                    }, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(1f) })
+                }, LinearLayout.LayoutParams(0, -2, 1f).apply { marginStart = dp(10f) })
+                if (state.allClaimed) check?.let { addView(it, LinearLayout.LayoutParams(dp(28f), dp(28f))) }
+                else addView(if (state.claimableTier != null) rewardAction(state, wide = false).apply { minimumWidth = 0 }
+                    else kit.iconText(CoinIcon(), "+${number(Achievements.reward(definition, tier))}", 13f, ink, iconDp = 15f).apply {
+                        tag = "achievement_claim_${definition.id}"
+                    }, LinearLayout.LayoutParams(-2, -2).apply { marginStart = dp(6f) })
             }
         }
     }
@@ -218,31 +255,28 @@ internal class AchievementCards(
         }
     }
 
-    private fun rewardRow(state: Achievements.Snapshot, index: Int, animateFill: Boolean, tier: Int): View =
-        AchievementRewardRow(activity, kit).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-            clipChildren = false; clipToPadding = false
-            addView(goal(state, index, animateFill, tier, medalColor(tier)), LinearLayout.LayoutParams(0, -2, 1f))
-            addView(rewardAction(state, wide = false), LinearLayout.LayoutParams(-2, -2))
-        }
+    /**
+     * "1,340 / 2,000". Good Runner asks you to beat its number, not to reach one more than it:
+     * the counter shows the number on the medal, and on the exact boundary says so rather than
+     * showing a full-looking 1,000 / 1,000 with no reward behind it.
+     */
+    private fun counter(state: Achievements.Snapshot, tier: Int): String {
+        val definition = state.definition
+        val target = definition.thresholds[tier]
+        val ready = state.claimableTier != null
+        val beat = definition.id == "runner" && !ready && state.value >= target
+        return if (definition.id == "bounces") "Best: ${number(state.value)} / ${number(target)}"
+            else "${number(if (ready) target else minOf(state.value, target))} / ${number(if (beat) target + 1 else target)}"
+    }
 
     /** "1,340 / 2,000" over its bar. A reward ready to claim shows its target reached, in mint. */
     private fun goal(state: Achievements.Snapshot, index: Int, animateFill: Boolean, tier: Int, color: Int): View =
         LinearLayout(activity).apply {
             orientation = LinearLayout.VERTICAL
             val definition = state.definition
-            // Good Runner asks you to beat its number, not to reach one more than it: the
-            // counter always shows the number on the medal.
-            val target = definition.thresholds[tier]
             val ready = state.claimableTier != null
             val fraction = if (ready) 1f else state.fraction
-            // Good Runner has to be beaten, not matched: on the exact boundary say so, rather
-            // than showing a full-looking 1,000 / 1,000 with no reward behind it.
-            val beat = definition.id == "runner" && !ready && state.value >= target
-            val counter = if (definition.id == "bounces") "Best: ${number(state.value)} / ${number(target)}"
-                else "${number(if (ready) target else minOf(state.value, target))} / ${number(if (beat) target + 1 else target)}"
-            addView(kit.stageText(counter, 14f, if (ready) Theme.MINT else Theme.WHITE, gravity = Gravity.START, stroke = 1.5f)
+            addView(kit.stageText(counter(state, tier), 13f, if (ready) Theme.MINT else Theme.WHITE, gravity = Gravity.START, stroke = 1.5f)
                 .apply { maxLines = 1; tag = "achievement-counter" })
             addView(AchievementProgressBar(activity, kit, if (ready) Theme.MINT else color, fraction,
                 if (animateFill) 120L + index * 35L else 0L, animateFill,
@@ -354,8 +388,9 @@ internal class AchievementCards(
  * The challenge tiles, two to a row when they fit (one per row on narrow screens or with large
  * text). Tiles in a row share the taller one's height.
  */
-internal class ChallengeGrid(context: Context, private val kit: UiKit) : ViewGroup(context) {
-    private val gap = kit.dp(12f)
+internal class ChallengeGrid(context: Context, private val kit: UiKit, private val most: Int = 2,
+    private val narrowest: Float = 149f, spacing: Float = 12f) : ViewGroup(context) {
+    private val gap = kit.dp(spacing)
     private var columns = 2
 
     init { clipChildren = false; clipToPadding = false }
@@ -363,7 +398,8 @@ internal class ChallengeGrid(context: Context, private val kit: UiKit) : ViewGro
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
         val width = MeasureSpec.getSize(widthMeasureSpec)
         val scale = kit.ctx.resources.configuration.fontScale
-        columns = if (width - paddingLeft - paddingRight >= kit.dp(310f) && scale <= 1.15f) 2 else 1
+        val fits = (width - paddingLeft - paddingRight + gap) / (kit.dp(narrowest) + gap)
+        columns = (if (scale > 1.15f) fits / 2 else fits).coerceIn(1, most)
         val column = (width - paddingLeft - paddingRight - gap * (columns - 1)) / columns
         val exactColumn = MeasureSpec.makeMeasureSpec(column, MeasureSpec.EXACTLY)
         var height = paddingTop + paddingBottom
@@ -510,33 +546,6 @@ private class TierLabels(context: Context, kit: UiKit, private val track: ViewGr
             paint.color = colors[i]
             canvas.drawText(label, x, baseline, paint)
         }
-    }
-}
-
-/** Measure the actual text, including font scaling, instead of guessing from device configuration. */
-@SuppressLint("ViewConstructor")
-internal class AchievementRewardRow(context: Context, private val kit: UiKit) : LinearLayout(context) {
-    override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
-        if (childCount == 2) {
-            val available = MeasureSpec.getSize(widthMeasureSpec) - paddingLeft - paddingRight
-            val free = MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED)
-            val goal = getChildAt(0)
-            val reward = getChildAt(1)
-            goal.measure(free, free)
-            reward.measure(free, free)
-            val stack = goal.measuredWidth + reward.measuredWidth + kit.dp(10f) > available
-            orientation = if (stack) VERTICAL else HORIZONTAL
-            (goal.layoutParams as LayoutParams).apply {
-                width = if (stack) LayoutParams.MATCH_PARENT else 0
-                weight = if (stack) 0f else 1f
-            }
-            (reward.layoutParams as LayoutParams).apply {
-                width = if (stack) LayoutParams.MATCH_PARENT else LayoutParams.WRAP_CONTENT
-                marginStart = if (stack) 0 else kit.dp(10f)
-                topMargin = if (stack) kit.dp(8f) else 0
-            }
-        }
-        super.onMeasure(widthMeasureSpec, heightMeasureSpec)
     }
 }
 
