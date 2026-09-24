@@ -164,3 +164,44 @@
 - Command: `adb -s emulator-5560 shell uiautomator dump /sdcard/course-ui.xml`.
 - Failure: the accessibility dump could not obtain an idle state while the main menu animated; no dump file was created.
 - Classification: inspection-tool limitation, not an application failure. Used actual screenshot coordinates for the tap-only flow and inspected screenshots and recordings instead. Course selection, retry, normal exit, Red Pill exit and section exit all worked.
+
+## 2026-09-24 — severe Moto stress setup and concurrent device use
+
+- Revision: `low-battery-performance` at `de2e823`.
+- Device: Moto G7 Power `ZY323NNKTB`; `RunPerformanceTest`, static cruise/hills/jet/wide/late/second-wind, 25 seconds per phase.
+- Failure: preliminary CPU cap validation found policy4 remaining at 1,094,400 kHz rather than 633,600 kHz. The first cruise phase completed, then the GL snapshot timed out. ActivityManager shows concurrent `com.kinetic.sand` instrumentation bringing another activity forward.
+- Classification: environment/setup failure; these measurements are excluded. CPU/GPU limits and boost settings were restored. Stopped Cube Run's next profiling attempt upon discovering concurrent use; requested exclusive access and continued independent work.
+
+## 2026-09-24 — streaming renderer Matrix coin comparison
+
+- Revision: `de2e823` with rotating instance upload buffers; emulator-5560.
+- Test: `CoinBatchTest.instancesMatchCpuAcrossGlintsFogFadeTerrainAndMatrixTransitions` in the focused renderer/lifecycle suite.
+- Failure: exact framebuffer mismatch at phase 0, Matrix blend 0.45 (first differing channel 158600, 78 vs 53). World-box and particle comparisons passed.
+- Investigation: checking unchanged baseline and GPU/CPU state transitions before accepting the upload change.
+- Classification: test fixture state leakage. The unchanged depth setup inherited `LEQUAL` from ModelBatch, while the first Matrix wire draw restored `LESS`; later comparisons therefore had a different depth rule for coplanar translucent triangles. The candidate passes all 96 comparisons when this test runs alone. Made the fixture explicitly set `LESS` before each reference/candidate render; exact byte comparisons remain unchanged.
+- Resolution: the corrected eight-test renderer/terrain/lifecycle suite passed together, retaining byte-exact assertions for every coin state.
+
+## 2026-09-24 — baseline emulator comparison interrupted by another install
+
+- Revision: unchanged `de2e823`; emulator-5562.
+- Test: isolated `CoinBatchTest` baseline investigation.
+- Failure: instrumentation returned `Process crashed`; ActivityManager identifies `installPackageLI` from a competing session at 07:37:25 as the cause.
+- Classification: environment interference. Excluded the run and stopped using emulator-5562; continued sequential checks on emulator-5560.
+
+## 2026-09-24 — shared emulator performance comparison interrupted
+
+- Revision: `de2e823` baseline; emulator-5560, alternating comparison runner.
+- Failure: baseline completed cruise and hills, then returned `Process crashed`; APK identity lookup failed because Cube Run was temporarily absent. ActivityManager confirms a competing `deletePackageX` at 07:41:18 followed by installation.
+- Classification: environment interference. Discarded the incomplete comparison and created a dedicated emulator for this round.
+
+## 2026-09-24 — dedicated emulator display setup
+
+- Command: `emulator -avd cube-severe-round -port 5588 -no-window -no-snapshot -gpu host`.
+- Failure: the host GPU backend could not initialize EGL because the shell had no `DISPLAY`.
+- Classification: environment setup. Restarted only this newly created emulator with the working emulators' display/Xauthority settings; other emulator processes were left running.
+
+## 2026-09-24 — cold dedicated emulator cannot provide useful timing
+
+- Revision: unchanged `de2e823`; fresh Android 35 emulator, 720×1520, host GPU, initially 2 GiB then 1 GiB guest RAM.
+- Failure: under heavy concurrent host activity (about 20 GiB swapped), cold boot stalled; after boot the unchanged baseline cruise measured only 1.39 FPS, 594 ms median frame time. This is unsuitable for a renderer optimization comparison and is not a Cube Run regression attributable to the candidate.
+- Classification: environment/resource pressure. Stopped the run and its dedicated emulator; attempting a prepared, isolated read-only AVD instead of further cold-boot measurements.

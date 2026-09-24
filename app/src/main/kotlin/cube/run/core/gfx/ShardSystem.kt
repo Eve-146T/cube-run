@@ -128,7 +128,9 @@ class ShardSystem(private val kit: BoxMeshKit, private val maxShards: Int = 240)
             val sc = s.size * (0.4f + 0.6f * s.alpha)
             val radius = sc * 0.866026f // circumscribed cube sphere, any rotation
             if (!visibility.visible(s.pos.x, s.pos.y, s.pos.z, radius, radius, radius)) continue
-            m.idt().translate(s.pos).rotate(s.rotAxis, s.rotSpeed * (s.maxLife - s.life)).scale(sc, sc, sc)
+            // Build R directly, then fill T, avoiding identity initialization
+            // and composition with a translation-only matrix for each shard.
+            m.setToRotation(s.rotAxis, s.rotSpeed * (s.maxLife - s.life)).setTranslation(s.pos).scale(sc, sc, sc)
             if (useInstances) { instances!!.add(m, s.color, s.alpha); continue }
             val cr = s.color.r; val cg = s.color.g; val cb = s.color.b; val a = s.alpha
             for (c in 0 until 8) { // 8 shared cube corners -> world space (not 24 verts)

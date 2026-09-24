@@ -25,8 +25,10 @@ parser.add_argument('--test-apk', type=Path, required=True)
 parser.add_argument('--out', type=Path, required=True)
 parser.add_argument('--seconds', type=int, default=25)
 parser.add_argument('--repetitions', type=int, default=2)
+parser.add_argument('--candidate-first', action='store_true')
 parser.add_argument('--modes', default='cruise,hills,jet,second-wind')
 parser.add_argument('--section', type=int, default=56)
+parser.add_argument('--world', type=int, default=2)
 args = parser.parse_args()
 args.out.mkdir(parents=True, exist_ok=True)
 
@@ -43,7 +45,8 @@ def sha(path):
 
 manifest = {'serial': args.serial, 'seconds_per_phase': args.seconds,
             'warmup_seconds_per_phase': 5, 'section': args.section,
-            'modes': args.modes, 'world': 2, 'track_seed': 73,
+            'modes': args.modes, 'world': args.world, 'track_seed': 73,
+            'first_build': 'candidate' if args.candidate_first else 'baseline',
             'scenery_seed': 74, 'world_switching': False,
             'note': 'Process allocations include harness/audio CSV logging.',
             'apk_sha256': {'baseline': sha(args.baseline), 'candidate': sha(args.candidate)}, 'runs': []}
@@ -54,7 +57,7 @@ adb('install', '-r', args.test_apk)
 adb('install', '-r', args.baseline)
 adb('shell', 'pm', 'clear', 'cube.run')
 for repeat in range(args.repetitions):
-    for name in (('baseline', 'candidate') if repeat % 2 == 0 else ('candidate', 'baseline')):
+    for name in (('baseline', 'candidate') if (repeat + args.candidate_first) % 2 == 0 else ('candidate', 'baseline')):
         apk = getattr(args, name)
         prefix = args.out / f'{repeat + 1}-{name}'
         print(f'Running {prefix.name}', flush=True)
@@ -63,18 +66,20 @@ for repeat in range(args.repetitions):
         adb('logcat', '-c')
         output = adb('shell', 'am', 'instrument', '-w', '-e', 'class', 'cube.run.game.RunPerformanceTest',
                      '-e', 'bot', 'false', '-e', 'audio', 'on', '-e', 'repeatable', 'true', '-e', 'section', args.section,
-                     '-e', 'world', '2', '-e', 'modes', args.modes, '-e', 'seconds', args.seconds,
+                     '-e', 'world', args.world, '-e', 'modes', args.modes, '-e', 'seconds', args.seconds,
                      'cube.run.test/androidx.test.runner.AndroidJUnitRunner',
                      timeout=args.seconds * len(args.modes.split(',')) + 120)
         prefix.with_suffix('.test.txt').write_text(output)
         logs = adb('logcat', '-d', '-s', 'RUN_BENCH:I', 'AndroidRuntime:E', '*:S')
         prefix.with_suffix('.log').write_text(logs)
+        if 'OK (1 test)' not in output:
+            raise RuntimeError(f'{prefix.name}: failed/interrupted test; see raw logs')
         installed = adb('shell', 'pm', 'path', 'cube.run').strip().removeprefix('package:')
         copy = args.out / 'installed.apk'
         adb('pull', installed, copy)
         identity_matches = sha(copy) == manifest['apk_sha256'][name]
         copy.unlink()
-        if 'OK (1 test)' not in output or not identity_matches:
+        if not identity_matches:
             raise RuntimeError(f'{prefix.name}: failed/interrupted test or competing install; see raw logs')
         samples = []
         for line in logs.splitlines():
@@ -86,6 +91,9 @@ for repeat in range(args.repetitions):
                                 'render_ms': list(map(float, render_ms.split('/'))),
                                 'thread_cpu_ms': list(map(float, cpu_ms.split('/'))),
                                 'allocated_bytes': int(allocated), 'gc': int(gc)})
+                measured_fps = re.search(r' fps=([\d.]+)', line)
+                if measured_fps:
+                    samples[-1]['fps'] = float(measured_fps.group(1))
         if len(samples) != len(args.modes.split(',')):
             raise RuntimeError(f'{prefix.name}: missing benchmark phase logs')
         manifest['runs'].append({'name': name, 'repeat': repeat + 1, 'installed_apk_verified': True, 'samples': samples})

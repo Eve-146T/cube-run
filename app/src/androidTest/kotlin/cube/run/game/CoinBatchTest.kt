@@ -61,6 +61,10 @@ class CoinBatchTest {
                                     target.begin()
                                     try {
                                         Gdx.gl.glDepthMask(true)
+                                        // ModelBatch can leave LEQUAL behind; Matrix wires
+                                        // restore LESS. Both images need the same depth rule,
+                                        // including the very first translucent CPU reference.
+                                        Gdx.gl.glDepthFunc(GL20.GL_LESS)
                                         Gdx.gl.glClearColor(.04f, .02f, .09f, 1f)
                                         Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT or GL20.GL_DEPTH_BUFFER_BIT)
                                         val selected = PrismBatch::class.java.getDeclaredField("useInstances").apply { isAccessible = true }

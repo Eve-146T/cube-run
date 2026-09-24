@@ -1,0 +1,183 @@
+{
+  "serial": "emulator-5584",
+  "seconds_per_phase": 20,
+  "warmup_seconds_per_phase": 5,
+  "section": 56,
+  "modes": "cruise,second-wind,matrix",
+  "world": 2,
+  "track_seed": 73,
+  "first_build": "candidate",
+  "scenery_seed": 74,
+  "world_switching": false,
+  "note": "Process allocations include harness/audio CSV logging.",
+  "apk_sha256": {
+    "baseline": "a6892049ae6c7619fb33b61abbe7003fe28358316e71c2a5279876b91afc4dc9",
+    "candidate": "ba3bfed9dbafb7b34712d098f1e88754d7d0bb3acd110bac5471409888f0afaf"
+  },
+  "runs": [
+    {
+      "name": "candidate",
+      "repeat": 1,
+      "installed_apk_verified": true,
+      "samples": [
+        {
+          "mode": "cruise",
+          "frames": 882,
+          "frame_ms": [
+            16.64,
+            24.24,
+            30.09,
+            43.0
+          ],
+          "render_ms": [
+            4.1,
+            13.5,
+            22.18,
+            38.31
+          ],
+          "thread_cpu_ms": [
+            3.83,
+            7.17,
+            9.92,
+            12.35
+          ],
+          "allocated_bytes": 6210928,
+          "gc": 0,
+          "fps": 58.64
+        },
+        {
+          "mode": "second-wind",
+          "frames": 848,
+          "frame_ms": [
+            16.81,
+            24.01,
+            51.01,
+            62.88
+          ],
+          "render_ms": [
+            3.57,
+            15.18,
+            35.98,
+            52.89
+          ],
+          "thread_cpu_ms": [
+            3.6,
+            8.05,
+            10.56,
+            18.3
+          ],
+          "allocated_bytes": 4954944,
+          "gc": 1,
+          "fps": 56.47
+        },
+        {
+          "mode": "matrix",
+          "frames": 560,
+          "frame_ms": [
+            21.62,
+            57.63,
+            88.93,
+            140.05
+          ],
+          "render_ms": [
+            14.21,
+            49.82,
+            83.66,
+            135.59
+          ],
+          "thread_cpu_ms": [
+            7.91,
+            16.36,
+            21.81,
+            27.34
+          ],
+          "allocated_bytes": 5785008,
+          "gc": 0,
+          "fps": 37.32
+        }
+      ]
+    },
+    {
+      "name": "baseline",
+      "repeat": 1,
+      "installed_apk_verified": true,
+      "samples": [
+        {
+          "mode": "cruise",
+          "frames": 841,
+          "frame_ms": [
+            16.85,
+            26.85,
+            41.98,
+            63.52
+          ],
+          "render_ms": [
+            4.44,
+            20.58,
+            35.83,
+            62.27
+          ],
+          "thread_cpu_ms": [
+            4.06,
+            11.75,
+            15.03,
+            22.08
+          ],
+          "allocated_bytes": 11372016,
+          "gc": 1,
+          "fps": 55.99
+        },
+        {
+          "mode": "second-wind",
+          "frames": 839,
+          "frame_ms": [
+            16.77,
+            25.62,
+            45.99,
+            113.01
+          ],
+          "render_ms": [
+            3.71,
+            19.39,
+            42.16,
+            109.86
+          ],
+          "thread_cpu_ms": [
+            3.67,
+            7.25,
+            10.38,
+            17.39
+          ],
+          "allocated_bytes": 4860592,
+          "gc": 0,
+          "fps": 55.87
+        },
+        {
+          "mode": "matrix",
+          "frames": 900,
+          "frame_ms": [
+            16.62,
+            19.91,
+            22.41,
+            32.64
+          ],
+          "render_ms": [
+            6.33,
+            10.88,
+            16.53,
+            21.46
+          ],
+          "thread_cpu_ms": [
+            6.3,
+            8.88,
+            10.29,
+            14.82
+          ],
+          "allocated_bytes": 6309328,
+          "gc": 1,
+          "fps": 59.86
+        }
+      ]
+    }
+  ]
+}

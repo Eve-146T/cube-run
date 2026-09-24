@@ -1,5 +1,9 @@
 # Preserving full visuals under CPU pressure
 
+The next optimization round and severe Moto clock controls are documented in
+[severe-clock-performance.md](severe-clock-performance.md), including the limits
+on the available hardware evidence.
+
 This experiment is based on jackpot (`0ff04de`, the shared experiment base). It
 reduces work required by the existing scene. It does not change the frame-rate
 request, resolution, antialiasing, draw distance, particles, coin geometry,

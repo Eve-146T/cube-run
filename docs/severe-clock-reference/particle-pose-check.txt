@@ -1,0 +1,2 @@
+Picked up JAVA_TOOL_OPTIONS: -XX:-UsePerfData -Djava.io.tmpdir=/home/user1/Worktrees/cube-run/low-battery-performance/captures/tmp
+10,000 particle transforms match the former composition exactly.

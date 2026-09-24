@@ -66,7 +66,8 @@ class RunPerformanceTest {
         }
         val intent = Intent(ApplicationProvider.getApplicationContext(), GameActivity::class.java)
             .putExtra("world", args.getString("world")?.toInt() ?: -1)
-        if (audioMode != null) intent.putExtra("section", args.getString("section")?.toInt() ?: 8).putExtra("dev", false)
+        if (audioMode != null || args.getString("section") != null)
+            intent.putExtra("section", args.getString("section")?.toInt() ?: 8).putExtra("dev", false)
         try { ActivityScenario.launch<GameActivity>(intent).use { scenario ->
             scenario.onActivity {
                 it.setShowWhenLocked(true); it.setTurnScreenOn(true)
@@ -103,7 +104,7 @@ class RunPerformanceTest {
     }
 
     private fun benchmark(mode: String, seconds: Int) {
-        require(mode in listOf("cruise", "hills", "second-wind", "jet", "wide", "late", "five-boosts"))
+        require(mode in listOf("cruise", "hills", "second-wind", "jet", "wide", "late", "five-boosts", "matrix"))
         val done = CountDownLatch(1)
         var failure: Throwable? = null
         val frames = ArrayList<Float>(seconds * 65)
@@ -168,6 +169,9 @@ class RunPerformanceTest {
                         game.session.setScore(10000)
                         track.portalEvery = Int.MAX_VALUE
                         powers.reset()
+                        val redPill = field(CubeRun::class.java, "redPill").get(game) as RedPill
+                        redPill.reset()
+                        if (mode == "matrix") redPill.collect(seconds + 30f)
                         player.setFlying(false)
                         track.airCoins = false
                         track.dropCoins()
@@ -238,10 +242,15 @@ class RunPerformanceTest {
                     else {
                         val allocated = Debug.getRuntimeStat("art.gc.bytes-allocated").toLong() - allocations
                         val gc = Debug.getRuntimeStat("art.gc.gc-count").toLong() - collections
+                        val fps = 1000.0 / frames.average()
                         Log.i("RUN_BENCH", "$mode frames=${frames.size} frame=${stats(frames)} cpu=${stats(cpu)} threadCpu=${stats(threadCpu)} " +
                             "over25=${frames.count { it > 25f }} over50=${frames.count { it > 50f }} " +
-                            "bot=$botEnabled protectedHits=$protectedHits burst=${stats(bursts)} bursts=$count maxRows=$maxRows maxSpeed=$maxSpeed allocBytes=$allocated gc=$gc")
+                            "bot=$botEnabled protectedHits=$protectedHits burst=${stats(bursts)} bursts=$count maxRows=$maxRows maxSpeed=$maxSpeed allocBytes=$allocated gc=$gc " +
+                            "fps=%.2f measuredMs=%.2f".format(java.util.Locale.US, fps, frames.sumOf { it.toDouble() }))
                         assertTrue("Track rows grew without bound: $maxRows", maxRows < 100)
+                        InstrumentationRegistry.getArguments().getString("minFps")?.toDouble()?.let { minimum ->
+                            assertTrue("$mode sustained %.2f FPS, below $minimum".format(java.util.Locale.US, fps), fps >= minimum)
+                        }
                         Stage.paused = true
                         done.countDown()
                     }
