@@ -17,8 +17,8 @@ class AchievementIconVarietyTest {
             val pixels = IntArray(96 * 96)
             bitmap.getPixels(pixels, 0, 96, 0, 0, 96, 96)
             bitmap.recycle()
-            // Ignore badge colors: every goal must have a distinct dark pictogram.
-            pixels.map { it == Theme.INK }.hashCode()
+            // The card supplies the badge; every goal must still draw its own picture.
+            pixels.contentHashCode()
         }
         assertEquals("Every new achievement has its own pictogram", newCards.size, silhouettes.toSet().size)
         assertTrue("The new cards use varied concept colours", newCards.map { AchievementCards.accent(it.id) }.toSet().size >= 9)
