@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="game_gambler">Spieler</string><string name="game_cloud">Wolke</string><string name="game_black_void">Schwarze Leere</string><string name="game_event_horizon">Ereignishorizont</string><string name="game_afterimage">Nachbild</string>
+    <string name="ability_phase_detail">Gleite einmal pro Lauf durch ein Hindernis!</string><string name="ability_speed_detail" formatted="false">Dein Würfel läuft 30 % schneller!</string>
+    <string name="ability_bubble_saver_detail" formatted="false">Mit 35 % Chance bleibt deine Blase beim Einsatz erhalten!</string>
+    <string name="ability_midas">Kleiner Midas-Zeh</string><string name="ability_midas_detail" formatted="false">Gesammelte Münzen sind 20 % mehr wert!</string>
+    <string name="ability_zappy">Blitz</string><string name="ability_zappy_detail">Blitzschnell zwischen den Spuren teleportieren!</string>
+    <string name="ability_power_stretch">Power-up-Strecker</string><string name="ability_power_stretch_detail" formatted="false">Deine Power-ups halten 25 % länger!</string>
+    <string name="ability_quick_bubble">Schnelle Blase</string><string name="ability_quick_bubble_detail" formatted="false">Die nächste Blase ist 30 % früher bereit!</string>
+    <string name="ability_coal_detail">Verwandelt jede Münze in Kohle. Kohle ist wertlos.</string>
+    <string name="ability_lottery">Lotterie</string><string name="ability_lottery_detail">Alle gesammelten Münzen werden für die Lotterie ausgegeben.</string>
+    <string name="ability_floaty">Schwebend</string><string name="ability_floaty_detail">Dein Würfel wird federleicht!</string>
+    <string name="ability_double_jump">Doppelsprung</string><string name="ability_double_jump_detail">Springe zweimal, solange deine Blase aktiv ist!</string>
+    <string name="ability_long_bubble">Lange Blase</string><string name="ability_long_bubble_detail" formatted="false">Deine Blase hält 30 % länger!</string>
+    <string name="lottery_explanation">Alle gesammelten Münzen werden für die Lotterie ausgegeben!\n\nDer Jackpot beträgt 250.000%1$s. Das sind die Chancen:</string>
+    <string name="lottery_one_in">1 zu 100.000</string><string name="lottery_per_coin">pro 1 Münze Wert</string><string name="lottery_per_box">pro Überraschungsbox</string>
+    <string name="jackpot_title">JACKPOT</string><string name="jackpot_description">Jackpot. %1$s Münzen.</string>
+</resources>

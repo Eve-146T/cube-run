@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="game_gambler">Gambler</string><string name="game_cloud">Cloud</string><string name="game_black_void">Black void</string><string name="game_event_horizon">Event horizon</string><string name="game_afterimage">Afterimage</string>
+    <string name="ability_phase_detail">Slip through one obstacle each run!</string><string name="ability_speed_detail" formatted="false">Your cube runs 30% faster!</string>
+    <string name="ability_bubble_saver_detail" formatted="false">35% chance to keep your bubble when you use it!</string>
+    <string name="ability_midas">Midas Little Toe</string><string name="ability_midas_detail" formatted="false">Coins you collect are worth 20% more!</string>
+    <string name="ability_zappy">Zappy</string><string name="ability_zappy_detail">Teleport between lanes in a flash!</string>
+    <string name="ability_power_stretch">Power stretch</string><string name="ability_power_stretch_detail" formatted="false">Your power-ups last 25% longer!</string>
+    <string name="ability_quick_bubble">Quick bubble</string><string name="ability_quick_bubble_detail" formatted="false">Pop another bubble 30% sooner!</string>
+    <string name="ability_coal_detail">Turns every coin into coal. Coal is worthless.</string>
+    <string name="ability_lottery">Lottery</string><string name="ability_lottery_detail">All collected coins are spent on the Lottery.</string>
+    <string name="ability_floaty">Floaty</string><string name="ability_floaty_detail">Your cube becomes floaty!</string>
+    <string name="ability_double_jump">Double jump</string><string name="ability_double_jump_detail">Jump twice while your bubble is active!</string>
+    <string name="ability_long_bubble">Long bubble</string><string name="ability_long_bubble_detail" formatted="false">Your bubble lasts 30% longer!</string>
+    <string name="lottery_explanation">All the coins you collect are spent on the Lottery!\n\nThe jackpot is 250k%1$s, here are the chances:</string>
+    <string name="lottery_one_in">1 in 100,000</string><string name="lottery_per_coin">per 1 coin of value</string><string name="lottery_per_box">per mystery box</string>
+    <string name="jackpot_title">JACKPOT</string><string name="jackpot_description">Jackpot. %1$s coins.</string>
+</resources>

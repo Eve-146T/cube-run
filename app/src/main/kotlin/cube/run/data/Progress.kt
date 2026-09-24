@@ -412,8 +412,6 @@ object Progress {
         Achievements.evaluate()
     }
 
-    fun payLanguageSwitch(from: String, to: String): Boolean = spend(Languages.switchCost(from, to))
-
     private fun spend(n: Int): Boolean {
         if (n < 0 || n > coins) return false
         coins -= n

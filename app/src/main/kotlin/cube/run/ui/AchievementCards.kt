@@ -23,6 +23,7 @@ import android.view.animation.PathInterpolator
 import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
+import cube.run.R
 import cube.run.core.Haptics
 import cube.run.data.Achievements
 
@@ -98,9 +99,9 @@ internal class AchievementCards(
             }, FrameLayout.LayoutParams(dp(24f), dp(24f), Gravity.END or Gravity.BOTTOM))
         }
         addView(badge, LinearLayout.LayoutParams(dp(66f), dp(66f)))
-        addView(kit.text(definition.title, 11f, Theme.alpha(Theme.WHITE, 230), 700).apply { maxLines = 2 },
+        addView(kit.text(activity.achievementTitle(definition.id), 11f, Theme.alpha(Theme.WHITE, 230), 700).apply { maxLines = 2 },
             LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(4f) })
-        contentDescription = "${definition.title}: complete"
+        contentDescription = activity.getString(R.string.achievement_done_description, activity.achievementTitle(definition.id))
         setOnClickListener { Anim.popIn(badge, 0, 1.15f, 320); Haptics.tick() }
     }
 
@@ -145,26 +146,13 @@ internal class AchievementCards(
         val color = if (state.allClaimed) Theme.lerp(bright, 0xFF3F4D70.toInt(), .55f) else bright
         val ink = if (state.allClaimed) Theme.WHITE else Theme.onColor(color)
         val complete = state.nextTarget == null
-        val best = if (definition.id == "bounces") "Best: ${number(state.value)} bounces" else null
-        val subtitle = if (state.allClaimed) best?.let { "Claimed · $it" } ?: "Claimed" else when (definition.id) {
-            "runner" -> "Single-run score"
-            "coins" -> "Collected over time"
-            "cubes" -> "Cube collection"
-            "powerups" -> "Power Ups collected"
-            "boxes" -> "Mystery boxes opened"
-            "globetrotter" -> "Bonus worlds visited"
-            "long_hauler" -> "Metres travelled"
-            "shardsmith" -> "Shards collected"
-            "regular" -> "Runs started"
-            "bubble_popper" -> "Bubbles spent"
-            "near_miss" -> "Near misses"
-            "bubbles" -> if (complete) "" else "Hold 1,000 bubbles at once"
-            "bounces" -> if (complete) best.orEmpty() else "67 wall bounces in one run"
-            "center" -> if (complete) "" else "Reach 100 without leaving the middle lane"
-            "homeress" -> if (complete) "" else "Score 60 without picking up a coin"
-            "gambliphobic" -> if (complete) "" else "Miss 10 mystery boxes in one run"
-            "cookie" -> if (complete) "" else "Toggle sound 1,000 times"
-            else -> definition.description
+        val best = if (definition.id == "bounces") activity.getString(R.string.achievement_best_bounces, number(state.value)) else null
+        val subtitle = when {
+            state.allClaimed -> best?.let { activity.getString(R.string.achievement_claimed_with_best, it) } ?: activity.getString(R.string.achievement_claimed)
+            definition.id == "bounces" && complete -> best.orEmpty()
+            // A finished one-off dare needs no reminder of what it asked.
+            !definition.tiered && complete -> ""
+            else -> activity.achievementGoal(definition.id)
         }
         val radius = dpf(20f)
         val badge = ImageView(activity).apply {
@@ -178,9 +166,9 @@ internal class AchievementCards(
         }
         val check = if (state.allClaimed || (!definition.tiered && complete)) ImageView(activity).apply {
             setImageDrawable(AchievementCheckIcon())
-            contentDescription = if (definition.tiered) "All rewards claimed" else "Challenge complete"
+            contentDescription = activity.getString(if (definition.tiered) R.string.achievement_all_rewards_claimed else R.string.achievement_challenge_complete)
         } else null
-        val title = kit.text(definition.title, if (tile) 16f else 19f, ink, 700, Gravity.START).apply { maxLines = 2 }
+        val title = kit.text(activity.achievementTitle(definition.id), if (tile) 16f else 19f, ink, 700, Gravity.START).apply { maxLines = 2 }
         val sub = if (subtitle.isEmpty()) null else kit.text(subtitle, 11f, Theme.alpha(ink, 220), 500, Gravity.START).apply {
             maxLines = if (tile) 4 else 2
             tag = if (best != null && complete) "achievement_best_${definition.id}" else "achievement_subtitle_${definition.id}"
@@ -268,12 +256,12 @@ internal class AchievementCards(
                     else -> null
                 }
                 if (tier == state.claimableTier) Anim.cancelOnDetach(this, beat(this))
-                contentDescription = "${medalName(tier)}: ${when {
-                    tier < state.claimedTiers -> "claimed"
-                    tier < state.earnedTiers -> "reward ready"
-                    tier == current -> "in progress"
-                    else -> "locked"
-                }}"
+                contentDescription = activity.getString(R.string.achievement_medal_status, activity.achievementTierName(tier), activity.getString(when {
+                    tier < state.claimedTiers -> R.string.achievement_status_claimed
+                    tier < state.earnedTiers -> R.string.achievement_status_ready
+                    tier == current -> R.string.achievement_status_progress
+                    else -> R.string.achievement_status_locked
+                }))
             }, LinearLayout.LayoutParams(dp(44f), dp(44f)))
         }
     }
@@ -289,7 +277,7 @@ internal class AchievementCards(
         val ready = state.claimableTier != null
         val beat = definition.id == "runner" && !ready && state.value >= target
         // Non-breaking around the slash: a narrow column must never split the count over two lines.
-        return if (definition.id == "bounces") "Best: ${number(state.value)}\u00A0/\u00A0${number(target)}"
+        return if (definition.id == "bounces") activity.getString(R.string.achievement_best_progress, number(state.value), number(target)).replace(" / ", "\u00A0/\u00A0")
             else "${number(if (ready) target else minOf(state.value, target))}\u00A0/\u00A0${(if (short) ::compact else ::number)(if (beat) target + 1 else target)}"
     }
 
@@ -316,7 +304,7 @@ internal class AchievementCards(
                 if (animateFill) 120L + index * 35L else 0L, animateFill,
                 fromFraction = if (!animateFill && !ready) 1f else null).apply {
                 tag = "achievement_progress_${definition.id}"
-                contentDescription = "${(fraction * 100).toInt()} percent complete"
+                contentDescription = activity.getString(R.string.achievement_percent_complete, (fraction * 100).toInt())
             }, LinearLayout.LayoutParams(-1, dp(10f)).apply { topMargin = dp(3f); bottomMargin = dp(3f) })
         }
 
@@ -330,11 +318,11 @@ internal class AchievementCards(
             minimumWidth = if (wide) 0 else dp(104f); minimumHeight = dp(34f)
             setPadding(dp(8f), dp(2f), dp(8f), dp(2f))
             addView(kit.iconText(CoinIcon(), "+${number(amount)}", 14f, Theme.alpha(Theme.YELLOW, 225), iconDp = 17f).apply { gravity = Gravity.CENTER })
-            contentDescription = "Reward: ${number(amount)} coins, locked"
+            contentDescription = activity.getString(R.string.achievement_reward_locked, number(amount))
             importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_YES
         }
         lateinit var button: CandyButton
-        button = kit.button(android.text.SpannableStringBuilder("CLAIM ").append(kit.coins(number(amount), 13f)), Theme.GOLD, UiKit.Size.SMALL) {
+        button = kit.button(android.text.SpannableStringBuilder(activity.getString(R.string.achievement_claim)).append(" ").append(kit.coins(number(amount), 13f)), Theme.GOLD, UiKit.Size.SMALL) {
             onClaim(state, button)
         }.apply {
             tag = "achievement_claim_${state.definition.id}"
@@ -343,7 +331,7 @@ internal class AchievementCards(
             textSize = 13f
             maxLines = 1
             setPadding(dp(10f), dp(8f), dp(10f), dp(8f))
-            contentDescription = "Claim ${number(amount)} coins for ${state.definition.title}"
+            contentDescription = activity.getString(R.string.achievement_claim_description, number(amount), activity.achievementTitle(state.definition.id))
         }
         return button
     }

@@ -123,3 +123,12 @@
 - Failure: the runner logged `started:` at 10:05:21 and then nothing for more than 15 minutes; the run was stopped by hand. The first run of the day showed the same silence before another session's install killed it.
 - Classification: hanging test, not yet localized. It matches the known global-UI-idle wait under continuous GL rendering (see the 2026-09-21 LanguageTest entry), but whether the void card's always-on animation contributes was not established.
 - Resolution: stopped. The void purchase was verified on the phone by hand instead (screen recordings of the whole purchase, frame-by-frame review); this test needs a launch that does not wait for global idle before it can be relied on again.
+
+## 2026-09-21 — Ability translations treated percentages as format tokens
+
+- Revision: `achievements-translations` at `884170f` with local changes
+- Command: `./gradlew :app:assembleDebug :app:lintDebug`
+- Environment: local repository build
+- Failure: the APK assembled, but Android lint rejected six English and German ability resources because literal percent signs were parsed as incomplete format conversions.
+- Classification: resource-formatting error
+- Resolution: marked non-parameterized percentage strings with `formatted="false"` and reran build and lint.

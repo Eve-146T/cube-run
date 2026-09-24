@@ -184,7 +184,6 @@ internal fun medalColor(tier: Int): Int = when (tier) {
     2 -> Theme.GOLD
     else -> Theme.CYAN
 }
-internal fun medalName(tier: Int): String = listOf("Bronze", "Silver", "Gold", "Diamond")[tier.coerceIn(0, 3)]
 internal fun number(value: Int): String = NumberFormat.getIntegerInstance(java.util.Locale.US).format(value)
 
 /**

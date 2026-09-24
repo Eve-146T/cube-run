@@ -147,8 +147,9 @@ class AbilityDisplay(private val activity: Activity, private val kit: UiKit, val
                     LinearLayout.LayoutParams(0, -2, 1f))
             })
             if (ability == Ability.LOTTERY) {
-                val label = android.text.SpannableStringBuilder("All the coins you collect are spent on playing the Lottery!\n\nThe jackpot is 250k")
-                label.append(kit.coins("", 14f)).append(", here are the chances:")
+                val marker = "__COIN__"
+                val parts = activity.getString(R.string.lottery_explanation, marker).split(marker, limit = 2)
+                val label = android.text.SpannableStringBuilder(parts[0]).append(kit.coins("", 14f)).append(parts.getOrElse(1) { "" })
                 section.addView(kit.text("", 14f, Theme.INK, 500, Gravity.START).apply { text = label },
                     LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(8f) })
                 fun odds(drawable: Drawable, chance: String, basis: String) {
@@ -162,8 +163,8 @@ class AbilityDisplay(private val activity: Activity, private val kit: UiKit, val
                         }, LinearLayout.LayoutParams(0, -2, 1f))
                     }, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(10f) })
                 }
-                odds(CoinIcon(), if (cube.run.data.Settings.devMode) "2%" else "1 in 100,000", "per 1 coin of value")
-                odds(BoxIcon(), "1.3%", "per mystery box")
+                odds(CoinIcon(), if (cube.run.data.Settings.devMode) "2%" else activity.getString(R.string.lottery_one_in), activity.getString(R.string.lottery_per_coin))
+                odds(BoxIcon(), "1.3%", activity.getString(R.string.lottery_per_box))
             } else section.addView(description(ability), LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(8f) })
             addView(section, LinearLayout.LayoutParams(-1, -2).apply { if (i > 0) topMargin = dp(14f) })
         }

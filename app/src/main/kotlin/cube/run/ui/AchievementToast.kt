@@ -139,10 +139,12 @@ class AchievementToast(activity: Activity, private val kit: UiKit) : FrameLayout
         pending.remove(first.key)
         val color = if (unlock.definition.tiered) medalColor(unlock.tier) else Theme.MINT
         badge.setImageDrawable(if (unlock.definition.tiered) MedalIcon(color, true, unlock.tier == 3) else AchievementCheckIcon())
-        title.text = unlock.definition.title
+        title.text = context.achievementTitle(unlock.definition.id)
         val reward = Achievements.reward(unlock.definition, unlock.tier)
         detail.text = kit.coins(number(reward), 12f)
-        card.contentDescription = "${title.text}. ${unlock.tierName}. Reward: ${number(reward)} coins."
+        val tier = if (unlock.definition.tiered) context.achievementTierName(unlock.tier)
+            else context.getString(cube.run.R.string.achievement_challenge_complete)
+        card.contentDescription = "${title.text}. $tier. ${context.getString(cube.run.R.string.achievement_reward_description, number(reward))}"
         showing = true
         currentUnlock = unlock
         card.visibility = VISIBLE

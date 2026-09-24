@@ -18,9 +18,6 @@ object Languages {
 
     private fun normalize(code: String) = if (code == "iw") "he" else code
 
-    fun switchCost(from: String, to: String): Int =
-        if (normalize(from) != normalize(to) && (normalize(from) == "he" || normalize(to) == "he")) 500 else 0
-
     fun current(ctx: Context): String {
         val saved = ctx.getSharedPreferences("settings", Context.MODE_PRIVATE).getString("language", null)
         options.firstOrNull { it.code == normalize(saved.orEmpty()) }?.let { return it.code }

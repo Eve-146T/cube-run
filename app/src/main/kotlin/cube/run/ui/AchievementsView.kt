@@ -18,6 +18,7 @@ import android.view.ViewTreeObserver
 import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.ScrollView
+import cube.run.R
 import cube.run.core.Haptics
 import cube.run.core.SoundFx
 import cube.run.data.Achievements
@@ -31,7 +32,7 @@ import cube.run.data.Progress
  */
 @SuppressLint("ViewConstructor")
 class AchievementsView(activity: Activity, kit: UiKit, onClose: () -> Unit) :
-    Page(activity, kit, "ACHIEVEMENTS", dark = true, onClosed = onClose) {
+    Page(activity, kit, activity.getString(R.string.achievements_title), dark = true, onClosed = onClose) {
     private val rows = LinearLayout(activity).apply {
         orientation = LinearLayout.VERTICAL
         setPadding(dp(14f), dp(4f), dp(14f), dp(28f))
@@ -86,22 +87,43 @@ class AchievementsView(activity: Activity, kit: UiKit, onClose: () -> Unit) :
         val allMedals = states.filter { it.definition.tiered }
         val allChallenges = states.filterNot { it.definition.tiered }
         rows.addView(hero, LinearLayout.LayoutParams(-1, -2))
-        rows.addView(section("MEDALS", "${allMedals.sumOf { it.earnedTiers }} / ${allMedals.sumOf { it.definition.thresholds.size }}"),
+        rows.addView(section(activity.getString(R.string.achievement_section_medals), "${allMedals.sumOf { it.earnedTiers }} / ${allMedals.sumOf { it.definition.thresholds.size }}"),
             LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(22f); bottomMargin = dp(10f) })
         for ((index, state) in medals.withIndex()) rows.addView(cards.card(state, index),
             LinearLayout.LayoutParams(-1, -2).apply { if (index > 0) topMargin = dp(10f) })
-        rows.addView(section("CHALLENGES", "${allChallenges.count { it.earnedTiers > 0 }} / ${allChallenges.size}"),
+        rows.addView(section(activity.getString(R.string.achievement_section_challenges), "${allChallenges.count { it.earnedTiers > 0 }} / ${allChallenges.size}"),
             LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(24f); bottomMargin = dp(10f) })
         for ((index, state) in challenges.withIndex()) grid.addView(cards.card(state, medals.size + index))
         rows.addView(grid, LinearLayout.LayoutParams(-1, -2))
         if (done.isNotEmpty()) {
-            rows.addView(section("DONE", "${done.size}"),
+            rows.addView(section(activity.getString(R.string.achievement_section_done), "${done.size}"),
                 LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(24f); bottomMargin = dp(12f) })
             rows.addView(ChallengeGrid(activity, kit, most = 4, narrowest = 72f, spacing = 8f).apply {
                 for (state in done) addView(cards.doneChip(state))
             }, LinearLayout.LayoutParams(-1, -2))
         }
+        rows.addView(suggestionCard(), LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(24f) })
         hero.bind(states, animate = true, delay = 260L)
+    }
+
+    /** The last card: an invitation to suggest the next achievement. */
+    private fun suggestionCard(): View = LinearLayout(activity).apply {
+        orientation = LinearLayout.VERTICAL
+        gravity = Gravity.CENTER_HORIZONTAL
+        setPadding(dp(18f), dp(18f), dp(18f), dp(18f) + kit.CARD_LIP)
+        val radius = dpf(22f)
+        background = android.graphics.drawable.LayerDrawable(arrayOf(
+            GradientDrawable().apply { cornerRadius = radius; setColor(Theme.darken(0xFF263950.toInt(), .3f)) },
+            GradientDrawable().apply { cornerRadius = radius; setColor(0xFF263950.toInt()); setStroke(dp(2f), Theme.GOLD) },
+        )).apply { setLayerInset(1, 0, 0, 0, kit.CARD_LIP) }
+        addView(kit.stageText(activity.getString(R.string.achievement_suggest_title), 20f, Theme.WHITE, gravity = Gravity.CENTER, stroke = 2f))
+        addView(kit.stageText(activity.getString(R.string.achievement_suggest_body), 13f, Theme.WHITE, gravity = Gravity.CENTER, stroke = 1.4f).apply {
+            alpha = .84f
+        }, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(7f) })
+        addView(kit.button(activity.getString(R.string.achievement_suggest_button), Theme.GOLD, UiKit.Size.SMALL) {
+            activity.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(SUGGEST_URL)))
+        }.apply { tag = "achievement_suggest" },
+            LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(14f) })
     }
 
     /** A quiet heading between the groups, with how many are earned. */
@@ -268,6 +290,10 @@ class AchievementsView(activity: Activity, kit: UiKit, onClose: () -> Unit) :
 
     // Touches are swallowed while the coins fly, but leaving the page never is.
     override fun onBack() = close()
+
+    private companion object {
+        const val SUGGEST_URL = "https://apps.muxu.click/d/6xn8cb36"
+    }
 }
 
 /** Night indigo into deep teal, with a warm glow where the trophy stands and two cool ones lower down. */
