@@ -11,6 +11,7 @@ import android.widget.ScrollView
 import cube.run.core.Haptics
 import cube.run.core.SoundFx
 import cube.run.data.Skins
+import cube.run.R
 import cube.run.ui.Anim.move
 
 /** An actual disclosure control that keeps the void's ability a mystery in every preview. */
@@ -51,7 +52,7 @@ class MysteryAbilityDisplay(
     val button = CandyChip(context, Theme.WHITE, kit.dpf(4f), kit.dpf(16f)).apply {
         setImageDrawable(AbilityIcon(Skins.Ability.SECRET))
         setPadding(kit.dp(10f), kit.dp(10f), kit.dp(10f), kit.dp(10f))
-        contentDescription = "Show unknown ability"
+        contentDescription = context.getString(R.string.cd_show_unknown_ability)
         setOnClickListener { toggle() }
     }
 
@@ -60,7 +61,7 @@ class MysteryAbilityDisplay(
         expanded = !expanded
         button.isSelected = expanded
         button.color = if (expanded) Theme.LAVENDER else Theme.WHITE
-        button.contentDescription = "${if (expanded) "Hide" else "Show"} unknown ability"
+        button.contentDescription = button.context.getString(if (expanded) R.string.cd_hide_unknown_ability else R.string.cd_show_unknown_ability)
         SoundFx.play("tap")
         Haptics.click()
         pendingReveal?.let { panel.viewTreeObserver.removeOnPreDrawListener(it) }

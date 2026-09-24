@@ -4,7 +4,10 @@ import android.content.SharedPreferences
 
 /** Calm, evolving cards. Earlier tiers stay earned; only the next goal is presented. */
 object Achievements {
-    data class Definition(val id: String, val title: String, val description: String, val thresholds: IntArray, val tiered: Boolean = true)
+    data class Definition(val id: String, val title: String, val description: String, val thresholds: IntArray, val tiered: Boolean = true) {
+        internal val earnedKey = "achievement_$id"
+        internal val claimedKey = "achievement_claimed_$id"
+    }
     data class Snapshot(val definition: Definition, val value: Int, val earnedTiers: Int, val claimedTiers: Int = 0) {
         val claimableTier: Int? get() = claimedTiers.takeIf { Progress.achievementsUnlocked && it < earnedTiers }
         val rewardAmount: Int? get() = claimableTier?.let { reward(definition, it) }
@@ -77,48 +80,54 @@ object Achievements {
     private lateinit var prefs: SharedPreferences
     private val pending = LinkedHashMap<String, Unlock>()
     internal fun init(preferences: SharedPreferences) { prefs = preferences; synchronized(this) { pending.clear() }; evaluate(false) }
+    private fun value(definition: Definition): Int = when (definition.id) {
+        "runner" -> Progress.achievementScore
+        "coins" -> Progress.achievementCoins
+        "cubes" -> Integer.bitCount(Progress.ownedSkins)
+        "powerups" -> Progress.totalPowerups
+        "boxes" -> Progress.boxesOpened
+        "bubbles" -> Progress.maxBubbles
+        "center" -> Progress.bestCenteredScore
+        "homeress" -> Progress.bestCoinlessScore
+        "gambliphobic" -> Progress.maxRunMissedBoxes
+        "cookie" -> Progress.totalMuteToggles
+        "bounces" -> Progress.maxRunBounces
+        "regular" -> Progress.metric("regular")
+        "shardsmith" -> Progress.metric("shardsmith")
+        "voidwalker" -> Progress.voidPurchases
+        "globetrotter", "scenic_route", "shard_hunter" -> Integer.bitCount(Progress.metric(definition.id))
+        else -> Progress.metric(definition.id)
+    }
+    private fun earnedTiers(definition: Definition, value: Int): Int =
+        definition.thresholds.count { if (definition.id == "runner") value > it else value >= it }
+
     fun snapshot(definition: Definition): Snapshot {
-        val value = when (definition.id) {
-            "runner" -> Progress.achievementScore
-            "coins" -> Progress.achievementCoins
-            "cubes" -> Integer.bitCount(Progress.ownedSkins)
-            "powerups" -> Progress.totalPowerups
-            "boxes" -> Progress.boxesOpened
-            "bubbles" -> Progress.maxBubbles
-            "center" -> Progress.bestCenteredScore
-            "homeress" -> Progress.bestCoinlessScore
-            "gambliphobic" -> Progress.maxRunMissedBoxes
-            "cookie" -> Progress.totalMuteToggles
-            "bounces" -> Progress.maxRunBounces
-            "regular" -> Progress.metric("regular")
-            "shardsmith" -> Progress.metric("shardsmith")
-            "voidwalker" -> Progress.voidPurchases
-            "globetrotter", "scenic_route", "shard_hunter" -> Integer.bitCount(Progress.metric(definition.id))
-            else -> Progress.metric(definition.id)
-        }
-        val earned = definition.thresholds.count { if (definition.id == "runner") value > it else value >= it }
+        val value = value(definition)
+        val earned = earnedTiers(definition, value)
         val awarded = if (::prefs.isInitialized && Progress.achievementsUnlocked)
-            prefs.getInt("achievement_${definition.id}", 0).coerceIn(0, definition.thresholds.size) else 0
+            prefs.getInt(definition.earnedKey, 0).coerceIn(0, definition.thresholds.size) else 0
         val achieved = maxOf(earned, awarded)
-        val claimed = if (::prefs.isInitialized) prefs.getInt("achievement_claimed_${definition.id}", 0).coerceIn(0, achieved) else 0
+        val claimed = if (::prefs.isInitialized) prefs.getInt(definition.claimedKey, 0).coerceIn(0, achieved) else 0
         return Snapshot(definition, value, achieved, claimed)
     }
     fun snapshot(): List<Snapshot> = all.map(::snapshot)
     @Synchronized internal fun evaluate(notify: Boolean = true) {
         if (!::prefs.isInitialized || !Progress.achievementsUnlocked) return
-        val edit = prefs.edit()
-        var changed = false
-        for (definition in all) {
-            val earned = snapshot(definition).earnedTiers
-            val previous = prefs.getInt("achievement_${definition.id}", 0)
+        // Most pickups and score changes cross no tier. Read only what awarding
+        // needs; snapshots and their claimed-tier reads belong to the UI.
+        var edit: SharedPreferences.Editor? = null
+        for (index in all.indices) {
+            val definition = all[index]
+            val previous = prefs.getInt(definition.earnedKey, 0)
+            val earned = maxOf(earnedTiers(definition, value(definition)), previous.coerceIn(0, definition.thresholds.size))
             if (earned > previous) {
-                edit.putInt("achievement_${definition.id}", earned)
-                changed = true
+                val changes = edit ?: prefs.edit().also { edit = it }
+                changes.putInt(definition.earnedKey, earned)
                 // One toast per family, even when a single run crosses several tiers.
                 if (notify) pending[definition.id] = Unlock(definition, earned - 1)
             }
         }
-        if (changed) edit.apply()
+        edit?.apply()
     }
     @Synchronized fun drainUnlocks(): List<Unlock> = pending.values.toList().also { pending.clear() }
     @Synchronized fun clearUnlocks() { pending.clear() }

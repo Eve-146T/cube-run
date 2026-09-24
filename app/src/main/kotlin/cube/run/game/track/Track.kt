@@ -239,7 +239,7 @@ class Track(private val rnd: Random, private val fx: ObstacleFactory) {
     }
 
     /** The section explorer alone shows the section bare: no pickups. Dev mode showers them instead. */
-    private fun noPickups() = Settings.testSection >= 0 && !Settings.devMode
+    private fun noPickups() = Settings.performanceCourse || (Settings.testSection >= 0 && !Settings.devMode)
 
     /** Intro first, an occasional breather, else a weighted pick from the unlocked tiers (bonus worlds have their own pools). */
     private fun pickSection(): Sect {

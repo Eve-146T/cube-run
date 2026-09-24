@@ -1,5 +1,14 @@
 # Test failure history
 
+## 2026-09-23 — Localization lint rejected literal percentages
+
+- Revision: `jackpot` at `adde49b` with uncommitted translations
+- Check: `:app:lintDebug`
+- Command/device: `./gradlew :app:assembleDebug :app:lintDebug --offline`, local build
+- Failure: `StringFormatInvalid` in new English and German ability descriptions: literal percent signs were interpreted as format conversions.
+- Classification: application resource error
+- Resolution: marked the affected non-format strings `formatted="false"` in all three catalogs and reran lint.
+
 ## 2026-09-22 — Trophy-room idle animation stalled the achievement UI suite
 
 - Revision: `jackpot` at `3e1ff83` (the rebuilt achievement page).
@@ -132,3 +141,84 @@
 - Failure: the APK assembled, but Android lint rejected six English and German ability resources because literal percent signs were parsed as incomplete format conversions.
 - Classification: resource-formatting error
 - Resolution: marked non-parameterized percentage strings with `formatted="false"` and reran build and lint.
+
+## 2026-09-23 — low-battery-performance baseline capture overlap
+
+- Revision: jackpot base `0ff04de`; device Moto G7 Power `ZY323NNKTB`.
+- Command: `am instrument -w -e class cube.run.game.RunPerformanceTest -e bot false -e audio on -e section 8 -e world 2 -e modes cruise,hills,jet,second-wind -e seconds 30`.
+- Failure: baseline and sampling instrumentation returned `Process crashed` after a second instrumentation launch overlapped the still-running first launch. No AndroidRuntime exception was logged.
+- Classification: test orchestration/environment problem. Discarded both runs, reran sequentially, and wait for each instrumentation process before subsequent phone operations.
+
+- Follow-up: the sequential retry also stopped after cruise. Android ActivityManager confirms an unrelated APK install at 09:23:24 killed `cube.run` (`stop cube.run due to installPackageLI`); this was not an application crash. Recorded the interruption, reinstalled the retained baseline and reran successfully. Further phone installs stopped once competing use was confirmed.
+
+## 2026-09-23 — instanced coin exact framebuffer edge
+
+- Revision: low-battery-performance work in progress on `0ff04de`; emulator-5560, GLES3.
+- Command: `am instrument -w -e class cube.run.game.CoinBatchTest,cube.run.game.BatchVisibilityTest,cube.run.data.AchievementsProgressTest cube.run.test/androidx.test.runner.AndroidJUnitRunner`.
+- Failure: dedicated coin comparison found four differing channels (one pixel, max delta 38) at yaw phase 9 with translucent coins. Existing batch comparisons and all 26 achievement tests passed.
+- Classification: renderer rounding at a projected edge. Reordered GPU world-position arithmetic to match the CPU reference's left-to-right additions rather than adding the translation last. Exact comparison retained.
+- Resolution: exact 96-state framebuffer rerun passed after matching coordinate arithmetic order (no tolerance or fixture removal).
+
+## 2026-09-23 — performance course shortcut localization gate
+
+- Revision: performance shortcut work on `c96b35a`.
+- Command: `./gradlew :app:assembleDebug :app:assembleDebugAndroidTest :app:lintDebug --max-workers=1` (two builds while the focused test was being added).
+- Failure: lint reported four `MissingTranslation` errors for the new debug course labels in German and Hebrew. Both APKs compiled.
+- Classification: incomplete UI resources. Added the four labels in both supported translations and reran the gate.
+- Resolution: final debug APK, instrumentation APK and lint gate passed; both focused course tests passed on emulator-5560.
+
+## 2026-09-23 — animated menu accessibility dump
+
+- Revision: performance shortcut work on `c96b35a`; emulator-5560 at 540×960, density 240.
+- Command: `adb -s emulator-5560 shell uiautomator dump /sdcard/course-ui.xml`.
+- Failure: the accessibility dump could not obtain an idle state while the main menu animated; no dump file was created.
+- Classification: inspection-tool limitation, not an application failure. Used actual screenshot coordinates for the tap-only flow and inspected screenshots and recordings instead. Course selection, retry, normal exit, Red Pill exit and section exit all worked.
+
+## 2026-09-24 — severe Moto stress setup and concurrent device use
+
+- Revision: `low-battery-performance` at `de2e823`.
+- Device: Moto G7 Power `ZY323NNKTB`; `RunPerformanceTest`, static cruise/hills/jet/wide/late/second-wind, 25 seconds per phase.
+- Failure: preliminary CPU cap validation found policy4 remaining at 1,094,400 kHz rather than 633,600 kHz. The first cruise phase completed, then the GL snapshot timed out. ActivityManager shows concurrent `com.kinetic.sand` instrumentation bringing another activity forward.
+- Classification: environment/setup failure; these measurements are excluded. CPU/GPU limits and boost settings were restored. Stopped Cube Run's next profiling attempt upon discovering concurrent use; requested exclusive access and continued independent work.
+
+## 2026-09-24 — streaming renderer Matrix coin comparison
+
+- Revision: `de2e823` with rotating instance upload buffers; emulator-5560.
+- Test: `CoinBatchTest.instancesMatchCpuAcrossGlintsFogFadeTerrainAndMatrixTransitions` in the focused renderer/lifecycle suite.
+- Failure: exact framebuffer mismatch at phase 0, Matrix blend 0.45 (first differing channel 158600, 78 vs 53). World-box and particle comparisons passed.
+- Investigation: checking unchanged baseline and GPU/CPU state transitions before accepting the upload change.
+- Classification: test fixture state leakage. The unchanged depth setup inherited `LEQUAL` from ModelBatch, while the first Matrix wire draw restored `LESS`; later comparisons therefore had a different depth rule for coplanar translucent triangles. The candidate passes all 96 comparisons when this test runs alone. Made the fixture explicitly set `LESS` before each reference/candidate render; exact byte comparisons remain unchanged.
+- Resolution: the corrected eight-test renderer/terrain/lifecycle suite passed together, retaining byte-exact assertions for every coin state.
+
+## 2026-09-24 — baseline emulator comparison interrupted by another install
+
+- Revision: unchanged `de2e823`; emulator-5562.
+- Test: isolated `CoinBatchTest` baseline investigation.
+- Failure: instrumentation returned `Process crashed`; ActivityManager identifies `installPackageLI` from a competing session at 07:37:25 as the cause.
+- Classification: environment interference. Excluded the run and stopped using emulator-5562; continued sequential checks on emulator-5560.
+
+## 2026-09-24 — shared emulator performance comparison interrupted
+
+- Revision: `de2e823` baseline; emulator-5560, alternating comparison runner.
+- Failure: baseline completed cruise and hills, then returned `Process crashed`; APK identity lookup failed because Cube Run was temporarily absent. ActivityManager confirms a competing `deletePackageX` at 07:41:18 followed by installation.
+- Classification: environment interference. Discarded the incomplete comparison and created a dedicated emulator for this round.
+
+## 2026-09-24 — dedicated emulator display setup
+
+- Command: `emulator -avd cube-severe-round -port 5588 -no-window -no-snapshot -gpu host`.
+- Failure: the host GPU backend could not initialize EGL because the shell had no `DISPLAY`.
+- Classification: environment setup. Restarted only this newly created emulator with the working emulators' display/Xauthority settings; other emulator processes were left running.
+
+## 2026-09-24 — cold dedicated emulator cannot provide useful timing
+
+- Revision: unchanged `de2e823`; fresh Android 35 emulator, 720×1520, host GPU, initially 2 GiB then 1 GiB guest RAM.
+- Failure: under heavy concurrent host activity (about 20 GiB swapped), cold boot stalled; after boot the unchanged baseline cruise measured only 1.39 FPS, 594 ms median frame time. This is unsuitable for a renderer optimization comparison and is not a Cube Run regression attributable to the candidate.
+- Classification: environment/resource pressure. Stopped the run and its dedicated emulator; attempting a prepared, isolated read-only AVD instead of further cold-boot measurements.
+
+## 2026-09-24 — authorized severe Moto sweep interrupted by other applications
+
+- Revision: `5772ad7`; Moto G7 Power `ZY323NNKTB`, verified CPU caps 614400/633600 kHz and GPU cap 320 MHz.
+- Command: `tools/performance/throttle.py --serial ZY323NNKTB --out captures/severe-round/moto-all --timeout 450 -- adb -s ZY323NNKTB shell am instrument -w -e class cube.run.game.RunPerformanceTest -e bot true -e repeatable true -e world 2 -e section 56 -e modes five-boosts,cruise,hills,jet,wide,late,second-wind,matrix -e seconds 40 cube.run.test/androidx.test.runner.AndroidJUnitRunner`.
+- Failure: after user confirmation of availability, other sessions brought `straw.berry` (09:22:39) and `com.kinetic.sand` (09:22:57) forward. Cruise/hills timings include background gaps of 9.71/5.53 seconds and cannot establish rendering performance. Stopped Cube Run, resulting in instrumentation `Process crashed`; no application exception caused that stop.
+- Classification: environment interference. Discarded affected timings, stopped further phone testing after the user confirmed another session may control it. Opening five-boost result is preliminary (59.22 FPS, 22 frames over 25 ms); no complete 60 FPS gate passed.
+- Resolution: all 124 sampled CPU/GPU readings respected the caps. Watchdog restored and verified original ceilings, kernel floor, input boost, performance votes and service states. Retained evidence in `docs/severe-clock-reference/moto/`; exclusive hardware access remains necessary.

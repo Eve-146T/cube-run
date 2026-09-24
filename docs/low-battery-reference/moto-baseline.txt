@@ -1,0 +1,5 @@
+--------- beginning of main
+09-23 09:25:31.357 27705 27768 I RUN_BENCH: cruise frames=898 frame=16.71/18.20/19.58/22.13 cpu=15.24/16.54/18.00/20.10 threadCpu=7.87/9.41/10.25/16.11 over25=0 over50=0 bot=false protectedHits=0 burst=none bursts=0 maxRows=16 maxSpeed=30.0 allocBytes=3538944 gc=1
+09-23 09:25:51.692 27705 27768 I RUN_BENCH: hills frames=899 frame=16.68/18.48/19.77/22.77 cpu=15.21/16.91/17.86/20.19 threadCpu=7.31/8.40/9.76/15.17 over25=0 over50=0 bot=false protectedHits=0 burst=none bursts=0 maxRows=16 maxSpeed=30.0 allocBytes=3506176 gc=0
+09-23 09:26:12.008 27705 27768 I RUN_BENCH: jet frames=898 frame=16.72/17.99/18.81/19.97 cpu=15.28/16.33/17.21/18.30 threadCpu=7.44/8.55/9.10/9.68 over25=0 over50=0 bot=false protectedHits=0 burst=none bursts=0 maxRows=16 maxSpeed=52.49998 allocBytes=4898816 gc=0
+09-23 09:26:32.293 27705 27768 I RUN_BENCH: second-wind frames=898 frame=16.71/18.16/19.68/24.60 cpu=15.33/16.74/18.29/21.82 threadCpu=7.07/8.50/13.84/15.59 over25=0 over50=0 bot=false protectedHits=0 burst=4.49/4.86/4.86/4.86 bursts=10 maxRows=18 maxSpeed=52.49998 allocBytes=4866048 gc=0

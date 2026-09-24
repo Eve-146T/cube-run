@@ -35,6 +35,9 @@ class PrismBatch(private val kit: BoxMeshKit, private val sides: Int = 12, priva
     private val vertsPer = sides * 4 + sides * 2
     private val idxPer = sides * 6 + (sides - 2) * 3 * 2
     private val mesh: Mesh
+    private val instances = if (Gdx.gl30 != null) InstancedPrisms(kit, sides, max) else null
+    private var useInstances = false
+    private var instancesAllowed = false
     private val verts = FloatArray(max * vertsPer * 4)
     private var count = 0
     private val visibility = BatchVisibility()
@@ -77,7 +80,9 @@ class PrismBatch(private val kit: BoxMeshKit, private val sides: Int = 12, priva
         mesh.setIndices(idx)
     }
 
-    fun begin(camera: Camera? = null) {
+    fun begin(camera: Camera? = null, instanced: Boolean = true) {
+        instancesAllowed = instanced && instances != null
+        instances?.begin()
         count = 0; translucent = false
         visibility.begin(camera)
     }
@@ -101,17 +106,24 @@ class PrismBatch(private val kit: BoxMeshKit, private val sides: Int = 12, priva
      */
     fun coin(x: Float, y0: Float, z: Float, r: Float, t: Float, yawDeg: Float, col: Color, fog: Float = 0f) {
         if (count >= max) return
+        // The game sets Matrix strength while filling the batch, after begin().
+        // Its wire edges need CPU vertices throughout the transition.
+        if (count == 0) {
+            val instanced = instancesAllowed && (wires?.amount ?: 0f) == 0f
+            if (instanced != useInstances) lightYaw = Float.NaN
+            useInstances = instanced
+        }
         val y = y0 + (terrain?.invoke(z) ?: 0f)
         // The gold rim and raised heart share an orientation, regardless of size or fog.
         if (yawDeg != lightYaw) {
             lightYaw = yawDeg
             val rad = yawDeg * (Math.PI.toFloat() / 180f)
             spinCos = cos(rad); spinSin = sin(rad)
-            for (k in 0 until sides) {
+            if (!useInstances) for (k in 0 until sides) {
                 kit.lightFace(nx[k] * spinCos, ny[k], -nx[k] * spinSin, light, k * 3)
             }
-            kit.lightFace(spinSin, 0f, spinCos, light, sides * 3)
-            kit.lightFace(-spinSin, 0f, -spinCos, light, (sides + 1) * 3)
+            if (!useInstances) kit.lightFace(spinSin, 0f, spinCos, light, sides * 3)
+            if (!useInstances) kit.lightFace(-spinSin, 0f, -spinCos, light, (sides + 1) * 3)
             glintFront = 0.86f + 0.5f * glint(spinSin, spinCos)
             glintBack = 0.86f + 0.5f * glint(-spinSin, -spinCos)
         }
@@ -119,6 +131,12 @@ class PrismBatch(private val kit: BoxMeshKit, private val sides: Int = 12, priva
         val hz = t / 2f
         if (!visibility.visible(x, y, z, abs(c * r) + abs(s * hz), abs(r),
                 abs(s * r) + abs(c * hz))) return
+        if (useInstances) {
+            if (opacity < 1f) translucent = true
+            instances!!.add(x, y, z, r, t, c, s, col, fog, fogColor, opacity)
+            count++
+            return
+        }
         var w = count * vertsPer * 4
         // local (lx, ly, lz) -> world: (x + lx*c + lz*s, y + ly, z - lx*s + lz*c)
         for (k in 0 until sides) {
@@ -164,6 +182,7 @@ class PrismBatch(private val kit: BoxMeshKit, private val sides: Int = 12, priva
 
     /** One opaque, depth-written draw call for every queued coin. */
     fun render(cam: Camera) {
+        if (useInstances) { instances!!.render(cam, translucent); return }
         val n = count
         if (n == 0) return
         mesh.setVertices(verts, 0, n * vertsPer * 4)
@@ -184,5 +203,5 @@ class PrismBatch(private val kit: BoxMeshKit, private val sides: Int = 12, priva
         Gdx.gl.glDisable(GL20.GL_BLEND)
     }
 
-    override fun dispose() { mesh.dispose() }
+    override fun dispose() { instances?.dispose(); mesh.dispose() }
 }

@@ -8,6 +8,7 @@ import android.widget.FrameLayout
 import cube.run.core.SoundFx
 import cube.run.core.Stage
 import cube.run.core.VoidBeats
+import cube.run.R
 
 /**
  * The HUD's half of the void show, which the GL stage plays (game.stage.VoidShow).
@@ -46,7 +47,7 @@ internal class VoidShowOverlay(
     init {
         isClickable = true
         isFocusable = true
-        contentDescription = "The void stirs"
+        contentDescription = context.getString(R.string.cd_void_stirs)
         importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_YES
         accessibilityLiveRegion = ACCESSIBILITY_LIVE_REGION_POLITE
         addView(words, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT, Gravity.TOP).apply {

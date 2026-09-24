@@ -1,0 +1,12 @@
+
+cube.run.game.BatchVisibilityTest:..
+cube.run.game.RedPillTest:...
+cube.run.game.ShopRenderingRegressionTest:....
+cube.run.game.LaunchLifecycleTest:....
+cube.run.game.TimingAndBalanceTest:.
+
+Time: 21.797
+
+OK (14 tests)
+
+

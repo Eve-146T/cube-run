@@ -60,6 +60,33 @@ object Settings {
     @Volatile var testPillWorld = false
     @Volatile var testWorld: Int = -1
 
+    @Volatile private var performanceCourseSelected = false
+    val performanceCourse: Boolean get() = cube.run.BuildConfig.DEBUG && performanceCourseSelected
+    private var performancePreviousDev = false
+    private var performancePreviousWorld = -1
+
+    /** A process-scoped course: retries retain it, a fresh app process does not. */
+    fun selectPerformanceCourse() {
+        if (!cube.run.BuildConfig.DEBUG) return
+        if (!performanceCourseSelected) {
+            performancePreviousDev = devMode
+            performancePreviousWorld = testWorld
+        }
+        performanceCourseSelected = true
+        setDevMode(true); Progress.enterDev()
+        testSection = 56; testWorld = 2; testPillWorld = false
+        testBonus = -1; testBonusNow = -1; testBoxes = 0
+    }
+
+    /** Restore the pre-test bank/developer state without changing equipment. */
+    fun leavePerformanceCourse() {
+        if (!performanceCourseSelected) return
+        performanceCourseSelected = false
+        testWorld = performancePreviousWorld
+        setDevMode(performancePreviousDev)
+        if (!performancePreviousDev) Progress.leaveDev()
+    }
+
     fun init(ctx: Context) {
         prefs = ctx.applicationContext.getSharedPreferences("settings", Context.MODE_PRIVATE)
         smoothControlPref = prefs.getBoolean("smooth_control", false)

@@ -1,0 +1,117 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    <string name="lottery_description">כל המטבעות שאוספים משמשים להשתתפות בהגרלה!\n\nהפרס הגדול הוא 250,000&#x2009;^1. אלה הסיכויים:</string>
+    <string name="lottery_dev_odds" formatted="false">2%</string>
+    <string name="lottery_coin_odds">1 ל־100,000</string>
+    <string name="lottery_box_odds" formatted="false">1.3%</string>
+    
+    <string name="cd_jackpot_win">פרס גדול. %1$s מטבעות.</string>
+    <string name="cd_show_unknown_ability">הצגת יכולת לא ידועה</string>
+    <string name="cd_hide_unknown_ability">הסתרת יכולת לא ידועה</string>
+    <string name="cd_void_stirs">הריק מתעורר</string>
+    <string name="achievements_medals">מדליות</string>
+    <string name="achievements_challenges">אתגרים</string>
+    <string name="achievements_complete">הושלם</string>
+    <string name="achievements_claimed">נאסף</string>
+    <string name="achievements_claimed_best">נאסף · %1$s</string>
+    <string name="achievements_best_bounces">שיא: %1$s ניתורים</string>
+    <string name="achievements_best_progress">שיא: %1$s / %2$s</string>
+    <string name="achievements_sub_runner">ניקוד בריצה אחת</string>
+    <string name="achievements_sub_coins">סך הכול שנאסף</string>
+    <string name="achievements_sub_cubes">אוסף הקוביות</string>
+    <string name="achievements_sub_powerups">כוחות מיוחדים שנאספו</string>
+    <string name="achievements_sub_boxes">תיבות הפתעה שנפתחו</string>
+    <string name="achievements_sub_bubbles">להחזיק 1,000 בועות בו־זמנית</string>
+    <string name="achievements_sub_bounces">לנתר מהקיר 67 פעמים בריצה אחת</string>
+    <string name="achievements_sub_center">להגיע ל־100 נקודות בלי לעזוב את הנתיב האמצעי</string>
+    <string name="achievements_sub_homeress">לצבור 60 נקודות בלי לאסוף מטבע</string>
+    <string name="achievements_sub_gambliphobic">להחמיץ 10 תיבות הפתעה בריצה אחת</string>
+    <string name="achievements_sub_cookie">להפעיל ולכבות את הצליל 1,000 פעמים</string>
+    <string name="achievements_reward_ready">הפרס מוכן</string>
+    <string name="achievements_in_progress">בתהליך</string>
+    <string name="achievements_locked">נעול</string>
+    <string name="achievements_claim">לאסוף</string>
+    <string name="achievements_claim_all">לאסוף הכול</string>
+    <string name="cd_all_rewards_claimed">כל הפרסים נאספו</string>
+    <string name="cd_challenge_complete">האתגר הושלם</string>
+    <string name="cd_medal_status">%1$s: %2$s</string>
+    <string name="cd_percent_complete">%1$d אחוזים הושלמו</string>
+    <string name="cd_reward_locked">פרס: %1$s מטבעות, נעול</string>
+    <string name="cd_claim_reward_for">איסוף %1$s מטבעות עבור %2$s</string>
+    <string name="cd_achievement_reward">%1$s. %2$s. פרס: %3$s מטבעות.</string>
+    <string name="cd_achievements_earned">הושגו %1$d מתוך %2$d הישגים</string>
+    <string name="cd_claim_all_rewards">איסוף כל הפרסים, %1$s מטבעות</string>
+    <string name="achievement_runner">ריצה טובה</string>
+    <string name="achievement_coins">מטבעות לכל החיים</string>
+    <string name="achievement_cubes">קוביות שנפתחו</string>
+    <string name="achievement_powerups">אוסף הכוחות</string>
+    <string name="achievement_boxes">מחפש ההפתעות</string>
+    <string name="achievement_bubbles">בועה גדולה</string>
+    <string name="achievement_bounces">מקפץ הקירות</string>
+    <string name="achievement_center">נשארים במרכז</string>
+    
+    <string name="achievement_cookie">אלוף ההקשות</string>
+    <string name="medal_bronze">ארד</string>
+    <string name="medal_silver">כסף</string>
+    <string name="medal_diamond">יהלום</string>
+    <string name="shop_mystery_blurb">מטבעות, בועות, רסיסים או עיצוב חדש</string>
+    <string name="shop_achievements_blurb">פתיחת האפשרות לצבור הישגים ולקבל פרסים!</string>
+    <string name="cd_achievements_unlocked">ההישגים נפתחו</string>
+    <string name="cd_offer_coins">הצעת %1$s מטבעות</string>
+    <string name="cd_buy_coins">קנייה תמורת %1$s מטבעות</string>
+    <string name="wardrobe_buy">קנייה&#x2009;</string>
+    <string name="shop_reset_progress">איפוס ההתקדמות</string>
+    <string name="shop_reset_question">לאפס את ההתקדמות?</string>
+    <string name="shop_reset_explanation">למחוק את כל המטבעות, השדרוגים, העיצובים, ההישגים והתוצאות?\nאי אפשר לבטל את הפעולה.</string>
+    <string name="shop_cancel">ביטול</string>
+    <string name="shop_reset">איפוס</string>
+    <string name="shop_reset_failed">האיפוס לא נשמר. נסו שוב.</string>
+    <string name="void_line_0">השדרוג הזה לא עושה כלום.</string>
+    <string name="void_line_1">מה חשבת שיקרה?</string>
+    <string name="void_line_2">לעולם לא תלמדו?</string>
+    <string name="void_line_3">עדיין כלום.</string>
+    <string name="void_line_4">יכולתם לקנות משהו מועיל.</string>
+    <string name="void_line_5">השתיקה מתחילה להיות יקרה.</string>
+    <string name="void_line_6">בחושך אין החזרים.</string>
+    <string name="void_line_7">אתם ממש מתמידים.</string>
+    <string name="void_line_8">עוד אחת לא תשנה דבר.</string>
+    <string name="void_line_9">בטוחים?</string>
+    <string name="void_line_10">בסדר.</string>
+    <string name="void_line_11">היה עוד משהו.</string>
+    <string name="void_line_12">אל תמהרו לשמוח.</string>
+    <string name="void_line_13">החושך זוכר אתכם.</string>
+    <string name="void_line_14">משהו עוקב אחריכם.</string>
+    <string name="void_line_15">עדיין אי אפשר לראות אותו.</string>
+    <string name="void_line_16">המשיכו ללכת.</string>
+    <string name="void_line_17">אפילו האין משאיר עקבות.</string>
+    <string name="void_line_18">כמעט צל.</string>
+    <string name="void_line_19">הביטו לאחור.</string>
+    <string name="void_line_20">שובל. על כל הטרחה.</string>
+    <string name="void_line_21">אתם עדיין כאן.</string>
+    <string name="void_line_22">לשתיקה יש צורה.</string>
+    <string name="void_line_23">זה מתקרב.</string>
+    <string name="void_line_24">משהו רוצה לשמור עליכם.</string>
+    <string name="void_line_25">או להשאיר אתכם כאן.</string>
+    <string name="void_line_26">עוד קצת חושך.</string>
+    <string name="void_line_27">עכשיו אתם מרגישים את זה.</string>
+    <string name="void_line_28">צעיף דקיק.</string>
+    <string name="void_line_29">נשמו.</string>
+    <string name="void_line_30">החושך מקיף אתכם.</string>
+    <string name="void_echo_0">אין עוד. כנראה.</string>
+    <string name="void_echo_1">הריק מודה לכם על התרומה.</string>
+    <string name="void_echo_2">כבר היינו כאן.</string>
+    <string name="void_echo_3">עדיין מקשיבים?</string>
+    <string name="void_echo_4">השתיקה מעמיקה.</string>
+</resources>

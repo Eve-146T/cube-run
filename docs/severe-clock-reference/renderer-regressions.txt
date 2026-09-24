@@ -1,0 +1,11 @@
+
+cube.run.game.BatchVisibilityTest:..
+cube.run.game.CoinBatchTest:.
+cube.run.game.TerrainMeshTest:.
+cube.run.game.LaunchLifecycleTest:....
+
+Time: 26.47
+
+OK (8 tests)
+
+

@@ -305,7 +305,7 @@ private class WardrobeActionLabel(
         this.status = status
         amount = number(price)
         labelChanged = true
-        button.contentDescription = status ?: "Buy $amount coins"
+        button.contentDescription = status ?: button.context.getString(R.string.cd_buy_coins, amount)
         requestLayout()
     }
 
@@ -342,7 +342,7 @@ private class WardrobeActionLabel(
         super.onMeasure(widthMeasureSpec, heightMeasureSpec)
     }
 
-    private fun labelAt(sizePx: Float): CharSequence = status ?: SpannableStringBuilder("BUY \u2009").apply {
+    private fun labelAt(sizePx: Float): CharSequence = status ?: SpannableStringBuilder(button.context.getString(R.string.wardrobe_buy)).apply {
         val coin = CoinIcon().apply {
             val edge = (sizePx * 1.15f).toInt().coerceAtLeast(1)
             setBounds(0, 0, edge, edge)

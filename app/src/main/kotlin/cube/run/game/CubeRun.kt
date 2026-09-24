@@ -71,7 +71,12 @@ class CubeRun(session: GameSession, private val autoStart: Boolean = false, priv
     private val tmpCol = Color()
     private val phasePosition = Vector3()
 
-    private val rnd = Random(System.nanoTime())
+    private class CourseRandom : Random() {
+        private var source = Random(73)
+        override fun nextBits(bitCount: Int) = source.nextBits(bitCount)
+        fun reset() { source = Random(73) }
+    }
+    private val rnd = if (Settings.performanceCourse) CourseRandom() else Random(System.nanoTime())
     private val obstacles = ObstacleFactory(rnd)
     private val track = Track(rnd, obstacles)
     private val trackArt = TrackRenderer(this)
@@ -199,6 +204,7 @@ class CubeRun(session: GameSession, private val autoStart: Boolean = false, priv
         finishRendererStartup()
         opening.finish()
         started = true
+        (rnd as? CourseRandom)?.reset() // menu idle duration must not change the course sequence
         runSkin = Skins.get(Progress.skin)
         runBubble = BubbleSkins.get(Progress.bubbleSkin)
         player.zappyEnabled = Skins.Ability.ZAPPY in runSkin.abilities
@@ -218,13 +224,14 @@ class CubeRun(session: GameSession, private val autoStart: Boolean = false, priv
         coinsRun = 0; coinsRunF = 0.0; boxesRun = 0; coinStreak = 0
         if (Settings.devMode && Settings.testBoxes > 0) { boxesRun = Settings.testBoxes; session.setBoxes(boxesRun) } // dev: boxes to open
         track.portalPool = when {
+            Settings.performanceCourse -> emptyList()
             Settings.testBonus >= 0 -> listOf(Settings.testBonus)
             Settings.devMode -> Bonus.all.map { it.id }
             else -> Bonus.unlocked(Scores.best("cuberun")).map { it.id }
         }
         track.portalEvery = if (Settings.devMode) 28 else 110 - 14 * Progress.level(Progress.PORTALS) // dev: portals galore too
         powerUps.reset(); redPill.reset(); jetGrace = 0f
-        if (BuildConfig.DEBUG && BuildConfig.JACKPOT_TEST_WORLD) {
+        if (BuildConfig.DEBUG && BuildConfig.JACKPOT_TEST_WORLD && !Settings.performanceCourse) {
             track.portalPool = emptyList()
             powerUps.magnet.start(3600f)
         }

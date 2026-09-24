@@ -1,0 +1,4 @@
+--------- beginning of main
+09-24 08:01:31.811  4266  4289 I RUN_BENCH: cruise frames=899 frame=16.62/19.86/23.56/29.24 cpu=3.57/6.82/10.73/25.64 threadCpu=3.61/5.52/7.32/13.87 over25=5 over50=0 bot=false protectedHits=0 burst=none bursts=0 maxRows=18 maxSpeed=30.0 allocBytes=6374864 gc=1 fps=59.83 measuredMs=15025.87
+09-24 08:01:52.037  4266  4289 I RUN_BENCH: second-wind frames=866 frame=16.71/24.67/34.94/44.07 cpu=4.96/16.19/28.61/35.48 threadCpu=4.43/8.45/10.69/15.59 over25=40 over50=0 bot=false protectedHits=0 burst=1.80/5.49/5.49/5.49 bursts=10 maxRows=19 maxSpeed=30.0 allocBytes=5020432 gc=1 fps=57.72 measuredMs=15003.41
+09-24 08:02:12.391  4266  4289 I RUN_BENCH: matrix frames=780 frame=17.67/32.41/49.50/69.97 cpu=10.12/27.02/39.70/68.72 threadCpu=7.26/11.37/14.46/17.76 over25=100 over50=6 bot=false protectedHits=0 burst=none bursts=0 maxRows=19 maxSpeed=30.0 allocBytes=6440432 gc=1 fps=51.92 measuredMs=15022.63

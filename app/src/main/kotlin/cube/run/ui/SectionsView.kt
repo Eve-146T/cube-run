@@ -95,7 +95,7 @@ class SectionThumbView(ctx: Context, sect: Sect) : View(ctx) {
  * While one is chosen the page says so at the top and offers PLAY NORMALLY.
  */
 @SuppressLint("SetTextI18n", "ViewConstructor")
-class SectionsView(activity: Activity, kit: UiKit, onClose: () -> Unit) : Page(activity, kit, kit.ctx.getString(R.string.text_sections), dark = false, onClosed = onClose) {
+class SectionsView(activity: Activity, kit: UiKit, private val reloadMenu: (() -> Unit)? = null, onClose: () -> Unit) : Page(activity, kit, kit.ctx.getString(R.string.text_sections), dark = false, onClosed = onClose) {
 
     private val grid = LinearLayout(activity).apply {
         orientation = LinearLayout.VERTICAL
@@ -133,14 +133,16 @@ class SectionsView(activity: Activity, kit: UiKit, onClose: () -> Unit) : Page(a
         if (chosen != null || Settings.testPillWorld) {
             status.addView(LinearLayout(activity).apply {
                 orientation = LinearLayout.VERTICAL
-                addView(kit.text(if (Settings.testPillWorld) kit.ctx.getString(R.string.text_red_pill_test) else kit.ctx.getString(R.string.text_testing, kit.ctx.gameText(chosen!!.name)), 14f, Theme.INK, 700, Gravity.START))
-                addView(kit.text(if (Settings.testPillWorld) kit.ctx.getString(R.string.text_pills_on_loop_clear_middle_lane) else kit.ctx.getString(R.string.text_the_run_plays_only_this_section_on_loop_no_pickups), 12f, Theme.INK_SOFT, 500, Gravity.START))
+                addView(kit.text(if (Settings.performanceCourse) kit.ctx.getString(R.string.performance_test_title) else if (Settings.testPillWorld) kit.ctx.getString(R.string.text_red_pill_test) else kit.ctx.getString(R.string.text_testing, kit.ctx.gameText(chosen!!.name)), 14f, Theme.INK, 700, Gravity.START))
+                addView(kit.text(if (Settings.performanceCourse) kit.ctx.getString(R.string.performance_test_description) else if (Settings.testPillWorld) kit.ctx.getString(R.string.text_pills_on_loop_clear_middle_lane) else kit.ctx.getString(R.string.text_the_run_plays_only_this_section_on_loop_no_pickups), 12f, Theme.INK_SOFT, 500, Gravity.START))
             }, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
             status.addView(kit.button(kit.ctx.getString(R.string.text_play_normally), Theme.PLAY, UiKit.Size.SMALL) {
+                val wasPerformance = Settings.performanceCourse
+                Settings.leavePerformanceCourse()
                 Settings.testPillWorld = false
                 Settings.testSection = -1
                 Settings.testBonus = -1; Settings.testBonusNow = -1
-                render()
+                if (wasPerformance && reloadMenu != null) reloadMenu.invoke() else render()
             }, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { marginStart = dp(10f) })
         } else {
             status.addView(kit.text(kit.ctx.getString(R.string.text_choose_a_section), 13f, Theme.INK, 600, Gravity.START),
@@ -153,10 +155,18 @@ class SectionsView(activity: Activity, kit: UiKit, onClose: () -> Unit) : Page(a
         grid.addView(kit.text(kit.ctx.getString(R.string.text_test_worlds), 12f, Theme.INK_SOFT, 700, Gravity.START).apply {
             setPadding(dp(6f), dp(10f), dp(6f), dp(8f))
         })
+        if (cube.run.BuildConfig.DEBUG) grid.addView(kit.button(kit.ctx.getString(R.string.performance_test_start), Theme.CYAN, UiKit.Size.NORMAL) {
+            Settings.selectPerformanceCourse()
+            reloadMenu?.invoke() ?: close()
+        }.apply { tag = "performance_test_start" }, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+            setMargins(dp(4f), 0, dp(4f), dp(12f))
+        })
         grid.addView(kit.button(kit.ctx.getString(R.string.text_red_pill), Theme.MINT, UiKit.Size.NORMAL) {
+            val wasPerformance = Settings.performanceCourse
+            Settings.leavePerformanceCourse()
             Settings.testPillWorld = true
             Settings.testSection = -1; Settings.testBonus = -1; Settings.testBonusNow = -1
-            close()
+            if (wasPerformance && reloadMenu != null) reloadMenu.invoke() else close()
         }, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
             setMargins(dp(4f), 0, dp(4f), dp(16f))
         })
@@ -187,10 +197,12 @@ class SectionsView(activity: Activity, kit: UiKit, onClose: () -> Unit) : Page(a
             LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(5f) })
         addView(kit.text(kit.ctx.getString(R.string.text_section_stats, s.tier, kit.ctx.resources.getQuantityString(R.plurals.count_rows, s.steps.size, s.steps.size)), 9f, Theme.MUTED, 500))
         setOnClickListener {
+            val wasPerformance = Settings.performanceCourse
+            Settings.leavePerformanceCourse()
             Settings.testPillWorld = false
             Settings.testSection = s.id
             SoundFx.play("tap"); Haptics.click()
-            close()
+            if (wasPerformance && reloadMenu != null) reloadMenu.invoke() else close()
         }
     }
 }
