@@ -104,9 +104,6 @@ counter starts with this version, persists between sessions, and is cleared by
 Reset Progress. These three challenges use the same unlock gate, quiet discovery,
 claim flow, completed checkmarks, and dev-mode support as the other challenges.
 
-See [cosmetic abilities](cosmetic-abilities.md) for equipped-cube and bubble effects,
-including how Gold, Coal, and Gambler affect collected coins.
-
 Run notifications are silent, show one medal at a time for 2.8 seconds, and start
 at least 10 seconds apart. Pending tiers from the same achievement coalesce into
 the highest tier. The compact white candy popup shows a medal/check, the achievement
@@ -188,8 +185,6 @@ their mystery ability buttons in the wardrobe, displaying only `???` in the same
 white explanation card as ordinary abilities. Rapid toggles cancel the preceding transition.
 The original ordinary Void cube is preserved. Further offerings continue
 after all three discoveries, with rotating dialogue.
-
-See [verification notes](achievements-verification.md) for build and physical-device evidence.
 
 ## Developer reset
 

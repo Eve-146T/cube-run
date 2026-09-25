@@ -18,7 +18,7 @@ No measured frame exceeded 25 ms in these comparisons. SoundPool call p95 with a
 
 The bot was protected with reported collision counts in these stress tests. Warming its planner removed opening failures on Motorola; the Pixel controller still struggled with the jump/duck course and had repeated protected collisions, so its results have that limitation. Initial cold-planner runs are retained locally but excluded from the table. These runs do not establish flawless bot play.
 
-The attempted 614.4/633.6 MHz caps were partly overridden by the Motorola power manager/input boosts. Logs show variable reduced frequencies rather than a fixed one-third-speed test. A bounded on-device watchdog and host `finally` restored the original 1.8048 GHz maximums and schedutil governors; restoration was verified. Aggregate results are in [metrics.json](sound-reference/metrics.json); raw local traces, preferences and device properties were not published.
+The attempted 614.4/633.6 MHz caps were partly overridden by the Motorola power manager/input boosts. Logs show variable reduced frequencies rather than a fixed one-third-speed test. A bounded on-device watchdog and host `finally` restored the original 1.8048 GHz maximums and schedutil governors; restoration was verified. Aggregate results were recorded locally; raw local traces, preferences and device properties were not published.
 
 ## Published APK check
 

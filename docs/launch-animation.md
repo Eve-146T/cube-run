@@ -163,7 +163,6 @@ less than one frame, with no independent re-zeroing or changed playback speed.
 - [Comparison video](../captures/launch-animation/comparison-final.mp4)
 - [After source filmstrip](../captures/launch-animation/final/strip-2/sheet.png)
 - [Before source filmstrip](../captures/launch-animation/before/strip-2/sheet.png)
-- [Committed measurements, traces and APK hashes](launch-animation-reference/measurements.json)
 - Final raw recordings: `captures/launch-animation/{before,final}/`.
 - Final tested APK: `captures/launch-animation/final-apk/app-debug.apk`.
 - Test logs: `captures/launch-animation/tests-final.txt` (27 passed),

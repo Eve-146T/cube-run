@@ -1,8 +1,0 @@
-
-cube.run.game.PerformanceCourseTest:..
-
-Time: 0.635
-
-OK (2 tests)
-
-

@@ -50,7 +50,7 @@ The actual Player platform probe confirms a separate issue: **0/12** post-edge j
 
 The supported conclusion is **general regression not reproduced here; platform-edge input rejection confirmed and fixed; latest input latency measurably improved**. It would be wrong to conclude that the original player's experience was imaginary or that all device-specific responsiveness problems are solved.
 
-See [metrics](responsiveness-reference/metrics.json), [joined input timestamps](responsiveness-reference/trials.csv) and [jump cases](responsiveness-reference/jumps.csv). APK SHA-256 values are included in the metrics. Timings were taken before the later test-only replay and diagnostic-counter adjustments; production code is identical.
+Timings were taken before the later test-only replay and diagnostic-counter adjustments; production code is identical.
 
 ## Validation and final performance check
 

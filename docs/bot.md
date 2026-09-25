@@ -79,7 +79,7 @@ search effort, solved status and jitter survival. An unsuccessful search means
 
 ## Interpreting skill and speed
 
-The reference is [section-ratings.md](bot-reference/section-ratings.md). It covers
+The reference ratings cover
 the 53 authored sections, three hill patterns, warm-up and breather. Every fixture
 repeats the section twice to include its own exit/entry transition, using the real
 lane-walk decoder and its spacing. Both mirrors and all entry lanes are sampled.
@@ -136,9 +136,7 @@ parser can handle **at least 240/s** under rendering load. This is not a measure
 of the physical digitizer's sampling rate, and 240 was the highest tested rate,
 not a proven upper bound. A flick comprises down, move, and up touch reports.
 The probe renders the environment while clearing collision rows so a crash cannot
-interrupt measurement; it is not a dense-obstacle frame-time benchmark. Raw
-[automation](bot-reference/motorola-uiautomation.csv) and
-[kernel](bot-reference/motorola-kernel.csv) measurements accompany this document.
+interrupt measurement; it is not a dense-obstacle frame-time benchmark.
 
 At 240/s the rooted probe's gesture-start-to-recognition latency was 12 ms median,
 21 ms p95. At low probe rates that metric also includes the deliberately longer
@@ -162,9 +160,7 @@ The helper and wrapper are removed after the command.
 
 The [section review page](section-review.html) contains the 53 selectable in-game
 patterns in the same tier/ID order as the section grid, visual previews, bot reference ratings and separate player feedback for
-each section/boost combination. Rebuild it with `uv run --no-project
-tools/section-review/build.py`; this regenerates both published rater variants from
-the current game catalog. It stores drafts locally, imports and exports JSON, and sends
+each section/boost combination. It stores drafts locally, imports and exports JSON, and sends
 feedback to the local drop service only when the player clicks Send feedback.
 
 `--boosts` accepts 0–10. Values above five explicitly enable development mode;
@@ -205,8 +201,7 @@ survey is still labeled a reference, not a newly measured 90 Hz limit.
 
 Tested on 2026-09-12 against game revision `3d8a951` in the local `performance`
 worktree. The generated trials, fixture binary, replay inputs, device logs and
-recordings are retained under `captures/bot`; compact reference tables live in
-`docs/bot-reference`.
+recordings are retained under `captures/bot`.
 
 ## Dev-mode idle player
 

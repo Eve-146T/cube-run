@@ -1,5 +1,0 @@
-Clock caps active: [614400, 614400, 633600, 633600, 320000000, 320000000]
-
-cube.run.game.RunPerformanceTest:INSTRUMENTATION_RESULT: shortMsg=Process crashed.
-INSTRUMENTATION_CODE: 0
-Restored clock controls: {"/sys/module/big_cluster_min_freq_adjust/parameters/min_freq_floor": "1094400", "/sys/module/cpu_boost/parameters/input_boost_freq": "0:1401600 1:0 2:0 3:0 4:0 5:0 6:0 7:0", "/sys/module/msm_performance/parameters/cpu_max_freq": "0:4294967295 1:4294967295 2:4294967295 3:4294967295 4:4294967295 5:4294967295 6:4294967295 7:4294967295", "/sys/devices/system/cpu/cpufreq/policy0/scaling_min_freq": "614400", "/sys/devices/system/cpu/cpufreq/policy4/scaling_min_freq": "1094400", "/sys/devices/system/cpu/cpufreq/policy0/scaling_max_freq": "1804800", "/sys/devices/system/cpu/cpufreq/policy4/scaling_max_freq": "1804800", "/sys/class/kgsl/kgsl-3d0/devfreq/max_freq": "725000000"}
