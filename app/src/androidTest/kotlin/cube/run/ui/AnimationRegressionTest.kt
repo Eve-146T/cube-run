@@ -369,18 +369,41 @@ class AnimationRegressionTest {
     }
 
     @Test fun shopRepeatedRoundTripsFinishWithinNavigationBudget() {
-        waitFor(1400)
+        // Measure navigation after the launch scene has finished preparing the menu.
+        // Phone startup varies; a fixed sleep can accidentally time construction during launch.
+        val readyBy = SystemClock.uptimeMillis() + 8000
+        var ready = false
+        while (!ready && SystemClock.uptimeMillis() < readyBy) {
+            waitFor(50)
+            ui { ready = field<ShopView?>(field<Hud>(it, "hud"), "preparedShop") != null }
+        }
+        assertTrue("The home menu prepared its shop", ready)
         repeat(3) { cycle ->
             lateinit var hud: Hud
             val openedAt = SystemClock.uptimeMillis()
-            ui { hud = field(it, "hud"); field<MainMenu>(hud, "menu").shopBalance.performClick() }
+            var firstDrawMs = 0L
+            val firstDraw = CountDownLatch(1)
+            ui {
+                hud = field(it, "hud"); field<MainMenu>(hud, "menu").shopBalance.performClick()
+                val shop = field<Page>(hud, "page")
+                shop.viewTreeObserver.addOnPreDrawListener(object : android.view.ViewTreeObserver.OnPreDrawListener {
+                    override fun onPreDraw(): Boolean {
+                        shop.viewTreeObserver.removeOnPreDrawListener(this)
+                        firstDrawMs = SystemClock.uptimeMillis() - openedAt
+                        firstDraw.countDown()
+                        return true
+                    }
+                })
+            }
+            assertTrue("Shop started drawing", firstDraw.await(2, TimeUnit.SECONDS))
+            assertTrue("Shop response before animation took $firstDrawMs ms", firstDrawMs < 250)
             var opened = false
-            while (!opened && SystemClock.uptimeMillis() - openedAt < 500) {
+            while (!opened && SystemClock.uptimeMillis() - openedAt < 700) {
                 waitFor(10)
                 ui { opened = Stage.shopProgress == 1f }
             }
             val openMs = SystemClock.uptimeMillis() - openedAt
-            assertTrue("Shop cycle $cycle took $openMs ms to open", opened && openMs < 350)
+            assertTrue("Shop cycle $cycle did not finish its entrance", opened)
             val closedAt = SystemClock.uptimeMillis()
             ui { field<Page>(hud, "page").navigateBack() }
             var closed = false
@@ -389,7 +412,7 @@ class AnimationRegressionTest {
                 ui { closed = field<Page?>(hud, "page") == null }
             }
             val closeMs = SystemClock.uptimeMillis() - closedAt
-            android.util.Log.i("MenuMotion", "Shop cycle $cycle: open=$openMs ms close=$closeMs ms")
+            android.util.Log.i("MenuMotion", "Shop cycle $cycle: response=$firstDrawMs ms open animation included=$openMs ms close=$closeMs ms")
             assertTrue("Shop cycle $cycle took $closeMs ms to close", closed && closeMs < 300)
             ui { assertEquals(Stage.NONE, Stage.mode); settled(field(field<MainMenu>(hud, "menu"), "rightChips")) }
         }

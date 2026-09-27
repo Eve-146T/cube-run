@@ -26,7 +26,7 @@ import cube.run.ui.Anim.move
  * Must only be touched from the UI thread (GameHostSession marshals for you).
  */
 @SuppressLint("SetTextI18n", "ViewConstructor")
-class Hud(private val activity: Activity, openingEntrance: Boolean = false) : FrameLayout(activity) {
+class Hud(private val activity: Activity, openingEntrance: Boolean = false, returningToMenu: Boolean = false) : FrameLayout(activity) {
 
     /** Animated overlays can grow into any part of the game window between layouts. */
     override fun gatherTransparentRegion(region: android.graphics.Region?): Boolean {
@@ -111,7 +111,8 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false) : Fr
         }
     }
     private val menu: MainMenu = MainMenu(activity, kit, { openShop() }, { openWardrobe() }, { openSections() }, { menu.pulseBank() },
-        openAchievements = { openAchievements() }, openLanguages = { openLanguages() }, openingEntrance = openingEntrance)
+        openAchievements = { openAchievements() }, openLanguages = { openLanguages() }, openingEntrance = openingEntrance,
+        returningToMenu = returningToMenu)
 
     /** One launch clock owns the fade. Controls are laid out at their final positions from frame one. */
     fun setOpeningProgress(amount: Float) {

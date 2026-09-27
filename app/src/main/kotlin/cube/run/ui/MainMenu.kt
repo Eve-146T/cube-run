@@ -33,6 +33,7 @@ class MainMenu(
     private val openAchievements: () -> Unit = {},
     private val openLanguages: () -> Unit = {},
     private var openingEntrance: Boolean = false,
+    returningToMenu: Boolean = false,
 ) : FrameLayout(activity) {
 
     private fun dp(v: Float) = kit.dp(v)
@@ -201,7 +202,7 @@ class MainMenu(
             insets
         }
         refresh()
-        if (openingEntrance) setShown(true) else show()
+        if (openingEntrance) setShown(true) else show(returning = returningToMenu)
     }
 
     fun finishOpeningEntrance() {

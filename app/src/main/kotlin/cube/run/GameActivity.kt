@@ -119,7 +119,8 @@ class GameActivity : AndroidApplication() {
                 }
             } }
         } else {
-            hud = Hud(this); hud.setBest(Scores.best(SCORE_ID)); session.attach(hud)
+            hud = Hud(this, returningToMenu = intent.hasExtra(Hud.EXTRA_AUTOSTART) && !intent.getBooleanExtra(Hud.EXTRA_AUTOSTART, false))
+            hud.setBest(Scores.best(SCORE_ID)); session.attach(hud)
         }
 
         val config = AndroidApplicationConfiguration().apply {
