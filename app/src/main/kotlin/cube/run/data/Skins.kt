@@ -8,6 +8,7 @@ import kotlin.math.sin
  * [Skin.valueAt] every frame on the GL thread (pure functions of time).
  */
 object Skins {
+    const val MINT_ID = 8
     const val VOID_ID = 24
     // colour modes
     const val COMP = 0      // complementary to the world's base hue (the classic look)
@@ -34,6 +35,7 @@ object Skins {
         LONG_BUBBLE("Long bubble", "Your bubble lasts 30% longer!"),
         BUBBLE_HAUL("Bubble Haul", "Bubble pickups give you 2 bubbles!"),
         BUBBLE_DIVIDEND("Bubble Dividend", "Gain 1 free bubble for every 200 coins collected during a run!"),
+        MIND_SYNERGY("SECRET ABILITY: MIND SYNERGY", "YOUR BUBBLE LASTS 30% LONGER AND YOU CAN TRIPLE JUMP WHILE IT'S ACTIVE!!!"),
     }
 
     class Skin(
@@ -90,7 +92,7 @@ object Skins {
         Skin(5, "Plasma", 5_000, PULSE, hue = 305f, sat = 0.85f, value = 1f, glow = 1.6f, trail = 1.6f, abilities = listOf(Ability.POWER_STRETCH)),
         Skin(6, "Gold", 6_000, FIXED, hue = 46f, sat = 0.85f, value = 1f, sparkle = true, trail = 1.8f, abilities = listOf(Ability.GOLD_COINS)),
         Skin(7, "Rainbow", 8_000, RAINBOW, sat = 0.9f, value = 1f, glow = 1.5f, trail = 2f, sparkle = true),
-        Skin(8, "Mint", 2_000, FIXED, hue = 150f, sat = 0.45f, value = 1f),
+        Skin(MINT_ID, "Mint", 2_000, FIXED, hue = 150f, sat = 0.45f, value = 1f, abilities = listOf(Ability.DOUBLE_JUMP)),
         Skin(9, "Rose", 2_000, FIXED, hue = 340f, sat = 0.5f, value = 1f, glow = 1.2f),
         Skin(10, "Ocean", 3_500, WAVE, hue = 195f, hue2 = 235f, sat = 0.8f, value = 0.95f, glow = 1.3f,
             abilities = listOf(Ability.BUBBLE_HAUL, Ability.BUBBLE_DIVIDEND)),
@@ -111,6 +113,8 @@ object Skins {
         Skin(VOID_ID, "Black void", 300_000, FIXED, hue = 265f, sat = 0.25f, value = 0.012f, glow = 0.7f, trail = 0.7f, abilities = listOf(Ability.SECRET)),
     )
 
+    fun mintSynergy(cube: Int, bubble: Int): Boolean = cube == MINT_ID && bubble == BubbleSkins.MINT_ID
+
     /** The skin a shard type unlocks. */
     fun forShard(type: Int): Skin? = all.firstOrNull { it.shardType == type }
 
@@ -123,6 +127,7 @@ object Skins {
  * soap-film rim whose hue slides from [hue] to [hue2] around the sphere.
  */
 object BubbleSkins {
+    const val MINT_ID = 2
     const val VOID_ID = 10
     const val VOID = 4
     const val IRIS = 0      // hue sweeps [hue]→[hue2] around the sphere, drifting with time (soap film)
@@ -153,7 +158,7 @@ object BubbleSkins {
     val all: List<BubbleSkin> = listOf(
         BubbleSkin(0, "Soap", 0, IRIS, hue = 170f, hue2 = 270f),
         BubbleSkin(1, "Rose", 1_800, SOLID, hue = 335f, sat = 0.7f),
-        BubbleSkin(2, "Mint", 1_800, SOLID, hue = 150f, sat = 0.65f, abilities = listOf(Skins.Ability.DOUBLE_JUMP)),
+        BubbleSkin(MINT_ID, "Mint", 1_800, SOLID, hue = 150f, sat = 0.65f, abilities = listOf(Skins.Ability.DOUBLE_JUMP)),
         BubbleSkin(3, "Gold", 3_500, SOLID, hue = 46f, sat = 0.85f, fill = 0.14f, sparkle = true),
         BubbleSkin(4, "Plasma", 4_200, ELECTRIC, hue = 300f, hue2 = 330f, sat = 0.9f, rim = 2.2f, abilities = listOf(Skins.Ability.LONG_BUBBLE)),
         BubbleSkin(5, "Rainbow", 7_000, RAINBOW, sat = 0.9f, rim = 2.4f, sparkle = true),
@@ -250,10 +255,14 @@ object Wardrobe {
     fun count(cat: Int): Int = when (cat) { CUBE -> Skins.all.size; BUBBLE -> BubbleSkins.all.size; else -> Trails.all.size }
     fun name(cat: Int, id: Int): String = when (cat) { CUBE -> Skins.get(id).name; BUBBLE -> BubbleSkins.get(id).name; else -> Trails.get(id).name }
     fun price(cat: Int, id: Int): Int = when (cat) { CUBE -> Skins.get(id).price; BUBBLE -> BubbleSkins.get(id).price; else -> Trails.get(id).price }
-    fun abilities(cat: Int, id: Int): List<Skins.Ability> = when (cat) {
-        CUBE -> Skins.get(id).abilities
-        BUBBLE -> BubbleSkins.get(id).abilities
-        else -> Trails.get(id).abilities
+    fun abilities(cat: Int, id: Int): List<Skins.Ability> {
+        val base = when (cat) {
+            CUBE -> Skins.get(id).abilities
+            BUBBLE -> BubbleSkins.get(id).abilities
+            else -> Trails.get(id).abilities
+        }
+        val mintItem = (cat == CUBE && id == Skins.MINT_ID) || (cat == BUBBLE && id == BubbleSkins.MINT_ID)
+        return if (mintItem && Skins.mintSynergy(Progress.skin, Progress.bubbleSkin)) base + Skins.Ability.MIND_SYNERGY else base
     }
     fun isSecret(cat: Int, id: Int): Boolean = when (cat) {
         CUBE -> id == Skins.VOID_ID

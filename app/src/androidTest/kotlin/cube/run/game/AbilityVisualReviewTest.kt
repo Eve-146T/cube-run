@@ -89,6 +89,35 @@ class AbilityVisualReviewTest {
         capture("panel-$name", 400)
     }
 
+    @Test fun mintSynergyRevealsOnlyForEquippedPair() {
+        val prefs = context.getSharedPreferences("progress", Context.MODE_PRIVATE)
+        val saved = prefs.all
+        try {
+            prefs.edit().putInt("owned_skins", 0x1ffffff).putInt("owned_bubble_skins", 0x7ff)
+                .putInt("skin", 8).putInt("bubble_skin", 0).commit()
+            Progress.init(context)
+            ActivityScenario.launch<GameActivity>(Intent(context, GameActivity::class.java)
+                .putExtra(Hud.EXTRA_AUTOSTART, false)).use { scenario ->
+                SystemClock.sleep(1800)
+                scenario.onActivity { call(hud(it), "openWardrobe") }
+                SystemClock.sleep(650)
+                panel(scenario, Wardrobe.CUBE, 8, "Double jump", "mint-cube")
+                scenario.onActivity {
+                    val page = field(hud(it), "page").get(hud(it)) as View
+                    assertFalse(descendants(page).any { v -> v.contentDescription == "Show SECRET ABILITY: MIND SYNERGY ability" })
+                    Progress.equip(Wardrobe.BUBBLE, 2)
+                }
+                panel(scenario, Wardrobe.CUBE, 8, "SECRET ABILITY: MIND SYNERGY", "mind-synergy")
+                scenario.onActivity { Progress.equip(Wardrobe.CUBE, 0) }
+                panel(scenario, Wardrobe.BUBBLE, 2, "Double jump", "mint-no-synergy")
+                scenario.onActivity {
+                    val page = field(hud(it), "page").get(hud(it)) as View
+                    assertFalse(descendants(page).any { v -> v.contentDescription == "Show SECRET ABILITY: MIND SYNERGY ability" })
+                }
+            }
+        } finally { restore(prefs, saved); Progress.init(context) }
+    }
+
     @Test fun captureEquippedAbilitiesOnTheActualRenderer() {
         assumeTrue(InstrumentationRegistry.getArguments().getString("captureHardwareAchievements") == "true")
         val prefs = context.getSharedPreferences("progress", Context.MODE_PRIVATE)

@@ -364,9 +364,9 @@ class AbilityIcon(private val ability: Ability) : Icon() {
             paint.style = Paint.Style.FILL; paint.color = Theme.LAVENDER; canvas.drawPath(path, paint)
             paint.style = Paint.Style.STROKE; paint.color = Theme.INK; canvas.drawPath(path, paint)
             canvas.drawLine(16f, 41f, 30f, 41f, paint)
-        } else if (ability == Ability.DOUBLE_JUMP) {
+        } else if (ability == Ability.DOUBLE_JUMP || ability == Ability.MIND_SYNERGY) {
             paint.style = Paint.Style.STROKE; paint.color = Theme.INK; paint.strokeCap = Paint.Cap.ROUND; paint.strokeWidth = 4f
-            for (y in listOf(8f, 25f)) {
+            for (y in if (ability == Ability.MIND_SYNERGY) listOf(3f, 16f, 29f) else listOf(8f, 25f)) {
                 path.reset(); path.moveTo(12f, y + 11f); path.lineTo(24f, y); path.lineTo(36f, y + 11f)
                 canvas.drawPath(path, paint)
             }

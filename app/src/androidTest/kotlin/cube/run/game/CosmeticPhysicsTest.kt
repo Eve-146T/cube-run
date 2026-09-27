@@ -25,9 +25,12 @@ class CosmeticPhysicsTest {
                     Stage.paused = true
                     Settings.setSoundEnabled(false); Settings.setHapticsEnabled(false)
                     val game = Gdx.app.applicationListener as CubeRun
+                    cube.run.core.Gdx3DGame::class.java.getDeclaredMethod("finishRendererStartup")
+                        .apply { isAccessible = true }.invoke(game)
+                    game.finishOpening()
                     val player: Player = value(game, "player")
                     player.setFlying(false); player.hover = false; player.floaty = false
-                    player.doubleJumpEnabled = false; player.forceGround(0f)
+                    player.doubleJumpEnabled = false; player.tripleJumpEnabled = false; player.forceGround(0f)
                     block(player, value(game, "bubble"))
                 } catch (t: Throwable) { failure = t }
                 finally {
@@ -42,6 +45,21 @@ class CosmeticPhysicsTest {
     private fun step(player: Player, dt: Float = .01f, ground: Float = 0f) =
         player.update(dt, 30f * dt, 10f, 200f, false, ground)
     private fun velocity(player: Player) = value<Float>(player, "vy")
+
+    @Test fun synergyAllowsExactlyThreeJumpsAndNeverRefillsMidair() = withPlayer { p, _ ->
+        p.doubleJumpEnabled = true; p.tripleJumpEnabled = true
+        p.jump(); step(p); p.jump(); step(p); p.jump()
+        assertEquals(8.4f, velocity(p), .001f)
+        step(p); val used = velocity(p)
+        p.jump(); assertEquals("Fourth jump blocked", used, velocity(p), 0f)
+        p.tripleJumpEnabled = false; p.tripleJumpEnabled = true
+        p.jump(); assertEquals("Reactivation cannot refill jumps", used, velocity(p), 0f)
+        repeat(100) { step(p) }; assertFalse(p.air)
+        p.jump(); step(p); p.jump(); step(p); p.jump()
+        assertEquals("Landing renews triple jump", 8.4f, velocity(p), .001f)
+        step(p); p.doubleJumpEnabled = false; p.tripleJumpEnabled = false
+        val expired = velocity(p); p.jump(); assertEquals(expired, velocity(p), 0f)
+    }
 
     @Test fun mintGrantsOneAirJumpAndReactivationCannotRefillIt() = withPlayer { p, _ ->
         p.doubleJumpEnabled = true

@@ -1,5 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="ability_mind_synergy">SECRET ABILITY: MIND SYNERGY</string>
+    <string name="ability_mind_synergy_detail">YOUR BUBBLE LASTS 30% LONGER AND YOU CAN TRIPLE JUMP WHILE IT\'S ACTIVE!!!</string>
     <string name="ability_bubble_haul">Bubble Haul</string>
     <string name="ability_bubble_haul_detail">Bubble pickups give you 2 bubbles!</string>
     <string name="ability_bubble_dividend">Bubble Dividend</string>

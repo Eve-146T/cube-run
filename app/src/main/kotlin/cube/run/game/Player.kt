@@ -62,9 +62,11 @@ class Player(private val game: Gdx3DGame, private val rnd: Random) {
         }
     /** Cloud keeps the usual jump height, with a softer ascent and longer hang. */
     var floaty = false
-    /** Set by the run: only an active Mint shield permits the airborne jump. */
+    /** Set by the run: Mint abilities require an active shield. */
     var doubleJumpEnabled = false
+    var tripleJumpEnabled = false
     private var airJumpAvailable = false
+    private var airJumpsUsed = 0
 
     var lane = 1
         private set
@@ -133,7 +135,8 @@ class Player(private val game: Gdx3DGame, private val rnd: Random) {
     /** Reset simulation and pose while retaining the cube's mesh and material resources. */
     fun resetToMenu(baseHue: Float, time: Float) {
         flying = false; flyY = FLY_Y; hover = false
-        zappyEnabled = false; floaty = false; doubleJumpEnabled = false; airJumpAvailable = false
+        zappyEnabled = false; floaty = false; doubleJumpEnabled = false; tripleJumpEnabled = false
+        airJumpAvailable = false; airJumpsUsed = 0
         lane = 1; px = 0f; py = ground; air = false
         duck = 0f; nudge = 0f; vy = 0f; roll = 0f; squash = 0f; duckT = 0f
         slamming = false; coyoteLeft = 0f; jumpBuffer = 0f; trailT = 0f; trailK = 0; stretch = 0f
@@ -230,8 +233,10 @@ class Player(private val game: Gdx3DGame, private val rnd: Random) {
     fun jump() {
         if (flying || hover) return
         if (air && coyoteLeft <= 0f) {
-            if (doubleJumpEnabled && airJumpAvailable) {
-                airJumpAvailable = false
+            val allowed = if (tripleJumpEnabled) 2 else if (doubleJumpEnabled) 1 else 0
+            if (airJumpAvailable && airJumpsUsed < allowed) {
+                airJumpsUsed++
+                airJumpAvailable = airJumpsUsed < 2
                 takeOff(extraJump = true)
             } else jumpBuffer = 0.1f
             return
@@ -243,7 +248,7 @@ class Player(private val game: Gdx3DGame, private val rnd: Random) {
 
     private fun takeOff(extraJump: Boolean = false) {
         clearJumpInput()
-        if (!extraJump) airJumpAvailable = true
+        if (!extraJump) { airJumpAvailable = true; airJumpsUsed = 0 }
         air = true; vy = if (floaty) 6.9f else 8.4f
         slamming = false
         duckT = 0f // jumping cancels a roll
@@ -272,6 +277,7 @@ class Player(private val game: Gdx3DGame, private val rnd: Random) {
     /** A bounce pad: launched high, stretched tall, whatever you were doing. */
     fun launch(v: Float) {
         clearJumpInput()
+        airJumpsUsed = 0
         airJumpAvailable = true
         air = true; vy = v; duckT = 0f; slamming = false
         stretch = 1f
@@ -344,6 +350,7 @@ class Player(private val game: Gdx3DGame, private val rnd: Random) {
         } else if (gy < py - 0.02f) {
             air = true; vy = 0f // walked off an edge
             airJumpAvailable = true
+            airJumpsUsed = 0
             coyoteLeft = 0.1f
         }
         squash = max(0f, squash - dt * 5f)

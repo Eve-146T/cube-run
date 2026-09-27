@@ -248,6 +248,7 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
         player.zappyEnabled = Skins.Ability.ZAPPY in runSkin.abilities
         player.floaty = Skins.Ability.FLOATY in runSkin.abilities
         player.doubleJumpEnabled = false
+        player.tripleJumpEnabled = false
         trackArt.coalCoins = Skins.Ability.COAL in runSkin.abilities
         lottery = Lottery(rnd, if (Settings.devMode) Lottery.DEV_COIN_CHANCE else Lottery.COIN_CHANCE)
         phaseUsed = false; phasedObstacle = null; lastTapT = -9f
@@ -517,10 +518,14 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
         jackpot.aimCamera(cam)
     }
 
-    private fun bubbleDurationMultiplier() = runSkin.powerupDurationMultiplier * runBubble.durationMultiplier
+    private fun mintSynergy() = Skins.mintSynergy(runSkin.id, runBubble.id)
+    private fun bubbleDurationMultiplier() = runSkin.powerupDurationMultiplier * runBubble.durationMultiplier *
+        (if (mintSynergy()) 1.3f else 1f)
     private fun bubbleDuration() = Progress.BUBBLE.duration(Progress.bubbleLevel) * bubbleDurationMultiplier()
     private fun refreshJumpAbility() {
-        player.doubleJumpEnabled = live() && bubble.active && Skins.Ability.DOUBLE_JUMP in runBubble.abilities
+        val shielded = live() && bubble.active
+        player.doubleJumpEnabled = shielded && (Skins.Ability.DOUBLE_JUMP in runSkin.abilities || Skins.Ability.DOUBLE_JUMP in runBubble.abilities)
+        player.tripleJumpEnabled = shielded && mintSynergy()
     }
 
     /** Tell the track where the flight lands, so the coin line it lays glides down to meet the ground there. */
