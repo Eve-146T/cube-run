@@ -144,6 +144,8 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
     // ---- goodies ----
     private var coinsRun = 0         // collected this run (banked by the session at game over)
     private var lastCollectedBox: Row? = null
+    // Separate from the course generator: poison rolls do not change obstacle layouts.
+    private var toxicRandom: Random = Random.Default
     private var boxesRun = 0         // mystery boxes collected this run (opened on the run-over screens)
     private var coinStreak = 0       // consecutive pickups without a miss (the milestone chimes)
     private var coinPitch = 0        // rising coin pitch; resets after a short gap without a coin
@@ -286,6 +288,7 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
         track.tier = curTier
         val oldCount = Lanes.count
         track.reset(coinTrailChance = 0.2f, hue = worldHue(), initialBonus = if (Settings.devMode) Settings.testBonusNow else Bonus.NONE)
+        prepareToxicCoins()
         if (!track.isPillTest && Settings.devMode && Settings.testBonusNow >= 0) { // debug: begin inside a bonus world
             bonus = Settings.testBonusNow
             player.remapLane(oldCount, Lanes.count)
@@ -312,6 +315,12 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
         if (BuildConfig.DEBUG && testCrashObserver != null) { testCrashObserver!!.invoke(); return }
         if (Progress.useRevive()) { secondWind(); return }
         if (reachingForBox()) session.riskyBoxDeath()
+        die()
+    }
+
+    /** Poison bypasses bubble saves, phase and revives; ordinary obstacles use crash(). */
+    private fun die() {
+        if (dead) return
         if (startGateRunT >= 0f) session.runCrashed(runT - startGateRunT)
         dead = true
         player.setFlying(false)
@@ -411,10 +420,24 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
         if (!track.isPillTest) worlds.onRow(rowsPassed)
     }
 
+    private fun prepareToxicCoins() {
+        if (Skins.Ability.TOXIC_FORTUNE !in runSkin.abilities) return
+        for (row in track.rows) for (coin in row.coins.orEmpty()) {
+            if (!coin.toxicAssigned) {
+                coin.toxic = toxicRandom.nextFloat() < .01f
+                coin.toxicAssigned = true
+            }
+        }
+    }
+
     private fun collectCoin(coin: Coin, cz: Float) {
-        if (coin.taken || coin.missed) return
+        if (dead || coin.taken || coin.missed) return
         coin.taken = true
         session.coinPickedUp()
+        if (coin.toxic && Skins.Ability.TOXIC_FORTUNE in runSkin.abilities) {
+            die()
+            return
+        }
         val value = Progress.coinValue * (if (bonus == Bonus.KALEIDO) 2f else 1f)
         if (Skins.Ability.COAL in runSkin.abilities) {
             session.coalCollected()
@@ -789,7 +812,10 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
                 }
             }
         }
-        if (live()) track.spawn(mv, worldHue(), session.score, dt)
+        if (live()) {
+            track.spawn(mv, worldHue(), session.score, dt)
+            prepareToxicCoins()
+        }
 
         val pillWasOn = redPill.timer.active
         redPill.tick(dt, started && !dead)
@@ -885,6 +911,7 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
             row.coins?.let { coins ->
                 if (row.z > -12f && started && !dead) {
                     for (c in coins) {
+                        if (dead) break
                         if (c.taken) continue
                         val cz = row.z + c.dz
                         if (c.missed) continue

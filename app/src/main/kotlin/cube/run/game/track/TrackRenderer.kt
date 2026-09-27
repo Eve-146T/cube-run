@@ -26,6 +26,8 @@ class TrackRenderer(private val game: Gdx3DGame) {
 
     private val shardCols = cube.run.data.Shards.all.map { hsvInto(Color(), it.hue, .6f, 1f) }
     private val coinCol = Color()
+    private val toxicCoinCol = Color(.18f, 1f, .03f, 1f)
+    private val toxicCoinFace = Color(.55f, 1f, .12f, 1f)
     private val coinFace = Color()
     private val coalBody = Color(0.105f, 0.115f, 0.145f, 1f)
     private val coalFacet = Color(0.235f, 0.255f, 0.295f, 1f)
@@ -111,8 +113,8 @@ class TrackRenderer(private val game: Gdx3DGame) {
                 if (coalCoins) {
                     renderCoal(c.x, y, cz, p, time * 65f + (r.visualPhase + c.dz) * 23f, fog)
                 } else {
-                    game.worldCoin(c.x, y, cz, 0.36f * p, 0.14f, yaw, coinCol, fog)
-                    game.worldCoin(c.x, y, cz, 0.23f * p, 0.2f, yaw, coinFace, fog)
+                    game.worldCoin(c.x, y, cz, 0.36f * p, 0.14f, yaw, if (c.toxic) toxicCoinCol else coinCol, fog)
+                    game.worldCoin(c.x, y, cz, 0.23f * p, 0.2f, yaw, if (c.toxic) toxicCoinFace else coinFace, fog)
                 }
             }
         }

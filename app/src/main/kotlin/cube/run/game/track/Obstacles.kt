@@ -89,6 +89,9 @@ class Coin(var x: Float, var y: Float, var dz: Float, val restY: Float = y) {
     /** Slid past the cube uncollected: still drawn (it glides by), but it no longer counts or pulls. */
     var missed = false
     var pullStarted = false
+    var toxic = false
+    /** Roll once when the coin is spawned, so its visible danger never changes. */
+    var toxicAssigned = false
 }
 
 /** One row of the lane-walk: obstacles, optional coins and pickup, scoring state. */

@@ -89,6 +89,33 @@ class AbilityVisualReviewTest {
         capture("panel-$name", 400)
     }
 
+    @Test fun toxicShowsAbilityAndDistinctGreenCoins() {
+        ActivityScenario.launch<GameActivity>(Intent(context, GameActivity::class.java)
+            .putExtra(Hud.EXTRA_AUTOSTART, false)).use { scenario ->
+            scenario.onActivity { it.setShowWhenLocked(true); it.setTurnScreenOn(true) }
+            SystemClock.sleep(1800)
+            scenario.onActivity { call(hud(it), "openWardrobe") }
+            SystemClock.sleep(650)
+            panel(scenario, Wardrobe.CUBE, 11, "Toxic Fortune", "toxic")
+            scenario.onActivity { hud(it).navigateBack() }
+            SystemClock.sleep(700)
+            gl { game ->
+                call(game, "start"); Stage.paused = true
+                field(game, "runSkin").set(game, cube.run.data.Skins.get(11))
+                val track = field(game, "track").get(game) as Track
+                track.rows.clear()
+                for (i in 0 until 4) track.rows.add(Row(-5f - i * 4f, arrayListOf()).apply {
+                    pop = 1f; popStart = 0f
+                    coins = arrayListOf(Coin(-2f, .55f, 0f), Coin(0f, .55f, 0f).apply {
+                        toxic = true; toxicAssigned = true
+                    }, Coin(2f, .55f, 0f))
+                })
+            }
+            capture("toxic-green-coins", 400)
+            gl { Stage.paused = false }
+        }
+    }
+
     @Test fun neonShowsGigajumpAbility() {
         ActivityScenario.launch<GameActivity>(Intent(context, GameActivity::class.java)
             .putExtra(Hud.EXTRA_AUTOSTART, false)).use { scenario ->

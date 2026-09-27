@@ -38,6 +38,7 @@ object Skins {
         MIND_SYNERGY("SECRET ABILITY: MIND SYNERGY", "YOUR BUBBLE LASTS 30% LONGER AND YOU CAN TRIPLE JUMP WHILE IT'S ACTIVE!!!"),
         CLOSE_SHAVE("Close Shave", "Near misses give you 4 times the bonus points!"),
         GIGAJUMP("Gigajump", "Jump twice as high while your bubble is active!"),
+        TOXIC_FORTUNE("Toxic Fortune", "Coins are worth 60% more, but 1% are green and kill you instantly!"),
     }
 
     class Skin(
@@ -63,7 +64,11 @@ object Skins {
         val opacity: Float = 1f,
     ) {
         val speedMultiplier: Float get() = if (Ability.SPEED in abilities) 1.3f else 1f
-        val coinMultiplier: Float get() = if (Ability.GOLD_COINS in abilities) 1.2f else 1f
+        val coinMultiplier: Float get() = when {
+            Ability.TOXIC_FORTUNE in abilities -> 1.6f
+            Ability.GOLD_COINS in abilities -> 1.2f
+            else -> 1f
+        }
         val powerupDurationMultiplier: Float get() = if (Ability.POWER_STRETCH in abilities) 1.25f else 1f
         val bubbleCooldownMultiplier: Float get() = if (Ability.QUICK_BUBBLE in abilities) 0.7f else 1f
         val bubbleSaveChance: Float get() = when { Ability.BUBBLE_SAVER in abilities -> 0.35f; Ability.SECRET in abilities -> 0.2f; else -> 0f }
@@ -98,7 +103,7 @@ object Skins {
         Skin(9, "Rose", 2_000, FIXED, hue = 340f, sat = 0.5f, value = 1f, glow = 1.2f),
         Skin(10, "Ocean", 3_500, WAVE, hue = 195f, hue2 = 235f, sat = 0.8f, value = 0.95f, glow = 1.3f,
             abilities = listOf(Ability.BUBBLE_HAUL, Ability.BUBBLE_DIVIDEND)),
-        Skin(11, "Toxic", 4_500, PULSE, hue = 95f, sat = 0.95f, value = 1f, glow = 1.9f, trail = 1.4f),
+        Skin(11, "Toxic", 4_500, PULSE, hue = 95f, sat = 0.95f, value = 1f, glow = 1.9f, trail = 1.4f, abilities = listOf(Ability.TOXIC_FORTUNE)),
         Skin(12, "Sunset", 5_500, WAVE, hue = 20f, hue2 = 320f, sat = 0.85f, value = 1f, trail = 1.4f),
         Skin(13, "Ghost", 6_500, FIXED, hue = 210f, sat = 0.015f, value = 1f, glow = 1.5f, trail = 0.6f, abilities = listOf(Ability.PHASE), opacity = .72f),
         Skin(14, "Strobe", 7_000, STROBE, hue = 55f, hue2 = 200f, sat = 0.9f, value = 1f, glow = 1.4f, trail = 1.6f, sparkle = true, abilities = listOf(Ability.CLOSE_SHAVE)),
