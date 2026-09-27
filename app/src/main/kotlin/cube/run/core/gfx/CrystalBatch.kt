@@ -17,6 +17,7 @@ import kotlin.random.Random
 class CrystalBatch(private val kit: BoxMeshKit) : Disposable {
     var terrain: TerrainHeight? = null
     private val template: FloatArray
+    private val gemTemplate = cutGemTemplate()
     private val coalTemplates = Array(3) { coalTemplate(it) }
     private val vertices = FloatArray(360 * 128 * 4)
     private val mesh = Mesh(false, vertices.size / 4, 0,
@@ -48,6 +49,9 @@ class CrystalBatch(private val kit: BoxMeshKit) : Disposable {
     fun crystal(x: Float, y: Float, z: Float, scale: Float, yaw: Float, color: Color, fog: Float, sky: Color) =
         queue(template, 6, x, y, z, scale, yaw, color, fog, sky)
 
+    fun gem(x: Float, y: Float, z: Float, scale: Float, yaw: Float, color: Color, fog: Float, sky: Color) =
+        queue(gemTemplate, 7, x, y, z, scale, yaw, color, fog, sky)
+
     fun coal(x: Float, y: Float, z: Float, scale: Float, yaw: Float, variant: Int, color: Color, fog: Float, sky: Color) =
         queue(coalTemplates[Math.floorMod(variant, coalTemplates.size)], 7, x, y, z, scale, yaw, color, fog, sky)
 
@@ -68,6 +72,35 @@ class CrystalBatch(private val kit: BoxMeshKit) : Disposable {
                 (color.g*light[1]*tone).coerceAtMost(1f)*(1f-fog)+sky.g*fog,
                 (color.b*light[2]*tone).coerceAtMost(1f)*(1f-fog)+sky.b*fog, 1f)
         }
+    }
+
+    /** A jeweller's cut diamond: broad octagonal girdle, flat table, bevelled crown and pointed pavilion. */
+    private fun cutGemTemplate(): FloatArray {
+        val raw = ArrayList<Float>()
+        fun ring(radius: Float, y: Float) = Array(8) { i ->
+            val angle = (i + .5f) * Math.PI.toFloat() / 4f
+            Vector3(cos(angle) * radius, y, sin(angle) * radius)
+        }
+        val table = ring(.19f, .22f)
+        val upper = ring(.4f, .035f)
+        val lower = ring(.4f, -.015f)
+        fun face(a: Vector3, b: Vector3, c: Vector3, tone: Float) {
+            val normal = Vector3(b).sub(a).crs(Vector3(c).sub(a)).nor()
+            val outward = normal.dot(Vector3(a).add(b).add(c)) >= 0f
+            if (!outward) normal.scl(-1f)
+            for (v in if (outward) arrayOf(a, b, c) else arrayOf(a, c, b))
+                raw.addAll(listOf(v.x, v.y, v.z, normal.x, normal.y, normal.z, tone))
+        }
+        for (i in 0..7) {
+            val next = (i + 1) % 8
+            face(Vector3(0f, .22f, 0f), table[i], table[next], 1.6f)
+            face(table[i], upper[i], upper[next], if (i % 2 == 0) 1.4f else .9f)
+            face(table[i], upper[next], table[next], if (i % 2 == 0) 1.1f else 1.55f)
+            face(upper[i], lower[i], lower[next], .65f)
+            face(upper[i], lower[next], upper[next], .65f)
+            face(lower[i], Vector3(0f, -.4f, 0f), lower[next], if (i % 2 == 0) .75f else 1.15f)
+        }
+        return raw.toFloatArray()
     }
 
     /** Broken, offset rings give coal broad chipped faces instead of box corners or gem tips. */

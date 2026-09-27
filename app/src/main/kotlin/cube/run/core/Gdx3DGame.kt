@@ -465,6 +465,9 @@ abstract class Gdx3DGame(val session: GameSession) : ApplicationAdapter(), Touch
     fun worldCrystal(x: Float, y: Float, z: Float, scale: Float, yaw: Float, color: Color, fog: Float = 0f) =
         crystals.crystal(x, y, z, scale, yaw, color, fog, fogColor)
 
+    fun worldGem(x: Float, y: Float, z: Float, scale: Float, yaw: Float, color: Color, fog: Float = 0f) =
+        crystals.gem(x, y, z, scale, yaw, color, fog, fogColor)
+
     fun worldCoal(x: Float, y: Float, z: Float, scale: Float, yaw: Float, variant: Int, color: Color, fog: Float = 0f) =
         crystals.coal(x, y, z, scale, yaw, variant, color, fog, fogColor)
 
