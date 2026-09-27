@@ -444,7 +444,7 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
     private fun collectCoin(coin: Coin, cz: Float) {
         if (dead || coin.taken || coin.missed) return
         coin.taken = true
-        session.coinPickedUp()
+        if (Skins.Ability.COAL !in runSkin.abilities || coin.gem) session.coinPickedUp()
         if (coin.toxic && Skins.Ability.TOXIC_FORTUNE in runSkin.abilities) {
             die()
             return
@@ -927,7 +927,7 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
                         if (c.taken) continue
                         val cz = row.z + c.dz
                         if (c.missed) continue
-                        if ((pull > 0f && abs(cz) < pull) || c.pullStarted) { // magnet: coins fly to you
+                        if (!c.toxic && ((pull > 0f && abs(cz) < pull) || c.pullStarted)) { // magnet: coins fly to you
                             c.pullStarted = true
                             val k = min(1f, dt * 11f)
                             c.x += (px - c.x) * k

@@ -9,6 +9,7 @@ import androidx.test.platform.app.InstrumentationRegistry
 import com.badlogic.gdx.Gdx
 import cube.run.GameActivity
 import cube.run.core.Stage
+import cube.run.data.Achievements
 import cube.run.data.Progress
 import cube.run.data.Settings
 import cube.run.data.Wardrobe
@@ -163,14 +164,19 @@ class EquippedAbilitiesTest {
         assertEquals(3.5f, bubble.cooldownLeft, .001f)
     }
 
-    @Test fun coalPickupIsWorthlessButStillDisqualifiesCoinlessChallenge() = fixture(15) { game ->
+    @Test fun coalPickupIsWorthlessAndAllowsHomeress() = fixture(15) { game ->
         val art = read<Any>(game, "trackArt")
         assertTrue("Track renders lumps of coal", field(art, "coalCoins").getBoolean(art))
         coin(game)
         assertEquals(0, read<Int>(game, "coinsRun"))
         assertEquals(0, Progress.achievementCoins)
         game.session.setScore(60)
-        assertEquals("Picking up coal is still picking up the transformed coin", 0, Progress.bestCoinlessScore)
+        assertEquals("Coal does not count as a coin for Homeress", 60, Progress.bestCoinlessScore)
+        assertEquals(1, Achievements.snapshot().single { it.definition.id == "homeress" }.earnedTiers)
+        val gem = Coin(0f, .5f, 0f).apply { this.gem = true }
+        call(game, "collectCoin", gem, 0f)
+        game.session.setScore(80)
+        assertEquals("Gems do count as coins", 60, Progress.bestCoinlessScore)
     }
 
     @Test fun gamblerForfeitsOrdinaryLootAndRichCoinsGiveThreeTickets() = fixture(1, rich = 10) { game ->

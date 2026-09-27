@@ -79,6 +79,14 @@ class ToxicAbilitiesTest {
                         track.rows.clear()
                         repeat(10) { collect.invoke(game, Coin(0f, .5f, 0f), 0f) }
                         bubble.activate(0f, player.py, quiet = true); powers.magnet.start(10f)
+                        val distantPoison = Coin(2f, player.py, -3f).apply { toxic = true; toxicAssigned = true }
+                        val ordinary = Coin(2f, player.py, -3f)
+                        track.rows.add(Row(0f, arrayListOf()).apply { coins = arrayListOf(distantPoison, ordinary) })
+                        collide.invoke(game, .016f)
+                        assertEquals(2f, distantPoison.x, 0f); assertEquals(-3f, distantPoison.dz, 0f)
+                        assertFalse(distantPoison.pullStarted); assertFalse(distantPoison.taken)
+                        assertTrue("Normal coins still attract", ordinary.x < 2f && ordinary.dz > -3f)
+                        track.rows.clear()
                         val poison = Coin(0f, player.py, 0f).apply { toxic = true; toxicAssigned = true }
                         val afterPoison = Coin(0f, player.py, 0f)
                         track.rows.add(Row(0f, arrayListOf()).apply { coins = arrayListOf(poison, afterPoison) })
