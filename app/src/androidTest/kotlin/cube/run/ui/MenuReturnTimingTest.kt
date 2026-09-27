@@ -37,7 +37,11 @@ class MenuReturnTimingTest {
         while (!ready && SystemClock.uptimeMillis() < deadline) {
             ui {
                 val menu = field<MainMenu>(field<Hud>(activity, "hud"), "menu")
-                ready = menu.isShown && listOf("top", "middle", "rightChips", "bank").all { name ->
+                @Suppress("UNCHECKED_CAST")
+                val chips = menu.javaClass.getDeclaredMethod("toolbarChips").apply { isAccessible = true }.invoke(menu) as List<View>
+                ready = menu.isShown && menu.alpha >= .99f && chips.filter { it.visibility == View.VISIBLE }.all {
+                    it.isShown && it.alpha >= .99f && kotlin.math.abs(it.translationY) < .5f
+                } && listOf("top", "middle", "rightChips", "bank").all { name ->
                     val view = field<View>(menu, name)
                     view.alpha >= .99f && kotlin.math.abs(view.translationY) < .5f
                 }
@@ -319,6 +323,82 @@ class MenuReturnTimingTest {
                 }
                 assertTrue(checked.await(2, TimeUnit.SECONDS)); failure.get()?.let { throw it }
                 SystemClock.sleep(150)
+            }
+        } finally { ui { activity.finish() } }
+    }
+
+    @Test fun restartingThenPauseMenuKeepsEveryMenuControlVisibleAfterPendingAnimations() {
+        var activity = launch()
+        fun awaitRun(current: GameActivity) {
+            val deadline = SystemClock.uptimeMillis() + 8000
+            var live = false
+            while (!live && SystemClock.uptimeMillis() < deadline) {
+                ui { live = field<Hud>(current, "hud").let { it.isAttachedToWindow && field<Boolean>(it, "runStarted") } }
+                if (!live) SystemClock.sleep(10)
+            }
+            assertTrue("The real run started", live)
+        }
+        try {
+            awaitMenu(activity); awaitScene()
+            for (pauseDelay in listOf(0L, 350L)) {
+                Gdx.app.postRunnable { (Gdx.app.applicationListener as cube.run.game.CubeRun).onTap(.5f, .5f) }
+                awaitRun(activity)
+                val previous = activity
+                ui {
+                    val hud = field<Hud>(previous, "hud")
+                    hud.pause(animate = false)
+                    field<android.widget.LinearLayout>(field<PauseSheet>(hud, "pauseSheet"), "card").getChildAt(2).performClick()
+                }
+                val deadline = SystemClock.uptimeMillis() + 8000
+                var restarted: GameActivity? = null
+                while (restarted == null && SystemClock.uptimeMillis() < deadline) {
+                    ui {
+                        restarted = androidx.test.runner.lifecycle.ActivityLifecycleMonitorRegistry.getInstance()
+                            .getActivitiesInStage(androidx.test.runner.lifecycle.Stage.RESUMED)
+                            .filterIsInstance<GameActivity>().firstOrNull { it !== previous }
+                    }
+                    if (restarted == null) SystemClock.sleep(10)
+                }
+                assertNotNull("Restart launches the next activity", restarted)
+                activity = restarted!!
+                awaitRun(activity)
+                if (pauseDelay > 0) SystemClock.sleep(pauseDelay)
+                ui {
+                    val hud = field<Hud>(activity, "hud")
+                    hud.pause(animate = false)
+                    field<android.widget.LinearLayout>(field<PauseSheet>(hud, "pauseSheet"), "card").getChildAt(3).performClick()
+                }
+                awaitMenu(activity); awaitScene()
+                // Run-start hide callbacks used to be able to fire after MENU restored the controls.
+                SystemClock.sleep(500)
+                ui {
+                    val hud = field<Hud>(activity, "hud")
+                    val menu = field<MainMenu>(hud, "menu")
+                    android.util.Log.i("RestartMenu", "delay=$pauseDelay hud=${hud.visibility}/${hud.alpha} menu=${menu.visibility}/${menu.alpha} parts=" +
+                        listOf("top", "middle", "leftChips", "rightChips", "bank").joinToString { name ->
+                            field<View>(menu, name).let { "$name=${it.visibility}/${it.alpha}/${it.translationY}" }
+                        })
+                    assertTrue("Menu remains visible after the restart hide finishes", menu.isShown)
+                    for (name in listOf("top", "middle", "leftChips", "rightChips", "bank")) {
+                        val view = field<View>(menu, name)
+                        assertTrue("$name must be shown after restart → pause → MENU", view.isShown)
+                        assertEquals(1f, view.alpha, .001f)
+                        assertEquals(0f, view.translationY, .001f)
+                    }
+                    @Suppress("UNCHECKED_CAST")
+                    val buttons = menu.javaClass.getDeclaredMethod("toolbarChips").apply { isAccessible = true }
+                        .invoke(menu) as List<View>
+                    for (button in buttons.filter { it.visibility == View.VISIBLE }) {
+                        assertTrue(button.isShown)
+                        assertEquals("Actual button ${button.contentDescription} must finish its canceled launch fade", 1f, button.alpha, .001f)
+                        assertEquals(0f, button.translationY, .001f)
+                    }
+                    menu.shopBalance.performClick()
+                    assertTrue(field<Page>(hud, "page") is ShopView)
+                }
+                SystemClock.sleep(400)
+                ui { field<Page>(field<Hud>(activity, "hud"), "page").navigateBack() }
+                SystemClock.sleep(450)
             }
         } finally { ui { activity.finish() } }
     }

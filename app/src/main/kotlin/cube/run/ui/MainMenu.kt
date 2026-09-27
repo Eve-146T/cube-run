@@ -243,6 +243,8 @@ class MainMenu(
     fun showInstant() {
         setShown(true)
         refresh()
+        // Auto-start can cancel the staggered launch before any of these buttons fade in.
+        for (chip in toolbarChips()) Anim.reset(chip)
         for (part in listOf(logo, bestRow, tapHint)) Anim.reset(part)
         for (letter in letters) { Anim.reset(letter); letter.rotation = 0f }
         anims.add(Anim.breathe(tapHint, 0.55f, 1f, 750))
