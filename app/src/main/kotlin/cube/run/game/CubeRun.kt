@@ -410,8 +410,16 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
             return
         }
         val preciseValue = kotlin.math.round(value.toDouble() * runSkin.coinMultiplier * 1_000_000.0) / 1_000_000.0
+        val before = coinsRun
         coinsRunF = (coinsRunF + preciseValue).coerceAtMost(Int.MAX_VALUE.toDouble())
         coinsRun = (coinsRunF + .0000001).toInt()
+        if (Skins.Ability.BUBBLE_DIVIDEND in runSkin.abilities) {
+            val earned = coinsRun / 200 - before / 200
+            if (earned > 0) {
+                Progress.addBubble(earned)
+                session.setBubbles(Progress.bubbles)
+            }
+        }
         coinStreak++
         session.setCoins(coinsRun)
         if (time - lastCoinT > 0.4f) coinPitch = 0 // the pitch climbs coin after coin and falls back as soon as the line breaks
@@ -433,8 +441,8 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
                 session.addShard(Pickup.shardType(kind))
                 fx.coin(row.pickupX, .85f, cz, 1, trackArt.colorOf(kind))
             }
-            Pickup.BUBBLE -> { // one more in the stash (double-tap to use it)
-                Progress.addBubble(1)
+            Pickup.BUBBLE -> { // Ocean doubles the pickup; its coin milestone reward is separate.
+                Progress.addBubble(if (Skins.Ability.BUBBLE_HAUL in runSkin.abilities) 2 else 1)
                 session.setBubbles(Progress.bubbles)
                 fx.pickup(hsvInto(tmpCol, 190f, 0.5f, 1f), row.pickupX, cz)
             }

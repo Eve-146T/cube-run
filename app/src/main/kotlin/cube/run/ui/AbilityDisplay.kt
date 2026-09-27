@@ -284,7 +284,19 @@ class AbilityIcon(private val ability: Ability) : Icon() {
         val s = minOf(bounds.width(), bounds.height()) / 48f
         canvas.save(); canvas.translate(bounds.exactCenterX() - 24f * s, bounds.exactCenterY() - 24f * s); canvas.scale(s, s)
         paint.strokeWidth = 3f; paint.strokeJoin = Paint.Join.ROUND
-        if (ability == Ability.SECRET) {
+        if (ability == Ability.BUBBLE_HAUL || ability == Ability.BUBBLE_DIVIDEND) {
+            paint.style = Paint.Style.FILL; paint.color = Theme.CYAN
+            canvas.drawCircle(17f, 27f, 12f, paint)
+            paint.style = Paint.Style.STROKE; paint.color = Theme.INK
+            canvas.drawCircle(17f, 27f, 12f, paint)
+            paint.style = Paint.Style.FILL; paint.color = Theme.WHITE
+            canvas.drawCircle(13f, 22f, 3f, paint)
+            paint.color = if (ability == Ability.BUBBLE_HAUL) Theme.CYAN else Theme.GOLD
+            canvas.drawCircle(33f, 17f, 10f, paint)
+            paint.style = Paint.Style.STROKE; paint.color = Theme.INK
+            canvas.drawCircle(33f, 17f, 10f, paint)
+            if (ability == Ability.BUBBLE_DIVIDEND) canvas.drawCircle(33f, 17f, 5f, paint)
+        } else if (ability == Ability.SECRET) {
             path.reset(); path.moveTo(14f, 15f)
             path.cubicTo(14f, 5f, 34f, 5f, 34f, 16f)
             path.cubicTo(34f, 23f, 24f, 24f, 24f, 30f)

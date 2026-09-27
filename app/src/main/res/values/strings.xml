@@ -1,5 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="ability_bubble_haul">Bubble Haul</string>
+    <string name="ability_bubble_haul_detail">Bubble pickups give you 2 bubbles!</string>
+    <string name="ability_bubble_dividend">Bubble Dividend</string>
+    <string name="ability_bubble_dividend_detail">Gain 1 free bubble for every 200 coins collected during a run!</string>
     <string name="app_name">Cube Run</string>
     <string name="cd_sound">Sound</string>
     <string name="cd_haptics">Vibration</string>
