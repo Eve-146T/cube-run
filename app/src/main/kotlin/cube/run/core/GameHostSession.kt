@@ -151,6 +151,7 @@ class GameHostSession(
         Progress.bestMetric("greedy", runBoxesCollected.coerceAtMost(13))
     }
     override fun coalCollected() { if (runHasStarted && !over.get()) Progress.addMetric("coal_miner") }
+    override fun riskyBoxDeath() { if (runHasStarted && !over.get()) Progress.bestMetric("greed", 1) }
     override fun fullKitHeld() { if (runHasStarted && !over.get()) Progress.bestMetric("full_kit", 1) }
     override fun redPillSurvived() { if (runHasStarted && !over.get()) Progress.bestMetric("neo", 1) }
     override fun distanceCovered(metres: Int) {

@@ -16,6 +16,7 @@ internal fun achievementIcon(id: String): android.graphics.drawable.Drawable = w
     "homeress" -> AchievementCoinlessIcon()
     "gambliphobic" -> AchievementBoxAvoidanceIcon()
     "cookie" -> AchievementCookieIcon()
+    "greed" -> ChallengeIcon(id)
     "globetrotter", "long_hauler", "shardsmith", "regular", "bubble_popper", "near_miss",
     "untouchable", "house_loses", "voidwalker", "greedy", "scenic_route", "coal_miner",
     "magpie", "shard_hunter", "full_kit", "long_con", "insomniac", "bankrupt",

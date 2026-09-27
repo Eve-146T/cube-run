@@ -102,6 +102,62 @@ class AchievementsInteractionTest {
         bitmap.recycle(); return pixels
     }
 
+    @Test fun greedCardShowsGoalAndPaysOnce() {
+        val prefs = context.getSharedPreferences("progress", Context.MODE_PRIVATE)
+        val saved = prefs.all; val dev = Settings.devMode
+        try {
+            prefs.edit().clear().putBoolean("achievements_unlocked", true).commit()
+            Settings.setDevMode(false); Progress.init(context)
+            ActivityScenario.launch<GameActivity>(android.content.Intent(context, GameActivity::class.java)
+                .putExtra(Hud.EXTRA_AUTOSTART, false)).use { scenario ->
+                scenario.onActivity { it.setShowWhenLocked(true); it.setTurnScreenOn(true) }
+                SystemClock.sleep(1800)
+                scenario.onActivity {
+                    Hud::class.java.getDeclaredMethod("openAchievements").apply { isAccessible = true }.invoke(hud(it))
+                }
+                awaitUi(scenario, "Greed card attached") {
+                    val view = field(hud(it), "page").get(hud(it)) as? View
+                    view != null && descendants(view).any { v -> v.tag == "achievement_card_greed" }
+                }
+                SystemClock.sleep(700)
+                scenario.onActivity {
+                    val card = tag(page(it), "achievement_card_greed")
+                    assertTrue(descendants(card).filterIsInstance<TextView>().any { v -> v.text.toString().equals("Greed", true) })
+                    assertTrue(descendants(card).filterIsInstance<TextView>().any { v -> v.text.toString().contains("risky position") })
+                    assertFalse(descendants(card).any { v -> v.tag == "achievement-counter" })
+                    val scroll = field(page(it), "scroll").get(page(it)) as ScrollView
+                    val bounds = Rect(0, 0, card.width, card.height)
+                    scroll.offsetDescendantRectToMyCoords(card, bounds)
+                    scroll.scrollTo(0, scroll.scrollY + bounds.top)
+                }
+                awaitUi(scenario, "Greed card visible") { tag(page(it), "achievement_card_greed").getGlobalVisibleRect(Rect()) }
+                SystemClock.sleep(300) // Geometry updates before Android paints the scrolling frame.
+                capture("achievement-greed-card")
+                scenario.onActivity { hud(it).navigateBack(); Progress.bestMetric("greed", 1) }
+                SystemClock.sleep(700)
+                scenario.onActivity {
+                    Hud::class.java.getDeclaredMethod("openAchievements").apply { isAccessible = true }.invoke(hud(it))
+                }
+                awaitUi(scenario, "Earned Greed reward appears on reopening") {
+                    val view = field(hud(it), "page").get(hud(it)) as? View
+                    view != null && descendants(view).any { v -> v.tag == "achievement_claim_greed" }
+                }
+                SystemClock.sleep(700)
+                val bank = Progress.coins
+                scenario.onActivity {
+                    val claim = tag(page(it), "achievement_claim_greed")
+                    assertTrue(claim.performClick()); claim.performClick()
+                }
+                awaitUi(scenario, "Greed reward claimed once") {
+                    Achievements.snapshot().single { s -> s.definition.id == "greed" }.allClaimed &&
+                        !field(page(it), "paying").getBoolean(page(it))
+                }
+                assertEquals(bank + 1500, Progress.coins)
+                scenario.onActivity { assertFalse(descendants(tag(page(it), "achievement_card_greed")).any { v -> v.tag == "achievement_claim_greed" }) }
+            }
+        } finally { restore(prefs, saved); Progress.init(context); Settings.setDevMode(dev) }
+    }
+
     @Test fun partialScrollFlingAndClaimsCannotPaintOverTheHeader() {
         assumeTrue(InstrumentationRegistry.getArguments().getString("captureHardwareAchievements") == "true")
         val prefs = context.getSharedPreferences("progress", Context.MODE_PRIVATE)

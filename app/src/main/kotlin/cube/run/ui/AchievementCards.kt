@@ -262,6 +262,7 @@ internal class AchievementCards(
             "house_loses" -> Theme.GOLD
             "voidwalker" -> Theme.GRAPE
             "greedy" -> Theme.YELLOW
+            "greed" -> Theme.BERRY
             "scenic_route" -> Theme.SKY
             "coal_miner" -> 0xFF8994AD.toInt()
             "magpie" -> Theme.GOLD

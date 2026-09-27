@@ -32,7 +32,7 @@ object Achievements {
         definition.id == "homeress" -> 1500
         definition.id == "gambliphobic" -> 1500
         definition.id == "cookie" -> 2000
-        definition.id in setOf("greedy", "coal_miner", "full_kit", "insomniac", "bankrupt", "exactly_67", "nervous_tic", "silent_treatment", "stage_fright") -> 1500
+        definition.id in setOf("greed", "greedy", "coal_miner", "full_kit", "insomniac", "bankrupt", "exactly_67", "nervous_tic", "silent_treatment", "stage_fright") -> 1500
         definition.id in setOf("scenic_route") -> 2500
         definition.id in setOf("just_browsing", "two_ez", "untouchable", "house_loses", "voidwalker", "magpie", "shard_hunter", "long_con", "neo") -> 2000
         else -> 0
@@ -65,6 +65,7 @@ object Achievements {
         Definition("house_loses", "House Always Loses", "Win a Gambler jackpot.", intArrayOf(1), false),
         Definition("voidwalker", "Voidwalker", "Make five offerings to the void.", intArrayOf(5), false),
         Definition("greedy", "Greedy", "Collect 13 mystery boxes in one run.", intArrayOf(13), false),
+        Definition("greed", "Greed", "Die collecting a mystery box from a risky position.", intArrayOf(1), false),
         Definition("scenic_route", "Scenic Route", "Visit all four unique bonus worlds in one run.", intArrayOf(4), false),
         Definition("coal_miner", "Coal Miner", "Collect 5000 coal.", intArrayOf(5000), false),
         Definition("magpie", "Magpie", "Collect 10000 coins in one run.", intArrayOf(10000), false),

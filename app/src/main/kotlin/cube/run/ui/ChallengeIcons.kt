@@ -112,6 +112,11 @@ internal class ChallengeIcon(private val id: String) : Icon() {
                 icon(BoxIcon(Theme.GRAPE), 3f, 17f, 30f)
                 sparkle(40f, 36f, 4.5f)
             }
+            "greed" -> {
+                icon(BoxIcon(Theme.GOLD), 8f, 12f, 32f)
+                line(6f, 6f, 42f, 42f, Theme.BERRY, 5f)
+                sparkle(40f, 7f, 4f)
+            }
             "scenic_route" -> {
                 for ((i, color) in listOf(Theme.SKY, Theme.MINT, Theme.BERRY, Theme.GOLD).withIndex())
                     icon(PortalIcon(color), 2f + (i % 2) * 22f, 2f + (i / 2) * 22f, 22f)

@@ -1,5 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="achievement_greed">Greed</string>
+    <string name="achievement_goal_greed">Die collecting a mystery box from a risky position.</string>
     <string name="ability_gigajump">Gigajump</string>
     <string name="ability_gigajump_detail">Jump twice as high while your bubble is active!</string>
     <string name="ability_close_shave">Close Shave</string>

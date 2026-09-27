@@ -143,6 +143,7 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
 
     // ---- goodies ----
     private var coinsRun = 0         // collected this run (banked by the session at game over)
+    private var lastCollectedBox: Row? = null
     private var boxesRun = 0         // mystery boxes collected this run (opened on the run-over screens)
     private var coinStreak = 0       // consecutive pickups without a miss (the milestone chimes)
     private var coinPitch = 0        // rising coin pitch; resets after a short gap without a coin
@@ -198,6 +199,7 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
 
     /** GL-thread navigation: reset the run, retaining renderer allocations and the live surface. */
     fun resetToMenu() {
+        lastCollectedBox = null
         finishRendererStartup()
         idlePilot.stop()
         opening.finish()
@@ -239,6 +241,7 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
 
     private fun start() {
         if (started || session.isOver) return
+        lastCollectedBox = null
         finishRendererStartup()
         opening.finish()
         started = true
@@ -308,11 +311,24 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
         if (dead) return
         if (BuildConfig.DEBUG && testCrashObserver != null) { testCrashObserver!!.invoke(); return }
         if (Progress.useRevive()) { secondWind(); return }
+        if (reachingForBox()) session.riskyBoxDeath()
         if (startGateRunT >= 0f) session.runCrashed(runT - startGateRunT)
         dead = true
         player.setFlying(false)
         fx.crash(player.px, player.py, player.col)
         // NB: the run-over screens are deferred (see tick) so the crash animation is visible.
+    }
+
+    private fun reachingForBox(): Boolean {
+        if (!live() || player.py >= 1.7f) return false
+        // A box sits 3.2 units behind its row. Include the obstacle immediately
+        // before/after it, but never an old pickup or a box in another lane.
+        fun near(row: Row) = !row.idle &&
+            abs(row.z + Row.PICKUP_DZ) <= abs(Row.PICKUP_DZ) + .9f &&
+            abs(player.px - row.pickupX) < .95f
+        return lastCollectedBox?.let(::near) == true || track.rows.any {
+            it.pickup == Pickup.BOX && !it.pickupMissed && near(it)
+        }
     }
 
     /** A second wind: the crash becomes a smash — the row shatters, a bubble goes up, the run goes on. */
@@ -450,6 +466,7 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
                 fx.pickup(hsvInto(tmpCol, 190f, 0.5f, 1f), row.pickupX, cz)
             }
             Pickup.BOX -> {
+                lastCollectedBox = row
                 session.boxCollected()
                 if (Skins.Ability.LOTTERY in runSkin.abilities) {
                     val won = lottery.collectBox()
