@@ -16,7 +16,7 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class StrobeAbilitiesTest {
-    @Test fun strobeQuadruplesOnlyNearMissBonusAndStacksWithScoreMultiplier() {
+    @Test fun strobeTriplesOnlyNearMissBonusAndStacksWithScoreMultiplier() {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         ActivityScenario.launch<GameActivity>(Intent(context, GameActivity::class.java)
             .putExtra(Hud.EXTRA_AUTOSTART, false)).use { scenario ->
@@ -38,9 +38,9 @@ class StrobeAbilitiesTest {
                         assertEquals("Skin $id, multiplier $doubled, clearance $clearance", expected, game.session.score - before)
                     }
                     check(0, false, .1f, 3)
-                    check(14, false, .1f, 9)
+                    check(14, false, .1f, 7)
                     check(0, true, .1f, 6)
-                    check(14, true, .1f, 18)
+                    check(14, true, .1f, 14)
                     check(14, false, .34f, 1)
                     check(14, true, .8f, 2)
                 } catch (t: Throwable) { failure = t }

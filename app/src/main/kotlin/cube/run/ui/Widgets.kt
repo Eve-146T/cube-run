@@ -407,6 +407,9 @@ class UiKit(val ctx: Context) {
     /** The text inside an [iconText]. */
     fun labelOf(row: LinearLayout): TextView = row.getChildAt(1) as TextView
 
+    /** Shared bank style across the menu, wardrobe and achievements. */
+    fun coinBank(t: CharSequence): LinearLayout = iconPill(CoinIcon(), t, Theme.INK, 16f)
+
     /** A white candy pill holding an icon + value (the HUD's coin bank, bubble stock…). */
     fun iconPill(icon: Drawable, t: CharSequence, color: Int = Theme.INK, size: Float = 15f, fill: Int = Theme.WHITE): LinearLayout =
         iconText(icon, t, size, color, iconDp = size * 1.05f).apply { // the icon matches the digits' height, not the whole line

@@ -45,7 +45,7 @@ class AchievementsView(activity: Activity, kit: UiKit, private val preparing: Bo
         clipChildren = false; clipToPadding = false
         addView(rows, FrameLayout.LayoutParams(-1, -2))
     }
-    private val bank = kit.iconPill(CoinIcon(), number(Progress.coins), Theme.INK, 15f)
+    private val bank = kit.coinBank(number(Progress.coins))
     private val scroll = object : ScrollView(activity) {
         override fun dispatchDraw(canvas: Canvas) {
             // This is the scrolling viewport, not the tall child: cards must stop below the bank/header.

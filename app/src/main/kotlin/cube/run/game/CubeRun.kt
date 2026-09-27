@@ -297,6 +297,7 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
             session.setBonus(bonus)
         }
         session.runStarted()
+        if (Settings.devMode) session.setScore(950)
         if (bonus in 0..3) session.setBonus(bonus)
         session.laneChanged(player.lane, Lanes.count)
         refreshJumpAbility()
@@ -414,7 +415,7 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
         fx.rowPassed()
         if (row.minClear < 0.34f) { // shaved it — reward a close dodge with an air-rush
             session.nearMiss()
-            val bonus = nearMissBonus * (if (Skins.Ability.CLOSE_SHAVE in runSkin.abilities) 4 else 1)
+            val bonus = nearMissBonus * (if (Skins.Ability.CLOSE_SHAVE in runSkin.abilities) 3 else 1)
             session.addScore(if (x2) bonus * 2 else bonus)
             fx.nearMiss(player.px, player.py)
         }
@@ -449,7 +450,8 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
             die()
             return
         }
-        val value = Progress.coinValue * (if (bonus == Bonus.KALEIDO) 2f else 1f)
+        val value = Progress.coinValue * (if (bonus == Bonus.KALEIDO) 2f else 1f) *
+            (if (bubble.active && Skins.Ability.GOLD_BUBBLE in runBubble.abilities) 1.6f else 1f)
         if (Skins.Ability.COAL in runSkin.abilities && !coin.gem) {
             session.coalCollected()
             SoundFx.play("tap", rate = .75f, vol = .35f)

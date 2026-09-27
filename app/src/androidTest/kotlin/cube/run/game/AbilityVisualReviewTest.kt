@@ -159,6 +159,17 @@ class AbilityVisualReviewTest {
         }
     }
 
+    @Test fun goldBubbleShowsActiveCoinBonus() {
+        ActivityScenario.launch<GameActivity>(Intent(context, GameActivity::class.java)
+            .putExtra(Hud.EXTRA_AUTOSTART, false)).use { scenario ->
+            scenario.onActivity { it.setShowWhenLocked(true); it.setTurnScreenOn(true) }
+            SystemClock.sleep(1800)
+            scenario.onActivity { call(hud(it), "openWardrobe") }
+            SystemClock.sleep(650)
+            panel(scenario, Wardrobe.BUBBLE, 3, "Golden Bubble", "gold-bubble")
+        }
+    }
+
     @Test fun neonShowsGigajumpAbility() {
         ActivityScenario.launch<GameActivity>(Intent(context, GameActivity::class.java)
             .putExtra(Hud.EXTRA_AUTOSTART, false)).use { scenario ->

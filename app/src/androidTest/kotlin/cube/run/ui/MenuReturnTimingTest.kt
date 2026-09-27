@@ -92,6 +92,8 @@ class MenuReturnTimingTest {
             awaitMenu(activity); awaitScene()
             val cached = awaitCaches(activity)
             assertEquals("Preparing wardrobe must not change the live GL stage", cube.run.core.Stage.NONE, cube.run.core.Stage.mode)
+            val bankRect = android.graphics.Rect()
+            ui { field<View>(field<MainMenu>(field<Hud>(activity, "hud"), "menu"), "bank").getGlobalVisibleRect(bankRect) }
             repeat(4) { cycle ->
                 for ((name, page) in cached) {
                     val drawn = CountDownLatch(1)
@@ -127,6 +129,11 @@ class MenuReturnTimingTest {
                             bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it)
                         }
                         bitmap.recycle()
+                    }
+                    if (name == "wardrobe" || name == "achievements") ui {
+                        val bank = field<View>(page, if (name == "wardrobe") "balance" else "bank")
+                        val rect = android.graphics.Rect(); assertTrue(bank.getGlobalVisibleRect(rect))
+                        assertEquals("$name bank bounds match the home bank", bankRect, rect)
                     }
                     android.util.Log.i("InstantMenu", "$name cycle $cycle: submitted frame in $elapsed ms")
                     assertTrue("$name opening took $elapsed ms", elapsed < 80)

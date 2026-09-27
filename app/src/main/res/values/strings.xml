@@ -1,5 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="ability_gold_bubble">Golden Bubble</string>
+    <string name="ability_gold_bubble_detail">Coins worth 60% more while bubble is active!</string>
+    <string name="game_purple_cube">Purple Cube</string>
     <string name="ability_toxic_fortune">Toxic Fortune</string>
     <string name="ability_toxic_fortune_detail">Coins are worth 60% more, but 1% are green and kill you instantly!</string>
     <string name="achievement_pile_driver">Pile Driver</string>
@@ -9,7 +12,7 @@
     <string name="ability_gigajump">Gigajump</string>
     <string name="ability_gigajump_detail">Jump twice as high while your bubble is active!</string>
     <string name="ability_close_shave">Close Shave</string>
-    <string name="ability_close_shave_detail">Near misses give you 4 times the bonus points!</string>
+    <string name="ability_close_shave_detail">Near misses give you 3 times the bonus points!</string>
     <string name="ability_mind_synergy">SECRET ABILITY: MIND SYNERGY</string>
     <string name="ability_mind_synergy_detail">YOUR BUBBLE LASTS 30% LONGER AND YOU CAN TRIPLE JUMP WHILE IT\'S ACTIVE!!!</string>
     <string name="ability_bubble_haul">Bubble Haul</string>

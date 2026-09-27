@@ -88,7 +88,7 @@ class MainMenu(
         start()
     }
     private val bestRow = kit.iconText(TrophyIcon(), "", 22f, Theme.WHITE, stage = true, iconDp = 28f).apply { visibility = GONE }
-    private val bank = kit.iconPill(CoinIcon(), "0", Theme.INK, 16f).apply { setOnClickListener { openShop() } }
+    private val bank = kit.coinBank("0").apply { setOnClickListener { openShop() } }
     private val bubbles = kit.iconPill(BubbleIcon(), "", Theme.INK, 16f, Theme.lighten(Theme.CYAN, 0.55f)).apply { visibility = GONE; setOnClickListener { openShop() } }
     private val tapHint = kit.stageText(activity.getString(R.string.tap_to_start), 22f, Theme.WHITE, stroke = 3f).apply {
         letterSpacing = if (resources.configuration.layoutDirection == View.LAYOUT_DIRECTION_RTL) 0f else 0.12f

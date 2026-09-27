@@ -296,6 +296,10 @@ class AbilityIcon(private val ability: Ability) : Icon() {
             paint.style = Paint.Style.STROKE; paint.color = Theme.INK
             canvas.drawCircle(33f, 17f, 10f, paint)
             if (ability == Ability.BUBBLE_DIVIDEND) canvas.drawCircle(33f, 17f, 5f, paint)
+        } else if (ability == Ability.GOLD_BUBBLE) {
+            paint.style = Paint.Style.FILL; paint.color = Theme.GOLD; canvas.drawCircle(24f, 24f, 17f, paint)
+            paint.style = Paint.Style.STROKE; paint.color = Theme.INK; canvas.drawCircle(24f, 24f, 17f, paint); canvas.drawCircle(24f, 24f, 10f, paint)
+            paint.color = Theme.WHITE; canvas.drawArc(10f, 10f, 38f, 38f, 210f, 55f, false, paint)
         } else if (ability == Ability.COAL_ALCHEMY) {
             path.reset(); path.moveTo(24f, 4f); path.lineTo(43f, 21f); path.lineTo(24f, 44f); path.lineTo(5f, 21f); path.close()
             paint.style = Paint.Style.FILL; paint.color = Theme.CYAN; canvas.drawPath(path, paint)
@@ -314,7 +318,7 @@ class AbilityIcon(private val ability: Ability) : Icon() {
             canvas.drawLine(43f, 7f, 43f, 41f, paint)
             paint.style = Paint.Style.FILL; paint.textAlign = Paint.Align.CENTER
             paint.isFakeBoldText = true; paint.textSize = 23f
-            canvas.drawText("×4", 24f, 32f, paint)
+            canvas.drawText("×3", 24f, 32f, paint)
             paint.isFakeBoldText = false
         } else if (ability == Ability.SECRET) {
             path.reset(); path.moveTo(14f, 15f)

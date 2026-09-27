@@ -126,6 +126,7 @@ class EquippedAbilitiesTest {
     }
 
     @Test fun developerRunsUseTheEasierLotteryOdds() = fixture(1, dev = true) { game ->
+        assertEquals("Dev runs begin just before Coal discovery", 950, game.session.score)
         val lottery = read<Lottery>(game, "lottery")
         assertEquals(kotlin.math.ln1p(-Lottery.DEV_COIN_CHANCE), field(lottery, "logMiss").getDouble(lottery), 0.0)
     }
@@ -137,6 +138,19 @@ class EquippedAbilitiesTest {
         repeat(5) { coin(game) }
         assertEquals("Wardrobe changes cannot alter a run already in progress", 12, read<Int>(game, "coinsRun"))
         assertEquals(12, Progress.achievementCoins)
+    }
+
+    @Test fun goldBubbleBoostsOnlyActivePickupsAndStacksWithCubeAndPerks() = fixture(6, bubbleSkin = 3, rich = 10) { game ->
+        assertEquals("Ordinary runs still start at zero", 0, game.session.score)
+        val bubble = read<Bubble>(game, "bubble")
+        repeat(5) { coin(game) }
+        assertEquals(18, read<Int>(game, "coinsRun"))
+        bubble.activate(0f, .5f, quiet = true)
+        repeat(25) { coin(game) }
+        assertEquals("Gold cube, rich coins and active gold bubble stack", 162, read<Int>(game, "coinsRun"))
+        bubble.pop(0f, .5f)
+        repeat(5) { coin(game) }
+        assertEquals("Boost ends when bubble pops", 180, read<Int>(game, "coinsRun"))
     }
 
     @Test fun plasmaExtendsTrackPowerupsAndStacksWithPlasmaBubble() = fixture(5, bubbleSkin = 4) { game ->

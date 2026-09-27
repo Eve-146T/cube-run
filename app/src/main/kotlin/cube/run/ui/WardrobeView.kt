@@ -38,7 +38,7 @@ class WardrobeView(activity: Activity, kit: UiKit, abilityStyle: Int = 0, onClos
 
     private var cat = Wardrobe.CUBE
     private var index = Progress.equipped(cat)
-    private val balance = kit.iconPill(CoinIcon(), "", Theme.INK, 16f)
+    private val balance = kit.coinBank("")
     private val tabs = LinearLayout(activity).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER; clipChildren = false; clipToPadding = false }
     private val tabViews = ArrayList<TextView>()
     private val name = kit.stageText("", 32f, stroke = 4f)
@@ -187,7 +187,7 @@ class WardrobeView(activity: Activity, kit: UiKit, abilityStyle: Int = 0, onClos
         render()
     }
 
-    private fun visibleItems(): List<Int> = (0 until Wardrobe.count(cat)).filter { Progress.secretAvailable(cat, it) }
+    private fun visibleItems(): List<Int> = Wardrobe.shopItems(cat).filter { Progress.secretAvailable(cat, it) }
 
     private fun render() {
         val owned = Progress.owns(cat, index)
