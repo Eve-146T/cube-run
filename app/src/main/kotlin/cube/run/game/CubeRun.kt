@@ -679,7 +679,10 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
             return
         } else if (showcase.active) {
             showcase.exit(bgTop, bgBottom)
-            introT = if (showcase.shop) shopMenuIntroT else 0f
+            introT = if (showcase.shop) shopMenuIntroT else 1.8f
+            if (!showcase.shop) {
+                rig.reset(); rig.intro = 0f; rig.roll = 0f; rig.wide = 0f
+            }
             // The shop's reverse transition already restored the menu sky. Replaying the older
             // showcase fade here jumps back to a dark sky and flashes brightly in Sunset Dunes.
             skyBlend = if (showcase.shop) 0f else 1f

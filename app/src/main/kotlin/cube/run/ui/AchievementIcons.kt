@@ -3,7 +3,6 @@ package cube.run.ui
 import android.graphics.Canvas
 import android.graphics.Paint
 import android.graphics.Path
-import java.text.NumberFormat
 
 /** The achievement page's drawn artwork: one icon per family, the medals, and the shared number formats. */
 internal fun achievementIcon(id: String): android.graphics.drawable.Drawable = when (id) {
@@ -184,7 +183,7 @@ internal fun medalColor(tier: Int): Int = when (tier) {
     2 -> Theme.GOLD
     else -> Theme.CYAN
 }
-internal fun number(value: Int): String = NumberFormat.getIntegerInstance(java.util.Locale.US).format(value)
+internal fun number(value: Int): String = value.toString()
 
 /**
  * A medal you can tell by its outline as well as its metal: bronze is a plain coin, silver a

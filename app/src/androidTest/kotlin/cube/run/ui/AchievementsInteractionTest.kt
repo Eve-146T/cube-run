@@ -87,12 +87,18 @@ class AchievementsInteractionTest {
         val title = field(page, "titleView").get(page) as View
         val topRect = Rect(0, 0, top.width, top.height); page.offsetDescendantRectToMyCoords(top, topRect)
         val titleRect = Rect(0, 0, title.width, title.height); page.offsetDescendantRectToMyCoords(title, titleRect)
-        // Exclude the changing coin balance. Include back, title, and their shared header background.
+        val bank = field(page, "bank").get(page) as View
+        val bankRect = Rect(0, 0, bank.width, bank.height); page.offsetDescendantRectToMyCoords(bank, bankRect)
+        // Include both heading rows, masking only the changing coin balance.
         val width = titleRect.right.coerceAtMost(page.width)
         val bitmap = Bitmap.createBitmap(page.width, page.height, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bitmap); canvas.drawColor(Color.BLACK); page.draw(canvas)
-        val pixels = IntArray(width * topRect.height())
-        bitmap.getPixels(pixels, 0, width, 0, topRect.top, width, topRect.height())
+        val height = maxOf(topRect.bottom, titleRect.bottom) - topRect.top
+        val pixels = IntArray(width * height)
+        bitmap.getPixels(pixels, 0, width, 0, topRect.top, width, height)
+        for (y in 0 until height) for (x in 0 until width) {
+            if (bankRect.contains(x, y + topRect.top)) pixels[y * width + x] = 0
+        }
         bitmap.recycle(); return pixels
     }
 
@@ -117,7 +123,7 @@ class AchievementsInteractionTest {
                 scenario.onActivity {
                     assertEquals(Achievements.all.size, descendants(page(it)).count { view -> view.tag?.toString()?.startsWith("achievement_card_") == true })
                     assertTrue("Lifetime target uses US grouping", descendants(tag(page(it), "achievement_card_coins")).filterIsInstance<TextView>()
-                        .any { view -> view.text.toString().contains("500,000") })
+                        .any { view -> view.text.toString().contains("500000") })
                     baseline = headerPixels(page(it))
                     (field(page(it), "scroll").get(page(it)) as ScrollView).scrollTo(0, UiKit(it).dp(120f))
                 }

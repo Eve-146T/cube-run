@@ -70,7 +70,7 @@ fun Context.gameText(stableLabel: String): String = when (stableLabel) {
     "Pop another bubble 30% sooner!" -> getString(R.string.ability_quick_bubble_detail)
     "Turns every coin into coal. Coal is worthless." -> getString(R.string.ability_coal_detail)
     "Lottery" -> getString(R.string.ability_lottery)
-    "All the coins you collect are spent on playing the Lottery! The jackpot is 250k coins. Each coin of value has a 1 in 100,000 chance; each mystery box has a 1.3% chance." -> getString(R.string.ability_lottery_detail)
+    "All the coins you collect are spent on playing the Lottery! The jackpot is 250k coins. Each coin of value has a 1 in 100000 chance; each mystery box has a 1.3% chance." -> getString(R.string.ability_lottery_detail)
     "Floaty" -> getString(R.string.ability_floaty)
     "Your cube becomes floaty!" -> getString(R.string.ability_floaty_detail)
     "Double jump" -> getString(R.string.ability_double_jump)

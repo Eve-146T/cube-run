@@ -210,7 +210,13 @@ class AnimationRegressionTest {
     }
 
     @Test fun preparedShopIsLaidOutBeforeTheTapAndStartsOnTheNextDraw() {
-        waitFor(1400)
+        val readyBy = SystemClock.uptimeMillis() + 8000
+        var ready = false
+        while (!ready && SystemClock.uptimeMillis() < readyBy) {
+            waitFor(30)
+            ui { ready = field<ShopView?>(field<Hud>(it, "hud"), "preparedShop") != null }
+        }
+        assertTrue("Shop prepared before navigation", ready)
         lateinit var hud: Hud
         lateinit var prepared: ShopView
         val started = CountDownLatch(1)
@@ -218,12 +224,17 @@ class AnimationRegressionTest {
         ui {
             hud = field(it, "hud")
             prepared = field(hud, "preparedShop")
-            assertNull("Preparation must not open a hidden screen", prepared.parent)
+            assertSame(hud, prepared.parent)
+            assertEquals(View.INVISIBLE, prepared.visibility)
+            val content = Page::class.java.getDeclaredField("content").apply { isAccessible = true }.get(prepared) as View
+            assertEquals(View.LAYER_TYPE_HARDWARE, content.layerType)
             assertTrue(prepared.width > 0 && prepared.height > 0)
             assertEquals(Stage.NONE, Stage.mode)
             val tappedAt = SystemClock.uptimeMillis()
             field<MainMenu>(hud, "menu").shopBalance.performClick()
             assertSame("Opening should reuse the already constructed cards", prepared, field(hud, "page"))
+            assertEquals("The animation starts during the tap, without another draw delay", Stage.SHOP, Stage.mode)
+            assertEquals(340L, field<ValueAnimator>(prepared, "navigation").duration)
             prepared.viewTreeObserver.addOnPreDrawListener(object : android.view.ViewTreeObserver.OnPreDrawListener {
                 override fun onPreDraw(): Boolean {
                     prepared.viewTreeObserver.removeOnPreDrawListener(this)
@@ -235,7 +246,7 @@ class AnimationRegressionTest {
         }
         assertTrue(started.await(2, TimeUnit.SECONDS))
         android.util.Log.i("ShopMotion", "Prepared shop first draw: $elapsed ms")
-        assertTrue("Prepared entrance took $elapsed ms to reach its first draw", elapsed < 120)
+        assertTrue("Prepared entrance took $elapsed ms to reach its first draw", elapsed < 80)
         ui { prepared.close() }
         waitFor(500)
     }

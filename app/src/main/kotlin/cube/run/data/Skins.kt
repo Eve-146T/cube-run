@@ -28,7 +28,7 @@ object Skins {
         POWER_STRETCH("Power stretch", "Your power-ups last 25% longer!"),
         QUICK_BUBBLE("Quick bubble", "Pop another bubble 30% sooner!"),
         COAL("Coal", "Turns every coin into coal. Coal is worthless."),
-        LOTTERY("Lottery", "All the coins you collect are spent on playing the Lottery! The jackpot is 250k coins. Each coin of value has a 1 in 100,000 chance; each mystery box has a 1.3% chance."),
+        LOTTERY("Lottery", "All the coins you collect are spent on playing the Lottery! The jackpot is 250k coins. Each coin of value has a 1 in 100000 chance; each mystery box has a 1.3% chance."),
         FLOATY("Floaty", "Your cube becomes floaty!"),
         DOUBLE_JUMP("Double jump", "Jump twice while your bubble is active!"),
         LONG_BUBBLE("Long bubble", "Your bubble lasts 30% longer!"),

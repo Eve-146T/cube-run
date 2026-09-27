@@ -91,7 +91,7 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false, retu
     private val cachePreferences = listOf("progress", "settings", "scores").map {
         activity.getSharedPreferences(it, Context.MODE_PRIVATE)
     }
-    private val cacheChanges = SharedPreferences.OnSharedPreferenceChangeListener { _, _ -> schedulePagePreparation() }
+    private val cacheChanges = SharedPreferences.OnSharedPreferenceChangeListener { _, _ -> scheduleShopPreparation() }
     private val preparePages = object : Runnable {
         override fun run() {
             if (!isAttachedToWindow || page != null || languageSheet != null || (runStarted && runOver == null)) return
@@ -122,12 +122,20 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false, retu
         }
     }
     private var opening = openingEntrance
-    private val prepareShop = Runnable {
-        if (isAttachedToWindow && !pageOpen() && width > 0 && height > 0 && preparedShop?.isCurrent() != true) {
-            preparedShop = newShop().also { shop ->
-                rootWindowInsets?.let { shop.dispatchApplyWindowInsets(it) }
-                shop.measure(MeasureSpec.makeMeasureSpec(width, MeasureSpec.EXACTLY), MeasureSpec.makeMeasureSpec(height, MeasureSpec.EXACTLY))
-                shop.layout(0, 0, width, height)
+    private val prepareShop = object : Runnable {
+        override fun run() {
+            if (!isAttachedToWindow || page != null || languageSheet != null || (runStarted && runOver == null)) return
+            if (width == 0 || height == 0) { postOnAnimation(this); return }
+            if (preparedShop?.isCurrent() != true) {
+                preparedShop?.let { removeView(it) }
+                preparedShop = newShop().also { shop ->
+                    shop.prepareAnimatedNavigation()
+                    addView(shop, 0, LayoutParams(-1, -1))
+                    rootWindowInsets?.let { shop.dispatchApplyWindowInsets(it) }
+                    shop.measure(MeasureSpec.makeMeasureSpec(width, MeasureSpec.EXACTLY), MeasureSpec.makeMeasureSpec(height, MeasureSpec.EXACTLY))
+                    shop.layout(0, 0, width, height)
+                    shop.warmNavigation()
+                }
             }
         }
     }
@@ -194,7 +202,7 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false, retu
         super.onAttachedToWindow()
         cachePreferences.forEach { it.registerOnSharedPreferenceChangeListener(cacheChanges) }
         schedulePagePreparation()
-        if (!opening) scheduleShopPreparation()
+        scheduleShopPreparation()
         if (runStarted) postDelayed(pollAchievements, 500)
     }
 
@@ -217,7 +225,7 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false, retu
         cachePreferences.forEach { it.unregisterOnSharedPreferenceChangeListener(cacheChanges) }
         cachedPages.values.forEach { it.painted = false }
         removeCallbacks(pollAchievements)
-        preparedShop = null
+        preparedShop?.let { removeView(it) }; preparedShop = null
         voidPurchase = null
         giftReturnGeneration++
         giftReturnCover?.let { cover ->
@@ -244,7 +252,7 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false, retu
 
     private fun scheduleShopPreparation() {
         removeCallbacks(prepareShop)
-        postDelayed(prepareShop, 900)
+        postOnAnimation(prepareShop)
         schedulePagePreparation()
     }
 
@@ -367,7 +375,7 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false, retu
     /** Reset the visible caches too, so closing the developer shop shows a fresh game. */
     private fun refreshAfterProgressReset() {
         removeCallbacks(prepareShop)
-        preparedShop = null
+        preparedShop?.let { removeView(it) }; preparedShop = null
         achievementToast.reset()
         jackpotCounter.reset()
         bonusVisited.clear()
@@ -403,11 +411,14 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false, retu
         Progress.shopOpened()
         Stage.homeScreen = false
         removeCallbacks(prepareShop)
-        val shop = preparedShop?.takeIf { it.isCurrent() } ?: newShop()
+        val ready = preparedShop?.takeIf { it.isCurrent() }
+        if (ready == null) preparedShop?.let { removeView(it) }
+        val shop = ready ?: newShop()
         preparedShop = null
         menu.beginShop()
         page = shop
-        addView(shop, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
+        if (ready != null) { shop.bringToFront(); shop.showAnimatedPrepared() }
+        else addView(shop, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
         menu.bringToFront() // corner controls return above the sheet instead of flashing out from beneath it
     }
     private fun openWardrobe() = openCached("wardrobe")
@@ -739,7 +750,7 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false, retu
         )
         runOver = flow
         addView(flow, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
-        schedulePagePreparation() // Updated rewards can warm behind the results before MENU is tapped.
+        scheduleShopPreparation() // Updated rewards and shop cards warm behind results before MENU is tapped.
     }
 
     /** The game's 3D gift stage opened a box (GL → UI via the session). */

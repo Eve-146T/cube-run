@@ -161,8 +161,17 @@ class MenuReturnTimingTest {
                 hud.javaClass.getDeclaredMethod("openAchievements").apply { isAccessible = true }.invoke(hud)
                 val page = field<AchievementsView>(hud, "page")
                 val bank = field<android.widget.LinearLayout>(page, "bank")
-                assertEquals(java.text.NumberFormat.getIntegerInstance(activity.resources.configuration.locales[0]).format(Progress.coins),
+                assertEquals(Progress.coins.toString(),
                     UiKit(activity).labelOf(bank).text.toString())
+                val menuBank = field<View>(field<MainMenu>(hud, "menu"), "bank")
+                val expected = IntArray(2); val actual = IntArray(2)
+                menuBank.getLocationOnScreen(expected); bank.getLocationOnScreen(actual)
+                assertEquals("Achievements bank keeps the menu's top corner", expected[1], actual[1])
+                assertEquals(expected[0] + menuBank.width, actual[0] + bank.width)
+                val titleBounds = android.graphics.Rect(); val bankBounds = android.graphics.Rect()
+                field<View>(page, "titleView").getGlobalVisibleRect(titleBounds)
+                bank.getGlobalVisibleRect(bankBounds)
+                assertFalse("Heading must never overlap the coin pill", android.graphics.Rect.intersects(titleBounds, bankBounds))
             }
         } finally { ui { unlockField.setBoolean(null, unlocked); activity.finish() } }
     }
@@ -281,6 +290,36 @@ class MenuReturnTimingTest {
             assertTrue(verified.await(2, TimeUnit.SECONDS))
             failure.get()?.let { throw it }
             awaitScene()
+        } finally { ui { activity.finish() } }
+    }
+
+    @Test fun wardrobeBackRestoresTheSettledCameraWithoutAnotherLaunchZoom() {
+        val activity = launch()
+        try {
+            awaitMenu(activity); awaitScene(); awaitCaches(activity)
+            ui {
+                val hud = field<Hud>(activity, "hud")
+                hud.javaClass.getDeclaredMethod("openWardrobe").apply { isAccessible = true }.invoke(hud)
+            }
+            awaitScene(); SystemClock.sleep(350)
+            ui { field<Page>(field<Hud>(activity, "hud"), "page").navigateBack() }
+            awaitMenu(activity); awaitScene()
+            repeat(3) {
+                val checked = CountDownLatch(1)
+                val failure = java.util.concurrent.atomic.AtomicReference<Throwable>()
+                Gdx.app.postRunnable {
+                    try {
+                        val game = Gdx.app.applicationListener as cube.run.game.CubeRun
+                        val rig = field<cube.run.game.RunCamera>(game, "rig")
+                        assertEquals("Back must restore the settled camera immediately", 0f, rig.intro, .001f)
+                        assertTrue(field<Float>(game, "introT") >= 1.8f)
+                        assertEquals(cube.run.intro.OpeningPose.MENU_CAMERA_Z, game.cam.position.z, .01f)
+                    } catch (t: Throwable) { failure.set(t) }
+                    finally { checked.countDown() }
+                }
+                assertTrue(checked.await(2, TimeUnit.SECONDS)); failure.get()?.let { throw it }
+                SystemClock.sleep(150)
+            }
         } finally { ui { activity.finish() } }
     }
 }

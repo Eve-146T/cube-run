@@ -43,8 +43,8 @@
     <string name="achievement_goal_voidwalker">Bringe der Leere fünf Opfer dar.</string>
     <string name="achievement_goal_greedy">Sammle 13 Überraschungsboxen in einem Lauf.</string>
     <string name="achievement_goal_scenic_route">Besuche alle vier Bonuswelten in einem Lauf.</string>
-    <string name="achievement_goal_coal_miner">Sammle 5.000 wertlose Kohlemünzen.</string>
-    <string name="achievement_goal_magpie">Sammle 10.000 Münzen in einem Lauf.</string>
+    <string name="achievement_goal_coal_miner">Sammle 5000 Kohle.</string>
+    <string name="achievement_goal_magpie">Sammle 10000 Münzen in einem Lauf.</string>
     <string name="achievement_goal_shard_hunter">Sammle alle drei Splitterarten in einem Lauf.</string>
     <string name="achievement_goal_full_kit">Habe Blase, Magnet, 2× und Jetpack gleichzeitig.</string>
     <string name="achievement_goal_long_con">Überlebe 10 Minuten in einem Lauf.</string>

@@ -51,6 +51,7 @@ abstract class Page(
     protected var closing = false
         private set
     private var instantNavigation = false
+    private var deferredEntrance = false
     private val entrance = object : ViewTreeObserver.OnPreDrawListener {
         override fun onPreDraw(): Boolean {
             viewTreeObserver.removeOnPreDrawListener(this)
@@ -96,7 +97,7 @@ abstract class Page(
 
     override fun onAttachedToWindow() {
         super.onAttachedToWindow()
-        if (!instantNavigation && !closing) {
+        if (!instantNavigation && !deferredEntrance && !closing) {
             onNavigationShown()
             viewTreeObserver.addOnPreDrawListener(entrance)
         }
@@ -108,6 +109,22 @@ abstract class Page(
         visibility = INVISIBLE
         alpha = 1f
         viewTreeObserver.removeOnPreDrawListener(entrance)
+    }
+
+    /** Prepaint a hidden page while retaining its normal entrance/exit durations. */
+    internal fun prepareAnimatedNavigation() {
+        deferredEntrance = true
+        visibility = INVISIBLE
+        alpha = 1f
+        viewTreeObserver.removeOnPreDrawListener(entrance)
+    }
+
+    internal fun showAnimatedPrepared() {
+        check(width > 0 && height > 0)
+        deferredEntrance = false
+        visibility = VISIBLE
+        onNavigationShown()
+        animateEntrance()
     }
 
     internal fun showPrepared() {

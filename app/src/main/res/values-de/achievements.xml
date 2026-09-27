@@ -17,12 +17,12 @@
     <string name="achievement_cube_collection">Würfelsammlung</string>
     <string name="achievement_powerups_collected">Power-ups gesammelt</string>
     <string name="achievement_boxes_opened">Überraschungsboxen geöffnet</string>
-    <string name="achievement_hold_bubbles">Besitze gleichzeitig 1.000 Blasen</string>
+    <string name="achievement_hold_bubbles">Besitze gleichzeitig 1000 Blasen</string>
     <string name="achievement_wall_bounces">67 Wandabpraller in einem Lauf</string>
     <string name="achievement_stay_middle">Erreiche 100, ohne die mittlere Spur zu verlassen</string>
     <string name="achievement_no_coins">Erreiche 60, ohne eine Münze einzusammeln</string>
     <string name="achievement_miss_boxes">Verpasse 10 Überraschungsboxen in einem Lauf</string>
-    <string name="achievement_toggle_sound">Schalte den Ton 1.000-mal um</string>
+    <string name="achievement_toggle_sound">Schalte den Ton 1000-mal um</string>
     <string name="achievement_claimed">Abgeholt</string>
     <string name="achievement_claimed_with_best">Abgeholt · %1$s</string>
     <string name="achievement_best_bounces">Bestwert: %1$s Abpraller</string>

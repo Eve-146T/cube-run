@@ -529,7 +529,7 @@ class AchievementsHardwareFlowTest {
                         "measured=${price.measuredWidth}x${price.measuredHeight}, parent=${parent.width}x${parent.height}, " +
                         "padding=${price.compoundPaddingLeft}/${price.compoundPaddingTop}/${price.compoundPaddingRight}/${price.compoundPaddingBottom}"
                     assertEquals(1000000000, Progress.voidPrice)
-                    assertTrue(price.text.toString().contains("1,000,000,000"))
+                    assertTrue(price.text.toString().contains("1000000000"))
                     assertEquals("Capped void price remains one line: $priceDiagnostics", 1, price.lineCount)
                     assertEquals(0, price.layout.getEllipsisCount(0))
                     assertTrue("Coin and full grouped price fit as one span: $priceDiagnostics", desiredWidth <= contentWidth + 1f)

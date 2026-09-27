@@ -73,7 +73,7 @@ class WardrobePriceLayoutTest {
 
     private fun assertPrice(page: WardrobeView, kit: UiKit, amount: String) {
         val button = page.findViewWithTag<CandyButton>("wardrobe_action_button")
-        assertTrue("The full US-grouped price is present", button.text.toString().endsWith(amount))
+        assertTrue("The full ungrouped price is present", button.text.toString().endsWith(amount))
         assertEquals("The price is a single line", 1, button.lineCount)
         assertEquals("The price never hides its trailing digits", 0, button.layout.getEllipsisCount(0))
         val contentWidth = button.width - button.compoundPaddingLeft - button.compoundPaddingRight
@@ -96,9 +96,9 @@ class WardrobePriceLayoutTest {
             val page = WardrobeView(activity, kit, onClose = {})
             try {
                 for ((cat, id, amount) in listOf(
-                    Triple(Wardrobe.CUBE, Skins.VOID_ID, "300,000"),
-                    Triple(Wardrobe.TRAIL, Trails.VOID_ID, "500,000"),
-                    Triple(Wardrobe.BUBBLE, BubbleSkins.VOID_ID, "750,000"),
+                    Triple(Wardrobe.CUBE, Skins.VOID_ID, "300000"),
+                    Triple(Wardrobe.TRAIL, Trails.VOID_ID, "500000"),
+                    Triple(Wardrobe.BUBBLE, BubbleSkins.VOID_ID, "750000"),
                 )) {
                     browse(page, cat, id)
                     measure(page, kit, width)
@@ -119,13 +119,13 @@ class WardrobePriceLayoutTest {
         try {
             browse(page, Wardrobe.CUBE, 1)
             measure(page, kit, 360f)
-            assertPrice(page, kit, "1,500")
+            assertPrice(page, kit, "1500")
             val button = page.findViewWithTag<CandyButton>("wardrobe_action_button")
             val nominal = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_SP, 22f, button.resources.displayMetrics)
             assertEquals("Ordinary prices preserve the intended22sp type", nominal, button.textSize, .01f)
             browse(page, Wardrobe.CUBE, Skins.VOID_ID)
             measure(page, kit, 280f)
-            assertPrice(page, kit, "300,000")
+            assertPrice(page, kit, "300000")
             browse(page, Wardrobe.CUBE, 0)
             measure(page, kit, 280f)
             assertEquals("EQUIPPED", button.text.toString())

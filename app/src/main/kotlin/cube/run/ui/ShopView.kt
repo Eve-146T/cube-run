@@ -306,6 +306,8 @@ class ShopView(
         }
     }
 
+    internal fun warmNavigation() = preparePanelLayer()
+
     override fun animateExit(onFinished: () -> Unit) {
         cubeGesture = false
         Stage.shopPlayRequests.set(0)

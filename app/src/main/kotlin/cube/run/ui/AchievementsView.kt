@@ -70,14 +70,15 @@ class AchievementsView(activity: Activity, kit: UiKit, private val preparing: Bo
         background = TrophyRoomBackdrop()
         titleView.maxLines = 1
         titleView.setAutoSizeTextTypeUniformWithConfiguration(12, 23, 1, android.util.TypedValue.COMPLEX_UNIT_SP)
+        addRight(bank)
+        // Give the full heading its own line; the back control and bank share the corner row.
+        topBar.removeView(titleView)
         content.addView(LinearLayout(activity).apply {
             orientation = LinearLayout.VERTICAL
             clipChildren = true; clipToPadding = true
-            addView(LinearLayout(activity).apply {
-                gravity = Gravity.END
-                setPadding(dp(14f), dp(2f), dp(14f), dp(6f))
-                addView(bank)
-            }, LinearLayout.LayoutParams(-1, -2))
+            addView(titleView, LinearLayout.LayoutParams(-1, -2).apply {
+                marginStart = dp(14f); marginEnd = dp(14f); topMargin = dp(4f); bottomMargin = dp(8f)
+            })
             addView(scroll, LinearLayout.LayoutParams(-1, 0, 1f))
         })
         val states = Achievements.snapshot()

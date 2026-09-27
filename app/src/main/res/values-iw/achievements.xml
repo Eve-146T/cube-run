@@ -17,12 +17,12 @@
     <string name="achievement_cube_collection">אוסף הקוביות</string>
     <string name="achievement_powerups_collected">שדרוגים שנאספו</string>
     <string name="achievement_boxes_opened">תיבות הפתעה שנפתחו</string>
-    <string name="achievement_hold_bubbles">להחזיק 1,000 בועות בבת אחת</string>
+    <string name="achievement_hold_bubbles">להחזיק 1000 בועות בבת אחת</string>
     <string name="achievement_wall_bounces">67 קפיצות מהקיר בריצה אחת</string>
     <string name="achievement_stay_middle">להגיע ל־100 בלי לעזוב את הנתיב האמצעי</string>
     <string name="achievement_no_coins">להגיע ל־60 בלי לאסוף מטבע</string>
     <string name="achievement_miss_boxes">להחמיץ 10 תיבות הפתעה בריצה אחת</string>
-    <string name="achievement_toggle_sound">להחליף את מצב הצליל 1,000 פעמים</string>
+    <string name="achievement_toggle_sound">להחליף את מצב הצליל 1000 פעמים</string>
     <string name="achievement_claimed">נאסף</string>
     <string name="achievement_claimed_with_best">נאסף · %1$s</string>
     <string name="achievement_best_bounces">שיא: %1$s קפיצות</string>
