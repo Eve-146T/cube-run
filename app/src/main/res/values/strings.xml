@@ -1,5 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="achievement_pile_driver">Pile Driver</string>
+    <string name="achievement_goal_pile_driver">Ground pound 300 times in one run.</string>
     <string name="achievement_greed">Greed</string>
     <string name="achievement_goal_greed">Die collecting a mystery box from a risky position.</string>
     <string name="ability_gigajump">Gigajump</string>

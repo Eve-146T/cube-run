@@ -117,6 +117,13 @@ internal class ChallengeIcon(private val id: String) : Icon() {
                 line(6f, 6f, 42f, 42f, Theme.BERRY, 5f)
                 sparkle(40f, 7f, 4f)
             }
+            "pile_driver" -> {
+                cube(12f, 3f, 24f, Theme.ORANGE)
+                line(24f, 27f, 24f, 37f, Theme.INK, 4f)
+                line(18f, 32f, 24f, 38f, Theme.INK, 4f)
+                line(30f, 32f, 24f, 38f, Theme.INK, 4f)
+                line(5f, 44f, 43f, 44f, Theme.BERRY, 4f)
+            }
             "scenic_route" -> {
                 for ((i, color) in listOf(Theme.SKY, Theme.MINT, Theme.BERRY, Theme.GOLD).withIndex())
                     icon(PortalIcon(color), 2f + (i % 2) * 22f, 2f + (i / 2) * 22f, 22f)

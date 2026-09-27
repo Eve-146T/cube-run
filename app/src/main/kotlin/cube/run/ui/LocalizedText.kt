@@ -246,6 +246,7 @@ fun Context.achievementTitle(id: String): String = getString(when (id) {
     "voidwalker" -> R.string.achievement_voidwalker
     "greedy" -> R.string.achievement_greedy
     "greed" -> R.string.achievement_greed
+    "pile_driver" -> R.string.achievement_pile_driver
     "scenic_route" -> R.string.achievement_scenic_route
     "coal_miner" -> R.string.achievement_coal_miner
     "magpie" -> R.string.achievement_magpie
@@ -287,6 +288,7 @@ fun Context.achievementGoal(id: String): String = getString(when (id) {
     "voidwalker" -> R.string.achievement_goal_voidwalker
     "greedy" -> R.string.achievement_goal_greedy
     "greed" -> R.string.achievement_goal_greed
+    "pile_driver" -> R.string.achievement_goal_pile_driver
     "scenic_route" -> R.string.achievement_goal_scenic_route
     "coal_miner" -> R.string.achievement_goal_coal_miner
     "magpie" -> R.string.achievement_goal_magpie

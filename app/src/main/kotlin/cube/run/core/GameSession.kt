@@ -33,6 +33,8 @@ interface GameSession {
     fun boxCollected() {}
     /** A fatal collision while reaching for a nearby mystery box. Saves do not count. */
     fun riskyBoxDeath() {}
+    /** One airborne slam reached the ground during a live run. */
+    fun groundPounded() {}
     fun coalCollected() {}
     fun fullKitHeld() {}
     /** A red pill ran its whole course without a crash. */

@@ -38,6 +38,7 @@ class GameHostSession(
     private var missedBoxes = 0
     private var noPowerup = true
     private var runBoxesCollected = 0
+    private var runGroundPounds = 0
     private var bonusMask = 0
     private var shardMask = 0
     private var lastDistance = 0
@@ -65,7 +66,7 @@ class GameHostSession(
         over.set(false); scoreV.set(0); coinsV.set(0); boxesV.set(0)
         for (i in 0..2) shardsV.set(i, 0)
         runHasStarted = false; centerLaneObserved = false; stayedCentered = true; stayedCoinless = true
-        missedBoxes = 0; noPowerup = true; runBoxesCollected = 0; bonusMask = 0; shardMask = 0
+        missedBoxes = 0; noPowerup = true; runBoxesCollected = 0; runGroundPounds = 0; bonusMask = 0; shardMask = 0
         lastDistance = 0; observedDistance = 0; lastSwipeFrom = -1; lastSwipeTo = -1
         lastSwipeAt = 0L; reversals = 0
         Progress.clearRunCoins()
@@ -93,7 +94,7 @@ class GameHostSession(
         stayedCentered = true
         stayedCoinless = true
         missedBoxes = 0
-        noPowerup = true; runBoxesCollected = 0; bonusMask = 0; shardMask = 0
+        noPowerup = true; runBoxesCollected = 0; runGroundPounds = 0; bonusMask = 0; shardMask = 0
         lastDistance = 0; observedDistance = 0; lastSwipeFrom = -1; lastSwipeTo = -1; reversals = 0
         runSkin = Progress.skin
         silentAtStart = runSkin == 0 && !Settings.soundEnabled && !Settings.hapticsEnabled
@@ -152,6 +153,11 @@ class GameHostSession(
     }
     override fun coalCollected() { if (runHasStarted && !over.get()) Progress.addMetric("coal_miner") }
     override fun riskyBoxDeath() { if (runHasStarted && !over.get()) Progress.bestMetric("greed", 1) }
+    override fun groundPounded() {
+        if (!runHasStarted || over.get() || runGroundPounds >= 300) return
+        runGroundPounds++
+        Progress.bestMetric("pile_driver", runGroundPounds)
+    }
     override fun fullKitHeld() { if (runHasStarted && !over.get()) Progress.bestMetric("full_kit", 1) }
     override fun redPillSurvived() { if (runHasStarted && !over.get()) Progress.bestMetric("neo", 1) }
     override fun distanceCovered(metres: Int) {

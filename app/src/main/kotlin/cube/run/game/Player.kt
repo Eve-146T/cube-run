@@ -43,6 +43,7 @@ class Player(private val game: Gdx3DGame, private val rnd: Random) {
         const val EV_NONE = 0
         const val EV_LANDED = 1
         const val EV_SIDE_HIT = 2   // ran into the side of a platform
+        const val EV_GROUND_POUND = 3 // completed slam landing
     }
 
     val ground = 0.45f      // resting cube center (cube = 0.9 across)
@@ -343,8 +344,8 @@ class Player(private val game: Gdx3DGame, private val rnd: Random) {
                 quietLanding = false
                 game.burst3d(tmp.set(px, gy - 0.39f, 0.4f), trailCol(), n = 8, speed = 3.2f, size = 0.09f, life = 0.4f)
                 squash = 1f
+                event = if (slamming) EV_GROUND_POUND else EV_LANDED
                 if (slamming) { slamming = false; duckT = 0.5f } // slam → auto-crouch on landing
-                event = EV_LANDED
                 if (jumpBuffer > 0f) takeOff()
             }
         } else if (gy > py + 0.001f) {

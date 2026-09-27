@@ -820,8 +820,11 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
             refreshJumpAbility()
             player.hover = bonus == Bonus.FLOAT
             val gh = if (player.flying) 0f else groundAt(player.px)
-            when (player.update(dt, mv, time, worldHue(), trail = started, groundH = gh, stream = spd * 0.55f)) {
-                Player.EV_LANDED -> if (styleCombo > 0) { fx.styleLand(styleCombo, player.px, player.py); styleCombo = 0 }
+            when (val event = player.update(dt, mv, time, worldHue(), trail = started, groundH = gh, stream = spd * 0.55f)) {
+                Player.EV_LANDED, Player.EV_GROUND_POUND -> {
+                    if (event == Player.EV_GROUND_POUND && live()) session.groundPounded()
+                    if (styleCombo > 0) { fx.styleLand(styleCombo, player.px, player.py); styleCombo = 0 }
+                }
                 Player.EV_SIDE_HIT -> if (started) sideHit(gh)
             }
         }

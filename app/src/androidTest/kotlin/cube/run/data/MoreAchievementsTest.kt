@@ -49,9 +49,26 @@ class MoreAchievementsTest {
     private fun value(id: String) = Achievements.snapshot(Achievements.tracked.single { it.id == id }).value
     private fun session() = GameHostSession(Activity(), "cuberun").also { it.runStarted() }
 
+    @Test fun pileDriverRequires300InOneRunAndPersistsItsReward() {
+        InstrumentationRegistry.getInstrumentation().runOnMainSync {
+        val s = GameHostSession(Activity(), "cuberun")
+        s.groundPounded(); assertEquals(0, value("pile_driver"))
+        s.runStarted(); repeat(150) { s.groundPounded() }
+        s.resetToMenu(); s.runStarted(); repeat(150) { s.groundPounded() }
+        assertEquals("Separate runs do not add together", 150, value("pile_driver"))
+        val definition = Achievements.all.single { it.id == "pile_driver" }
+        assertEquals(0, Achievements.snapshot(definition).earnedTiers)
+        repeat(149) { s.groundPounded() }
+        assertEquals(299, value("pile_driver")); assertEquals(0, Achievements.snapshot(definition).earnedTiers)
+        s.groundPounded(); assertEquals(1, Achievements.snapshot(definition).earnedTiers)
+        Progress.init(context); assertEquals(300, value("pile_driver"))
+        assertEquals(2000, Achievements.claim("pile_driver")); assertEquals(0, Achievements.claim("pile_driver"))
+        }
+    }
+
     @Test fun allSelectedAchievementsHaveTargetsAndPayouts() {
         val all = Achievements.all
-        assertEquals(36, all.size)
+        assertEquals(37, all.size)
         assertEquals(all.size, all.map { it.id }.toSet().size)
         assertFalse(all.any { it.id == "portal_hopper" })
         for (definition in all) {
