@@ -221,7 +221,7 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false) : Fr
     private fun closed() {
         Stage.homeScreen = true
         page = null
-        menu.show()
+        menu.show(returning = true)
         setBubbles(Progress.bubbles)
         scheduleShopPreparation()
     }

@@ -102,9 +102,9 @@ abstract class Page(
     protected open fun animateEntrance() {
         // entrance: the page fades in, the content rises, the title pops (the top bar itself never moves:
         // translated over the GL surface it was seen to paint a frame late, which reads as the wrong order)
-        alpha = 0f; move().alpha(1f).setDuration(140).start()
-        Anim.riseIn(content, 0, dpf(40f), 260)
-        Anim.popIn(titleView, 40, 0.7f, 300)
+        alpha = 0f; move().alpha(1f).setDuration(100).start()
+        Anim.riseIn(content, 0, dpf(20f), 180)
+        Anim.popIn(titleView, 0, 0.85f, 180)
     }
 
     /** The corner slot (a balance): pinned top-right exactly where the menu keeps its bank pill, so it never shifts between screens. */
@@ -128,8 +128,8 @@ abstract class Page(
     }
 
     protected open fun animateExit(onFinished: () -> Unit) {
-        content.move().translationY(dpf(40f)).alpha(0f).setDuration(130).start()
-        move().alpha(0f).setDuration(140).withEndAction(onFinished).start()
+        content.move().translationY(dpf(20f)).alpha(0f).setDuration(90).start()
+        move().alpha(0f).setDuration(100).withEndAction(onFinished).start()
     }
 
     override fun onDetachedFromWindow() {
@@ -169,7 +169,7 @@ abstract class Sheet(
         alpha = 0f
         move().alpha(1f).setDuration(110).start()
         card.alpha = 0f; card.scaleX = 0.86f; card.scaleY = 0.86f; card.translationY = dpf(24f)
-        card.move().alpha(1f).scaleX(1f).scaleY(1f).translationY(0f).setDuration(200).setInterpolator(Anim.springSoft).withEndAction { card.requestLayout() }.start()
+        card.move().alpha(1f).scaleX(1f).scaleY(1f).translationY(0f).setDuration(160).setInterpolator(Anim.springSoft).withEndAction { card.requestLayout() }.start()
     }
 
     /** Backgrounding should leave a settled pause card, not replay its entrance on return. */
@@ -183,8 +183,8 @@ abstract class Sheet(
         if (closing) return
         closing = true
         Anim.cancelTree(this)
-        card.move().alpha(0f).scaleX(0.9f).scaleY(0.9f).translationY(dpf(16f)).setDuration(110).start()
-        move().alpha(0f).setDuration(120).withEndAction {
+        card.move().alpha(0f).scaleX(0.9f).scaleY(0.9f).translationY(dpf(16f)).setDuration(90).start()
+        move().alpha(0f).setDuration(100).withEndAction {
             (parent as? FrameLayout)?.removeView(this)
             onDismissed()
         }.start()

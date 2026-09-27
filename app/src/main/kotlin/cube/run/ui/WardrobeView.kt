@@ -49,6 +49,7 @@ class WardrobeView(activity: Activity, kit: UiKit, abilityStyle: Int = 0, onClos
     private val actionLabel: WardrobeActionLabel
     private val left: View
     private val right: View
+    private val itemDetails: LinearLayout
     private var paying = false
     private var downX = 0f
     private var downY = 0f
@@ -87,7 +88,7 @@ class WardrobeView(activity: Activity, kit: UiKit, abilityStyle: Int = 0, onClos
             setHorizontallyScrolling(false)
         }
         actionLabel = WardrobeActionLabel(activity, kit, action)
-        val bottom = LinearLayout(activity).apply {
+        itemDetails = LinearLayout(activity).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER_HORIZONTAL
             clipChildren = false; clipToPadding = false
@@ -98,7 +99,7 @@ class WardrobeView(activity: Activity, kit: UiKit, abilityStyle: Int = 0, onClos
             addView(dots, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(12f) })
             addView(actionLabel, LinearLayout.LayoutParams(dp(230f), LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(18f) })
         }
-        content.addView(bottom, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT).apply {
+        content.addView(itemDetails, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT).apply {
             gravity = Gravity.BOTTOM; bottomMargin = dp(112f)
         })
         content.addView(abilityDisplay.floating, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT).apply {
@@ -115,9 +116,13 @@ class WardrobeView(activity: Activity, kit: UiKit, abilityStyle: Int = 0, onClos
             }
         }
         render()
-        Anim.stagger(tabs, dpf(16f), 160, 50)
-        Anim.popIn(left, 260, 0.5f); Anim.popIn(right, 300, 0.5f)
-        Anim.riseIn(bottom, 220, dpf(40f))
+    }
+
+    override fun animateEntrance() {
+        super.animateEntrance()
+        for (i in 0 until tabs.childCount) Anim.riseIn(tabs.getChildAt(i), i * 15L, dpf(8f), 160)
+        Anim.popIn(left, 0, 0.85f, 180); Anim.popIn(right, 0, 0.85f, 180)
+        Anim.riseIn(itemDetails, 0, dpf(16f), 180)
     }
 
     /** Push the browsed item into the engine's preview slots. */

@@ -211,11 +211,22 @@ class MainMenu(
         anims.add(ripple())
     }
 
-    /** The entrance (also replayed coming back from a page): everything pops in staggered, the logo bobs. */
-    fun show() {
+    /** Keep the launch flourish, but bring navigation controls back together on page returns. */
+    fun show(returning: Boolean = false) {
         setShown(true)
         refresh()
         for (v in letters) { v.translationY = 0f; v.rotation = 0f }
+        if (returning) {
+            Anim.reset(logo)
+            Anim.reset(bestRow)
+            for (part in listOf(top, middle, leftChips, rightChips, bank, bubbles)) {
+                Anim.riseIn(part, distancePx = dpf(12f), duration = 140)
+            }
+            for (chip in toolbarChips()) Anim.reset(chip)
+            anims.add(Anim.breathe(tapHint, 0.55f, 1f, 750))
+            logo.postDelayed(startRipple, 140)
+            return
+        }
         Anim.popIn(logo, 60, 0.4f, 520)
         Anim.riseIn(bestRow, 220, dpf(20f))
         Anim.popIn(bank, 260, 0.6f)

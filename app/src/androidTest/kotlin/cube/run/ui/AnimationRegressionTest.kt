@@ -333,7 +333,7 @@ class AnimationRegressionTest {
         }
         waitFor(500)
         ui { field<Page>(hud, "page").close() }
-        waitFor(220)
+        waitFor(70)
         ui {
             val sheet = field<Page?>(hud, "page")
             assertNotNull(sheet)
@@ -344,6 +344,55 @@ class AnimationRegressionTest {
         }
         waitFor(300)
         ui { settled(field(menu, "rightChips")) }
+    }
+
+    @Test fun wardrobeReturnsWithSettledControlsWithoutReplayingLaunchDelays() {
+        waitFor(1400)
+        lateinit var hud: Hud
+        ui {
+            hud = field(it, "hud")
+            hud.javaClass.getDeclaredMethod("openWardrobe").apply { isAccessible = true }.invoke(hud)
+        }
+        waitFor(350)
+        ui {
+            val wardrobe = field<WardrobeView>(hud, "page")
+            settled(field(wardrobe, "left")); settled(field(wardrobe, "right"))
+            wardrobe.navigateBack()
+        }
+        waitFor(350)
+        ui {
+            assertNull(field<Page?>(hud, "page"))
+            val menu = field<MainMenu>(hud, "menu")
+            for (part in listOf("top", "middle", "leftChips", "rightChips", "bank")) settled(field(menu, part))
+            assertEquals(2, field<ArrayList<ValueAnimator>>(menu, "anims").size)
+        }
+    }
+
+    @Test fun shopRepeatedRoundTripsFinishWithinNavigationBudget() {
+        waitFor(1400)
+        repeat(3) { cycle ->
+            lateinit var hud: Hud
+            val openedAt = SystemClock.uptimeMillis()
+            ui { hud = field(it, "hud"); field<MainMenu>(hud, "menu").shopBalance.performClick() }
+            var opened = false
+            while (!opened && SystemClock.uptimeMillis() - openedAt < 500) {
+                waitFor(10)
+                ui { opened = Stage.shopProgress == 1f }
+            }
+            val openMs = SystemClock.uptimeMillis() - openedAt
+            assertTrue("Shop cycle $cycle took $openMs ms to open", opened && openMs < 350)
+            val closedAt = SystemClock.uptimeMillis()
+            ui { field<Page>(hud, "page").navigateBack() }
+            var closed = false
+            while (!closed && SystemClock.uptimeMillis() - closedAt < 500) {
+                waitFor(10)
+                ui { closed = field<Page?>(hud, "page") == null }
+            }
+            val closeMs = SystemClock.uptimeMillis() - closedAt
+            android.util.Log.i("MenuMotion", "Shop cycle $cycle: open=$openMs ms close=$closeMs ms")
+            assertTrue("Shop cycle $cycle took $closeMs ms to close", closed && closeMs < 300)
+            ui { assertEquals(Stage.NONE, Stage.mode); settled(field(field<MainMenu>(hud, "menu"), "rightChips")) }
+        }
     }
 
     private fun results(boxes: Int = 0) = RunOverFlow(activity, kit, 350, 100, true, 75, boxes, "Candy", emptyList(), {}, {})

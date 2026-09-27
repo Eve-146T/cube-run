@@ -262,7 +262,7 @@ class ShopView(
         navigation?.cancel()
         preparePanelLayer()
         navigation = ValueAnimator.ofFloat(progress, target).apply {
-            duration = ((if (target == 1f) 340 else 380) * kotlin.math.abs(target - progress)).toLong().coerceAtLeast(1)
+            duration = ((if (target == 1f) 220 else 180) * kotlin.math.abs(target - progress)).toLong().coerceAtLeast(1)
             interpolator = if (target == 1f) PathInterpolator(0.2f, 0f, 0f, 1f) else PathInterpolator(0.4f, 0f, 0.2f, 1f)
             addUpdateListener { place(it.animatedValue as Float) }
             addListener(object : AnimatorListenerAdapter() {
