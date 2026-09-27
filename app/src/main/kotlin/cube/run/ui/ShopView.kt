@@ -81,6 +81,26 @@ class ShopView(
 
     internal fun darknessFocus(): View? = cards["darkness"]
 
+    /**
+     * The void show wants the whole stage: the sheet drops away and the header fades in place
+     * (a header translated over the GL surface paints a frame late). [away] = false brings the
+     * sheet back opaque, sliding up; [instant] snaps to the resting state.
+     */
+    internal fun stepAside(away: Boolean, instant: Boolean = false) {
+        content.animate().cancel(); topBar.animate().cancel()
+        if (instant) { content.translationY = 0f; content.alpha = 1f; topBar.alpha = 1f; return }
+        if (away) {
+            content.animate().translationY(height * .45f).alpha(0f).setStartDelay(120).setDuration(380)
+                .setInterpolator(Anim.ease).setUpdateListener { Anim.repaint(this) }.start()
+            topBar.animate().alpha(0f).setStartDelay(120).setDuration(260).setUpdateListener { Anim.repaint(this) }.start()
+        } else {
+            content.alpha = 1f
+            content.animate().translationY(0f).setStartDelay(0).setDuration(560)
+                .setInterpolator(Anim.ease).setUpdateListener { Anim.repaint(this) }.start()
+            topBar.animate().alpha(1f).setStartDelay(260).setDuration(300).setUpdateListener { Anim.repaint(this) }.start()
+        }
+    }
+
     // Keep a payment's target fixed until it settles, including the short coin flight.
     override fun dispatchTouchEvent(event: MotionEvent): Boolean =
         if (paying) true else super.dispatchTouchEvent(event)
@@ -209,9 +229,9 @@ class ShopView(
             cards["darkness"] = darkness
             list.addView(darkness, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(28f) })
         }
-        if (Settings.devMode) list.addView(kit.button("RESET PROGRESS", Theme.BERRY) { confirmProgressReset() }.apply {
+        if (Settings.devMode) list.addView(kit.button(activity.getString(R.string.shop_reset_progress), Theme.BERRY) { confirmProgressReset() }.apply {
             tag = "reset_progress"
-            contentDescription = "Reset progress"
+            contentDescription = activity.getString(R.string.shop_reset_progress)
             setTextColor(Theme.WHITE)
             textSize = 16f
         }, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(28f) })
@@ -262,7 +282,7 @@ class ShopView(
         navigation?.cancel()
         preparePanelLayer()
         navigation = ValueAnimator.ofFloat(progress, target).apply {
-            duration = ((if (target == 1f) 220 else 180) * kotlin.math.abs(target - progress)).toLong().coerceAtLeast(1)
+            duration = ((if (target == 1f) 340 else 380) * kotlin.math.abs(target - progress)).toLong().coerceAtLeast(1)
             interpolator = if (target == 1f) PathInterpolator(0.2f, 0f, 0f, 1f) else PathInterpolator(0.4f, 0f, 0.2f, 1f)
             addUpdateListener { place(it.animatedValue as Float) }
             addListener(object : AnimatorListenerAdapter() {
@@ -493,19 +513,8 @@ class ShopView(
             LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
     }
 
-    private fun voidCard(): View = LinearLayout(activity).apply {
-        orientation = LinearLayout.VERTICAL
-        gravity = Gravity.CENTER_HORIZONTAL
-        setPadding(dp(20f), dp(24f), dp(20f), dp(20f))
-        background = GradientDrawable().apply { cornerRadius = dpf(24f); setColor(0xff030408.toInt()); setStroke(dp(1f), 0xff555463.toInt()) }
-        cards["void"] = this
-        addView(VoidSigilView(activity), LinearLayout.LayoutParams(dp(106f), dp(106f)))
-        addView(kit.text("???", 22f, Theme.WHITE, 700), LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(8f) })
-        addView(kit.text(Progress.voidLine, 16f, 0xffc9c5d7.toInt(), 500).apply { minHeight = dp(52f); gravity = Gravity.CENTER },
-            LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(6f); bottomMargin = dp(18f) })
-        addView(priceButton(Progress.voidPrice, "void", null, 0) { Progress.buyVoid() },
-            LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
-    }
+    private fun voidCard(): View = VoidCardView(activity, kit, activity.gameText(Progress.voidLine),
+        priceButton(Progress.voidPrice, "void", null, 0) { Progress.buyVoid() }).also { cards["void"] = it }
 
     /**
      * Gold when affordable, a quiet glass slab when not, a MAX badge when
@@ -542,9 +551,27 @@ class ShopView(
         if (key == "void") {
             // The void takes over immediately. Its opaque scene owns the payment animation
             // and sits above the shared menu bank, outside this page's inset content.
+            // Where you tapped: the button punches in and the card's hole flares before the sheet drops.
+            Anim.pulse(btn, 1.1f, 200)
+            cards["void"]?.let { Anim.pulse(it, 1.03f, 260) }
+            // The coins pour out of the bank into the hole on the 3D stage: the balance drops
+            // by each coin as it goes down (Stage.voidFed), and lands exactly on the new bank.
             balanceCount?.cancel()
-            kit.labelOf(balance).text = displayedBalance.toString()
-            onVoidPurchase({ if (isAttachedToWindow && !closing) render() }, { paying = false })
+            val label = kit.labelOf(balance)
+            Stage.voidFed = 0f
+            val drain = object : Runnable {
+                override fun run() {
+                    val fed = Stage.voidFed
+                    label.text = (before - ((before - displayedBalance) * fed.toDouble()).toLong()).toString()
+                    if (fed < 1f && paying && isAttachedToWindow) postOnAnimation(this)
+                }
+            }
+            postOnAnimation(drain)
+            onVoidPurchase({ if (isAttachedToWindow && !closing) render() }) {
+                paying = false
+                removeCallbacks(drain)
+                label.text = displayedBalance.toString()
+            }
             return
         }
         val ms = PayFx.fly(this, kit, balance, btn, n = 6, onDone = {
@@ -612,7 +639,7 @@ private class FittedVoidPrice(
         clipChildren = false; clipToPadding = false
         button.apply {
             tag = "void_price_button"
-            contentDescription = "Offer $amount coins"
+            contentDescription = context.getString(R.string.cd_offer_coins, amount)
             gravity = Gravity.CENTER
             minimumHeight = kit.dp(52f)
             setSingleLine()
@@ -671,21 +698,21 @@ private class ResetProgressSheet(
     private val onConfirm: () -> Boolean,
 ) : Sheet(activity, kit, onDismissed) {
     private var committing = false
-    private val explanation = kit.text("Delete all coins, upgrades, cosmetics, achievements and scores?\nThis cannot be undone.", 15f, Theme.INK, 500)
+    private val explanation = kit.text(context.getString(R.string.shop_reset_explanation), 15f, Theme.INK, 500)
 
     init {
         tag = "reset_progress_confirmation"
-        card.addView(kit.text("RESET PROGRESS?", 23f, Theme.INK, 700))
+        card.addView(kit.text(context.getString(R.string.shop_reset_question), 23f, Theme.INK, 700))
         card.addView(explanation, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(12f) })
-        card.addView(kit.button("CANCEL", Theme.LAVENDER) { if (!committing) dismiss() }.apply {
+        card.addView(kit.button(context.getString(R.string.shop_cancel), Theme.LAVENDER) { if (!committing) dismiss() }.apply {
             tag = "reset_progress_cancel"
         }, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(22f) })
-        card.addView(kit.button("RESET", Theme.BERRY) {
+        card.addView(kit.button(context.getString(R.string.shop_reset), Theme.BERRY) {
             if (!committing) {
                 committing = true
                 if (onConfirm()) dismiss() else {
                     committing = false
-                    explanation.text = "Couldn't save the reset. Please try again."
+                    explanation.text = context.getString(R.string.shop_reset_failed)
                 }
             }
         }.apply {

@@ -115,8 +115,6 @@ repeat-run comparison. Emulator results are not physical-device guarantees.
 
 ### Evidence
 
-- [Committed measurements and APK hashes](launch-time-reference/measurements.json)
-  contain every final unrecorded run and all six visible-frame measurements.
 - Local raw traces: `captures/launch-time/{baseline,final}-isolated/`.
 - Local videos and visible-frame results:
   `captures/launch-time/{baseline,final}-video/`.

@@ -124,29 +124,15 @@ class AchievementsHardwareFlowTest {
             val overlay = field(hud(it), "voidPurchase").get(hud(it)) as? View
             overlay != null && overlay.width > 0 && overlay.height > 0
         }
-        var animator: ValueAnimator? = null
         scenario.onActivity {
             val chrome = hud(it)
             val overlay = field(chrome, "voidPurchase").get(chrome) as View
-            animator = field(overlay, "animator").get(overlay) as ValueAnimator
-            animator!!.pause()
             assertSame(chrome, overlay.parent)
             assertSame(overlay, chrome.getChildAt(chrome.childCount - 1))
             assertEquals(chrome.width, overlay.width); assertEquals(chrome.height, overlay.height)
-            assertEquals(0, overlay.left); assertEquals(0, overlay.top); assertEquals(1f, overlay.alpha, 0f)
         }
-        for ((name, fraction) in listOf("first" to 0f, "pull" to .25f, "middle" to .5f, "reveal" to .78f, "last" to 1f)) {
-            scenario.onActivity {
-                val overlay = field(hud(it), "voidPurchase").get(hud(it)) as View
-                animator!!.currentPlayTime = (animator!!.duration * fraction).toLong().coerceIn(1, animator!!.duration - 1)
-                val bitmap = Bitmap.createBitmap(overlay.width, overlay.height, Bitmap.Config.ARGB_8888)
-                overlay.draw(Canvas(bitmap))
-                for ((x, y) in listOf(0 to 0, bitmap.width - 1 to 0, 0 to bitmap.height - 1, bitmap.width - 1 to bitmap.height - 1))
-                    assertEquals("$name frame corner stays opaque", 255, Color.alpha(bitmap.getPixel(x, y)))
-                bitmap.recycle()
-            }
-            capture("void-fullscreen-$name")
-        }
+        awaitUi(scenario, "The 3D stage plays the void show") { Stage.voidClock >= 0f }
+        capture("void-show-feed", settle = 1500)
         scenario.onActivity {
             val chrome = hud(it); val page = shop(it)
             val overlay = field(chrome, "voidPurchase").get(chrome)
@@ -162,45 +148,15 @@ class AchievementsHardwareFlowTest {
             assertSame(overlay, field(chrome, "voidPurchase").get(chrome)); assertSame(page, shop(it))
             assertEquals(offsets, scrolls.map { view -> view.scrollY })
             assertEquals(bank, Progress.coins); assertEquals(count, Progress.voidPurchases)
-            animator!!.resume()
         }
-        awaitUi(scenario, "Opaque scene enters a masked return instead of vanishing") {
-            val overlay = field(hud(it), "voidPurchase").get(hud(it)) as? View
-            (overlay?.let { view -> field(view, "returnAnimator").get(view) } as? ValueAnimator)?.let { returning ->
-                returning.pause(); true
-            } ?: false
-        }
-        // The old native reveal crashed when Android hid the window and called Animator.pause().
-        scenario.moveToState(androidx.lifecycle.Lifecycle.State.CREATED)
-        scenario.moveToState(androidx.lifecycle.Lifecycle.State.RESUMED)
-        var previousOpaque = Int.MAX_VALUE
-        for ((name, fraction) in listOf("early" to .15f, "middle" to .5f, "late" to .85f)) {
-            scenario.onActivity {
-                val chrome = hud(it)
-                val overlay = field(chrome, "voidPurchase").get(chrome) as? View
-                assertNotNull("$name return retains the touch-blocking mask", overlay)
-                assertEquals(1f, overlay!!.alpha, 0f)
-                val returning = field(overlay, "returnAnimator").get(overlay) as ValueAnimator
-                returning.pause(); returning.currentPlayTime = (returning.duration * fraction).toLong()
-                val bitmap = Bitmap.createBitmap(overlay.width, overlay.height, Bitmap.Config.ARGB_8888)
-                overlay.draw(Canvas(bitmap))
-                val pixels = IntArray(bitmap.width * bitmap.height)
-                bitmap.getPixels(pixels, 0, bitmap.width, 0, 0, bitmap.width, bitmap.height)
-                val opaque = pixels.count { pixel -> Color.alpha(pixel) == 255 }
-                assertTrue("$name return keeps part of the opaque scene", opaque > 0)
-                assertTrue("$name return uncovers part of the shop", pixels.any { pixel -> Color.alpha(pixel) == 0 })
-                assertTrue("Return mask contracts progressively", opaque < previousOpaque)
-                previousOpaque = opaque; bitmap.recycle()
-                val bank = Progress.coins
-                chrome.navigateBack()
-                assertSame(overlay, field(chrome, "voidPurchase").get(chrome))
-                assertEquals(bank, Progress.coins)
-            }
-            capture("void-return-$name", settle = 100)
+        capture("void-show-nova", settle = 1800)
+        awaitUi(scenario, "The void show hands the shop back", timeout = 12000) {
+            field(hud(it), "voidPurchase").get(hud(it)) == null && Stage.voidClock < 0f
         }
         scenario.onActivity {
-            val overlay = field(hud(it), "voidPurchase").get(hud(it)) as View
-            (field(overlay, "returnAnimator").get(overlay) as ValueAnimator).resume()
+            val page = shop(it)
+            assertEquals("The shop page is back in place", 0f, page.translationY, 0.5f)
+            assertEquals(1f, page.alpha, 0f)
         }
     }
     private fun shop(activity: GameActivity) = field(hud(activity), "page").get(hud(activity)) as ShopView
@@ -278,26 +234,20 @@ class AchievementsHardwareFlowTest {
         edit.commit()
     }
 
-    @Test fun detachingAnActiveVoidReturnCancelsWithoutFinishingOrCrashing() {
+    @Test fun voidOverlayReleasesTheHudWhenTheStageNeverAnswers() {
         assumeTrue(InstrumentationRegistry.getArguments().getString("captureHardwareAchievements") == "true")
         ActivityScenario.launch(GameActivity::class.java).use { scenario ->
-            awaitUi(scenario, "Detach review HUD ready") { field(it, "hud").get(it) != null }
-            lateinit var overlay: VoidPurchaseView
-            var finished = false
+            awaitUi(scenario, "Void fallback HUD ready") { field(it, "hud").get(it) != null }
+            val order = ArrayList<String>()
+            lateinit var overlay: VoidShowOverlay
             scenario.onActivity {
-                overlay = VoidPurchaseView(it, "Fine.", null) {}
+                Stage.voidClock = -1f // nothing picks the request up outside the shop
+                overlay = VoidShowOverlay(it, UiKit(it), "Fine.", onReturn = { order += "return" }, onEnd = { order += "end" })
                 hud(it).addView(overlay, android.widget.FrameLayout.LayoutParams(-1, -1))
             }
-            awaitUi(scenario, "Detach review overlay laid out") { overlay.width > 0 && overlay.height > 0 }
-            scenario.onActivity {
-                overlay.returnTo(overlay.width / 2f, overlay.height * .8f) { finished = true }
-                val returning = field(overlay, "returnAnimator").get(overlay) as ValueAnimator
-                returning.pause(); returning.currentPlayTime = returning.duration / 2
-                hud(it).removeView(overlay)
-                assertNull(overlay.parent)
-                assertNull(field(overlay, "returnAnimator").get(overlay))
-                assertFalse("Canceling a detached return cannot complete a purchase callback", finished)
-            }
+            awaitUi(scenario, "An unanswered show still ends", timeout = 5000) { order.contains("end") }
+            assertEquals(listOf("return", "end"), order)
+            scenario.onActivity { hud(it).removeView(overlay) }
         }
     }
 
@@ -331,8 +281,7 @@ class AchievementsHardwareFlowTest {
                 scenario.onActivity {
                     val button = purchase(it, "void")
                     val overlay = field(hud(it), "voidPurchase").get(hud(it)) as? View
-                    assertNotNull("Void overlay starts in the purchase callback, before any coin flight", overlay)
-                    (field(overlay!!, "animator").get(overlay) as ValueAnimator).pause()
+                    assertNotNull("Void overlay starts in the purchase callback", overlay)
                     button.performClick() // A second click during payment must not spend again.
                 }
                 assertEquals(10, Progress.voidPurchases); assertEquals(997000 - initialPrice, Progress.coins)

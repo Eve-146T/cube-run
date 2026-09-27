@@ -13,6 +13,7 @@ import cube.run.R
 import cube.run.core.Haptics
 import cube.run.core.SoundFx
 import cube.run.core.Stage
+import cube.run.core.PhysicalAction
 import cube.run.data.Settings
 import cube.run.data.Progress
 import cube.run.data.Achievements
@@ -80,6 +81,7 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false, retu
     private var best = 0
     private var world = ""
     private var runStarted = false
+    private var runPauseResumes = 0
     private var page: Page? = null
     private var preparedShop: ShopView? = null
     private var opening = openingEntrance
@@ -95,12 +97,16 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false, retu
     private var languageSheet: LanguageSheet? = null
     private var pauseSheet: PauseSheet? = null
     private var runOver: RunOverFlow? = null
+    private val hardwareNavigation = HardwareNavigation()
     private var shopBox: RunOverFlow? = null
     private var giftReturnCover: View? = null
     @Volatile private var giftReturnGeneration = 0
-    private var voidPurchase: VoidPurchaseView? = null
+    private var voidPurchase: VoidShowOverlay? = null
     private val achievementToast = AchievementToast(activity, kit)
-    private val jackpotToast = JackpotToast(activity, kit)
+    private val jackpotCounter = JackpotCounter(activity, kit, { haulCentre() }) { showing ->
+        // the BOOST chevrons stand aside while the jackpot plays
+        boost?.move()?.alpha(if (showing) 0f else 1f)?.setDuration(220)?.start()
+    }
     private val pollAchievements = object : Runnable {
         override fun run() {
             if (!isAttachedToWindow) return
@@ -132,10 +138,7 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false, retu
         addView(achievementToast, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT).apply {
             gravity = Gravity.BOTTOM; bottomMargin = dp(32f); leftMargin = dp(22f); rightMargin = dp(22f)
         })
-        addView(jackpotToast, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT).apply {
-            gravity = Gravity.TOP; leftMargin = dp(14f); rightMargin = dp(14f)
-        })
-        topBox.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ -> positionJackpot() }
+        addView(jackpotCounter, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
         setBubbles(Progress.bubbles)
         setOnApplyWindowInsetsListener { _, insets ->
             val (l, t, r, b) = insetsOf(insets)
@@ -169,6 +172,7 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false, retu
     fun resumeLanguageIdle() = menu.resumeLanguageIdle()
 
     override fun onDetachedFromWindow() {
+        clearHardwareFocus()
         removeCallbacks(prepareShop)
         removeCallbacks(pollAchievements)
         preparedShop = null
@@ -212,7 +216,46 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false, retu
 
     private fun pageOpen() = page != null || languageSheet != null || runStarted
 
+    fun clearHardwareFocus() = hardwareNavigation.clear()
+
+    /** Return false only when the GL game should receive this action. */
+    fun handlePhysicalAction(action: PhysicalAction): Boolean {
+        if (opening) return false
+        if (action == PhysicalAction.BACK || action == PhysicalAction.PAUSE) {
+            clearHardwareFocus()
+            when {
+                pauseSheet != null -> pauseSheet?.dismiss()
+                languageSheet != null -> languageSheet?.dismiss()
+                page != null -> page?.navigateBack()
+                runOver == null -> pause()
+            }
+            return true
+        }
+        runOver?.let {
+            if (action == PhysicalAction.CONFIRM) it.confirm()
+            return true
+        }
+        val scope = pauseSheet ?: languageSheet ?: page ?: if (!runStarted) menu else null
+        if (scope != null) {
+            if (action.swipe != null) hardwareNavigation.move(scope, action, if (scope === menu) menu.startControl else null)
+            if (action == PhysicalAction.CONFIRM) {
+                val target = hardwareNavigation.target(scope)
+                if (scope === menu && (target == null || target === menu.startControl)) {
+                    clearHardwareFocus()
+                    return false
+                }
+                if (target != null) target.performClick()
+                else if (pauseSheet != null) pauseSheet?.dismiss()
+                else hardwareNavigation.move(scope, PhysicalAction.DOWN)
+            }
+            return true
+        }
+        if (action == PhysicalAction.BOOST) { boost?.performClick(); return true }
+        return false
+    }
+
     private fun open(p: Page) {
+        clearHardwareFocus()
         Stage.homeScreen = false
         page = p
         menu.setShown(false)
@@ -220,6 +263,7 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false, retu
     }
 
     private fun closed() {
+        clearHardwareFocus()
         Stage.homeScreen = true
         page = null
         menu.show(returning = true)
@@ -230,8 +274,10 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false, retu
     private fun newShop() = ShopView(activity, kit, menu.shopBalance, menu::setShopProgress,
         onOpenMysteryBox = ::openPurchasedBox, onVoidPurchase = ::showVoidPurchase,
         onProgressReset = ::refreshAfterProgressReset) {
+        clearHardwareFocus()
         page = null
         menu.finishShop()
+        Progress.shopClosed()
         Stage.homeScreen = true
         setBubbles(Progress.bubbles)
         scheduleShopPreparation()
@@ -242,7 +288,7 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false, retu
         removeCallbacks(prepareShop)
         preparedShop = null
         achievementToast.reset()
-        jackpotToast.reset()
+        jackpotCounter.reset()
         bonusVisited.clear()
         score = 0; scoreText.text = "0"
         runCoins = 0; kit.labelOf(haul).text = "0"
@@ -256,6 +302,7 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false, retu
 
     private fun openLanguages() {
         if (pageOpen()) return
+        clearHardwareFocus()
         Stage.homeScreen = false
         removeCallbacks(prepareShop)
         val sheet = LanguageSheet(activity, kit, { code ->
@@ -271,6 +318,8 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false, retu
 
     private fun openShop() {
         if (pageOpen()) return
+        clearHardwareFocus()
+        Progress.shopOpened()
         Stage.homeScreen = false
         removeCallbacks(prepareShop)
         val shop = preparedShop?.takeIf { it.isCurrent() } ?: newShop()
@@ -281,11 +330,16 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false, retu
         menu.bringToFront() // corner controls return above the sheet instead of flashing out from beneath it
     }
     private fun openWardrobe() { if (!pageOpen()) open(WardrobeView(activity, kit) { closed() }) }
-    private fun openSections() { if (!pageOpen()) open(SectionsView(activity, kit) { closed() }) }
+    private fun openSections() { if (!pageOpen()) open(SectionsView(activity, kit, reloadMenu = { relaunch(autoStart = false) }) { closed() }) }
     private fun openAchievements() {
         if (!pageOpen() && Progress.achievementsUnlocked) open(AchievementsView(activity, kit) { closed() })
     }
 
+    /**
+     * The void takes its offering on the 3D stage (game.stage.VoidShow): the shop page drops
+     * away so the show has the whole screen, only the bank stays up (its coins pour into the
+     * hole), and the page rises back, already showing the next offering, when the show says so.
+     */
     private fun showVoidPurchase(onCovered: () -> Unit, onFinished: () -> Unit) {
         if (voidPurchase != null) return
         val shop = page as? ShopView
@@ -293,46 +347,36 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false, retu
         val oldMenuAccessibility = menu.importantForAccessibility
         shop?.importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS
         menu.importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS
-        lateinit var fx: VoidPurchaseView
-        // The clue stays in the dialogue; discovered cosmetics are found in the wardrobe.
-        fx = VoidPurchaseView(activity, Progress.voidLine) {
-            // Rebuild and lay out the evolving card behind an opaque frame. The first
-            // visible shop frame is already settled at the same end of the list.
-            onCovered()
-            viewTreeObserver.addOnPreDrawListener(object : ViewTreeObserver.OnPreDrawListener {
-                override fun onPreDraw(): Boolean {
-                    viewTreeObserver.removeOnPreDrawListener(this)
-                    if (voidPurchase === fx) {
-                        val item = shop?.darknessFocus()
-                        // A tap can leave the price flush with the viewport edge. Settle its
-                        // full face and lower margin while the opaque scene still covers it.
-                        item?.findViewWithTag<android.view.View>("void_price_button")?.let { price ->
-                            price.requestRectangleOnScreen(android.graphics.Rect(0, -dp(8f),
-                                price.width, price.height + dp(16f)), true)
-                        }
-                        val hostPosition = IntArray(2); val itemPosition = IntArray(2)
-                        getLocationInWindow(hostPosition)
-                        item?.getLocationInWindow(itemPosition)
-                        val x = item?.let { itemPosition[0] - hostPosition[0] + it.width / 2f } ?: width / 2f
-                        val y = item?.let { itemPosition[1] - hostPosition[1] + it.height / 2f } ?: height * .7f
-                        fx.returnTo(x, y) {
-                            voidPurchase = null
-                            removeView(fx)
-                            shop?.importantForAccessibility = oldShopAccessibility ?: IMPORTANT_FOR_ACCESSIBILITY_AUTO
-                            menu.importantForAccessibility = oldMenuAccessibility
-                            onFinished()
-                            item?.let { Anim.pulse(it, 1.018f, 280) }
-                            Anim.repaint(this@Hud)
-                        }
-                    }
-                    return true
-                }
-            })
-            requestLayout()
+        centreOf(menu.shopBalance).let { at ->
+            Stage.voidCoinX = at.x / width.coerceAtLeast(1); Stage.voidCoinY = at.y / height.coerceAtLeast(1)
         }
+        // A beat for the press to land where you tapped, then the sheet drops away.
+        shop?.stepAside(away = true)
+        lateinit var fx: VoidShowOverlay
+        fx = VoidShowOverlay(activity, kit, activity.gameText(Progress.voidLine), onReturn = {
+            onCovered() // the next offering is in place before the page comes back
+            shop?.stepAside(away = false)
+        }, onEnd = {
+            if (voidPurchase === fx) {
+                voidPurchase = null
+                removeView(fx)
+                shop?.stepAside(away = false, instant = true)
+                shop?.importantForAccessibility = oldShopAccessibility ?: IMPORTANT_FOR_ACCESSIBILITY_AUTO
+                menu.importantForAccessibility = oldMenuAccessibility
+                onFinished()
+                Anim.repaint(this@Hud)
+            }
+        })
         voidPurchase = fx
         addView(fx, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
-        fx.play()
+        // The stage starts as the sheet starts to move, so the camera never drags the cube under it.
+        postDelayed({ if (voidPurchase === fx) Stage.voidRequests.incrementAndGet() }, 120)
+    }
+
+    private fun centreOf(v: View): android.graphics.PointF {
+        val host = IntArray(2); val at = IntArray(2)
+        getLocationInWindow(host); v.getLocationInWindow(at)
+        return android.graphics.PointF(at[0] - host[0] + v.width / 2f, at[1] - host[1] + v.height / 2f)
     }
 
     private fun openPurchasedBox(reward: Progress.BoxReward) {
@@ -425,27 +469,26 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false, retu
 
     /** Coins collected this run: the counter pops on each pickup. */
     fun setRunCoins(v: Int) {
+        val jump = v - runCoins >= 1000 // a jackpot landing in the pill gets a real pop
         runCoins = v
         kit.labelOf(haul).text = number(v)
-        Anim.pulse(haul, 1.18f, 160)
+        if (jump) Anim.pulse(haul, 1.45f, 320) else Anim.pulse(haul, 1.18f, 160)
     }
 
-    /** Coins are already in the run haul; celebrate without changing the saved bank. */
+    /** The 3D jackpot show began: its counter rolls the win into the haul, which updates when it lands. */
     fun showJackpot(amount: Int) {
         if (!runStarted || runOver != null || amount <= 0) return
-        positionJackpot()
-        jackpotToast.show(amount)
+        jackpotCounter.show()
     }
 
-    private fun positionJackpot() {
-        val params = jackpotToast.layoutParams as? LayoutParams ?: return
-        val top = topBox.bottom + dp(10f)
-        val right = if ((0 until childCount).any { getChildAt(it) is BoostArrows }) dp(104f) else dp(14f)
-        if (params.topMargin != top || params.rightMargin != right) {
-            params.topMargin = top
-            params.rightMargin = right
-            jackpotToast.layoutParams = params
-        }
+    private val haulAt = IntArray(2)
+    private val hudAt = IntArray(2)
+
+    /** Where the counter lands: the coin pill's centre, in this view's coordinates. */
+    private fun haulCentre(): android.graphics.PointF? {
+        if (!haul.isLaidOut || topBox.visibility != VISIBLE) return null
+        haul.getLocationInWindow(haulAt); getLocationInWindow(hudAt)
+        return android.graphics.PointF(haulAt[0] - hudAt[0] + haul.width / 2f, haulAt[1] - hudAt[1] + haul.height / 2f)
     }
 
     fun setBoxes(n: Int) {
@@ -502,24 +545,24 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false, retu
             b.taps = taps
             b.move().translationX(dpf(if (layoutDirection == View.LAYOUT_DIRECTION_RTL) -120f else 120f)).alpha(0f).setDuration(260).setInterpolator(Anim.ease).withEndAction {
                 removeView(b)
-                positionJackpot()
             }.start()
         }
-        positionJackpot()
     }
 
     /** A run has begun: the menu drops away, the HUD and the pause chip pop in. */
     fun hideOptions() {
+        clearHardwareFocus()
         Stage.homeScreen = false
         runStarted = true
+        runPauseResumes = 0
         removeCallbacks(pollAchievements)
         postDelayed(pollAchievements, 500)
         // Purchases and result-screen unlocks belong on the achievement page, not the next run.
         Achievements.drainUnlocks()
         achievementToast.reset()
         achievementToast.setRunActive(true)
-        jackpotToast.reset()
-        jackpotToast.setRunActive(true)
+        jackpotCounter.reset()
+        jackpotCounter.setRunActive(true)
         page?.let { removeView(it); page = null }
         menu.hide()
         setBubbles(bubbleStock)
@@ -534,16 +577,22 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false, retu
     /** Freeze the run under the pause card. No-op unless a run is live. */
     fun pause(animate: Boolean = true) {
         if (!runStarted || runOver != null || pauseSheet != null) return
+        clearHardwareFocus()
         Stage.paused = true
         achievementToast.setRunActive(false)
-        jackpotToast.setRunActive(false)
+        jackpotCounter.setRunActive(false)
         pauseChip.visibility = INVISIBLE
         val sheet = PauseSheet(activity, kit,
             onResume = {
+                clearHardwareFocus()
+                if (animate) {
+                    runPauseResumes++
+                    Progress.bestMetric("nervous_tic", runPauseResumes.coerceAtMost(50))
+                }
                 pauseSheet = null
                 Stage.paused = false
                 achievementToast.setRunActive(true)
-                jackpotToast.setRunActive(true)
+                jackpotCounter.setRunActive(true)
                 pauseChip.visibility = VISIBLE
                 Anim.popIn(pauseChip, 0, 0.6f)
             },
@@ -575,8 +624,9 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false, retu
     }
 
     fun showRunOver(score: Int, best: Int, isNewBest: Boolean, coins: Int, boxes: Int, shards: IntArray = IntArray(3)) {
+        clearHardwareFocus()
         achievementToast.setRunActive(false)
-        jackpotToast.reset()
+        jackpotCounter.reset()
         if (Stage.botPlaying && Settings.devMode) {
             relaunch(autoStart = true, idleBot = true)
             return

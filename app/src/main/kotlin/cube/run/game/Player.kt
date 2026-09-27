@@ -416,6 +416,79 @@ class Player(private val game: Gdx3DGame, private val rnd: Random) {
         px = x; py = yy
     }
 
+    /**
+     * The jackpot pose at ([x],[y]): turned [yaw], tipped [tip], its colour
+     * blended [gold] of the way to [goldCol]. Leaves [px]/[py] alone, so the
+     * run resumes from where the cube actually was.
+     */
+    fun jackpotPose(time: Float, baseHue: Float, x: Float, y: Float, yaw: Float, tip: Float, scale: Float, gold: Float, goldCol: Color) {
+        zappyFx?.clear()
+        hsvInto(col, skin.hueAt(time, baseHue), skin.sat, skin.valueAt(time)).lerp(goldCol, gold)
+        visualTime = time
+        hsvInto(shellCol, skin.hueAt(time, baseHue), skin.sat * 0.9f, 1f).lerp(goldCol, gold)
+        // The Gambler already strobes yellow: the jackpot makes the cube shine from within instead.
+        // The run's next update resets the emission through openingMaterial.
+        val material = inst.materials.first()
+        val glow = material.get(ColorAttribute.Emissive) as? ColorAttribute
+            ?: ColorAttribute.createEmissive(0f, 0f, 0f, 1f).also { material.set(it) }
+        glow.color.set(goldCol.r * 0.32f * gold, goldCol.g * 0.24f * gold, goldCol.b * 0.05f * gold, 1f)
+        val sc = 0.9f * scale
+        inst.transform.setToTranslation(x, y, 0f).rotate(Vector3.Y, yaw).rotate(Vector3.X, tip).scale(sc, sc, sc)
+        val pulse = glowScale(time) * scale * (1f + 0.12f * gold)
+        shellBlend.opacity = shellOpacity(time) + 0.1f * gold
+        shellInst.transform.setToTranslation(x, y, 0f).rotate(Vector3.Y, yaw).rotate(Vector3.X, tip).scale(pulse, pulse, pulse)
+    }
+
+    private val voidEmissive = Color()
+    private var voidEmissiveSaved = false
+
+    /**
+     * The void show's pose at ([x],[y],[z]): turned [yaw], tipped [tip] about the view axis,
+     * stretched to ([sx],[sy],[sz]) and glowing [glow] of the way to [glowCol] from within.
+     * Leaves [px]/[py] alone; [endVoidPose] gives the skin its own glow back.
+     */
+    fun voidPose(time: Float, baseHue: Float, x: Float, y: Float, z: Float, yaw: Float, tip: Float,
+                 sx: Float, sy: Float, sz: Float, glow: Float, glowCol: Color, toNormal: Float = 0f) {
+        // The pose the stage would show without the void, captured before it is overridden.
+        voidNormalBody.set(inst.transform); voidNormalShell.set(shellInst.transform)
+        zappyFx?.clear()
+        hsvInto(col, skin.hueAt(time, baseHue), skin.sat, skin.valueAt(time)).lerp(glowCol, glow * 0.35f)
+        visualTime = time
+        hsvInto(shellCol, skin.hueAt(time, baseHue), skin.sat * 0.9f, 1f).lerp(glowCol, glow)
+        val material = inst.materials.first()
+        val emissive = material.get(ColorAttribute.Emissive) as? ColorAttribute
+            ?: ColorAttribute.createEmissive(0f, 0f, 0f, 1f).also { material.set(it) }
+        if (!voidEmissiveSaved) { voidEmissive.set(emissive.color); voidEmissiveSaved = true }
+        emissive.color.set(voidEmissive).lerp(glowCol.r * 0.3f, glowCol.g * 0.3f, glowCol.b * 0.3f, 1f, glow)
+        inst.transform.setToTranslation(x, y, z).rotate(Vector3.Z, tip).rotate(Vector3.Y, yaw).rotate(Vector3.X, 12f).scale(sx * 0.9f, sy * 0.9f, sz * 0.9f)
+        val pulse = glowScale(time)
+        shellBlend.opacity = shellOpacity(time)
+        shellInst.transform.setToTranslation(x, y, z).rotate(Vector3.Z, tip).rotate(Vector3.Y, yaw).rotate(Vector3.X, 12f).scale(sx * pulse, sy * pulse, sz * pulse)
+        if (toNormal > 0f) { // ease into the stage's own pose, so handing back never snaps
+            mixPose(inst.transform, voidNormalBody, toNormal)
+            mixPose(shellInst.transform, voidNormalShell, toNormal)
+        }
+    }
+
+    private val voidNormalBody = Matrix4()
+    private val voidNormalShell = Matrix4()
+    private val mixA = Vector3(); private val mixB = Vector3()
+    private val mixSa = Vector3(); private val mixSb = Vector3()
+    private val mixQa = Quaternion(); private val mixQb = Quaternion()
+
+    private fun mixPose(pose: Matrix4, target: Matrix4, amount: Float) {
+        pose.getTranslation(mixA); target.getTranslation(mixB)
+        pose.getScale(mixSa); target.getScale(mixSb)
+        pose.getRotation(mixQa, true); target.getRotation(mixQb, true)
+        pose.set(mixA.lerp(mixB, amount), mixQa.slerp(mixQb, amount), mixSa.lerp(mixSb, amount))
+    }
+
+    fun endVoidPose() {
+        if (!voidEmissiveSaved) return
+        (inst.materials.first().get(ColorAttribute.Emissive) as? ColorAttribute)?.color?.set(voidEmissive)
+        voidEmissiveSaved = false
+    }
+
     private fun shellOpacity(time: Float): Float {
         if (skin.id == Skins.VOID_ID) return .025f + .012f * sin(time * 1.8f)
         val glow = ((0.22f + 0.08f * sin(time * 6f)) * skin.glow).coerceAtMost(0.75f)

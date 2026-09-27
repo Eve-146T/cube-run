@@ -117,6 +117,9 @@ class Scenery(private val game: Gdx3DGame, private val rnd: Random) {
     /** The run began: everything held still starts moving with the world. */
     fun release() { for (g in gates) g.held = false }
 
+    /** Take down gates already behind the player: a camera swung round behind the cube would look through them. */
+    fun clearPassedGates() { gates.removeAll { it.passed } }
+
     companion object {
         const val PASSED_WORLD = 1
         const val PASSED_START = 2

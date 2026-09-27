@@ -191,7 +191,6 @@
     <string name="text_testing">בבדיקה: %1$s</string>
     <string name="text_section_stats">דרגה %1$d · %2$s</string>
     <string name="text_seconds">%1$s שנ׳</string>
-    <string name="text_buy">קנייה %1$s</string>
     <string name="text_new_cosmetic">חדש במלתחה: %1$s!</string>
     <string name="text_shards_collected">נאספו %1$d %2$s</string>
     <string name="text_unlock_shards">פתיחת %1$s תמורת %2$d %3$s</string>
@@ -200,7 +199,6 @@
     <string name="text_toggle_off">%1$s: כבוי</string>
     <string name="text_show_ability">הצגת היכולת %1$s</string>
     <string name="text_hide_ability">הסתרת היכולת %1$s</string>
-    <string name="text_ability_description">יכולת: %1$s</string>
     <plurals name="count_taps">
         <item quantity="one">הקשה %d</item>
         <item quantity="two">%d הקשות</item>

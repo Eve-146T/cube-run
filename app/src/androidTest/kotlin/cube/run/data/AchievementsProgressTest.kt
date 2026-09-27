@@ -74,6 +74,29 @@ class AchievementsProgressTest {
         return session to player
     }
 
+    @Test fun neoIsEarnedOnlyWhenARedPillRunsOutDuringALiveRun() {
+        seed(unlocked = true)
+        InstrumentationRegistry.getInstrumentation().runOnMainSync {
+            val (session, _) = centeredRun()
+            assertEquals(0, state("neo").earnedTiers)
+            session.redPillSurvived()
+        }
+        assertEquals(1, state("neo").earnedTiers)
+        assertEquals(2000, Achievements.reward(state("neo").definition, 0))
+        Progress.init(context)
+        assertEquals("Neo survives a reload", 1, state("neo").earnedTiers)
+    }
+
+    @Test fun globetrotterIsParkedButKeepsCountingAcrossReloads() {
+        seed(unlocked = true)
+        assertTrue(Achievements.all.none { it.id == "globetrotter" })
+        assertTrue(Achievements.snapshot().none { it.definition.id == "globetrotter" })
+        Progress.markMetricBit("globetrotter", 0)
+        Progress.init(context)
+        Progress.markMetricBit("globetrotter", 2)
+        assertEquals("Worlds seen before a reload are kept", 0b101, Progress.metric("globetrotter"))
+    }
+
     @Test fun centeredChallengeUnlocksAtExactly100AndSurvivesLaterDepartureAndReload() {
         seed(unlocked = true)
         InstrumentationRegistry.getInstrumentation().runOnMainSync {
@@ -310,7 +333,7 @@ class AchievementsProgressTest {
         val reward = Progress.buyMysteryBox(bubbleRoll)!!
         assertEquals(Progress.BoxReward.BUBBLE, reward.kind)
         assertEquals(0, Progress.coins); assertEquals(reward.amount, Progress.bubbles)
-        assertEquals("boxes", Achievements.drainUnlocks().single().definition.id)
+        assertTrue(Achievements.drainUnlocks().any { it.definition.id == "boxes" })
         Progress.init(context); assertEquals(10, Progress.boxesOpened); assertEquals(reward.amount, Progress.bubbles)
     }
 
@@ -397,7 +420,7 @@ class AchievementsProgressTest {
             assertEquals(1, state("coins").earnedTiers)
             session.gameOver()
         }
-        assertEquals(setOf("runner", "coins", "homeress"), Achievements.drainUnlocks().map { it.definition.id }.toSet())
+        assertEquals(setOf("runner", "coins", "homeress", "untouchable"), Achievements.drainUnlocks().map { it.definition.id }.toSet())
         assertEquals(250, Achievements.claim("runner"))
         assertEquals(0, Achievements.claim("runner"))
         Settings.setDevMode(false); Progress.leaveDev(); Progress.init(context)

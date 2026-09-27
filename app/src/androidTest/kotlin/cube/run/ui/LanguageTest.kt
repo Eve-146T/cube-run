@@ -15,6 +15,7 @@ import cube.run.R
 import cube.run.core.Stage
 import cube.run.data.Languages
 import cube.run.data.Progress
+import org.junit.After
 import org.junit.Assert.*
 import org.junit.Test
 import java.io.File
@@ -22,6 +23,11 @@ import java.io.File
 class LanguageTest {
     private val instrumentation = InstrumentationRegistry.getInstrumentation()
     private val context get() = instrumentation.targetContext
+
+    // Later English-text tests share this save, so leave no language behind.
+    @After fun forgetLanguage() {
+        context.getSharedPreferences("settings", Context.MODE_PRIVATE).edit().remove("language").commit()
+    }
 
     // Track the current activity for the final explicit recreation/persistence check.
     private fun onActivity(block: (GameActivity) -> Unit) {

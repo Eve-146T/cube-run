@@ -86,10 +86,8 @@ the existing starting window followed by the equipped native cube.
 
 - [Saved Lava cold-start recording](../captures/launch-handoff/saved-lava/launch-1.mp4)
 - [Source filmstrip with frame numbers and request-relative timestamps](../captures/launch-handoff/saved-lava/strip-1/sheet.png)
-- [Verified test log](launch-handoff-reference/tests.txt)
 - [APK](../captures/launch-handoff/final-apk/cube-run-launch-handoff.apk)
 - [Shared APK](https://apps.muxu.click/d/bhgjfhin)
-- [Committed trace, timing results and APK hashes](launch-handoff-reference/evidence.json)
 
 In that **single Lava recording**, first cube pixels occur at source frame 8,
 154.56 ms after the request (previous source frame: 131.22 ms). The menu's white

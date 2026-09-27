@@ -82,12 +82,13 @@ class Ob(
  * [restY] is where it belongs on the ground — air-laid coins settle there if
  * a jetpack flight ends before they arrive.
  */
-class Coin(var x: Float, var y: Float, val dz: Float, val restY: Float = y) {
+class Coin(var x: Float, var y: Float, var dz: Float, val restY: Float = y) {
     /** Authored lane before magnet attraction; also used by the demo controller. */
     var restX = x
     var taken = false
     /** Slid past the cube uncollected: still drawn (it glides by), but it no longer counts or pulls. */
     var missed = false
+    var pullStarted = false
 }
 
 /** One row of the lane-walk: obstacles, optional coins and pickup, scoring state. */

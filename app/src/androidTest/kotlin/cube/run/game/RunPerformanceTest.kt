@@ -32,6 +32,7 @@ class RunPerformanceTest {
     private lateinit var badge: android.widget.TextView
     private var botEnabled = true
     private var audioMode: String? = null
+    private var repeatable = false
     private val audioEvents = java.util.concurrent.ConcurrentLinkedQueue<String>()
     private val frameEvents = ArrayList<String>()
     private var statusGeneration = 0
@@ -53,6 +54,7 @@ class RunPerformanceTest {
         val args = InstrumentationRegistry.getArguments()
         botEnabled = args.getString("bot") != "false"
         audioMode = args.getString("audio")
+        repeatable = args.getString("repeatable") == "true"
         val oldSound = cube.run.data.Settings.soundEnabled
         val oldHaptics = cube.run.data.Settings.hapticsEnabled
         audioMode?.let { mode ->
@@ -64,7 +66,8 @@ class RunPerformanceTest {
         }
         val intent = Intent(ApplicationProvider.getApplicationContext(), GameActivity::class.java)
             .putExtra("world", args.getString("world")?.toInt() ?: -1)
-        if (audioMode != null) intent.putExtra("section", args.getString("section")?.toInt() ?: 8).putExtra("dev", false)
+        if (audioMode != null || args.getString("section") != null)
+            intent.putExtra("section", args.getString("section")?.toInt() ?: 8).putExtra("dev", false)
         try { ActivityScenario.launch<GameActivity>(intent).use { scenario ->
             scenario.onActivity {
                 it.setShowWhenLocked(true); it.setTurnScreenOn(true)
@@ -101,7 +104,7 @@ class RunPerformanceTest {
     }
 
     private fun benchmark(mode: String, seconds: Int) {
-        require(mode in listOf("cruise", "hills", "second-wind", "jet", "wide", "late", "five-boosts"))
+        require(mode in listOf("cruise", "hills", "second-wind", "jet", "wide", "late", "five-boosts", "matrix"))
         val done = CountDownLatch(1)
         var failure: Throwable? = null
         val frames = ArrayList<Float>(seconds * 65)
@@ -142,9 +145,20 @@ class RunPerformanceTest {
                     val nowCpu = Debug.threadCpuTimeNanos()
                     if (start == 0L) {
                         Stage.paused = false
-                        if (audioMode != null) {
+                        if (audioMode != null || repeatable) {
                             field(Track::class.java, "rnd").set(track, Random(73))
                             field(Track::class.java, "fx").set(track, ObstacleFactory(Random(73)))
+                        }
+                        if (repeatable) {
+                            val worlds = field(CubeRun::class.java, "worlds").get(game)
+                            field(worlds.javaClass, "lastSwitchRow").setInt(worlds, 1_000_000)
+                            // Repeat the same scenery, too: random roadside complexity must
+                            // not masquerade as a renderer improvement between APKs.
+                            val scenery = field(CubeRun::class.java, "scenery").get(game) as cube.run.game.world.Scenery
+                            field(scenery.javaClass, "rnd").set(scenery, Random(74))
+                            for (name in listOf("tiles", "posts", "streaks"))
+                                (field(scenery.javaClass, name).get(scenery) as MutableList<*>).clear()
+                            scenery.init(field(scenery.javaClass, "world").get(scenery) as cube.run.data.Worlds.World)
                         }
                         game.onTap(360f, 760f)
                         if (mode == "five-boosts") Stage.boostRequests.set(5)
@@ -155,6 +169,9 @@ class RunPerformanceTest {
                         game.session.setScore(10000)
                         track.portalEvery = Int.MAX_VALUE
                         powers.reset()
+                        val redPill = field(CubeRun::class.java, "redPill").get(game) as RedPill
+                        redPill.reset()
+                        if (mode == "matrix") redPill.collect(seconds + 30f)
                         player.setFlying(false)
                         track.airCoins = false
                         track.dropCoins()
@@ -225,10 +242,15 @@ class RunPerformanceTest {
                     else {
                         val allocated = Debug.getRuntimeStat("art.gc.bytes-allocated").toLong() - allocations
                         val gc = Debug.getRuntimeStat("art.gc.gc-count").toLong() - collections
+                        val fps = 1000.0 / frames.average()
                         Log.i("RUN_BENCH", "$mode frames=${frames.size} frame=${stats(frames)} cpu=${stats(cpu)} threadCpu=${stats(threadCpu)} " +
                             "over25=${frames.count { it > 25f }} over50=${frames.count { it > 50f }} " +
-                            "bot=$botEnabled protectedHits=$protectedHits burst=${stats(bursts)} bursts=$count maxRows=$maxRows maxSpeed=$maxSpeed allocBytes=$allocated gc=$gc")
+                            "bot=$botEnabled protectedHits=$protectedHits burst=${stats(bursts)} bursts=$count maxRows=$maxRows maxSpeed=$maxSpeed allocBytes=$allocated gc=$gc " +
+                            "fps=%.2f measuredMs=%.2f".format(java.util.Locale.US, fps, frames.sumOf { it.toDouble() }))
                         assertTrue("Track rows grew without bound: $maxRows", maxRows < 100)
+                        InstrumentationRegistry.getArguments().getString("minFps")?.toDouble()?.let { minimum ->
+                            assertTrue("$mode sustained %.2f FPS, below $minimum".format(java.util.Locale.US, fps), fps >= minimum)
+                        }
                         Stage.paused = true
                         done.countDown()
                     }

@@ -93,6 +93,7 @@ class MainMenu(
     private val tapHint = kit.stageText(activity.getString(R.string.tap_to_start), 22f, Theme.WHITE, stroke = 3f).apply {
         letterSpacing = if (resources.configuration.layoutDirection == View.LAYOUT_DIRECTION_RTL) 0f else 0.12f
     }
+    val startControl: android.view.View get() = tapHint
 
     private val languageChip = kit.chip(R.drawable.ic_language, Theme.SKY, Theme.INK,
         activity.getString(R.string.cd_languages)) { openLanguages() }

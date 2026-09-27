@@ -4,7 +4,10 @@ import android.content.SharedPreferences
 
 /** Calm, evolving cards. Earlier tiers stay earned; only the next goal is presented. */
 object Achievements {
-    data class Definition(val id: String, val title: String, val description: String, val thresholds: IntArray, val tiered: Boolean = true)
+    data class Definition(val id: String, val title: String, val description: String, val thresholds: IntArray, val tiered: Boolean = true) {
+        internal val earnedKey = "achievement_$id"
+        internal val claimedKey = "achievement_claimed_$id"
+    }
     data class Snapshot(val definition: Definition, val value: Int, val earnedTiers: Int, val claimedTiers: Int = 0) {
         val claimableTier: Int? get() = claimedTiers.takeIf { Progress.achievementsUnlocked && it < earnedTiers }
         val rewardAmount: Int? get() = claimableTier?.let { reward(definition, it) }
@@ -29,12 +32,18 @@ object Achievements {
         definition.id == "homeress" -> 1500
         definition.id == "gambliphobic" -> 1500
         definition.id == "cookie" -> 2000
+        definition.id in setOf("greedy", "coal_miner", "full_kit", "insomniac", "bankrupt", "exactly_67", "nervous_tic", "silent_treatment", "stage_fright") -> 1500
+        definition.id in setOf("scenic_route") -> 2500
+        definition.id in setOf("just_browsing", "two_ez", "untouchable", "house_loses", "voidwalker", "magpie", "shard_hunter", "long_con", "neo") -> 2000
         else -> 0
     }
 
     /** Claim the oldest unclaimed tier. The Progress lock owns the entire transaction. */
     fun claim(id: String): Int = Progress.claimAchievement(id)
-    val all = listOf(
+    /** Kept counting but not offered yet: Globetrotter comes back once there are more bonus worlds. */
+    private val parked = setOf("globetrotter")
+    /** Every achievement whose progress is recorded, offered or parked. */
+    val tracked = listOf(
         Definition("runner", "Good Runner", "Your highest score in a single run.", intArrayOf(500, 1000, 2000, 5000)),
         Definition("coins", "Lifetime Coins", "Collect coins from runs and mystery boxes.", intArrayOf(5000, 25000, 100000, 500000)),
         Definition("cubes", "Unlocked Cubes", "Build your cube collection.", intArrayOf(5, 10, 15, 24)),
@@ -46,47 +55,85 @@ object Achievements {
         Definition("homeress", "Homeress", "Reach 60 points without picking up a coin.", intArrayOf(60), false),
         Definition("gambliphobic", "Gambliphobic", "Miss 10 mystery boxes in a single run.", intArrayOf(10), false),
         Definition("cookie", "Cookie Clicker", "Toggle mute 1,000 times.", intArrayOf(1000), false),
+        Definition("globetrotter", "Globetrotter", "Visit every bonus world across your runs.", intArrayOf(1, 2, 3, 4)),
+        Definition("long_hauler", "Long Hauler", "Travel metres across all runs.", intArrayOf(10000, 100000, 500000, 2000000)),
+        Definition("shardsmith", "Shardsmith", "Collect shards of any kind.", intArrayOf(25, 100, 250, 750)),
+        Definition("regular", "Regular", "Start runs.", intArrayOf(10, 100, 500, 2000)),
+        Definition("bubble_popper", "Bubble Popper", "Spend bubbles from your stash.", intArrayOf(10, 100, 500, 2000)),
+        Definition("near_miss", "Near Miss", "Earn near-miss bonuses.", intArrayOf(50, 500, 2500, 10000)),
+        Definition("untouchable", "Untouchable", "Reach 150 without picking up a power-up.", intArrayOf(150), false),
+        Definition("house_loses", "House Always Loses", "Win a Gambler jackpot.", intArrayOf(1), false),
+        Definition("voidwalker", "Voidwalker", "Make five offerings to the void.", intArrayOf(5), false),
+        Definition("greedy", "Greedy", "Collect 13 mystery boxes in one run.", intArrayOf(13), false),
+        Definition("scenic_route", "Scenic Route", "Visit all four unique bonus worlds in one run.", intArrayOf(4), false),
+        Definition("coal_miner", "Coal Miner", "Collect 5,000 worthless coal coins.", intArrayOf(5000), false),
+        Definition("magpie", "Magpie", "Collect 10,000 coins in one run.", intArrayOf(10000), false),
+        Definition("shard_hunter", "Shard Hunter", "Collect all three shard kinds in one run.", intArrayOf(3), false),
+        Definition("full_kit", "Full Kit", "Hold a bubble, magnet, 2× and jetpack at once.", intArrayOf(1), false),
+        Definition("long_con", "Long Con", "Stay alive for 10 minutes in one run.", intArrayOf(600), false),
+        Definition("insomniac", "Insomniac", "Finish a run between 3 and 4 am.", intArrayOf(1), false),
+        Definition("bankrupt", "Bankrupt", "Spend your coin balance to exactly zero.", intArrayOf(1), false),
+        Definition("exactly_67", "Exactly Sixty-Seven", "Finish a run with exactly 67 points.", intArrayOf(1), false),
+        Definition("just_browsing", "Just Browsing", "Visit the shop 100 times in a row without buying.", intArrayOf(100), false),
+        Definition("two_ez", "2EZ", "Swipe to a lane and straight back 50 times in one run.", intArrayOf(50), false),
+        Definition("nervous_tic", "Nervous Tic", "Pause and resume 50 times in one run.", intArrayOf(50), false),
+        Definition("silent_treatment", "Silent Treatment", "Finish a 100-point run with sound and haptics off using the free cube.", intArrayOf(1), false),
+        Definition("stage_fright", "Stage Fright", "Crash within two seconds of the start gate in 25 runs.", intArrayOf(25), false),
+        Definition("neo", "Neo", "???", intArrayOf(1), false),
     )
+    /** The achievements on offer. */
+    val all = tracked.filterNot { it.id in parked }
     private lateinit var prefs: SharedPreferences
     private val pending = LinkedHashMap<String, Unlock>()
     internal fun init(preferences: SharedPreferences) { prefs = preferences; synchronized(this) { pending.clear() }; evaluate(false) }
+    private fun value(definition: Definition): Int = when (definition.id) {
+        "runner" -> Progress.achievementScore
+        "coins" -> Progress.achievementCoins
+        "cubes" -> Integer.bitCount(Progress.ownedSkins)
+        "powerups" -> Progress.totalPowerups
+        "boxes" -> Progress.boxesOpened
+        "bubbles" -> Progress.maxBubbles
+        "center" -> Progress.bestCenteredScore
+        "homeress" -> Progress.bestCoinlessScore
+        "gambliphobic" -> Progress.maxRunMissedBoxes
+        "cookie" -> Progress.totalMuteToggles
+        "bounces" -> Progress.maxRunBounces
+        "regular" -> Progress.metric("regular")
+        "shardsmith" -> Progress.metric("shardsmith")
+        "voidwalker" -> Progress.voidPurchases
+        "globetrotter", "scenic_route", "shard_hunter" -> Integer.bitCount(Progress.metric(definition.id))
+        else -> Progress.metric(definition.id)
+    }
+    private fun earnedTiers(definition: Definition, value: Int): Int =
+        definition.thresholds.count { if (definition.id == "runner") value > it else value >= it }
+
     fun snapshot(definition: Definition): Snapshot {
-        val value = when (definition.id) {
-            "runner" -> Progress.achievementScore
-            "coins" -> Progress.achievementCoins
-            "cubes" -> Integer.bitCount(Progress.ownedSkins)
-            "powerups" -> Progress.totalPowerups
-            "boxes" -> Progress.boxesOpened
-            "bubbles" -> Progress.maxBubbles
-            "center" -> Progress.bestCenteredScore
-            "homeress" -> Progress.bestCoinlessScore
-            "gambliphobic" -> Progress.maxRunMissedBoxes
-            "cookie" -> Progress.totalMuteToggles
-            else -> Progress.maxRunBounces
-        }
-        val earned = definition.thresholds.count { if (definition.id == "runner") value > it else value >= it }
+        val value = value(definition)
+        val earned = earnedTiers(definition, value)
         val awarded = if (::prefs.isInitialized && Progress.achievementsUnlocked)
-            prefs.getInt("achievement_${definition.id}", 0).coerceIn(0, definition.thresholds.size) else 0
+            prefs.getInt(definition.earnedKey, 0).coerceIn(0, definition.thresholds.size) else 0
         val achieved = maxOf(earned, awarded)
-        val claimed = if (::prefs.isInitialized) prefs.getInt("achievement_claimed_${definition.id}", 0).coerceIn(0, achieved) else 0
+        val claimed = if (::prefs.isInitialized) prefs.getInt(definition.claimedKey, 0).coerceIn(0, achieved) else 0
         return Snapshot(definition, value, achieved, claimed)
     }
     fun snapshot(): List<Snapshot> = all.map(::snapshot)
     @Synchronized internal fun evaluate(notify: Boolean = true) {
         if (!::prefs.isInitialized || !Progress.achievementsUnlocked) return
-        val edit = prefs.edit()
-        var changed = false
-        for (definition in all) {
-            val earned = snapshot(definition).earnedTiers
-            val previous = prefs.getInt("achievement_${definition.id}", 0)
+        // Most pickups and score changes cross no tier. Read only what awarding
+        // needs; snapshots and their claimed-tier reads belong to the UI.
+        var edit: SharedPreferences.Editor? = null
+        for (index in all.indices) {
+            val definition = all[index]
+            val previous = prefs.getInt(definition.earnedKey, 0)
+            val earned = maxOf(earnedTiers(definition, value(definition)), previous.coerceIn(0, definition.thresholds.size))
             if (earned > previous) {
-                edit.putInt("achievement_${definition.id}", earned)
-                changed = true
+                val changes = edit ?: prefs.edit().also { edit = it }
+                changes.putInt(definition.earnedKey, earned)
                 // One toast per family, even when a single run crosses several tiers.
                 if (notify) pending[definition.id] = Unlock(definition, earned - 1)
             }
         }
-        if (changed) edit.apply()
+        edit?.apply()
     }
     @Synchronized fun drainUnlocks(): List<Unlock> = pending.values.toList().also { pending.clear() }
     @Synchronized fun clearUnlocks() { pending.clear() }

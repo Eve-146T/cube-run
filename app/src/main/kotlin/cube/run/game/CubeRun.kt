@@ -53,6 +53,7 @@ import kotlin.random.Random
  *  - [Difficulty] + [FireBoost] — speed / tier and the opening boost button
  *  - [WorldRunner] + [Scenery] — the worlds, their sky and roadside, the gates
  *  - [RunCamera] — the chase rig; [RunFx] — every sound / flash / burst
+ *  - [Jackpot] — the Gambler's jackpot show, which holds the run while it plays
  *  - [GiftStage] / [Showcase] — the 3D stages the run-over and wardrobe screens use
  *
  * +1 per row (2× with the multiplier), near-miss bonus for shaving an
@@ -70,7 +71,12 @@ class CubeRun(session: GameSession, private val autoStart: Boolean = false, priv
     private val tmpCol = Color()
     private val phasePosition = Vector3()
 
-    private val rnd = Random(System.nanoTime())
+    private class CourseRandom : Random() {
+        private var source = Random(73)
+        override fun nextBits(bitCount: Int) = source.nextBits(bitCount)
+        fun reset() { source = Random(73) }
+    }
+    private val rnd = if (Settings.performanceCourse) CourseRandom() else Random(System.nanoTime())
     private val obstacles = ObstacleFactory(rnd)
     private val track = Track(rnd, obstacles)
     private val trackArt = TrackRenderer(this)
@@ -87,6 +93,7 @@ class CubeRun(session: GameSession, private val autoStart: Boolean = false, priv
     private val gift = GiftStage(this)
     private val showcase = Showcase(this, player, bubble)
     private val fx = RunFx(this, rnd)
+    private val jackpot = Jackpot(this, rnd)
     private lateinit var rig: RunCamera
     private var shopMenuIntroT = 0f
 
@@ -100,6 +107,7 @@ class CubeRun(session: GameSession, private val autoStart: Boolean = false, priv
     private var rowsPassed = 0
     private var curTier = 0          // last tier reached (a chime marks each unlock)
     private var runT = 0f            // seconds since the run began (the start ease)
+    private var startGateRunT = -1f  // Stage Fright starts when the gate actually passes the cube
     private var introT = 0f          // seconds since launch (the menu shot's swoop in)
     private var introAtStart = 0f    // where the swoop was when the run began (the start eases on from there)
     private var skyBlend = 0f        // 1 → 0: the stage's sky fading back into the world's after a page closes
@@ -196,6 +204,7 @@ class CubeRun(session: GameSession, private val autoStart: Boolean = false, priv
         finishRendererStartup()
         opening.finish()
         started = true
+        (rnd as? CourseRandom)?.reset() // menu idle duration must not change the course sequence
         runSkin = Skins.get(Progress.skin)
         runBubble = BubbleSkins.get(Progress.bubbleSkin)
         player.zappyEnabled = Skins.Ability.ZAPPY in runSkin.abilities
@@ -205,6 +214,7 @@ class CubeRun(session: GameSession, private val autoStart: Boolean = false, priv
         lottery = Lottery(rnd, if (Settings.devMode) Lottery.DEV_COIN_CHANCE else Lottery.COIN_CHANCE)
         phaseUsed = false; phasedObstacle = null; lastTapT = -9f
         runT = 0f
+        startGateRunT = -1f
         sideBounces = 0; smoothWall = 0
         introAtStart = rig.intro
         scenery.release() // the start gate comes at you
@@ -214,12 +224,17 @@ class CubeRun(session: GameSession, private val autoStart: Boolean = false, priv
         coinsRun = 0; coinsRunF = 0.0; boxesRun = 0; coinStreak = 0
         if (Settings.devMode && Settings.testBoxes > 0) { boxesRun = Settings.testBoxes; session.setBoxes(boxesRun) } // dev: boxes to open
         track.portalPool = when {
+            Settings.performanceCourse -> emptyList()
             Settings.testBonus >= 0 -> listOf(Settings.testBonus)
             Settings.devMode -> Bonus.all.map { it.id }
             else -> Bonus.unlocked(Scores.best("cuberun")).map { it.id }
         }
         track.portalEvery = if (Settings.devMode) 28 else 110 - 14 * Progress.level(Progress.PORTALS) // dev: portals galore too
         powerUps.reset(); redPill.reset(); jetGrace = 0f
+        if (BuildConfig.DEBUG && BuildConfig.JACKPOT_TEST_WORLD && !Settings.performanceCourse) {
+            track.portalPool = emptyList()
+            powerUps.magnet.start(3600f)
+        }
         bubble.reset(); shownBubbleCooldown = 0; session.setBubbleCooldown(0)
         bubble.cooldownDuration = 5f * runSkin.bubbleCooldownMultiplier
         bubble.duration = bubbleDuration()
@@ -234,12 +249,8 @@ class CubeRun(session: GameSession, private val autoStart: Boolean = false, priv
             Terrain.set(bonus == Bonus.HILLS)
             session.setBonus(bonus)
         }
-        if (Progress.safeStartSeconds > 0f) { // the Safe start perk: a bubble is already up
-            bubble.duration = Progress.safeStartSeconds * bubbleDurationMultiplier()
-            bubble.activate(player.px, player.py, quiet = true)
-            bubble.duration = bubbleDuration()
-        }
         session.runStarted()
+        if (bonus in 0..3) session.setBonus(bonus)
         session.laneChanged(player.lane, Lanes.count)
         refreshJumpAbility()
         fx.runStart(worldHue())
@@ -257,6 +268,7 @@ class CubeRun(session: GameSession, private val autoStart: Boolean = false, priv
         if (dead) return
         if (BuildConfig.DEBUG && testCrashObserver != null) { testCrashObserver!!.invoke(); return }
         if (Progress.useRevive()) { secondWind(); return }
+        if (startGateRunT >= 0f) session.runCrashed(runT - startGateRunT)
         dead = true
         player.setFlying(false)
         fx.crash(player.px, player.py, player.col)
@@ -335,6 +347,7 @@ class CubeRun(session: GameSession, private val autoStart: Boolean = false, priv
         session.addScore(if (x2) 2 else 1)
         fx.rowPassed()
         if (row.minClear < 0.34f) { // shaved it — reward a close dodge with an air-rush
+            session.nearMiss()
             session.addScore(if (x2) nearMissBonus * 2 else nearMissBonus)
             fx.nearMiss(player.px, player.py)
         }
@@ -347,6 +360,7 @@ class CubeRun(session: GameSession, private val autoStart: Boolean = false, priv
         session.coinPickedUp()
         val value = Progress.coinValue * (if (bonus == Bonus.KALEIDO) 2f else 1f)
         if (Skins.Ability.COAL in runSkin.abilities) {
+            session.coalCollected()
             SoundFx.play("tap", rate = .75f, vol = .35f)
             burst3d(phasePosition.set(coin.x, coin.y, cz), trackArt.coal, n = 6, speed = 2.5f, size = .12f, life = .35f)
             return
@@ -372,7 +386,10 @@ class CubeRun(session: GameSession, private val autoStart: Boolean = false, priv
     private fun collectPickup(row: Row, cz: Float) {
         val kind = row.pickup
         row.pickup = Pickup.NONE
-        if (kind != Pickup.NONE && kind != Pickup.BOX && Pickup.shardType(kind) < 0) Progress.recordPowerup()
+        if (kind != Pickup.NONE && kind != Pickup.BOX && Pickup.shardType(kind) < 0) {
+            Progress.recordPowerup()
+            session.powerupPickedUp()
+        }
         when (kind) {
             Pickup.SHARD_EMBER, Pickup.SHARD_FROST, Pickup.SHARD_VOID -> {
                 session.addShard(Pickup.shardType(kind))
@@ -384,6 +401,7 @@ class CubeRun(session: GameSession, private val autoStart: Boolean = false, priv
                 fx.pickup(hsvInto(tmpCol, 190f, 0.5f, 1f), row.pickupX, cz)
             }
             Pickup.BOX -> {
+                session.boxCollected()
                 if (Skins.Ability.LOTTERY in runSkin.abilities) {
                     val won = lottery.collectBox()
                     awardJackpot(won)
@@ -417,17 +435,40 @@ class CubeRun(session: GameSession, private val autoStart: Boolean = false, priv
         }
     }
 
+    /** The win is the run's at once; the HUD only shows it once the show has counted it in. */
     private fun awardJackpot(amount: Int) {
         if (amount <= 0) return
         val before = coinsRun
         coinsRunF = (coinsRunF + amount).coerceAtMost(Int.MAX_VALUE.toDouble())
         coinsRun = coinsRunF.toInt()
-        session.setCoins(coinsRun)
-        session.jackpotWon(coinsRun - before)
-        fx.pickup(trackArt.gold, player.px, 0f)
-        SoundFx.play("perfect", rate = .85f)
-        burst3d(phasePosition.set(player.px, player.py + .5f, 0f), trackArt.gold, n = 48, speed = 7f, size = .14f, life = 1f)
-        rig.punch(.75f)
+        val won = coinsRun - before
+        if (won <= 0) return
+        val first = !jackpot.active
+        jackpot.start(won, player.px, player.py + Terrain.y(0f), cam, bgTop, bgBottom)
+        if (first) {
+            // The show's camera stands behind the cube: whatever the run has already passed would block it.
+            // The hit's flash covers them going.
+            scenery.clearPassedGates()
+            for (r in track.rows) if (r.z > 0.9f) r.obs.removeAll { it.type == ObType.SOLID } // platforms may still carry the cube
+            session.jackpotWon(won)
+        }
+    }
+
+    /**
+     * The run holds while the jackpot plays: nothing scrolls, no timer runs,
+     * no input lands. Only the shockwave shatters the road ahead of it.
+     */
+    private fun tickJackpot(dt: Float) {
+        jackpot.update(dt)
+        val front = jackpot.waveZ
+        for (r in track.rows) {
+            if (r.z > front && r.z < 1.2f && r.obs.any { it.type == ObType.SOLID }) shatter(r, impact = r.z > -16f)
+        }
+        debris.update(dt, 0f)
+        if (jackpot.takeBanked()) session.setCoins(coinsRun)
+        if (!jackpot.active) { session.setCoins(coinsRun); return }
+        jackpot.tintSky(bgTop, bgBottom)
+        jackpot.aimCamera(cam)
     }
 
     private fun bubbleDurationMultiplier() = runSkin.powerupDurationMultiplier * runBubble.durationMultiplier
@@ -463,20 +504,30 @@ class CubeRun(session: GameSession, private val autoStart: Boolean = false, priv
 
     // ---------------------------------------------------------------- input
 
+    /** Called on the GL thread, through the same guarded actions as touch input. */
+    fun onPhysicalAction(action: cube.run.core.PhysicalAction) {
+        idlePilot.stop()
+        if (opening.active) { finishOpening(); return }
+        if (!started && !Stage.homeScreen) return
+        if (action == cube.run.core.PhysicalAction.CONFIRM) onTap(0f, 0f)
+        else action.swipe?.let { onSwipe(it) }
+    }
+
     override fun onDown(x: Float, y: Float) {
         idlePilot.stop()
-        if (gift.active || showcase.active || Stage.paused) return
+        if (jackpot.active || gift.active || showcase.active || Stage.paused) return
         smoothAnchorX = x; smoothAnchorLane = player.lane; smoothVAccum = 0f
         smoothWall = 0
     }
 
     override fun onDrag(x: Float, y: Float, dx: Float, dy: Float) {
-        if (!Settings.smoothControl || !live() || Stage.paused || Stage.mode != Stage.NONE) return
+        if (!Settings.smoothControl || !live() || jackpot.active || Stage.paused || Stage.mode != Stage.NONE) return
         refreshJumpAbility()
         val laneTravel = sw * (0.32f - 0.20f * Settings.smoothSensitivity) // finger px per lane
         val rawTarget = smoothAnchorLane + ((x - smoothAnchorX) / laneTravel).roundToInt()
         val target = rawTarget.coerceIn(0, Lanes.last)
-        player.moveToLane(target)
+        val fromLane = player.lane
+        if (player.moveToLane(target)) session.userLaneSwipe(fromLane, target)
         val wall = when { rawTarget < 0 -> -1; rawTarget > Lanes.last -> 1; else -> 0 }
         if (wall != 0 && wall != smoothWall) sideBounce(wall)
         smoothWall = wall
@@ -487,7 +538,7 @@ class CubeRun(session: GameSession, private val autoStart: Boolean = false, priv
     }
 
     override fun onTap(x: Float, y: Float) {
-        if (Stage.paused || Stage.mode != Stage.NONE || gift.active || showcase.active) return
+        if (jackpot.active || Stage.paused || Stage.mode != Stage.NONE || gift.active || showcase.active) return
         if (!started) { start(); return }
         if (!live()) return
         if (time - lastTapT < 0.38f) { // a quick double tap pops a bubble shield (anywhere, any time)
@@ -502,13 +553,16 @@ class CubeRun(session: GameSession, private val autoStart: Boolean = false, priv
     override fun smoothSwipeEnabled(): Boolean = Settings.smoothControl
 
     override fun onSwipe(dir: Int) {
-        if (session.isOver || dead || Stage.paused || gift.active || showcase.active) return
+        if (session.isOver || dead || jackpot.active || Stage.paused || gift.active || showcase.active) return
         if (!started || Stage.mode != Stage.NONE) { return }
         refreshJumpAbility()
         when (dir) {
             LEFT, RIGHT -> {
                 val d = if (dir == LEFT) -1 else 1
-                if (player.lane + d in 0..Lanes.last) player.moveToLane(player.lane + d)
+                if (player.lane + d in 0..Lanes.last) {
+                    val fromLane = player.lane
+                    if (player.moveToLane(fromLane + d)) session.userLaneSwipe(fromLane, fromLane + d)
+                }
                 else sideBounce(d)
             }
             UP -> player.jump()
@@ -594,11 +648,13 @@ class CubeRun(session: GameSession, private val autoStart: Boolean = false, priv
             player.pilotBody(powerUps.jet.left).apply { landingGrace = jetGrace },
             if (runT >= 1.5f) cube.run.bot.JetMotion(difficulty.speed() * runSkin.speedMultiplier,
                 jetBoost, if (player.flying) powerUps.jet.left else 0f) else null, ::onSwipe)
+        if (jackpot.active) { tickJackpot(dt); if (jackpot.active) return }
         if (Stage.endRun) { Stage.endRun = false; if (live()) crash() } // dev tool: END RUN from the pause card
 
         if (started && !dead) {
             jetBoost += ((if (player.flying) 1f else 0f) - jetBoost) * min(1f, dt * 2f)
             runT += dt
+            session.runSeconds(runT.toInt())
             val ease = min(1f, runT / 1.5f).let { it * it * it * (it * (it * 6f - 15f) + 10f) } // the start: the road winds up, the camera drops in
             rig.intro = introAtStart + (1f - introAtStart) * ease
             spd = 4.5f + (difficulty.speed() * runSkin.speedMultiplier * (1f + jetSpeedUp * jetBoost) - 4.5f) * ease
@@ -617,6 +673,7 @@ class CubeRun(session: GameSession, private val autoStart: Boolean = false, priv
         }
         val mv = spd * dt
         dist += mv
+        if (started && !dead) session.distanceCovered(dist.toInt())
         Lanes.tick(dt)
         track.alignLaneSpacing()
         Terrain.scroll(mv, dt)
@@ -647,11 +704,23 @@ class CubeRun(session: GameSession, private val autoStart: Boolean = false, priv
         }
         when (scenery.scroll(mv)) {
             Scenery.PASSED_WORLD -> worlds.gatePassed()?.let { fx.worldGate(worlds.gateColor()); rig.punch(0.7f); session.setWorld(it.name) }
-            Scenery.PASSED_START -> { fx.startGate(player.trailCol()); rig.punch(0.9f) }
+            Scenery.PASSED_START -> {
+                startGateRunT = runT
+                fx.startGate(player.trailCol())
+                rig.punch(0.9f)
+                if (Progress.safeStartSeconds > 0f) { // the Safe start perk: a bubble is already up
+                    bubble.duration = Progress.safeStartSeconds * bubbleDurationMultiplier()
+                    bubble.activate(player.px, player.py, quiet = true)
+                    bubble.duration = bubbleDuration()
+                }
+            }
         }
         if (live()) track.spawn(mv, worldHue(), session.score, dt)
 
+        val pillWasOn = redPill.timer.active
         redPill.tick(dt, started && !dead)
+        // A crash stops the pill before it runs out, so only a survived trip ends on its own.
+        if (pillWasOn && !redPill.timer.active && started && !dead) session.redPillSurvived()
         bgTop.lerp(Color.BLACK, redPill.blend)
         bgBottom.lerp(Color.BLACK, redPill.blend)
         if (opening.active) {
@@ -663,6 +732,7 @@ class CubeRun(session: GameSession, private val autoStart: Boolean = false, priv
         if (started && !dead) {
             powerUps.magnet.tick(dt)
             powerUps.mult.tick(dt)
+            if (bubble.active && powerUps.magnet.active && powerUps.mult.active && powerUps.jet.active) session.fullKitHeld()
             if (powerUps.jet.tick(dt)) endJet()
             else if (player.flying) { // keep the landing point current; glide down through the last seconds
                 val left = powerUps.jet.left
@@ -741,10 +811,12 @@ class CubeRun(session: GameSession, private val autoStart: Boolean = false, priv
                         if (c.taken) continue
                         val cz = row.z + c.dz
                         if (c.missed) continue
-                        if (pull > 0f && abs(cz) < pull) { // magnet: coins fly to you
+                        if ((pull > 0f && abs(cz) < pull) || c.pullStarted) { // magnet: coins fly to you
+                            c.pullStarted = true
                             val k = min(1f, dt * 11f)
                             c.x += (px - c.x) * k
                             c.y += (py - c.y) * k
+                            c.dz += (-cz / 2) * k
                         }
                         if (abs(cz) < 0.8f && abs(px - c.x) < 0.85f && abs(py - c.y) < 0.85f) {
                             collectCoin(c, cz)
@@ -781,7 +853,7 @@ class CubeRun(session: GameSession, private val autoStart: Boolean = false, priv
     // ------------------------------------------------------------- rendering
 
     override fun renderHud(shapes: ShapeRenderer, w: Float, h: Float) {
-        if (gift.active || showcase.active || dead || Stage.paused) return
+        if (gift.active || showcase.active || dead || Stage.paused || jackpot.active) return
         powerUps.drawBars(shapes, w, h, time, if (bubble.active) bubble.timer else null, redPill.timer)
     }
 
@@ -812,6 +884,7 @@ class CubeRun(session: GameSession, private val autoStart: Boolean = false, priv
         debris.render()
         val wind = if (dead) 0f else ((spd - 13f) / 15f).coerceIn(0f, 1f)
         scenery.render(if (player.flying) 1f else wind, time)
+        if (jackpot.active) jackpot.render()
     }
 
     override fun renderWorldBackdrop(shapes: ShapeRenderer) {
@@ -821,19 +894,27 @@ class CubeRun(session: GameSession, private val autoStart: Boolean = false, priv
     override fun renderWorldShapes(shapes: ShapeRenderer) {
         if (gift.active) gift.renderShapes(shapes, time)
         else if (showcase.active && !showcase.shop) showcase.renderShapes(shapes, time)
-        else if (!showcase.active) trackArt.renderCues(shapes, track, opening.worldAmount, redPill.blend)
+        else if (!showcase.active) {
+            trackArt.renderCues(shapes, track, opening.worldAmount, redPill.blend)
+            if (jackpot.active) jackpot.renderShapes(shapes, time)
+        }
     }
 
     override fun renderWorld(batch: ModelBatch, env: Environment) {
         if (gift.active) return
         if (showcase.active) { player.render(batch, env); return }
+        if (jackpot.active) {
+            player.jackpotPose(time, worldHue(), player.px, jackpot.cubeY, jackpot.cubeYaw, jackpot.cubeTip, jackpot.cubeScale, jackpot.cubeGold, trackArt.gold)
+            player.render(batch, env)
+            return
+        }
         if (!dead) player.render(batch, env, Terrain.y(0f))
     }
 
     override fun renderBlended() {
         if (gift.active) { gift.renderBlended(cam, time); return }
         if (showcase.active) { showcase.renderBlended(cam, time); return }
-        if (!dead) bubble.render(cam, time)
+        if (!dead && !jackpot.active) bubble.render(cam, time)
         for (r in track.rows) { // floating bubble pickups: little soap bubbles
             if (r.pickup != Pickup.BUBBLE) continue
             val cz = r.z + Row.PICKUP_DZ
@@ -843,6 +924,6 @@ class CubeRun(session: GameSession, private val autoStart: Boolean = false, priv
         }
     }
     override fun pause() { idlePilot.stop(); super.pause() }
-    override fun dispose() { idlePilot.close(); super.dispose() }
+    override fun dispose() { idlePilot.close(); showcase.dispose(); super.dispose() }
 
 }

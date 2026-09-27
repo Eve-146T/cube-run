@@ -264,7 +264,9 @@ class ShopResetProgressTest {
                 for (cat in Wardrobe.cats) { assertEquals(0, Progress.equipped(cat)); assertTrue(Progress.owns(cat, 0)) }
                 assertEquals(1, Progress.ownedSkins); assertEquals(1, Progress.ownedBubbleSkins); assertEquals(1, Progress.ownedTrails)
                 for (upgrade in Progress.upgrades + Progress.perks) assertEquals(0, Progress.level(upgrade))
-                for (kind in Shards.all) assertEquals(0, Progress.shards(kind.id))
+                // Dev mode reports unlimited shards; the reset must still empty the real stash.
+                val stash = field(Progress, "shardCounts").get(Progress) as IntArray
+                for (kind in Shards.all) assertEquals(0, stash[kind.id])
                 for (state in Achievements.snapshot()) { assertEquals(0, state.earnedTiers); assertEquals(0, state.claimedTiers) }
                 assertTrue(Achievements.drainUnlocks().isEmpty())
                 assertEquals(0, Scores.best("cuberun"))
@@ -276,7 +278,8 @@ class ShopResetProgressTest {
             assertFalse(fixture.getSharedPreferences("progress", Context.MODE_PRIVATE).contains("bank_before_dev"))
             assertFalse(fixture.getSharedPreferences("progress", Context.MODE_PRIVATE).contains("future_game_counter"))
             val page = shop(activity)
-            assertNull(page.darknessFocus())
+            // Dev mode keeps the void offering open, so it is the only dark card allowed after a reset.
+            assertTrue(page.darknessFocus().let { it == null || it is VoidCardView })
             assertTrue(descendants(page).none { it.tag == "achievements_unlocked_status" })
             assertEquals("reset_progress", (field(page, "list").get(page) as ViewGroup).let { it.getChildAt(it.childCount - 1).tag })
             val owner = hud(activity)

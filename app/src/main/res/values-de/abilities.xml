@@ -14,5 +14,4 @@
     <string name="ability_long_bubble">Lange Blase</string><string name="ability_long_bubble_detail" formatted="false">Deine Blase hält 30 % länger!</string>
     <string name="lottery_explanation">Alle gesammelten Münzen werden für die Lotterie ausgegeben!\n\nDer Jackpot beträgt 250.000%1$s. Das sind die Chancen:</string>
     <string name="lottery_one_in">1 zu 100.000</string><string name="lottery_per_coin">pro 1 Münze Wert</string><string name="lottery_per_box">pro Überraschungsbox</string>
-    <string name="jackpot_title">JACKPOT</string><string name="jackpot_description">Jackpot. %1$s Münzen.</string>
 </resources>

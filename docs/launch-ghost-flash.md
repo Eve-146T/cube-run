@@ -20,8 +20,8 @@ process restart. No phone or shared emulator was used.
 The first recording did not contain a blank frame. Three further recordings
 caught the intermittent defect: in `before-extra/launch-3.mp4`, **source frame 32,
 662.798 ms after the launch request, contains zero cube pixels**. Frames 31 and
-33 contain the Ghost cube. [The full-resolution blank frame](launch-ghost-reference/before-blank.png)
-confirms that this is an actual missing image.
+33 contain the Ghost cube. The full-resolution blank frame
+confirmed that this is an actual missing image.
 
 This occurs during the system-to-app splash transfer, before native-to-GL
 handoff. Android renders its animated icon in a separate surface. Removing the
@@ -116,11 +116,6 @@ launch claim or a new speedup comparison. Frame-delivery variability remains;
 
 - [Final source recording, run 9](../captures/launch-ghost/presented/launch-9.mp4)
 - [Final source filmstrip, run 9](../captures/launch-ghost/presented/strip-9/sheet.png)
-- [All trial results, traces, frame checks and APK/video hashes](launch-ghost-reference/evidence.json)
-- [Final tests](launch-ghost-reference/tests-final.txt),
-  [previous-APK lighting test](launch-ghost-reference/tests-before.txt),
-  [final RGB measurements](launch-ghost-reference/lighting-final.txt)
-- [Build](launch-ghost-reference/build.txt) and [lint](launch-ghost-reference/lint.txt)
 
 Raw recordings and screenshots remain under `captures/launch-ghost/`.
 Final debug APK SHA-256:

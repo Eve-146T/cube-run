@@ -32,6 +32,8 @@ object Settings {
     /** Master toggle for haptic feedback. Read from the GL thread. */
     @Volatile var hapticsEnabled: Boolean = true
         private set
+    @Volatile var audioHapticRevision: Int = 0
+        private set
 
     /**
      * Dev mode: the section director cycles the sections under review and the
@@ -58,6 +60,33 @@ object Settings {
     @Volatile var testPillWorld = false
     @Volatile var testWorld: Int = -1
 
+    @Volatile private var performanceCourseSelected = false
+    val performanceCourse: Boolean get() = cube.run.BuildConfig.DEBUG && performanceCourseSelected
+    private var performancePreviousDev = false
+    private var performancePreviousWorld = -1
+
+    /** A process-scoped course: retries retain it, a fresh app process does not. */
+    fun selectPerformanceCourse() {
+        if (!cube.run.BuildConfig.DEBUG) return
+        if (!performanceCourseSelected) {
+            performancePreviousDev = devMode
+            performancePreviousWorld = testWorld
+        }
+        performanceCourseSelected = true
+        setDevMode(true); Progress.enterDev()
+        testSection = 56; testWorld = 2; testPillWorld = false
+        testBonus = -1; testBonusNow = -1; testBoxes = 0
+    }
+
+    /** Restore the pre-test bank/developer state without changing equipment. */
+    fun leavePerformanceCourse() {
+        if (!performanceCourseSelected) return
+        performanceCourseSelected = false
+        testWorld = performancePreviousWorld
+        setDevMode(performancePreviousDev)
+        if (!performancePreviousDev) Progress.leaveDev()
+    }
+
     fun init(ctx: Context) {
         prefs = ctx.applicationContext.getSharedPreferences("settings", Context.MODE_PRIVATE)
         smoothControlPref = prefs.getBoolean("smooth_control", false)
@@ -78,11 +107,13 @@ object Settings {
     }
 
     fun setSoundEnabled(v: Boolean) {
+        if (soundEnabled != v) audioHapticRevision++
         soundEnabled = v
         prefs.edit().putBoolean("sound_enabled", v).apply()
     }
 
     fun setHapticsEnabled(v: Boolean) {
+        if (hapticsEnabled != v) audioHapticRevision++
         hapticsEnabled = v
         prefs.edit().putBoolean("haptics_enabled", v).apply()
     }

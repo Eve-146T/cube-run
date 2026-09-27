@@ -80,12 +80,6 @@ late-frame clock correction.
   [recording 3](../captures/launch-continuity/final/launch-3.mp4)
 - [Source filmstrip, run 1](../captures/launch-continuity/final/strip-1/sheet.png)
   and [run 2](../captures/launch-continuity/final/strip-2/sheet.png)
-- [Previous-APK failures](launch-continuity-reference/tests-before.txt),
-  [final test log](launch-continuity-reference/tests-final.txt),
-  [additional gameplay checks](launch-continuity-reference/tests-gameplay.txt)
-- [Build log](launch-continuity-reference/build.txt),
-  [lint](launch-continuity-reference/lint.txt),
-  [timings, traces and exact APK/video hashes](launch-continuity-reference/evidence.json)
 
 Times below are **visible source frames after the launch request**, not internal
 log times. Menu settling uses the existing white-counter pixel tolerance,

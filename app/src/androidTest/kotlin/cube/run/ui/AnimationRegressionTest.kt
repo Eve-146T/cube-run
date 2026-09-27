@@ -333,7 +333,7 @@ class AnimationRegressionTest {
         }
         waitFor(500)
         ui { field<Page>(hud, "page").close() }
-        waitFor(70)
+        waitFor(220)
         ui {
             val sheet = field<Page?>(hud, "page")
             assertNotNull(sheet)
@@ -389,6 +389,7 @@ class AnimationRegressionTest {
                 shop.viewTreeObserver.addOnPreDrawListener(object : android.view.ViewTreeObserver.OnPreDrawListener {
                     override fun onPreDraw(): Boolean {
                         shop.viewTreeObserver.removeOnPreDrawListener(this)
+                        assertEquals("Keep the deliberate shop entrance", 340L, field<ValueAnimator>(shop, "navigation").duration)
                         firstDrawMs = SystemClock.uptimeMillis() - openedAt
                         firstDraw.countDown()
                         return true
@@ -405,15 +406,19 @@ class AnimationRegressionTest {
             val openMs = SystemClock.uptimeMillis() - openedAt
             assertTrue("Shop cycle $cycle did not finish its entrance", opened)
             val closedAt = SystemClock.uptimeMillis()
-            ui { field<Page>(hud, "page").navigateBack() }
+            ui {
+                val shop = field<Page>(hud, "page")
+                shop.navigateBack()
+                assertEquals("Keep the deliberate shop exit", 380L, field<ValueAnimator>(shop, "navigation").duration)
+            }
             var closed = false
-            while (!closed && SystemClock.uptimeMillis() - closedAt < 500) {
+            while (!closed && SystemClock.uptimeMillis() - closedAt < 700) {
                 waitFor(10)
                 ui { closed = field<Page?>(hud, "page") == null }
             }
             val closeMs = SystemClock.uptimeMillis() - closedAt
             android.util.Log.i("MenuMotion", "Shop cycle $cycle: response=$firstDrawMs ms open animation included=$openMs ms close=$closeMs ms")
-            assertTrue("Shop cycle $cycle took $closeMs ms to close", closed && closeMs < 300)
+            assertTrue("Shop cycle $cycle took $closeMs ms to close including its animation", closed && closeMs < 600)
             ui { assertEquals(Stage.NONE, Stage.mode); settled(field(field<MainMenu>(hud, "menu"), "rightChips")) }
         }
     }

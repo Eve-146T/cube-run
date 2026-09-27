@@ -15,6 +15,7 @@ import cube.run.core.gfx.BoxMeshKit
 import cube.run.core.gfx.PrismBatch
 import cube.run.core.gfx.ShardSystem
 import com.badlogic.gdx.math.Vector3
+import com.badlogic.gdx.math.Matrix4
 import cube.run.core.gfx.TerrainHeight
 import cube.run.core.gfx.WorldBoxBatch
 import java.util.concurrent.CountDownLatch
@@ -55,6 +56,20 @@ class BatchVisibilityTest {
                                 } finally { target.end() }
                             }
                             val reference = draw(false)
+                            // Compare actual particle poses with the former composed
+                            // transform, independently of the CPU/GPU pixel comparison.
+                            val live = ShardSystem::class.java.getDeclaredField("live").apply { isAccessible = true }
+                                .get(shards) as List<*>
+                            for (particle in live) {
+                                fun value(name: String): Any = particle!!.javaClass.getDeclaredField(name)
+                                    .apply { isAccessible = true }.get(particle)!!
+                                val sc = (value("size") as Float) * (.4f + .6f * (value("alpha") as Float))
+                                val angle = (value("rotSpeed") as Float) * ((value("maxLife") as Float) - (value("life") as Float))
+                                val composed = Matrix4().translate(value("pos") as Vector3)
+                                    .rotate(value("rotAxis") as Vector3, angle).scale(sc, sc, sc)
+                                assertArrayEquals("Particle pose changed at phase $phase", composed.`val`,
+                                    (value("transform") as Matrix4).`val`, 0f)
+                            }
                             assertTrue("Particle fixture must be visible", reference.indices.any {
                                 it % 4 != 3 && reference[it].toInt() != 0
                             })
@@ -97,7 +112,7 @@ class BatchVisibilityTest {
                             boxes.terrain = terrain; coins.terrain = terrain
                             fun draw(cull: Boolean, instanced: Boolean = cull): ByteArray {
                                 boxes.begin(if (cull) camera else null, instanced = instanced)
-                                coins.begin(if (cull) camera else null)
+                                coins.begin(if (cull) camera else null, instanced = instanced)
                                 // Near/behind camera, both screen edges and beyond the far plane.
                                 for (row in -2..24) {
                                     val z = -row * 3f

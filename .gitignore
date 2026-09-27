@@ -25,4 +25,13 @@ keystore.properties
 
 # Local validation scratch files
 .build-tmp/
+.local-tmp/
 __pycache__/
+
+# Test evidence, review pages and drop pages stay local
+muxu/
+docs/*-reference/
+docs/evidence/
+docs/review/
+docs/*-review/
+tools/*-review/

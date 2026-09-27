@@ -122,14 +122,8 @@ class AchievementAlignmentTest {
                             image.imageMatrix.mapPoints(mappedCenter)
                             assertEquals("${definition.id} ImageView matrix centers on the visible face", faceBounds.centerY(), mappedCenter[1] + image.paddingTop, tolerance)
                             if (!earned) {
-                                val reward = descendants(page).single { it.tag == "achievement_claim_${definition.id}" } as ViewGroup
-                                val coinAndAmount = reward.getChildAt(reward.childCount - 1) as ViewGroup
-                                // The row itself may span the panel: measure its painted children, not its full bounds.
-                                val content = paintedBounds(coinAndAmount.width, coinAndAmount.height) { coinAndAmount.draw(it) }
-                                assertNull("${definition.id} future payout has no separate panel", reward.background)
-                                assertFalse("${definition.id} future payout is not a button", reward.isClickable)
-                                assertEquals("${definition.id} coin and amount remain centered in their reserved action space",
-                                    reward.width / 2f, coinAndAmount.left + content.centerX(), tolerance)
+                                // What a reward pays stays hidden until it can be claimed.
+                                assertTrue("${definition.id} shows no future payout", descendants(page).none { it.tag == "achievement_claim_${definition.id}" })
                             }
                         }
                         for (definition in Achievements.all.filter { it.tiered }) {

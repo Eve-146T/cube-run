@@ -160,6 +160,57 @@ fun Context.gameText(stableLabel: String): String = when (stableLabel) {
     "RIDGE WEAVE" -> getString(R.string.section_ridge_weave)
     "CREST HOP" -> getString(R.string.section_crest_hop)
     "VALLEY GATES" -> getString(R.string.section_valley_gates)
+    "Good Runner" -> getString(R.string.achievement_runner)
+    "Lifetime Coins" -> getString(R.string.achievement_coins)
+    "Unlocked Cubes" -> getString(R.string.achievement_cubes)
+    "Power Collector" -> getString(R.string.achievement_powerups)
+    "Mystery Seeker" -> getString(R.string.achievement_boxes)
+    "Big Bubble" -> getString(R.string.achievement_bubbles)
+    "Bouncer" -> getString(R.string.achievement_bounces)
+    "Stay Centered" -> getString(R.string.achievement_center)
+    "Homeress" -> getString(R.string.achievement_homeress)
+    "Gambliphobic" -> getString(R.string.achievement_gambliphobic)
+    "Cookie Clicker" -> getString(R.string.achievement_cookie)
+    "Bronze" -> getString(R.string.medal_bronze)
+    "Silver" -> getString(R.string.medal_silver)
+    "Diamond" -> getString(R.string.medal_diamond)
+    "Challenge complete" -> getString(R.string.cd_challenge_complete)
+    "This upgrade does nothing." -> getString(R.string.void_line_0)
+    "What did you think was going to happen?" -> getString(R.string.void_line_1)
+    "Do you never learn?" -> getString(R.string.void_line_2)
+    "Still nothing." -> getString(R.string.void_line_3)
+    "You could have bought something useful." -> getString(R.string.void_line_4)
+    "The silence is getting expensive." -> getString(R.string.void_line_5)
+    "There is no refund in the dark." -> getString(R.string.void_line_6)
+    "You are very persistent." -> getString(R.string.void_line_7)
+    "One more will change nothing." -> getString(R.string.void_line_8)
+    "Are you sure?" -> getString(R.string.void_line_9)
+    "Fine." -> getString(R.string.void_line_10)
+    "There was more." -> getString(R.string.void_line_11)
+    "Don't look so pleased." -> getString(R.string.void_line_12)
+    "The dark remembers you." -> getString(R.string.void_line_13)
+    "Something follows." -> getString(R.string.void_line_14)
+    "You cannot see it yet." -> getString(R.string.void_line_15)
+    "Keep walking." -> getString(R.string.void_line_16)
+    "Even nothing leaves a trace." -> getString(R.string.void_line_17)
+    "Almost a shadow." -> getString(R.string.void_line_18)
+    "Look behind you." -> getString(R.string.void_line_19)
+    "A trail. For your trouble." -> getString(R.string.void_line_20)
+    "You are still here." -> getString(R.string.void_line_21)
+    "The silence has a shape." -> getString(R.string.void_line_22)
+    "It is getting closer." -> getString(R.string.void_line_23)
+    "Something wants to keep you safe." -> getString(R.string.void_line_24)
+    "Or keep you here." -> getString(R.string.void_line_25)
+    "A little more darkness." -> getString(R.string.void_line_26)
+    "You feel it now." -> getString(R.string.void_line_27)
+    "One thin veil." -> getString(R.string.void_line_28)
+    "Breathe." -> getString(R.string.void_line_29)
+    "The dark surrounds you." -> getString(R.string.void_line_30)
+    "Nothing more. Probably." -> getString(R.string.void_echo_0)
+    "The void appreciates your donation." -> getString(R.string.void_echo_1)
+    "We have been here before." -> getString(R.string.void_echo_2)
+    "Still listening?" -> getString(R.string.void_echo_3)
+    "The silence deepens." -> getString(R.string.void_echo_4)
     else -> stableLabel
 }
 
@@ -174,9 +225,35 @@ fun Context.achievementTitle(id: String): String = getString(when (id) {
     "center" -> R.string.achievement_stay_centered
     "homeress" -> R.string.achievement_homeress
     "gambliphobic" -> R.string.achievement_gambliphobic
+    "globetrotter" -> R.string.achievement_globetrotter
+    "long_hauler" -> R.string.achievement_long_hauler
+    "shardsmith" -> R.string.achievement_shardsmith
+    "regular" -> R.string.achievement_regular
+    "bubble_popper" -> R.string.achievement_bubble_popper
+    "near_miss" -> R.string.achievement_near_miss
+    "untouchable" -> R.string.achievement_untouchable
+    "house_loses" -> R.string.achievement_house_loses
+    "voidwalker" -> R.string.achievement_voidwalker
+    "greedy" -> R.string.achievement_greedy
+    "scenic_route" -> R.string.achievement_scenic_route
+    "coal_miner" -> R.string.achievement_coal_miner
+    "magpie" -> R.string.achievement_magpie
+    "shard_hunter" -> R.string.achievement_shard_hunter
+    "full_kit" -> R.string.achievement_full_kit
+    "long_con" -> R.string.achievement_long_con
+    "insomniac" -> R.string.achievement_insomniac
+    "bankrupt" -> R.string.achievement_bankrupt
+    "exactly_67" -> R.string.achievement_exactly_67
+    "just_browsing" -> R.string.achievement_just_browsing
+    "two_ez" -> R.string.achievement_two_ez
+    "nervous_tic" -> R.string.achievement_nervous_tic
+    "silent_treatment" -> R.string.achievement_silent_treatment
+    "stage_fright" -> R.string.achievement_stage_fright
+    "neo" -> R.string.achievement_neo
     else -> R.string.achievement_cookie_clicker
 })
 
+/** A medal family's short "what counts" line, or a challenge's goal. */
 fun Context.achievementGoal(id: String): String = getString(when (id) {
     "runner" -> R.string.achievement_single_run_score
     "coins" -> R.string.achievement_collected_over_time
@@ -188,6 +265,31 @@ fun Context.achievementGoal(id: String): String = getString(when (id) {
     "center" -> R.string.achievement_stay_middle
     "homeress" -> R.string.achievement_no_coins
     "gambliphobic" -> R.string.achievement_miss_boxes
+    "globetrotter" -> R.string.achievement_goal_globetrotter
+    "long_hauler" -> R.string.achievement_goal_long_hauler
+    "shardsmith" -> R.string.achievement_goal_shardsmith
+    "regular" -> R.string.achievement_goal_regular
+    "bubble_popper" -> R.string.achievement_goal_bubble_popper
+    "near_miss" -> R.string.achievement_goal_near_miss
+    "untouchable" -> R.string.achievement_goal_untouchable
+    "house_loses" -> R.string.achievement_goal_house_loses
+    "voidwalker" -> R.string.achievement_goal_voidwalker
+    "greedy" -> R.string.achievement_goal_greedy
+    "scenic_route" -> R.string.achievement_goal_scenic_route
+    "coal_miner" -> R.string.achievement_goal_coal_miner
+    "magpie" -> R.string.achievement_goal_magpie
+    "shard_hunter" -> R.string.achievement_goal_shard_hunter
+    "full_kit" -> R.string.achievement_goal_full_kit
+    "long_con" -> R.string.achievement_goal_long_con
+    "insomniac" -> R.string.achievement_goal_insomniac
+    "bankrupt" -> R.string.achievement_goal_bankrupt
+    "exactly_67" -> R.string.achievement_goal_exactly_67
+    "just_browsing" -> R.string.achievement_goal_just_browsing
+    "two_ez" -> R.string.achievement_goal_two_ez
+    "nervous_tic" -> R.string.achievement_goal_nervous_tic
+    "silent_treatment" -> R.string.achievement_goal_silent_treatment
+    "stage_fright" -> R.string.achievement_goal_stage_fright
+    "neo" -> R.string.achievement_goal_neo
     else -> R.string.achievement_toggle_sound
 })
 
