@@ -249,6 +249,7 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
         player.floaty = Skins.Ability.FLOATY in runSkin.abilities
         player.doubleJumpEnabled = false
         player.tripleJumpEnabled = false
+        player.gigajumpEnabled = false
         trackArt.coalCoins = Skins.Ability.COAL in runSkin.abilities
         lottery = Lottery(rnd, if (Settings.devMode) Lottery.DEV_COIN_CHANCE else Lottery.COIN_CHANCE)
         phaseUsed = false; phasedObstacle = null; lastTapT = -9f
@@ -527,6 +528,7 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
         val shielded = live() && bubble.active
         player.doubleJumpEnabled = shielded && (Skins.Ability.DOUBLE_JUMP in runSkin.abilities || Skins.Ability.DOUBLE_JUMP in runBubble.abilities)
         player.tripleJumpEnabled = shielded && mintSynergy()
+        player.gigajumpEnabled = shielded && Skins.Ability.GIGAJUMP in runBubble.abilities
     }
 
     /** Tell the track where the flight lands, so the coin line it lays glides down to meet the ground there. */

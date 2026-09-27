@@ -1,5 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="ability_gigajump">Gigajump</string>
+    <string name="ability_gigajump_detail">Jump twice as high while your bubble is active!</string>
     <string name="ability_close_shave">Close Shave</string>
     <string name="ability_close_shave_detail">Near misses give you 4 times the bonus points!</string>
     <string name="ability_mind_synergy">SECRET ABILITY: MIND SYNERGY</string>

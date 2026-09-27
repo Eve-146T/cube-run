@@ -372,6 +372,13 @@ class AbilityIcon(private val ability: Ability) : Icon() {
             paint.style = Paint.Style.FILL; paint.color = Theme.LAVENDER; canvas.drawPath(path, paint)
             paint.style = Paint.Style.STROKE; paint.color = Theme.INK; canvas.drawPath(path, paint)
             canvas.drawLine(16f, 41f, 30f, 41f, paint)
+        } else if (ability == Ability.GIGAJUMP) {
+            paint.style = Paint.Style.STROKE; paint.color = Theme.INK
+            paint.strokeCap = Paint.Cap.ROUND; paint.strokeWidth = 4f
+            canvas.drawLine(24f, 39f, 24f, 7f, paint)
+            canvas.drawLine(24f, 7f, 12f, 19f, paint)
+            canvas.drawLine(24f, 7f, 36f, 19f, paint)
+            paint.color = Theme.MINT; canvas.drawLine(12f, 44f, 36f, 44f, paint)
         } else if (ability == Ability.DOUBLE_JUMP || ability == Ability.MIND_SYNERGY) {
             paint.style = Paint.Style.STROKE; paint.color = Theme.INK; paint.strokeCap = Paint.Cap.ROUND; paint.strokeWidth = 4f
             for (y in if (ability == Ability.MIND_SYNERGY) listOf(3f, 16f, 29f) else listOf(8f, 25f)) {

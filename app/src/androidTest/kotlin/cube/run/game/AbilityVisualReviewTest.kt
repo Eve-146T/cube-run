@@ -89,6 +89,16 @@ class AbilityVisualReviewTest {
         capture("panel-$name", 400)
     }
 
+    @Test fun neonShowsGigajumpAbility() {
+        ActivityScenario.launch<GameActivity>(Intent(context, GameActivity::class.java)
+            .putExtra(Hud.EXTRA_AUTOSTART, false)).use { scenario ->
+            SystemClock.sleep(1800)
+            scenario.onActivity { call(hud(it), "openWardrobe") }
+            SystemClock.sleep(650)
+            panel(scenario, Wardrobe.BUBBLE, 8, "Gigajump", "neon")
+        }
+    }
+
     @Test fun strobeShowsNearMissAbility() {
         ActivityScenario.launch<GameActivity>(Intent(context, GameActivity::class.java)
             .putExtra(Hud.EXTRA_AUTOSTART, false)).use { scenario ->

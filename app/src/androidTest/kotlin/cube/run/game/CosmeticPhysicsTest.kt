@@ -30,7 +30,8 @@ class CosmeticPhysicsTest {
                     game.finishOpening()
                     val player: Player = value(game, "player")
                     player.setFlying(false); player.hover = false; player.floaty = false
-                    player.doubleJumpEnabled = false; player.tripleJumpEnabled = false; player.forceGround(0f)
+                    player.doubleJumpEnabled = false; player.tripleJumpEnabled = false
+                    player.gigajumpEnabled = false; player.forceGround(0f)
                     block(player, value(game, "bubble"))
                 } catch (t: Throwable) { failure = t }
                 finally {
@@ -45,6 +46,30 @@ class CosmeticPhysicsTest {
     private fun step(player: Player, dt: Float = .01f, ground: Float = 0f) =
         player.update(dt, 30f * dt, 10f, 200f, false, ground)
     private fun velocity(player: Player) = value<Float>(player, "vy")
+
+    @Test fun gigajumpDoublesHeightAndBoostsMintsExtraJump() = withPlayer { p, _ ->
+        fun height(giga: Boolean, cloud: Boolean): Float {
+            p.floaty = cloud; p.gigajumpEnabled = giga; p.forceGround(0f)
+            val floor = p.py; p.jump(); var peak = floor
+            repeat(2000) { step(p, .001f); peak = maxOf(peak, p.py) }
+            assertFalse(p.air)
+            return peak - floor
+        }
+        for (cloud in listOf(false, true)) {
+            val normal = height(false, cloud); val giga = height(true, cloud)
+            assertEquals("Double height, cloud=$cloud", normal * 2f, giga, .015f)
+        }
+        p.floaty = false; p.forceGround(0f)
+        p.doubleJumpEnabled = true; p.gigajumpEnabled = true
+        p.jump(); assertEquals(8.4f * 1.4142136f, velocity(p), .001f)
+        repeat(15) { step(p) }; p.jump()
+        assertEquals("Mint air jump also gets double height", 8.4f * 1.4142136f, velocity(p), .001f)
+        step(p); val used = velocity(p); p.jump()
+        assertEquals("Neon does not grant a third jump", used, velocity(p), 0f)
+        p.gigajumpEnabled = false; p.doubleJumpEnabled = false
+        p.forceGround(0f); p.jump()
+        assertEquals("Expired bubble restores normal jump", 8.4f, velocity(p), .001f)
+    }
 
     @Test fun synergyAllowsExactlyThreeJumpsAndNeverRefillsMidair() = withPlayer { p, _ ->
         p.doubleJumpEnabled = true; p.tripleJumpEnabled = true

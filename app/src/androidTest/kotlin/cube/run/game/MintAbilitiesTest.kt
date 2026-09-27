@@ -30,17 +30,19 @@ class MintAbilitiesTest {
                         .apply { isAccessible = true }
                     grant.invoke(Progress, Wardrobe.CUBE, Skins.MINT_ID)
                     grant.invoke(Progress, Wardrobe.BUBBLE, BubbleSkins.MINT_ID)
+                    grant.invoke(Progress, Wardrobe.BUBBLE, 8)
                     val game = Gdx.app.applicationListener as CubeRun
                     game.finishOpening(); Stage.paused = false; game.onTap(.5f, .5f)
                     val p: Player = value(game, "player"); val b: Bubble = value(game, "bubble")
                     val refresh = CubeRun::class.java.getDeclaredMethod("refreshJumpAbility").apply { isAccessible = true }
                     val duration = CubeRun::class.java.getDeclaredMethod("bubbleDurationMultiplier").apply { isAccessible = true }
-                    fun loadout(cube: Int, bubble: Int, double: Boolean, triple: Boolean, multiplier: Float) {
+                    fun loadout(cube: Int, bubble: Int, double: Boolean, triple: Boolean, multiplier: Float, giga: Boolean = false) {
                         Progress.equip(Wardrobe.CUBE, cube); Progress.equip(Wardrobe.BUBBLE, bubble)
                         game.javaClass.getDeclaredField("runSkin").apply { isAccessible = true }.set(game, Skins.get(cube))
                         game.javaClass.getDeclaredField("runBubble").apply { isAccessible = true }.set(game, BubbleSkins.get(bubble))
                         b.reset(); b.activate(0f, .45f, quiet = true); refresh.invoke(game)
                         assertEquals(double, p.doubleJumpEnabled); assertEquals(triple, p.tripleJumpEnabled)
+                        assertEquals(giga, p.gigajumpEnabled)
                         assertEquals(multiplier, duration.invoke(game) as Float, .001f)
                         for (cat in listOf(Wardrobe.CUBE, Wardrobe.BUBBLE)) {
                             val id = if (cat == Wardrobe.CUBE) Skins.MINT_ID else BubbleSkins.MINT_ID
@@ -49,11 +51,18 @@ class MintAbilitiesTest {
                         assertFalse(Skins.Ability.MIND_SYNERGY in Wardrobe.abilities(Wardrobe.CUBE, 0))
                         b.pop(0f, .45f); refresh.invoke(game)
                         assertFalse(p.doubleJumpEnabled); assertFalse(p.tripleJumpEnabled)
+                        assertFalse(p.gigajumpEnabled)
+                        b.reset(); b.duration = .01f; b.activate(0f, .45f, quiet = true)
+                        refresh.invoke(game)
+                        b.update(.02f, 1f, 0f, .45f); refresh.invoke(game)
+                        assertFalse("Expired shield removes jump abilities", p.doubleJumpEnabled || p.tripleJumpEnabled || p.gigajumpEnabled)
                     }
                     loadout(0, 0, false, false, 1f)
                     loadout(Skins.MINT_ID, 0, true, false, 1f)
                     loadout(0, BubbleSkins.MINT_ID, true, false, 1f)
                     loadout(Skins.MINT_ID, BubbleSkins.MINT_ID, true, true, 1.3f)
+                    loadout(0, 8, false, false, 1f, true)
+                    loadout(Skins.MINT_ID, 8, true, false, 1f, true)
                 } catch (t: Throwable) { failure = t }
                 finally {
                     Progress.equip(Wardrobe.CUBE, oldCube); Progress.equip(Wardrobe.BUBBLE, oldBubble)

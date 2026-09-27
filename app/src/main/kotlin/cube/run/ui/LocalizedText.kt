@@ -74,6 +74,8 @@ fun Context.gameText(stableLabel: String): String = when (stableLabel) {
     "Floaty" -> getString(R.string.ability_floaty)
     "Your cube becomes floaty!" -> getString(R.string.ability_floaty_detail)
     "Double jump" -> getString(R.string.ability_double_jump)
+    "Gigajump" -> getString(R.string.ability_gigajump)
+    "Jump twice as high while your bubble is active!" -> getString(R.string.ability_gigajump_detail)
     "Close Shave" -> getString(R.string.ability_close_shave)
     "Near misses give you 4 times the bonus points!" -> getString(R.string.ability_close_shave_detail)
     "SECRET ABILITY: MIND SYNERGY" -> getString(R.string.ability_mind_synergy)

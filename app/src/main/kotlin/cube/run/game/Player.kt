@@ -65,6 +65,7 @@ class Player(private val game: Gdx3DGame, private val rnd: Random) {
     /** Set by the run: Mint abilities require an active shield. */
     var doubleJumpEnabled = false
     var tripleJumpEnabled = false
+    var gigajumpEnabled = false
     private var airJumpAvailable = false
     private var airJumpsUsed = 0
 
@@ -136,6 +137,7 @@ class Player(private val game: Gdx3DGame, private val rnd: Random) {
     fun resetToMenu(baseHue: Float, time: Float) {
         flying = false; flyY = FLY_Y; hover = false
         zappyEnabled = false; floaty = false; doubleJumpEnabled = false; tripleJumpEnabled = false
+        gigajumpEnabled = false
         airJumpAvailable = false; airJumpsUsed = 0
         lane = 1; px = 0f; py = ground; air = false
         duck = 0f; nudge = 0f; vy = 0f; roll = 0f; squash = 0f; duckT = 0f
@@ -249,7 +251,8 @@ class Player(private val game: Gdx3DGame, private val rnd: Random) {
     private fun takeOff(extraJump: Boolean = false) {
         clearJumpInput()
         if (!extraJump) { airJumpAvailable = true; airJumpsUsed = 0 }
-        air = true; vy = if (floaty) 6.9f else 8.4f
+        // Jump height scales with velocity squared, so sqrt(2) gives twice the height.
+        air = true; vy = (if (floaty) 6.9f else 8.4f) * (if (gigajumpEnabled) 1.4142136f else 1f)
         slamming = false
         duckT = 0f // jumping cancels a roll
         SoundFx.play("whoosh", rate = if (extraJump) 1.55f else 1.3f)

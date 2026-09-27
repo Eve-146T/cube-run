@@ -37,6 +37,7 @@ object Skins {
         BUBBLE_DIVIDEND("Bubble Dividend", "Gain 1 free bubble for every 200 coins collected during a run!"),
         MIND_SYNERGY("SECRET ABILITY: MIND SYNERGY", "YOUR BUBBLE LASTS 30% LONGER AND YOU CAN TRIPLE JUMP WHILE IT'S ACTIVE!!!"),
         CLOSE_SHAVE("Close Shave", "Near misses give you 4 times the bonus points!"),
+        GIGAJUMP("Gigajump", "Jump twice as high while your bubble is active!"),
     }
 
     class Skin(
@@ -165,7 +166,7 @@ object BubbleSkins {
         BubbleSkin(5, "Rainbow", 7_000, RAINBOW, sat = 0.9f, rim = 2.4f, sparkle = true),
         BubbleSkin(6, "Ice", 2_600, IRIS, hue = 190f, hue2 = 215f, sat = 0.35f, rim = 3.4f, fill = 0.05f),
         BubbleSkin(7, "Lava", 4_800, ELECTRIC, hue = 12f, hue2 = 42f, sat = 0.95f, rim = 2f, fill = 0.12f),
-        BubbleSkin(8, "Neon", 3_200, SOLID, hue = 118f, sat = 0.95f, rim = 2f),
+        BubbleSkin(8, "Neon", 3_200, SOLID, hue = 118f, sat = 0.95f, rim = 2f, abilities = listOf(Skins.Ability.GIGAJUMP)),
         BubbleSkin(9, "Galaxy", 6_000, IRIS, hue = 250f, hue2 = 340f, sat = 0.85f, rim = 2.8f, fill = 0.1f, sparkle = true),
         BubbleSkin(VOID_ID, "Event horizon", 750_000, VOID, hue = 260f, hue2 = 285f, sat = 0.25f, rim = 5f, fill = 0.12f),
     )
