@@ -29,6 +29,8 @@ fun Context.gameText(stableLabel: String): String = when (stableLabel) {
     "Bubblegum" -> getString(R.string.game_bubblegum)
     "Lemon" -> getString(R.string.game_lemon)
     "Candy" -> getString(R.string.game_candy)
+    "SECRET ABILITY: Under Pressure" -> getString(R.string.ability_coal_alchemy)
+    "After score 1000, coal starts turning into gems worth 3 coins each. By score 3000, all coal is gems!" -> getString(R.string.ability_coal_alchemy_detail)
     "Golden Bubble" -> getString(R.string.ability_gold_bubble)
     "Coins worth 60% more while bubble is active!" -> getString(R.string.ability_gold_bubble_detail)
     "Purple Cube" -> getString(R.string.game_purple_cube)

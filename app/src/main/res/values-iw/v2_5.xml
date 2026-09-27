@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ability_gold_bubble">בועת זהב</string>
+    <string name="ability_gold_bubble_detail">מטבעות שווים 60% יותר כשהבועה שלך פעילה!</string>
+    <string name="game_purple_cube">קובייה סגולה</string>
+    <string name="ability_toxic_fortune">מזל רעיל</string>
+    <string name="ability_toxic_fortune_detail">מטבעות שווים 60% יותר, אבל 1% מהם ירוקים והורגים אותך מיד!</string>
+    <string name="achievement_pile_driver">מכת מחץ</string>
+    <string name="achievement_goal_pile_driver">בצעו 300 מכות קרקע בריצה אחת.</string>
+    <string name="achievement_greed">חמדנות</string>
+    <string name="achievement_goal_greed">מותו בזמן איסוף תיבת הפתעה ממיקום מסוכן.</string>
+    <string name="ability_gigajump">קפיצת ענק</string>
+    <string name="ability_gigajump_detail">קפצו לגובה כפול כשהבועה שלכם פעילה!</string>
+    <string name="ability_close_shave">כמעט התנגשות</string>
+    <string name="ability_close_shave_detail">כמעט התנגשות מעניקה פי 3 נקודות בונוס!</string>
+    <string name="ability_mind_synergy">יכולת סודית: סינרגיית מחשבה</string>
+    <string name="ability_mind_synergy_detail">הבועה שלך מחזיקה 30% יותר זמן ואפשר לבצע קפיצה משולשת כשהיא פעילה!!!</string>
+    <string name="ability_bubble_haul">שלל בועות</string>
+    <string name="ability_bubble_haul_detail">איסוף בועה מעניק לך 2 בועות!</string>
+    <string name="ability_bubble_dividend">דיבידנד בועות</string>
+    <string name="ability_bubble_dividend_detail">קבלו בועה אחת בחינם על כל 200 מטבעות שנאספו בריצה!</string>
+    <string name="ability_coal_alchemy">יכולת סודית: תחת לחץ</string>
+    <string name="ability_coal_alchemy_detail">אחרי 1000 נקודות, פחם מתחיל להפוך לאבני חן ששוות 3 מטבעות כל אחת. ב־3000 נקודות כל הפחם הופך לאבני חן!</string>
+</resources>

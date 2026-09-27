@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ability_gold_bubble">Goldene Blase</string>
+    <string name="ability_gold_bubble_detail">Münzen sind 60% mehr wert, solange deine Blase aktiv ist!</string>
+    <string name="game_purple_cube">Lila Würfel</string>
+    <string name="ability_toxic_fortune">Giftiges Glück</string>
+    <string name="ability_toxic_fortune_detail">Münzen sind 60% mehr wert, aber 1% sind grün und töten dich sofort!</string>
+    <string name="achievement_pile_driver">Rammstoß</string>
+    <string name="achievement_goal_pile_driver">Führe in einem Lauf 300 Bodenstampfer aus.</string>
+    <string name="achievement_greed">Gier</string>
+    <string name="achievement_goal_greed">Stirb beim Einsammeln einer Mystery-Box an einer riskanten Stelle.</string>
+    <string name="ability_gigajump">Gigasprung</string>
+    <string name="ability_gigajump_detail">Springe doppelt so hoch, solange deine Blase aktiv ist!</string>
+    <string name="ability_close_shave">Haarscharf</string>
+    <string name="ability_close_shave_detail">Beinahe-Zusammenstöße geben dir dreifache Bonuspunkte!</string>
+    <string name="ability_mind_synergy">GEHEIME FÄHIGKEIT: GEDANKENSYNERGIE</string>
+    <string name="ability_mind_synergy_detail">DEINE BLASE HÄLT 30% LÄNGER UND DU KANNST DREIFACH SPRINGEN, SOLANGE SIE AKTIV IST!!!</string>
+    <string name="ability_bubble_haul">Blasenbeute</string>
+    <string name="ability_bubble_haul_detail">Blasen-Pickups geben dir 2 Blasen!</string>
+    <string name="ability_bubble_dividend">Blasendividende</string>
+    <string name="ability_bubble_dividend_detail">Erhalte in einem Lauf für je 200 gesammelte Münzen 1 kostenlose Blase!</string>
+    <string name="ability_coal_alchemy">GEHEIME FÄHIGKEIT: Unter Druck</string>
+    <string name="ability_coal_alchemy_detail">Ab 1000 Punkten verwandelt sich Kohle nach und nach in Edelsteine im Wert von je 3 Münzen. Bei 3000 Punkten ist alle Kohle zu Edelsteinen geworden!</string>
+</resources>

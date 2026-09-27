@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ability_coal_alchemy">SECRET ABILITY: Under Pressure</string>
+    <string name="ability_coal_alchemy_detail">After score 1000, coal starts turning into gems worth 3 coins each. By score 3000, all coal is gems!</string>
+</resources>
