@@ -387,7 +387,8 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
         fx.rowPassed()
         if (row.minClear < 0.34f) { // shaved it — reward a close dodge with an air-rush
             session.nearMiss()
-            session.addScore(if (x2) nearMissBonus * 2 else nearMissBonus)
+            val bonus = nearMissBonus * (if (Skins.Ability.CLOSE_SHAVE in runSkin.abilities) 4 else 1)
+            session.addScore(if (x2) bonus * 2 else bonus)
             fx.nearMiss(player.px, player.py)
         }
         if (!track.isPillTest) worlds.onRow(rowsPassed)

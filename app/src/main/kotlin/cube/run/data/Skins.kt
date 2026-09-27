@@ -36,6 +36,7 @@ object Skins {
         BUBBLE_HAUL("Bubble Haul", "Bubble pickups give you 2 bubbles!"),
         BUBBLE_DIVIDEND("Bubble Dividend", "Gain 1 free bubble for every 200 coins collected during a run!"),
         MIND_SYNERGY("SECRET ABILITY: MIND SYNERGY", "YOUR BUBBLE LASTS 30% LONGER AND YOU CAN TRIPLE JUMP WHILE IT'S ACTIVE!!!"),
+        CLOSE_SHAVE("Close Shave", "Near misses give you 4 times the bonus points!"),
     }
 
     class Skin(
@@ -99,7 +100,7 @@ object Skins {
         Skin(11, "Toxic", 4_500, PULSE, hue = 95f, sat = 0.95f, value = 1f, glow = 1.9f, trail = 1.4f),
         Skin(12, "Sunset", 5_500, WAVE, hue = 20f, hue2 = 320f, sat = 0.85f, value = 1f, trail = 1.4f),
         Skin(13, "Ghost", 6_500, FIXED, hue = 210f, sat = 0.015f, value = 1f, glow = 1.5f, trail = 0.6f, abilities = listOf(Ability.PHASE), opacity = .72f),
-        Skin(14, "Strobe", 7_000, STROBE, hue = 55f, hue2 = 200f, sat = 0.9f, value = 1f, glow = 1.4f, trail = 1.6f, sparkle = true),
+        Skin(14, "Strobe", 7_000, STROBE, hue = 55f, hue2 = 200f, sat = 0.9f, value = 1f, glow = 1.4f, trail = 1.6f, sparkle = true, abilities = listOf(Ability.CLOSE_SHAVE)),
         Skin(15, "Coal", 3_000, EMBER, hue = 24f, sat = 0.9f, value = 0.35f, glow = 1.6f, abilities = listOf(Ability.COAL)),
         Skin(16, "Bubblegum", 2_200, FIXED, hue = 328f, sat = 0.55f, value = 1f, glow = 1.3f, abilities = listOf(Ability.BUBBLE_SAVER, Ability.QUICK_BUBBLE)),
         Skin(17, "Cloud", 2_200, FIXED, hue = 205f, sat = 0.06f, value = 1f, glow = 1.25f, trail = 0.45f, abilities = listOf(Ability.FLOATY)),

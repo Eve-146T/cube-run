@@ -1,5 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="ability_close_shave">Close Shave</string>
+    <string name="ability_close_shave_detail">Near misses give you 4 times the bonus points!</string>
     <string name="ability_mind_synergy">SECRET ABILITY: MIND SYNERGY</string>
     <string name="ability_mind_synergy_detail">YOUR BUBBLE LASTS 30% LONGER AND YOU CAN TRIPLE JUMP WHILE IT\'S ACTIVE!!!</string>
     <string name="ability_bubble_haul">Bubble Haul</string>

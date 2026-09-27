@@ -296,6 +296,14 @@ class AbilityIcon(private val ability: Ability) : Icon() {
             paint.style = Paint.Style.STROKE; paint.color = Theme.INK
             canvas.drawCircle(33f, 17f, 10f, paint)
             if (ability == Ability.BUBBLE_DIVIDEND) canvas.drawCircle(33f, 17f, 5f, paint)
+        } else if (ability == Ability.CLOSE_SHAVE) {
+            paint.style = Paint.Style.STROKE; paint.color = Theme.INK
+            canvas.drawLine(5f, 7f, 5f, 41f, paint)
+            canvas.drawLine(43f, 7f, 43f, 41f, paint)
+            paint.style = Paint.Style.FILL; paint.textAlign = Paint.Align.CENTER
+            paint.isFakeBoldText = true; paint.textSize = 23f
+            canvas.drawText("×4", 24f, 32f, paint)
+            paint.isFakeBoldText = false
         } else if (ability == Ability.SECRET) {
             path.reset(); path.moveTo(14f, 15f)
             path.cubicTo(14f, 5f, 34f, 5f, 34f, 16f)
