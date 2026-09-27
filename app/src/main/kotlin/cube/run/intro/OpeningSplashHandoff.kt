@@ -26,12 +26,33 @@ class OpeningSplashHandoff(
     private var submitted = false
     private var exitReceived = false
     private var removed = false
+    private var disposed = false
+    private var fallbackPosted = false
+    private val fallback = Runnable {
+        fallbackPosted = false
+        if (!disposed && !removed && decor.isShown && decor.windowVisibility == View.VISIBLE) {
+            submitted = true
+            removeWhenReady()
+        }
+    }
+    private val frameSubmitted = Runnable {
+        if (!disposed && !removed && !fallbackPosted) {
+            // Resizing/reparenting the window can lose the compositor completion
+            // notification. A committed replacement frame still permits a bounded
+            // handoff, without removing the splash before any app frame is drawn.
+            fallbackPosted = true
+            decor.postDelayed(fallback, 500L)
+        }
+    }
     private val beforeDraw = ViewTreeObserver.OnPreDrawListener {
         // Android adds this public view directly to the decor before notifying
         // the exit listener. Waiting for that listener misses the transfer frame.
         for (i in 0 until decor.childCount) {
             val child = decor.getChildAt(i)
             if (child is SplashScreenView) { prepare(child); break }
+        }
+        if (prepared != null && !removed && decor.isHardwareAccelerated) {
+            decor.viewTreeObserver.registerFrameCommitCallback(frameSubmitted)
         }
         true
     }
@@ -48,7 +69,6 @@ class OpeningSplashHandoff(
     private fun prepare(splash: SplashScreenView) {
         if (prepared != null) return
         prepared = splash
-        dispose()
         onBegin()
         native.drawingCube = true
         splash.iconAnimationStart?.let { start ->
@@ -73,8 +93,10 @@ class OpeningSplashHandoff(
         if (Build.VERSION.SDK_INT >= 33) {
             SurfaceControl.Transaction().use { transaction ->
                 val ready = {
-                    submitted = true
-                    removeWhenReady()
+                    if (!disposed) {
+                        submitted = true
+                        removeWhenReady()
+                    }
                 }
                 if (Build.VERSION.SDK_INT >= 35) {
                     transaction.addTransactionCompletedListener(activity.mainExecutor) { ready() }
@@ -106,6 +128,7 @@ class OpeningSplashHandoff(
     private fun removeWhenReady() {
         if (!submitted || !exitReceived || removed) return
         removed = true
+        dispose()
         // Do not detach before Android has completed its own surface transfer.
         prepared?.remove()
         prepared = null
@@ -116,6 +139,11 @@ class OpeningSplashHandoff(
     }
 
     fun dispose() {
-        if (decor.viewTreeObserver.isAlive) decor.viewTreeObserver.removeOnPreDrawListener(beforeDraw)
+        disposed = true
+        decor.removeCallbacks(fallback)
+        if (decor.viewTreeObserver.isAlive) {
+            decor.viewTreeObserver.removeOnPreDrawListener(beforeDraw)
+            decor.viewTreeObserver.unregisterFrameCommitCallback(frameSubmitted)
+        }
     }
 }

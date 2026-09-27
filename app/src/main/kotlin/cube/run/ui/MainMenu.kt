@@ -38,6 +38,8 @@ class MainMenu(
 
     private fun dp(v: Float) = kit.dp(v)
     private fun dpf(v: Float) = kit.dpf(v)
+    private var compact = false
+    private var safeInsets = intArrayOf(0, 0, 0, 0)
     private val anims = ArrayList<ValueAnimator>()
     private val startRipple = Runnable {
         if (isAttachedToWindow && visibility == VISIBLE && top.visibility == VISIBLE) anims.add(ripple())
@@ -147,8 +149,34 @@ class MainMenu(
 
     /** Keep a real gutter beside the settings on narrow phones, even after the third chip appears. */
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
-        val cutouts = rootWindowInsets?.let(::insetsOf)
+        val cutouts = safeInsets
         val available = MeasureSpec.getSize(widthMeasureSpec) - (cutouts?.get(0) ?: 0) - (cutouts?.get(2) ?: 0)
+        val usableHeight = MeasureSpec.getSize(heightMeasureSpec) - (cutouts?.get(1) ?: 0) - (cutouts?.get(3) ?: 0)
+        compact = usableHeight < dp(500f)
+        val letterSize = when {
+            usableHeight < dp(320f) -> 28f
+            usableHeight < dp(400f) -> 38f
+            compact -> 46f
+            else -> 62f
+        }
+        for (letter in letters) {
+            val text = letter as android.widget.TextView
+            val pixels = android.util.TypedValue.applyDimension(android.util.TypedValue.COMPLEX_UNIT_SP,
+                letterSize, resources.displayMetrics)
+            if (text.textSize != pixels) text.textSize = letterSize
+        }
+        val singleLine = usableHeight < dp(320f)
+        logo.orientation = if (singleLine) LinearLayout.HORIZONTAL else LinearLayout.VERTICAL
+        (logo.getChildAt(1).layoutParams as LinearLayout.LayoutParams).apply {
+            topMargin = if (singleLine) 0 else -dp(18f * letterSize / 62f)
+            marginStart = if (singleLine) dp(4f) else 0
+        }
+        (top.layoutParams as LayoutParams).topMargin = maxOf(dp(if (compact) 56f else 70f),
+            (cutouts?.get(1) ?: 0) + dp(if (compact) 48f else 40f))
+        for (pill in listOf(bank, bubbles)) {
+            (pill.layoutParams as LayoutParams).topMargin = maxOf(dp(if (compact) 16f else 40f),
+                (cutouts?.get(1) ?: 0) + dp(10f))
+        }
         val count = if (Progress.achievementsUnlocked) 3 else 2
         val separateRows = available < dp(28f + 132f + 16f + 12f) + dp(48f) * count + dp(10f) * (count - 1)
         val settingsWidth = if (separateRows) 0 else dp(132f + 16f)
@@ -159,9 +187,38 @@ class MainMenu(
         }
         // Large display-size settings can leave less than 300dp. Keep real touch targets and
         // move the settings columns above the actions instead of letting the rows overlap.
-        (leftChips.layoutParams as LayoutParams).bottomMargin = dp(28f) + (cutouts?.get(3) ?: 0) +
+        (leftChips.layoutParams as LayoutParams).bottomMargin = dp(if (compact) 12f else 28f) + (cutouts?.get(3) ?: 0) +
             if (separateRows) chipSize + dp(20f) else 0
+        (rightChips.layoutParams as LayoutParams).bottomMargin = dp(if (compact) 10f else 26f) + (cutouts?.get(3) ?: 0)
         super.onMeasure(widthMeasureSpec, heightMeasureSpec)
+        if (compact) {
+            val footer = maxOf(leftChips.measuredHeight + (leftChips.layoutParams as LayoutParams).bottomMargin,
+                rightChips.measuredHeight + (rightChips.layoutParams as LayoutParams).bottomMargin)
+            val titleSpace = MeasureSpec.getSize(heightMeasureSpec) - footer -
+                (top.layoutParams as LayoutParams).topMargin - middle.measuredHeight - dp(24f)
+            // Saved scores, debug controls and font scaling all change the space
+            // required. Fit the brand after measuring those real controls.
+            var fittedSize = letterSize
+            while (top.measuredHeight > titleSpace && fittedSize > 20f) {
+                fittedSize -= 2f
+                for (letter in letters) (letter as android.widget.TextView).textSize = fittedSize
+                if (!singleLine) (logo.getChildAt(1).layoutParams as LinearLayout.LayoutParams).topMargin =
+                    -dp(18f * fittedSize / 62f)
+                super.onMeasure(widthMeasureSpec, heightMeasureSpec)
+            }
+        }
+    }
+
+    override fun onLayout(changed: Boolean, left: Int, top: Int, right: Int, bottom: Int) {
+        super.onLayout(changed, left, top, right, bottom)
+        if (compact) {
+            // The centre of a short pane lies inside the logo. Put the start
+            // prompt in the actual gap above the controls, preserving touch sizes.
+            val gapTop = this.top.bottom + dp(6f)
+            val gapBottom = minOf(leftChips.top, rightChips.top) - dp(6f)
+            val y = gapTop + (gapBottom - gapTop - middle.measuredHeight) / 2
+            middle.layout(middle.left, y, middle.right, y + middle.measuredHeight)
+        }
     }
 
     private val top = LinearLayout(activity).apply {
@@ -189,7 +246,8 @@ class MainMenu(
         addView(leftChips, LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT).apply { gravity = Gravity.BOTTOM or Gravity.START; marginStart = dp(14f); bottomMargin = dp(28f) })
         addView(rightChips, LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT).apply { gravity = Gravity.BOTTOM or Gravity.END; marginEnd = dp(14f); bottomMargin = dp(26f) })
         setOnApplyWindowInsetsListener { _, insets ->
-            val (physicalLeft, t, physicalRight, b) = insetsOf(insets)
+            safeInsets = insetsOf(insets)
+            val (physicalLeft, t, physicalRight, b) = safeInsets
             val rtl = layoutDirection == View.LAYOUT_DIRECTION_RTL
             val l = if (rtl) physicalRight else physicalLeft
             val r = if (rtl) physicalLeft else physicalRight

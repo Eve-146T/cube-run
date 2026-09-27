@@ -50,6 +50,7 @@ class GameActivity : AndroidApplication() {
         }
         hostSession.attach(hud)
         parent.addView(hud, FrameLayout.LayoutParams(-1, -1))
+        parent.requestApplyInsets()
         // Block taps during the crossfade, including outside-menu taps, until both trees settle.
         val blocker = View(this).apply { isClickable = true; importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO }
         parent.addView(blocker, FrameLayout.LayoutParams(-1, -1))
@@ -198,7 +199,29 @@ class GameActivity : AndroidApplication() {
             }
         })
 
-        val root = FrameLayout(this).apply { setBackgroundColor(0xFF14102E.toInt()) }
+        val root = FrameLayout(this).apply {
+            setBackgroundColor(cube.run.intro.OpeningPose.INK)
+            // Some devices (including keypad phones) cannot hide their navigation
+            // bar. Keep both the GL viewport and controls inside the usable window.
+            setOnApplyWindowInsetsListener { view, insets ->
+                if (android.os.Build.VERSION.SDK_INT >= 30) {
+                    val bars = insets.getInsets(android.view.WindowInsets.Type.systemBars())
+                    view.setPadding(bars.left, bars.top, bars.right, bars.bottom)
+                    insets.inset(bars.left, bars.top, bars.right, bars.bottom)
+                } else {
+                    @Suppress("DEPRECATION")
+                    val bars = intArrayOf(insets.systemWindowInsetLeft, insets.systemWindowInsetTop,
+                        insets.systemWindowInsetRight, insets.systemWindowInsetBottom)
+                    view.setPadding(bars[0], bars[1], bars[2], bars[3])
+                    if (android.os.Build.VERSION.SDK_INT >= 29) {
+                        insets.inset(bars[0], bars[1], bars[2], bars[3])
+                    } else {
+                        @Suppress("DEPRECATION")
+                        insets.replaceSystemWindowInsets(0, 0, 0, 0)
+                    }
+                }
+            }
+        }
         root.addView(gameView, FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT)
         if (::hud.isInitialized) root.addView(hud, FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT)
         openingTouch?.let { root.addView(it, FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT) }
@@ -231,8 +254,8 @@ class GameActivity : AndroidApplication() {
                     cube.run.core.LaunchTrace.mark("hud begin")
                     hud = Hud(this, openingEntrance = true); hud.setBest(Scores.best(SCORE_ID))
                     hud.setOpeningProgress(openingAmount)
-                    root.rootWindowInsets?.let { hud.dispatchApplyWindowInsets(it) }
                     root.addView(hud, 1, FrameLayout.LayoutParams(-1, -1))
+                    root.requestApplyInsets()
                     session.attach(hud)
                     if (openingAmount >= 1f) openingTouch?.let { root.removeView(it) }
                     cube.run.core.LaunchTrace.mark("hud ready")

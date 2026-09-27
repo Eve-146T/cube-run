@@ -12,7 +12,11 @@ class OpeningClock(val launchAppearance: LaunchAppearance = LaunchAppearance.ROS
     @Volatile private var tintStart = -1f
     @Volatile private var ended = false
 
-    fun start() { if (startNanos == 0L) startNanos = SystemClock.elapsedRealtimeNanos() }
+    @Synchronized fun start() {
+        // A first frame may arrive after onPause during a window transition.
+        // Start at the paused instant so resume cannot move the origin into the future.
+        if (startNanos == 0L) startNanos = pausedNanos.takeIf { it != 0L } ?: SystemClock.elapsedRealtimeNanos()
+    }
     /** Android already animated the cube in its starting window. Continue that time. */
     fun adoptSystemStart(epochMillis: Long, durationMillis: Long = 1000L) {
         val ageMs = (System.currentTimeMillis()-epochMillis).coerceAtLeast(0L)
@@ -29,7 +33,7 @@ class OpeningClock(val launchAppearance: LaunchAppearance = LaunchAppearance.ROS
     }
     fun seconds(): Float = if (ended) OpeningPose.DURATION else elapsedSeconds().coerceAtMost(OpeningPose.DURATION)
 
-    private fun elapsedSeconds(): Float {
+    @Synchronized private fun elapsedSeconds(): Float {
         val start = startNanos
         if (start == 0L) return 0f
         val now = pausedNanos.takeIf { it != 0L } ?: SystemClock.elapsedRealtimeNanos()
@@ -51,8 +55,8 @@ class OpeningClock(val launchAppearance: LaunchAppearance = LaunchAppearance.ROS
         else -> OpeningPose.ease((elapsedSeconds()-tintStart)/.24f)
     }
     fun finish() { ended = true }
-    fun pause() { if (pausedNanos == 0L) pausedNanos = SystemClock.elapsedRealtimeNanos() }
-    fun resume() {
+    @Synchronized fun pause() { if (pausedNanos == 0L) pausedNanos = SystemClock.elapsedRealtimeNanos() }
+    @Synchronized fun resume() {
         val paused = pausedNanos
         if (paused != 0L) {
             if (startNanos != 0L) startNanos += SystemClock.elapsedRealtimeNanos()-paused

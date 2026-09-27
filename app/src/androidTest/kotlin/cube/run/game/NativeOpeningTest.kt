@@ -19,6 +19,17 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class NativeOpeningTest {
+    @Test fun pausingBeforeTheFirstDrawDoesNotDelayMotionAfterResume() {
+        val clock = OpeningClock()
+        clock.pause()
+        SystemClock.sleep(180)
+        clock.start() // A surface first draws while the launch is paused.
+        assertEquals(0f, clock.motionSeconds(), .001f)
+        clock.resume()
+        SystemClock.sleep(80)
+        assertTrue("A paused first draw moved the animation origin into the future", clock.motionSeconds() >= .06f)
+    }
+
     @Test fun loadingDoesNotRestartTheClockAndBackgroundTimeDoesNotAdvanceIt() {
         val clock = OpeningClock()
         clock.start()
