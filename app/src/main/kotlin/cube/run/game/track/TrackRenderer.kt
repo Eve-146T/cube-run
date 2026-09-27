@@ -29,7 +29,7 @@ class TrackRenderer(private val game: Gdx3DGame) {
     private val toxicCoinCol = Color(.18f, 1f, .03f, 1f)
     private val toxicCoinFace = Color(.55f, 1f, .12f, 1f)
     private val coinFace = Color()
-    private val coalBody = Color(0.105f, 0.115f, 0.145f, 1f)
+    private val coalBody = Color(0.13f, 0.14f, 0.16f, 1f)
     private val coalFacet = Color(0.235f, 0.255f, 0.295f, 1f)
 
     /** Latched by the run owner; browsing another cube must not recolour an active run. */
@@ -111,27 +111,14 @@ class TrackRenderer(private val game: Gdx3DGame) {
                 val fog = Fog.at(cz)
                 val yaw = coinYaw + (r.visualPhase + c.dz) * 14f
                 if (coalCoins) {
-                    renderCoal(c.x, y, cz, p, time * 65f + (r.visualPhase + c.dz) * 23f, fog)
+                    val variant = r.visualPhase.toBits() xor c.dz.toBits() xor c.restY.toBits()
+                    game.worldCoal(c.x, y, cz, 1.05f * p, time * 65f + (r.visualPhase + c.dz) * 23f, variant, coalBody, fog)
                 } else {
                     game.worldCoin(c.x, y, cz, 0.36f * p, 0.14f, yaw, if (c.toxic) toxicCoinCol else coinCol, fog)
                     game.worldCoin(c.x, y, cz, 0.23f * p, 0.2f, yaw, if (c.toxic) toxicCoinFace else coinFace, fog)
                 }
             }
         }
-    }
-
-    /** Two intersecting, differently cut chunks: an uneven lump, with no coin face or gold rim.
-     * Existing box lighting gives the charcoal facets their quiet glint without an extra draw pass.
-     * Keep this to two primitives per pickup, just like the normal two-layer coins.
-     */
-    private fun renderCoal(x: Float, y: Float, z: Float, p: Float, yaw: Float, fog: Float) {
-        val radians = yaw * (Math.PI.toFloat() / 180f)
-        val dx = cos(radians) * 0.14f * p
-        val dz = -sin(radians) * 0.14f * p
-        game.worldBoxSpin(x - dx * 0.35f, y - 0.035f * p, z - dz * 0.35f,
-            0.49f * p, 0.43f * p, 0.45f * p, yaw, coalBody, fog)
-        game.worldBoxSpin(x + dx, y + 0.09f * p, z + dz,
-            0.32f * p, 0.29f * p, 0.35f * p, yaw + 38f, coalFacet, fog)
     }
 
     /** A portal: a big turning ring of candy beads across the road, breathing, with a second counter-turning ring inside. */

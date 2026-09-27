@@ -11,12 +11,14 @@ import com.badlogic.gdx.math.Vector3
 import com.badlogic.gdx.utils.Disposable
 import kotlin.math.cos
 import kotlin.math.sin
+import kotlin.random.Random
 
-/** Pointed, five-sided crystals; all visible collectibles share one draw call. */
+/** Faceted crystals and irregular coal lumps share one draw call. */
 class CrystalBatch(private val kit: BoxMeshKit) : Disposable {
     var terrain: TerrainHeight? = null
     private val template: FloatArray
-    private val vertices = FloatArray(180 * 4 * 24)
+    private val coalTemplates = Array(3) { coalTemplate(it) }
+    private val vertices = FloatArray(360 * 128 * 4)
     private val mesh = Mesh(false, vertices.size / 4, 0,
         VertexAttribute(Usage.Position, 3, "a_position"), VertexAttribute(Usage.ColorPacked, 4, "a_color"))
     private val light = FloatArray(3)
@@ -43,22 +45,61 @@ class CrystalBatch(private val kit: BoxMeshKit) : Disposable {
     }
 
     fun begin() { used = 0 }
-    fun crystal(x: Float, y0: Float, z: Float, scale: Float, yaw: Float, color: Color, fog: Float, sky: Color) {
-        if (used + template.size / 6 * 4 > vertices.size) return
+    fun crystal(x: Float, y: Float, z: Float, scale: Float, yaw: Float, color: Color, fog: Float, sky: Color) =
+        queue(template, 6, x, y, z, scale, yaw, color, fog, sky)
+
+    fun coal(x: Float, y: Float, z: Float, scale: Float, yaw: Float, variant: Int, color: Color, fog: Float, sky: Color) =
+        queue(coalTemplates[Math.floorMod(variant, coalTemplates.size)], 7, x, y, z, scale, yaw, color, fog, sky)
+
+    private fun queue(shape: FloatArray, stride: Int, x: Float, y0: Float, z: Float, scale: Float, yaw: Float, color: Color, fog: Float, sky: Color) {
+        if (used + shape.size / stride * 4 > vertices.size) return
         val y = y0 + (terrain?.invoke(z) ?: 0f)
         val a = yaw * Math.PI.toFloat() / 180f; val c = cos(a); val s = sin(a)
-        for (i in template.indices step 6) {
-            val px = template[i]; val py = template[i+1]; val pz = template[i+2]
-            val nx = template[i+3]; val ny = template[i+4]; val nz = template[i+5]
-            kit.lightFace(nx*c+nz*s, ny, -nx*s+nz*c, light, 0)
+        for (i in shape.indices step stride) {
+            val px = shape[i]; val py = shape[i+1]; val pz = shape[i+2]
+            val nx = shape[i+3]; val ny = shape[i+4]; val nz = shape[i+5]
+            val tone = if (stride == 7) shape[i+6] else 1f
+            if (i % (stride * 3) == 0) kit.lightFace(nx*c+nz*s, ny, -nx*s+nz*c, light, 0)
             vertices[used++] = x + (px*c+pz*s)*scale
             vertices[used++] = y + py*scale
             vertices[used++] = z + (-px*s+pz*c)*scale
             vertices[used++] = Color.toFloatBits(
-                (color.r*light[0]).coerceAtMost(1f)*(1f-fog)+sky.r*fog,
-                (color.g*light[1]).coerceAtMost(1f)*(1f-fog)+sky.g*fog,
-                (color.b*light[2]).coerceAtMost(1f)*(1f-fog)+sky.b*fog, 1f)
+                (color.r*light[0]*tone).coerceAtMost(1f)*(1f-fog)+sky.r*fog,
+                (color.g*light[1]*tone).coerceAtMost(1f)*(1f-fog)+sky.g*fog,
+                (color.b*light[2]*tone).coerceAtMost(1f)*(1f-fog)+sky.b*fog, 1f)
         }
+    }
+
+    /** Broken, offset rings give coal broad chipped faces instead of box corners or gem tips. */
+    private fun coalTemplate(variant: Int): FloatArray {
+        val random = Random(146 + variant * 97)
+        val raw = ArrayList<Float>()
+        val rings = Array(3) { ring -> Array(7) { i ->
+            val angle = (i + ring * .13f) * (Math.PI.toFloat() * 2f / 7f)
+            val radius = (if (ring == 1) .31f else .235f) * (.8f + random.nextFloat() * .35f)
+            Vector3(cos(angle) * radius + (ring - 1) * .025f,
+                (ring - 1) * .17f + (random.nextFloat() - .5f) * .07f,
+                sin(angle) * radius - ring * .018f)
+        } }
+        fun face(a: Vector3, b: Vector3, c: Vector3, tone: Float) {
+            val n = Vector3(b).sub(a).crs(Vector3(c).sub(a)).nor()
+            val outward = n.dot(Vector3(a).add(b).add(c)) >= 0f
+            if (!outward) n.scl(-1f)
+            for (v in if (outward) arrayOf(a, b, c) else arrayOf(a, c, b))
+                raw.addAll(listOf(v.x, v.y, v.z, n.x, n.y, n.z, tone))
+        }
+        for (i in 0..6) {
+            val next = (i + 1) % 7
+            for (ring in 0..1) {
+                val a = rings[ring][i]; val b = rings[ring][next]
+                val c = rings[ring+1][i]; val d = rings[ring+1][next]
+                face(a, b, c, if ((i + variant) % 5 == 0) .42f else .75f + random.nextFloat() * .5f)
+                face(b, d, c, .65f + random.nextFloat() * .6f)
+            }
+            face(Vector3(-.035f, -.225f, .015f), rings[0][next], rings[0][i], .7f)
+            face(Vector3(.045f, .225f, -.045f), rings[2][i], rings[2][next], 1.1f + random.nextFloat() * .5f)
+        }
+        return raw.toFloatArray()
     }
     fun render(cam: Camera) {
         if (used == 0) return

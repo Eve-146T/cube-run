@@ -89,6 +89,34 @@ class AbilityVisualReviewTest {
         capture("panel-$name", 400)
     }
 
+    @Test fun captureFacetedCoalAndCrystalPickups() {
+        val prefs = context.getSharedPreferences("progress", Context.MODE_PRIVATE)
+        val saved = prefs.all
+        try {
+            prefs.edit().putInt("skin", 15).putInt("owned_skins", 0x1ffffff).commit()
+            Progress.init(context)
+            ActivityScenario.launch<GameActivity>(Intent(context, GameActivity::class.java)
+                .putExtra(Hud.EXTRA_AUTOSTART, false)).use { scenario ->
+                scenario.onActivity { it.setShowWhenLocked(true); it.setTurnScreenOn(true) }
+                SystemClock.sleep(1800)
+                gl { game ->
+                    call(game, "start"); Stage.paused = true
+                    val track = field(game, "track").get(game) as Track
+                    track.rows.clear()
+                    for (i in 0 until 6) track.rows.add(Row(-3f - i * 3f, arrayListOf()).apply {
+                        pop = 1f; popStart = 0f
+                        coins = arrayListOf(Coin(-2f, .55f, -.3f), Coin(0f, .55f, 0f), Coin(2f, .55f, .3f))
+                    })
+                    track.rows.add(Row(-9f, arrayListOf()).apply {
+                        pop = 1f; popStart = 0f; pickup = cube.run.game.track.Pickup.SHARD_EMBER; pickupX = 1f
+                    })
+                }
+                capture("faceted-coal", 500)
+                gl { Stage.paused = false }
+            }
+        } finally { restore(prefs, saved); Progress.init(context) }
+    }
+
     @Test fun toxicShowsAbilityAndDistinctGreenCoins() {
         ActivityScenario.launch<GameActivity>(Intent(context, GameActivity::class.java)
             .putExtra(Hud.EXTRA_AUTOSTART, false)).use { scenario ->
