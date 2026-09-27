@@ -145,6 +145,7 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
     private var coinsRun = 0         // collected this run (banked by the session at game over)
     private var lastCollectedBox: Row? = null
     // Separate from the course generator: poison rolls do not change obstacle layouts.
+    private var coalRandom: Random = Random.Default
     private var toxicRandom: Random = Random.Default
     private var boxesRun = 0         // mystery boxes collected this run (opened on the run-over screens)
     private var coinStreak = 0       // consecutive pickups without a miss (the milestone chimes)
@@ -420,6 +421,16 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
         if (!track.isPillTest) worlds.onRow(rowsPassed)
     }
 
+    private fun prepareCoalGems() {
+        if (Skins.Ability.COAL !in runSkin.abilities) return
+        val chance = if (session.score < 1000) 0f else (.01f + .99f * (session.score - 1000) / 2000f).coerceAtMost(1f)
+        for (row in track.rows) for (coin in row.coins.orEmpty()) {
+            if (coin.taken || coin.missed) continue
+            if (coin.coalGemRoll < 0f) coin.coalGemRoll = coalRandom.nextFloat()
+            if (coin.coalGemRoll < chance) coin.gem = true
+        }
+    }
+
     private fun prepareToxicCoins() {
         if (Skins.Ability.TOXIC_FORTUNE !in runSkin.abilities) return
         for (row in track.rows) for (coin in row.coins.orEmpty()) {
@@ -439,7 +450,7 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
             return
         }
         val value = Progress.coinValue * (if (bonus == Bonus.KALEIDO) 2f else 1f)
-        if (Skins.Ability.COAL in runSkin.abilities) {
+        if (Skins.Ability.COAL in runSkin.abilities && !coin.gem) {
             session.coalCollected()
             SoundFx.play("tap", rate = .75f, vol = .35f)
             burst3d(phasePosition.set(coin.x, coin.y, cz), trackArt.coal, n = 6, speed = 2.5f, size = .12f, life = .35f)
@@ -451,7 +462,7 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
             burst3d(phasePosition.set(coin.x, coin.y, cz), Color.RED, n = 3, speed = 2f, size = .07f, life = .2f)
             return
         }
-        val preciseValue = kotlin.math.round(value.toDouble() * runSkin.coinMultiplier * 1_000_000.0) / 1_000_000.0
+        val preciseValue = if (coin.gem && Skins.Ability.COAL in runSkin.abilities) 3.0 else kotlin.math.round(value.toDouble() * runSkin.coinMultiplier * 1_000_000.0) / 1_000_000.0
         val before = coinsRun
         coinsRunF = (coinsRunF + preciseValue).coerceAtMost(Int.MAX_VALUE.toDouble())
         coinsRun = (coinsRunF + .0000001).toInt()
@@ -467,7 +478,7 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
         if (time - lastCoinT > 0.4f) coinPitch = 0 // the pitch climbs coin after coin and falls back as soon as the line breaks
         lastCoinT = time
         coinPitch++
-        fx.coin(coin.x, coin.y, cz, coinPitch, trackArt.gold)
+        fx.coin(coin.x, coin.y, cz, coinPitch, if (coin.gem) trackArt.gem else trackArt.gold)
         if (coinStreak == 20 || coinStreak == 50 || coinStreak % 100 == 0) fx.coinMilestone(trackArt.gold)
     }
 
@@ -815,6 +826,7 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
         if (live()) {
             track.spawn(mv, worldHue(), session.score, dt)
             prepareToxicCoins()
+            prepareCoalGems()
         }
 
         val pillWasOn = redPill.timer.active

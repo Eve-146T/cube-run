@@ -1,6 +1,7 @@
 package cube.run.core
 
 import android.app.Activity
+import cube.run.data.Skins
 import cube.run.data.Progress
 import cube.run.data.Settings
 import cube.run.data.Scores
@@ -123,6 +124,7 @@ class GameHostSession(
     }
 
     private fun recordRunChallenges(score: Int) {
+        if (runHasStarted && !over.get() && runSkin == Skins.COAL_ID && score >= 1000) Progress.revealCoalAlchemy()
         if (runHasStarted && centerLaneObserved && stayedCentered) Progress.recordCenteredScore(score)
         if (runHasStarted && stayedCoinless) Progress.recordCoinlessScore(score)
         if (runHasStarted && noPowerup) Progress.bestMetric("untouchable", score.coerceAtMost(150))

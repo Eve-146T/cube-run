@@ -89,6 +89,9 @@ class Coin(var x: Float, var y: Float, var dz: Float, val restY: Float = y) {
     /** Slid past the cube uncollected: still drawn (it glides by), but it no longer counts or pulls. */
     var missed = false
     var pullStarted = false
+    var gem = false
+    /** Stable conversion threshold: growing score can only turn coal into a gem once. */
+    var coalGemRoll = -1f
     var toxic = false
     /** Roll once when the coin is spawned, so its visible danger never changes. */
     var toxicAssigned = false

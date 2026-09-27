@@ -86,6 +86,15 @@ object Progress {
         private set
     @Volatile var revives: Int = 0
         private set
+    @Volatile var coalAlchemyRevealed = false
+        private set
+
+    @Synchronized fun revealCoalAlchemy() {
+        if (coalAlchemyRevealed) return
+        coalAlchemyRevealed = true
+        prefs.edit().putBoolean("coal_alchemy_revealed", true).apply()
+    }
+
     private val perkLevels = HashMap<String, Int>()
     private val shardCounts = IntArray(Shards.all.size)
     private val achievementMetrics = HashMap<String, Int>()
@@ -296,6 +305,7 @@ object Progress {
         multLevel = prefs.getInt(MULT.key, 0)
         jetLevel = prefs.getInt(JET.key, 0)
         revives = prefs.getInt("revives", 0)
+        coalAlchemyRevealed = prefs.getBoolean("coal_alchemy_revealed", false)
         for (u in perks) perkLevels[u.key] = prefs.getInt(u.key, 0)
         for (k in Shards.all) shardCounts[k.id] = prefs.getInt("shards_${k.id}", 0)
         skin = prefs.getInt("skin", 0)

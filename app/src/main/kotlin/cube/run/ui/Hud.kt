@@ -262,7 +262,7 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false, retu
     }
 
     private fun pageCacheKey(): List<Any> = listOf(
-        Progress.coins, Progress.bubbles, Progress.skin, Progress.bubbleSkin, Progress.trail,
+        Progress.coalAlchemyRevealed, Progress.coins, Progress.bubbles, Progress.skin, Progress.bubbleSkin, Progress.trail,
         Progress.ownedSkins, Progress.ownedBubbleSkins, Progress.ownedTrails, Progress.achievementsUnlocked,
         (0..2).map(Progress::shards), Progress.voidPurchases, Achievements.snapshot(),
         Settings.devMode, Settings.testSection, Settings.testPillWorld, Settings.performanceCourse,

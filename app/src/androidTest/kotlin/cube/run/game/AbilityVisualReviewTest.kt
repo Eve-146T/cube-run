@@ -112,7 +112,22 @@ class AbilityVisualReviewTest {
                     })
                 }
                 capture("faceted-coal", 500)
-                gl { Stage.paused = false }
+                gl { game ->
+                    game.session.setScore(2000)
+                    val track = field(game, "track").get(game) as Track
+                    track.rows.flatMap { it.coins.orEmpty() }.forEachIndexed { i, coin -> coin.coalGemRoll = if (i % 2 == 0) .25f else .75f }
+                    call(game, "prepareCoalGems")
+                }
+                capture("coal-gems-mixed", 500)
+                gl { game -> game.session.setScore(3000); call(game, "prepareCoalGems") }
+                capture("coal-gems-all", 500)
+                gl { game ->
+                    Stage.paused = false
+                    (game.session as cube.run.core.GameHostSession).resetToMenu(); game.resetToMenu()
+                }
+                scenario.onActivity { hud(it).finishMenuReturn(); call(hud(it), "openWardrobe") }
+                SystemClock.sleep(650)
+                panel(scenario, Wardrobe.CUBE, 15, "SECRET ABILITY: Under Pressure", "coal-secret")
             }
         } finally { restore(prefs, saved); Progress.init(context) }
     }

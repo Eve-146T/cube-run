@@ -8,6 +8,7 @@ import kotlin.math.sin
  * [Skin.valueAt] every frame on the GL thread (pure functions of time).
  */
 object Skins {
+    const val COAL_ID = 15
     const val MINT_ID = 8
     const val VOID_ID = 24
     // colour modes
@@ -28,6 +29,7 @@ object Skins {
         ZAPPY("Zappy", "Teleport between lanes in a flash!"),
         POWER_STRETCH("Power stretch", "Your power-ups last 25% longer!"),
         QUICK_BUBBLE("Quick bubble", "Pop another bubble 30% sooner!"),
+        COAL_ALCHEMY("SECRET ABILITY: Under Pressure", "After score 1000, coal starts turning into gems worth 3 coins each. By score 3000, all coal is gems!"),
         COAL("Coal", "Turns every coin into coal. Coal is worthless."),
         LOTTERY("Lottery", "All the coins you collect are spent on playing the Lottery! The jackpot is 250k coins. Each coin of value has a 1 in 100000 chance; each mystery box has a 1.3% chance."),
         FLOATY("Floaty", "Your cube becomes floaty!"),
@@ -268,6 +270,7 @@ object Wardrobe {
             BUBBLE -> BubbleSkins.get(id).abilities
             else -> Trails.get(id).abilities
         }
+        if (cat == CUBE && id == Skins.COAL_ID && Progress.coalAlchemyRevealed) return base + Skins.Ability.COAL_ALCHEMY
         val mintItem = (cat == CUBE && id == Skins.MINT_ID) || (cat == BUBBLE && id == BubbleSkins.MINT_ID)
         return if (mintItem && Skins.mintSynergy(Progress.skin, Progress.bubbleSkin)) base + Skins.Ability.MIND_SYNERGY else base
     }

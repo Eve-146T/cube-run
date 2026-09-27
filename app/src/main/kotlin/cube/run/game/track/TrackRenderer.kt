@@ -36,6 +36,7 @@ class TrackRenderer(private val game: Gdx3DGame) {
     var coalCoins = false
 
     /** A charcoal burst with enough light to remain legible against the road. */
+    val gem = Color(.3f, .95f, 1f, 1f)
     val coal: Color get() = coalFacet
     private val boxCol = Color()
     private val bandCol = Color()
@@ -110,7 +111,9 @@ class TrackRenderer(private val game: Gdx3DGame) {
                 val y = c.y + 0.06f * sin(time * 4f + c.dz * 0.9f)
                 val fog = Fog.at(cz)
                 val yaw = coinYaw + (r.visualPhase + c.dz) * 14f
-                if (coalCoins) {
+                if (coalCoins && c.gem) {
+                    game.worldCrystal(c.x, y, cz, .8f * p, yaw, gem, fog)
+                } else if (coalCoins) {
                     val variant = r.visualPhase.toBits() xor c.dz.toBits() xor c.restY.toBits()
                     game.worldCoal(c.x, y, cz, 1.05f * p, time * 65f + (r.visualPhase + c.dz) * 23f, variant, coalBody, fog)
                 } else {

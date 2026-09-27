@@ -296,6 +296,11 @@ class AbilityIcon(private val ability: Ability) : Icon() {
             paint.style = Paint.Style.STROKE; paint.color = Theme.INK
             canvas.drawCircle(33f, 17f, 10f, paint)
             if (ability == Ability.BUBBLE_DIVIDEND) canvas.drawCircle(33f, 17f, 5f, paint)
+        } else if (ability == Ability.COAL_ALCHEMY) {
+            path.reset(); path.moveTo(24f, 4f); path.lineTo(43f, 21f); path.lineTo(24f, 44f); path.lineTo(5f, 21f); path.close()
+            paint.style = Paint.Style.FILL; paint.color = Theme.CYAN; canvas.drawPath(path, paint)
+            paint.style = Paint.Style.STROKE; paint.color = Theme.INK; canvas.drawPath(path, paint)
+            canvas.drawLine(5f, 21f, 43f, 21f, paint); canvas.drawLine(24f, 4f, 24f, 44f, paint)
         } else if (ability == Ability.TOXIC_FORTUNE) {
             paint.style = Paint.Style.FILL; paint.color = Theme.LIME
             canvas.drawCircle(24f, 24f, 17f, paint)
