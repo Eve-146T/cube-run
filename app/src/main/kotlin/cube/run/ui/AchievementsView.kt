@@ -33,7 +33,7 @@ import cube.run.data.Progress
  * frame, so the page opens without a pause.
  */
 @SuppressLint("ViewConstructor")
-class AchievementsView(activity: Activity, kit: UiKit, onClose: () -> Unit) :
+class AchievementsView(activity: Activity, kit: UiKit, private val preparing: Boolean = false, onClose: () -> Unit) :
     Page(activity, kit, activity.getString(R.string.achievements_title), dark = true, onClosed = onClose) {
     private val rows = LinearLayout(activity).apply {
         orientation = LinearLayout.VERTICAL
@@ -63,6 +63,8 @@ class AchievementsView(activity: Activity, kit: UiKit, onClose: () -> Unit) :
     private val hero = AchievementHero(activity, kit)
     private var paying = false
     private var bankCount: ValueAnimator? = null
+    internal var contentReady = false
+        private set
 
     init {
         background = TrophyRoomBackdrop()
@@ -97,11 +99,11 @@ class AchievementsView(activity: Activity, kit: UiKit, onClose: () -> Unit) :
         }
         if (medals.isNotEmpty()) {
             later += { rows.addView(section(activity.getString(R.string.achievement_section_medals), "${allMedals.sumOf { it.earnedTiers }} / ${allMedals.sumOf { it.definition.thresholds.size }}"), sectionParams()) }
-            list(medals, 0) { state, i -> cards.card(state, i) }
+            list(medals, 0) { state, i -> cards.card(state, i, animateFill = !preparing) }
         }
         if (challenges.isNotEmpty()) {
             later += { rows.addView(section(activity.getString(R.string.achievement_section_challenges), "${allChallenges.count { it.earnedTiers > 0 }} / ${allChallenges.size}"), sectionParams()) }
-            list(challenges, medals.size) { state, i -> cards.card(state, i) }
+            list(challenges, medals.size) { state, i -> cards.card(state, i, animateFill = !preparing) }
         }
         if (done.isNotEmpty()) {
             later += { rows.addView(section(activity.getString(R.string.achievement_section_done), "${done.size}"), sectionParams()) }
@@ -109,9 +111,9 @@ class AchievementsView(activity: Activity, kit: UiKit, onClose: () -> Unit) :
         }
         later += { rows.addView(suggestionCard(), LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(28f) }) }
         // A card costs a few milliseconds to make: build what the first screen shows now, the rest over the next frames.
-        repeat(minOf(FIRST_SCREEN, later.size)) { later.removeAt(0)() }
+        repeat(minOf(if (preparing) 0 else FIRST_SCREEN, later.size)) { later.removeAt(0)() }
         fun more() {
-            if (closing) return
+            if (closing || !isAttachedToWindow) return
             // Yield to input and painting when a slower phone spends most of a frame on one card.
             val startedAt = SystemClock.uptimeMillis()
             var built = 0
@@ -121,9 +123,11 @@ class AchievementsView(activity: Activity, kit: UiKit, onClose: () -> Unit) :
                 if (SystemClock.uptimeMillis() - startedAt >= BUILD_BUDGET_MS) break
             }
             if (later.isNotEmpty()) postOnAnimation(::more)
+            else contentReady = true
         }
         if (later.isNotEmpty()) postOnAnimation(::more)
-        hero.bind(states, animate = true, delay = 260L)
+        contentReady = later.isEmpty()
+        hero.bind(states, animate = !preparing, delay = 260L)
     }
 
     /** The last card: an invitation to suggest the next achievement. */

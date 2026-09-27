@@ -60,7 +60,7 @@ import kotlin.random.Random
  * obstacle; coins and mystery boxes are handed to the session and banked at
  * game over.
  */
-class CubeRun(session: GameSession, private val autoStart: Boolean = false, private val idleBotStart: Boolean = false, launchOpening: Boolean = false, openingClock: cube.run.intro.OpeningClock? = null,
+class CubeRun(session: GameSession, private var autoStart: Boolean = false, private val idleBotStart: Boolean = false, launchOpening: Boolean = false, openingClock: cube.run.intro.OpeningClock? = null,
               private val firstWorld: Int? = null) : Gdx3DGame(session) {
 
     private val opening = CubeOpening(launchOpening, openingClock)
@@ -72,11 +72,17 @@ class CubeRun(session: GameSession, private val autoStart: Boolean = false, priv
     private val phasePosition = Vector3()
 
     private class CourseRandom : Random() {
-        private var source = Random(73)
+        private var course = Settings.performanceCourse
+        private var source = if (course) Random(73) else Random(System.nanoTime())
         override fun nextBits(bitCount: Int) = source.nextBits(bitCount)
-        fun reset() { source = Random(73) }
+        fun reset() {
+            val selected = Settings.performanceCourse
+            if (selected) source = Random(73)
+            else if (course) source = Random(System.nanoTime())
+            course = selected
+        }
     }
-    private val rnd = if (Settings.performanceCourse) CourseRandom() else Random(System.nanoTime())
+    private val rnd = CourseRandom()
     private val obstacles = ObstacleFactory(rnd)
     private val track = Track(rnd, obstacles)
     private val trackArt = TrackRenderer(this)
@@ -190,6 +196,38 @@ class CubeRun(session: GameSession, private val autoStart: Boolean = false, priv
         session.setWorld(worlds.world.name)
     }
 
+    /** GL-thread navigation: reset the run, retaining renderer allocations and the live surface. */
+    fun resetToMenu() {
+        finishRendererStartup()
+        idlePilot.stop()
+        opening.finish()
+        if (gift.active) gift.exit()
+        if (showcase.active) showcase.exit(bgTop, bgBottom)
+        jackpot.reset()
+        Stage.reset(); Lanes.reset(); Terrain.reset()
+        initialInteraction = Stage.interactions.get()
+        autoStart = false; started = false; dead = false; gameOverShown = false
+        spd = 0f; dist = 0f; rowsPassed = 0; curTier = 0; runT = 0f; deathT = 0f
+        introT = 1.8f; introAtStart = 0f; skyBlend = 0f; bonus = Bonus.NONE
+        kaleido = 0f; kaleidoHue = 0f; jetGrace = 0f; jetBoost = 0f
+        phaseUsed = false; phasedObstacle = null; groundObstacle = null
+        styleCombo = 0; sideBounces = 0; smoothWall = 0; smoothVAccum = 0f
+        smoothAnchorX = 0f; smoothAnchorLane = 1; lastTapT = -9f
+        coinsRun = 0; coinsRunF = 0.0; boxesRun = 0; coinStreak = 0; coinPitch = 0; lastCoinT = -9f
+        powerUps.reset(); redPill.reset(); bubble.reset(); shownBubbleCooldown = 0
+        track.rows.clear(); debris.clear()
+        rnd.reset()
+        worlds.reset()
+        scenery.init(worlds.world)
+        scenery.spawnStartGate(hsvInto(tmpCol, worldHue() + 180f, 0.7f, 1f))
+        bgTop.set(worlds.skyTop); bgBottom.set(worlds.skyBottom)
+        player.resetToMenu(worldHue(), time)
+        rig.reset(); rig.intro = 0f; rig.roll = 0f; rig.wide = 0f
+        rig.chase(0f, player.px, player.py, player.ground, 0f, 0f)
+        resetPresentation()
+        session.setWorld(worlds.world.name)
+    }
+
     // --------------------------------------------------------------- events
 
     private fun live() = started && !dead && !session.isOver
@@ -204,7 +242,7 @@ class CubeRun(session: GameSession, private val autoStart: Boolean = false, priv
         finishRendererStartup()
         opening.finish()
         started = true
-        (rnd as? CourseRandom)?.reset() // menu idle duration must not change the course sequence
+        rnd.reset() // menu idle duration must not change the course sequence
         runSkin = Skins.get(Progress.skin)
         runBubble = BubbleSkins.get(Progress.bubbleSkin)
         player.zappyEnabled = Skins.Ability.ZAPPY in runSkin.abilities

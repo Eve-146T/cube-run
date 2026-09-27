@@ -3,6 +3,7 @@ package cube.run.ui
 import android.content.Intent
 import android.os.SystemClock
 import android.view.View
+import android.os.Build
 import androidx.test.platform.app.InstrumentationRegistry
 import com.badlogic.gdx.Gdx
 import cube.run.GameActivity
@@ -13,13 +14,19 @@ import java.util.concurrent.TimeUnit
 import org.junit.Assert.*
 import org.junit.Test
 
-/** Measures actual menu readiness, including the results activity handoff and fresh GL frames. */
+/** Measures painted page reuse and live results resets, including fresh GL frames. */
 class MenuReturnTimingTest {
     private val instrumentation get() = InstrumentationRegistry.getInstrumentation()
     private fun ui(action: () -> Unit) = instrumentation.runOnMainSync(action)
     @Suppress("UNCHECKED_CAST")
-    private fun <T> field(owner: Any, name: String): T =
-        owner.javaClass.getDeclaredField(name).apply { isAccessible = true }.get(owner) as T
+    private fun <T> field(owner: Any, name: String): T {
+        var type: Class<*>? = owner.javaClass
+        while (type != null) {
+            try { return type.getDeclaredField(name).apply { isAccessible = true }.get(owner) as T }
+            catch (_: NoSuchFieldException) { type = type.superclass }
+        }
+        error("Missing $name")
+    }
     private fun launch(): GameActivity = instrumentation.startActivitySync(
         Intent(instrumentation.targetContext, GameActivity::class.java)
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK).putExtra(Hud.EXTRA_AUTOSTART, false)
@@ -45,28 +52,163 @@ class MenuReturnTimingTest {
         assertTrue("Fresh game scene rendered", drawn.await(5, TimeUnit.SECONDS))
     }
 
+    private fun awaitCaches(activity: GameActivity): Map<String, Page> {
+        val deadline = SystemClock.uptimeMillis() + 8000
+        var pages = emptyMap<String, Page>()
+        var ready = false
+        var diagnostic = ""
+        while (!ready && SystemClock.uptimeMillis() < deadline) {
+            ui {
+                val hud = field<Hud>(activity, "hud")
+                val current = hud.javaClass.getDeclaredMethod("pageCacheKey").apply { isAccessible = true }.invoke(hud)
+                val entries = field<Map<String, Any>>(hud, "cachedPages")
+                ready = entries.size == 3 && entries.values.all { field<Boolean>(it, "painted") && field<List<Any>>(it, "key") == current }
+                diagnostic = entries.entries.joinToString { (name, entry) ->
+                    val view = field<Page>(entry, "view")
+                    "$name: painted=${field<Boolean>(entry, "painted")}, key=${field<List<Any>>(entry, "key") == current}, size=${view.width}x${view.height}, layout=${view.isLayoutRequested}, attached=${view.isAttachedToWindow}, ready=${(view as? AchievementsView)?.contentReady}"
+                }
+                if (ready) pages = entries.mapValues { field<Page>(it.value, "view") }
+            }
+            if (!ready) SystemClock.sleep(20)
+        }
+        assertTrue("All pages were laid out and painted before navigation: $diagnostic", ready)
+        return pages
+    }
+
+    @Test fun cachedPagesOpenOnTheNextFrameAndReuseTheirViews() {
+        val activity = launch()
+        val unlocked = Progress.achievementsUnlocked
+        val unlockField = Progress::class.java.getDeclaredField("achievementsUnlocked").apply { isAccessible = true }
+        try {
+            ui {
+                unlockField.setBoolean(null, true)
+                field<Hud>(activity, "hud").javaClass.getDeclaredMethod("schedulePagePreparation").apply { isAccessible = true }
+                    .invoke(field<Hud>(activity, "hud"))
+            }
+            awaitMenu(activity); awaitScene()
+            val cached = awaitCaches(activity)
+            assertEquals("Preparing wardrobe must not change the live GL stage", cube.run.core.Stage.NONE, cube.run.core.Stage.mode)
+            repeat(4) { cycle ->
+                for ((name, page) in cached) {
+                    val drawn = CountDownLatch(1)
+                    var startedAt = 0L
+                    var elapsed = 0L
+                    ui {
+                        val hud = field<Hud>(activity, "hud")
+                        val method = when (name) {
+                            "achievements" -> "openAchievements"
+                            "wardrobe" -> "openWardrobe"
+                            else -> "openSections"
+                        }
+                        startedAt = SystemClock.uptimeMillis()
+                        hud.javaClass.getDeclaredMethod(method).apply { isAccessible = true }.invoke(hud)
+                        assertSame("Opening $name must reuse its prebuilt page", page, field<Page>(hud, "page"))
+                        assertEquals(1f, page.alpha, .001f)
+                        assertEquals(1f, field<View>(page, "content").alpha, .001f)
+                        if (Build.VERSION.SDK_INT >= 29) page.viewTreeObserver.registerFrameCommitCallback {
+                            elapsed = SystemClock.uptimeMillis() - startedAt
+                            drawn.countDown()
+                        } else page.postOnAnimation {
+                            elapsed = SystemClock.uptimeMillis() - startedAt
+                            drawn.countDown()
+                        }
+                        page.rootView.invalidate()
+                    }
+                    assertTrue("$name drew a complete frame", drawn.await(2, TimeUnit.SECONDS))
+                    if (cycle == 0 && InstrumentationRegistry.getArguments().getString("captureMenus") == "true") {
+                        // Submission precedes SurfaceFlinger presentation; capture the latched screen.
+                        SystemClock.sleep(100)
+                        val bitmap = instrumentation.uiAutomation.takeScreenshot()
+                        java.io.File(activity.getExternalFilesDir(null), "cached-$name.png").outputStream().use {
+                            bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it)
+                        }
+                        bitmap.recycle()
+                    }
+                    android.util.Log.i("InstantMenu", "$name cycle $cycle: submitted frame in $elapsed ms")
+                    assertTrue("$name opening took $elapsed ms", elapsed < 80)
+                    ui {
+                        page.navigateBack()
+                        assertNull(field<Page?>(field<Hud>(activity, "hud"), "page"))
+                        assertEquals(View.INVISIBLE, page.visibility)
+                    }
+                    awaitMenu(activity)
+                }
+            }
+            assertEquals(3, field<Map<String, Any>>(field<Hud>(activity, "hud"), "cachedPages").size)
+        } finally { ui { unlockField.setBoolean(null, unlocked); activity.finish() } }
+    }
+
+    @Test fun changedBalanceInvalidatesHiddenPagesBeforeTheNextTap() {
+        val activity = launch()
+        val unlocked = Progress.achievementsUnlocked
+        val unlockField = Progress::class.java.getDeclaredField("achievementsUnlocked").apply { isAccessible = true }
+        try {
+            ui {
+                unlockField.setBoolean(null, true)
+                field<Hud>(activity, "hud").javaClass.getDeclaredMethod("schedulePagePreparation").apply { isAccessible = true }
+                    .invoke(field<Hud>(activity, "hud"))
+            }
+            awaitMenu(activity); awaitScene()
+            val before = awaitCaches(activity)
+            ui { Progress.addCoins(5) }
+            // SharedPreferences delivers changes on the main thread; let invalidation run first.
+            instrumentation.waitForIdleSync()
+            val after = awaitCaches(activity)
+            assertNotSame(before["achievements"], after["achievements"])
+            assertNotSame(before["wardrobe"], after["wardrobe"])
+            ui {
+                val hud = field<Hud>(activity, "hud")
+                hud.javaClass.getDeclaredMethod("openAchievements").apply { isAccessible = true }.invoke(hud)
+                val page = field<AchievementsView>(hud, "page")
+                val bank = field<android.widget.LinearLayout>(page, "bank")
+                assertEquals(java.text.NumberFormat.getIntegerInstance(activity.resources.configuration.locales[0]).format(Progress.coins),
+                    UiKit(activity).labelOf(bank).text.toString())
+            }
+        } finally { ui { unlockField.setBoolean(null, unlocked); activity.finish() } }
+    }
+
     @Test fun resultsReturnMakesMenuAndSceneReadyWithoutLaunchStagger() {
-        var activity = launch()
+        val activity = launch()
         try {
             awaitMenu(activity); awaitScene()
+            val game = Gdx.app.applicationListener as cube.run.game.CubeRun
+            val surface = field<View>(activity, "gameSurface")
+            val ownedCount = field<List<Any>>(game, "owned").size
             repeat(3) { cycle ->
-                ui { field<Hud>(activity, "hud").showRunOver(0, 100, false, 0, 0) }
+                val started = CountDownLatch(1)
+                Gdx.app.postRunnable {
+                    game.onTap(.5f, .5f)
+                    game.session.addScore(12)
+                    game.session.setCoins(7)
+                    cube.run.core.Stage.endRun = true
+                    started.countDown()
+                }
+                assertTrue(started.await(2, TimeUnit.SECONDS))
+                val resultBy = SystemClock.uptimeMillis() + 5000
+                var resultsVisible = false
+                while (!resultsVisible && SystemClock.uptimeMillis() < resultBy) {
+                    ui { resultsVisible = field<RunOverFlow?>(field<Hud>(activity, "hud"), "runOver") != null }
+                    if (!resultsVisible) SystemClock.sleep(20)
+                }
+                assertTrue("The real run reached results", resultsVisible)
+                val banked = Progress.coins
                 SystemClock.sleep(350)
-                val monitor = instrumentation.addMonitor(GameActivity::class.java.name, null, false)
                 val startedAt = SystemClock.uptimeMillis()
-                try {
-                    ui {
-                        val flow = field<RunOverFlow>(field<Hud>(activity, "hud"), "runOver")
-                        field<View>(flow, "page").performClick()
-                        field<View>(flow, "page").performClick()
-                    }
-                    activity = instrumentation.waitForMonitorWithTimeout(monitor, 5000) as? GameActivity
-                        ?: error("Results did not return to the game activity")
-                    awaitMenu(activity); awaitScene()
-                    val elapsed = SystemClock.uptimeMillis() - startedAt
-                    android.util.Log.i("MenuReturn", "Results cycle $cycle: menu and GL scene ready in $elapsed ms")
-                    assertTrue("Results return took $elapsed ms", elapsed < 1000)
-                } finally { instrumentation.removeMonitor(monitor) }
+                ui {
+                    val flow = field<RunOverFlow>(field<Hud>(activity, "hud"), "runOver")
+                    field<View>(flow, "page").performClick()
+                    field<View>(flow, "page").performClick()
+                }
+                awaitMenu(activity); awaitScene()
+                val elapsed = SystemClock.uptimeMillis() - startedAt
+                android.util.Log.i("MenuReturn", "Results cycle $cycle: menu and GL scene ready in $elapsed ms")
+                assertTrue("Results return took $elapsed ms", elapsed < 120)
+                assertSame(game, Gdx.app.applicationListener)
+                assertSame(surface, field<View>(activity, "gameSurface"))
+                assertEquals("Returning must not allocate more GL models", ownedCount, field<List<Any>>(game, "owned").size)
+                assertEquals("Run score was reset", 0, game.session.score)
+                assertFalse(game.session.isOver)
+                assertEquals("Rewards must not be banked twice", banked, Progress.coins)
             }
         } finally { ui { activity.finish() } }
     }
@@ -77,6 +219,7 @@ class MenuReturnTimingTest {
         val unlockField = Progress::class.java.getDeclaredField("achievementsUnlocked").apply { isAccessible = true }
         try {
             awaitMenu(activity); awaitScene()
+            awaitCaches(activity)
             repeat(3) { cycle ->
                 ui {
                     unlockField.setBoolean(null, true)
@@ -89,9 +232,55 @@ class MenuReturnTimingTest {
                 awaitMenu(activity)
                 val elapsed = SystemClock.uptimeMillis() - startedAt
                 android.util.Log.i("MenuReturn", "Achievements cycle $cycle: controls ready in $elapsed ms")
-                assertTrue("Achievements Back took $elapsed ms", elapsed < 350)
+                assertTrue("Achievements Back took $elapsed ms", elapsed < 70)
                 ui { assertNull(field<Page?>(field<Hud>(activity, "hud"), "page")) }
             }
         } finally { ui { unlockField.setBoolean(null, unlocked); activity.finish() } }
+    }
+
+    @Test fun pauseReturnClearsLiveAbilitiesAndCanStartAnotherRun() {
+        val activity = launch()
+        try {
+            awaitMenu(activity); awaitScene(); awaitCaches(activity)
+            val game = Gdx.app.applicationListener as cube.run.game.CubeRun
+            val ready = CountDownLatch(1)
+            Gdx.app.postRunnable {
+                game.onTap(.5f, .5f)
+                val powers = field<cube.run.game.PowerUps>(game, "powerUps")
+                powers.jet.start(20f); powers.magnet.start(20f); powers.mult.start(20f)
+                field<cube.run.game.Player>(game, "player").setFlying(true)
+                game.session.addScore(21)
+                ready.countDown()
+            }
+            assertTrue(ready.await(2, TimeUnit.SECONDS))
+            ui {
+                val hud = field<Hud>(activity, "hud")
+                hud.pause(animate = false)
+                val sheet = field<PauseSheet>(hud, "pauseSheet")
+                // Actual MENU button, after header, RESUME and RESTART.
+                field<android.widget.LinearLayout>(sheet, "card").getChildAt(3).performClick()
+            }
+            awaitMenu(activity); awaitScene()
+            assertSame(game, Gdx.app.applicationListener)
+            val verified = CountDownLatch(1)
+            val failure = java.util.concurrent.atomic.AtomicReference<Throwable>()
+            Gdx.app.postRunnable {
+                try {
+                    val powers = field<cube.run.game.PowerUps>(game, "powerUps")
+                    assertFalse(powers.jet.active || powers.magnet.active || powers.mult.active)
+                    assertFalse(field<cube.run.game.Player>(game, "player").flying)
+                    assertFalse(cube.run.core.Stage.paused)
+                    assertEquals(0, game.session.score)
+                    assertFalse(field<Boolean>(game, "started"))
+                    game.onTap(.5f, .5f)
+                    assertTrue(field<Boolean>(game, "started"))
+                    assertFalse(game.session.isOver)
+                } catch (error: Throwable) { failure.set(error) }
+                finally { verified.countDown() }
+            }
+            assertTrue(verified.await(2, TimeUnit.SECONDS))
+            failure.get()?.let { throw it }
+            awaitScene()
+        } finally { ui { activity.finish() } }
     }
 }

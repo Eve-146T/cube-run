@@ -42,6 +42,12 @@ class ShardSystem(private val kit: BoxMeshKit, private val maxShards: Int = 240)
     private val verts = FloatArray(maxShards * kit.vertsPerBox * 4)
     private val wc = FloatArray(24)     // scratch: 8 transformed corners (xyz)
     private val visibility = BatchVisibility()
+
+    fun clear() {
+        pool.addAll(live)
+        live.clear()
+        recycle = 0
+    }
     private val light = FloatArray(3)   // scratch: rgb light factors
     private val sN = Vector3()
     private val sV = Vector3()

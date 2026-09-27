@@ -50,6 +50,8 @@ class TouchInput(
     private val swipeDist get() = screenWidth() * 0.055f
     private val tapSlop get() = screenWidth() * 0.03f
 
+    fun reset() { active = false; moved = false; swiped = false; downAt = 0L }
+
     override fun touchDown(x: Int, y: Int, pointer: Int, button: Int): Boolean {
         if (pointer != 0) return false
         if (blocked()) { active = false; return false }

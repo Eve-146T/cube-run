@@ -3,6 +3,8 @@ package cube.run.ui
 import android.annotation.SuppressLint
 import android.app.Activity
 import android.content.Intent
+import android.content.Context
+import android.content.SharedPreferences
 import android.view.Gravity
 import android.view.View
 import android.view.ViewTreeObserver
@@ -84,6 +86,41 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false, retu
     private var runPauseResumes = 0
     private var page: Page? = null
     private var preparedShop: ShopView? = null
+    private data class CachedPage(val view: Page, val key: List<Any>, var painted: Boolean = false)
+    private val cachedPages = LinkedHashMap<String, CachedPage>()
+    private val cachePreferences = listOf("progress", "settings", "scores").map {
+        activity.getSharedPreferences(it, Context.MODE_PRIVATE)
+    }
+    private val cacheChanges = SharedPreferences.OnSharedPreferenceChangeListener { _, _ -> schedulePagePreparation() }
+    private val preparePages = object : Runnable {
+        override fun run() {
+            if (!isAttachedToWindow || page != null || languageSheet != null || (runStarted && runOver == null)) return
+            if (width == 0 || height == 0) { postOnAnimation(this); return }
+            val key = pageCacheKey()
+            for (name in listOf("achievements", "wardrobe", "sections")) {
+                val old = cachedPages[name]
+                if (old != null && old.view === page) continue
+                if (old == null || old.key != key) {
+                    old?.let { removeView(it.view) }
+                    val fresh = newCachedPage(name).apply { prepareInstantNavigation() }
+                    cachedPages[name] = CachedPage(fresh, key)
+                    addView(fresh, 0, LayoutParams(-1, -1))
+                    rootWindowInsets?.let { fresh.dispatchApplyWindowInsets(it) }
+                    postOnAnimation(this)
+                    return // One page per frame; never construct all three in a tap handler.
+                }
+                if (!old.painted && !old.view.isLayoutRequested && old.view.width > 0 && old.view.height > 0 &&
+                    (old.view !is AchievementsView || old.view.contentReady)) {
+                    old.view.setLayerType(View.LAYER_TYPE_HARDWARE, null)
+                    old.view.buildLayer()
+                    old.painted = true
+                    postOnAnimation(this)
+                    return
+                }
+            }
+            if (cachedPages.values.any { !it.painted && it.view !== page }) postOnAnimation(this)
+        }
+    }
     private var opening = openingEntrance
     private val prepareShop = Runnable {
         if (isAttachedToWindow && !pageOpen() && width > 0 && height > 0 && preparedShop?.isCurrent() != true) {
@@ -155,6 +192,8 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false, retu
 
     override fun onAttachedToWindow() {
         super.onAttachedToWindow()
+        cachePreferences.forEach { it.registerOnSharedPreferenceChangeListener(cacheChanges) }
+        schedulePagePreparation()
         if (!opening) scheduleShopPreparation()
         if (runStarted) postDelayed(pollAchievements, 500)
     }
@@ -174,6 +213,9 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false, retu
     override fun onDetachedFromWindow() {
         clearHardwareFocus()
         removeCallbacks(prepareShop)
+        removeCallbacks(preparePages)
+        cachePreferences.forEach { it.unregisterOnSharedPreferenceChangeListener(cacheChanges) }
+        cachedPages.values.forEach { it.painted = false }
         removeCallbacks(pollAchievements)
         preparedShop = null
         voidPurchase = null
@@ -203,6 +245,45 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false, retu
     private fun scheduleShopPreparation() {
         removeCallbacks(prepareShop)
         postDelayed(prepareShop, 900)
+        schedulePagePreparation()
+    }
+
+    private fun schedulePagePreparation() {
+        removeCallbacks(preparePages)
+        if (isAttachedToWindow) postOnAnimation(preparePages)
+    }
+
+    private fun pageCacheKey(): List<Any> = listOf(
+        Progress.coins, Progress.bubbles, Progress.skin, Progress.bubbleSkin, Progress.trail,
+        Progress.ownedSkins, Progress.ownedBubbleSkins, Progress.ownedTrails, Progress.achievementsUnlocked,
+        (0..2).map(Progress::shards), Progress.voidPurchases, Achievements.snapshot(),
+        Settings.devMode, Settings.testSection, Settings.testPillWorld, Settings.performanceCourse,
+    )
+
+    private fun newCachedPage(name: String): Page = when (name) {
+        "achievements" -> AchievementsView(activity, kit, preparing = true) { closed() }
+        "wardrobe" -> WardrobeView(activity, kit) { closed() }
+        else -> SectionsView(activity, kit, reloadMenu = { relaunch(autoStart = false) }) { closed() }
+    }
+
+    private fun openCached(name: String) {
+        if (pageOpen()) return
+        clearHardwareFocus()
+        val key = pageCacheKey()
+        var cached = cachedPages[name]
+        if (cached == null || cached.key != key) {
+            cached?.let { removeView(it.view) }
+            val fresh = newCachedPage(name).apply { prepareInstantNavigation() }
+            cached = CachedPage(fresh, key)
+            cachedPages[name] = cached
+            addView(fresh, 0, LayoutParams(-1, -1))
+        }
+        Stage.homeScreen = false
+        page = cached.view
+        menu.hideInstant()
+        cached.view.bringToFront()
+        cached.view.showPrepared()
+        schedulePagePreparation()
     }
 
     /** System Back only navigates out of the two stores. */
@@ -266,7 +347,7 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false, retu
         clearHardwareFocus()
         Stage.homeScreen = true
         page = null
-        menu.show(returning = true)
+        menu.showInstant()
         setBubbles(Progress.bubbles)
         scheduleShopPreparation()
     }
@@ -329,10 +410,10 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false, retu
         addView(shop, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
         menu.bringToFront() // corner controls return above the sheet instead of flashing out from beneath it
     }
-    private fun openWardrobe() { if (!pageOpen()) open(WardrobeView(activity, kit) { closed() }) }
-    private fun openSections() { if (!pageOpen()) open(SectionsView(activity, kit, reloadMenu = { relaunch(autoStart = false) }) { closed() }) }
+    private fun openWardrobe() = openCached("wardrobe")
+    private fun openSections() = openCached("sections")
     private fun openAchievements() {
-        if (!pageOpen() && Progress.achievementsUnlocked) open(AchievementsView(activity, kit) { closed() })
+        if (Progress.achievementsUnlocked) openCached("achievements")
     }
 
     /**
@@ -609,18 +690,34 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false, retu
 
     // ------------------------------------------------------------- run over
 
-    /**
-     * RESTART / MENU = finish + relaunch (NOT recreate): libGDX only disposes GL
-     * resources when the activity is truly finishing, so recreate() would leak
-     * native meshes. The relaunch stays INSIDE the current task: a fresh intent
-     * started BEFORE finish() so the task never empties; the theme's animations
-     * crossfade the fresh screen over the old one. [autoStart] makes the new
-     * run begin at once.
-     */
+    /** MENU resets the live host. RESTART still launches a new run before finishing this activity. */
     private fun relaunch(autoStart: Boolean, idleBot: Boolean = false) {
+        if (!autoStart) {
+            (activity as GameActivity).returnToMenu()
+            return
+        }
         SoundFx.play("whoosh", rate = 0.8f)
         activity.startActivity(Intent(activity, activity.javaClass).putExtra(EXTRA_AUTOSTART, autoStart).putExtra(EXTRA_IDLE_BOT, idleBot))
         activity.finish()
+    }
+
+    /** Called after the GL thread has reset the run; the old menu and its page cache are still here. */
+    fun finishMenuReturn() {
+        clearHardwareFocus()
+        removeCallbacks(pollAchievements)
+        listOfNotNull(runOver, pauseSheet).forEach { removeView(it) }
+        runOver = null; pauseSheet = null; runStarted = false; runPauseResumes = 0
+        page?.let { it.visibility = INVISIBLE }; page = null
+        achievementToast.reset(); jackpotCounter.reset(); bonusVisited.clear()
+        Anim.cancelTree(topBox); topBox.visibility = GONE; pauseChip.visibility = GONE
+        setBoost(false, 0, 5)
+        score = 0; scoreText.text = "0"; runCoins = 0; kit.labelOf(haul).text = "0"
+        kit.labelOf(boxes).text = "×0"; boxes.visibility = GONE
+        setBest(cube.run.data.Scores.best("cuberun"))
+        setBubbleCooldown(0); setBubbles(Progress.bubbles)
+        Stage.homeScreen = true
+        menu.showInstant()
+        scheduleShopPreparation()
     }
 
     fun showRunOver(score: Int, best: Int, isNewBest: Boolean, coins: Int, boxes: Int, shards: IntArray = IntArray(3)) {
@@ -642,6 +739,7 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false, retu
         )
         runOver = flow
         addView(flow, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
+        schedulePagePreparation() // Updated rewards can warm behind the results before MENU is tapped.
     }
 
     /** The game's 3D gift stage opened a box (GL → UI via the session). */

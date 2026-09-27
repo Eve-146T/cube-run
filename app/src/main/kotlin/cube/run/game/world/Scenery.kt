@@ -87,6 +87,7 @@ class Scenery(private val game: Gdx3DGame, private val rnd: Random) {
     }
 
     fun init(world: Worlds.World) {
+        tiles.clear(); posts.clear(); streaks.clear(); gates.clear()
         this.world = world
         for (r in 0 until tileRows) {
             val t = Tile(Color(), Color(), Color(), 8f - r * tileD, r % 2)

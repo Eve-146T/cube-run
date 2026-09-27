@@ -64,6 +64,21 @@ class GameActivity : AndroidApplication() {
 
     private lateinit var hud: Hud
     private lateinit var game: CubeRun
+    private var returningToMenu = false
+
+    /** Results and pause return to the live menu instead of rebuilding Android and GL. */
+    fun returnToMenu() {
+        if (returningToMenu || isFinishing || isDestroyed) return
+        returningToMenu = true
+        com.badlogic.gdx.Gdx.app.postRunnable {
+            hostSession.resetToMenu()
+            game.resetToMenu()
+            runOnUiThread {
+                if (!isFinishing && !isDestroyed) hud.finishMenuReturn()
+                returningToMenu = false
+            }
+        }
+    }
     private val physicalInput = PhysicalInput { action ->
         Stage.userInteraction()
         if (::hud.isInitialized && hud.handlePhysicalAction(action)) return@PhysicalInput

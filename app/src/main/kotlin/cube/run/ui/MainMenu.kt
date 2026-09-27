@@ -239,6 +239,21 @@ class MainMenu(
         logo.postDelayed(startRipple, 620)
     }
 
+    /** Navigation reuses the already painted menu; no launch motion or delayed controls. */
+    fun showInstant() {
+        setShown(true)
+        refresh()
+        for (part in listOf(logo, bestRow, tapHint)) Anim.reset(part)
+        for (letter in letters) { Anim.reset(letter); letter.rotation = 0f }
+        anims.add(Anim.breathe(tapHint, 0.55f, 1f, 750))
+        logo.post(startRipple)
+    }
+
+    fun hideInstant() {
+        stopIdle()
+        visibility = INVISIBLE
+    }
+
     /** A locale crossfade keeps the menu in place instead of replaying its launch entrance. */
     fun settleLanguageTransition() {
         setShown(true)

@@ -101,6 +101,8 @@ class Jackpot(private val game: Gdx3DGame, private val rnd: Random) {
     /** The clock the counter reads; -1 when nothing plays. */
     val clock get() = if (active) t else -1f
 
+    fun reset() { active = false; t = 0f; coins = 0; amount = 0; banked = false }
+
     /**
      * A win. Starts the show from the chase camera and sky as they are now,
      * or adds to the one already playing.

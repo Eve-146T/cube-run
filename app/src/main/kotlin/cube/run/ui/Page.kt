@@ -50,6 +50,7 @@ abstract class Page(
     private val body = LinearLayout(activity)
     protected var closing = false
         private set
+    private var instantNavigation = false
     private val entrance = object : ViewTreeObserver.OnPreDrawListener {
         override fun onPreDraw(): Boolean {
             viewTreeObserver.removeOnPreDrawListener(this)
@@ -95,8 +96,28 @@ abstract class Page(
 
     override fun onAttachedToWindow() {
         super.onAttachedToWindow()
-        if (!closing) viewTreeObserver.addOnPreDrawListener(entrance)
+        if (!instantNavigation && !closing) {
+            onNavigationShown()
+            viewTreeObserver.addOnPreDrawListener(entrance)
+        }
     }
+
+    /** Cached pages stay attached and laid out, but own neither input nor the GL stage while hidden. */
+    internal fun prepareInstantNavigation() {
+        instantNavigation = true
+        visibility = INVISIBLE
+        alpha = 1f
+        viewTreeObserver.removeOnPreDrawListener(entrance)
+    }
+
+    internal fun showPrepared() {
+        closing = false
+        onNavigationShown()
+        visibility = VISIBLE
+        rootView.invalidate() // Recompose the warm layer without re-rasterizing its text.
+    }
+
+    protected open fun onNavigationShown() = Unit
 
     /** Start at the first draw, so construction and list layout do not consume the entrance. */
     protected open fun animateEntrance() {
@@ -119,7 +140,14 @@ abstract class Page(
 
     fun close() {
         if (closing) return
+        if (instantNavigation && visibility != VISIBLE) return
         closing = true
+        if (instantNavigation) {
+            visibility = INVISIBLE
+            closing = false // Background preparation can finish while this page is parked.
+            onClosed()
+            return
+        }
         Anim.cancelTree(this)
         animateExit {
             (parent as? FrameLayout)?.removeView(this)

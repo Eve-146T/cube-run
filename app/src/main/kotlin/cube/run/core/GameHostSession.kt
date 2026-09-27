@@ -60,6 +60,17 @@ class GameHostSession(
     override val score: Int get() = scoreV.get()
     override val isOver: Boolean get() = over.get()
 
+    /** A new run can share its host and GL resources without sharing any scoring state. */
+    @Synchronized fun resetToMenu() {
+        over.set(false); scoreV.set(0); coinsV.set(0); boxesV.set(0)
+        for (i in 0..2) shardsV.set(i, 0)
+        runHasStarted = false; centerLaneObserved = false; stayedCentered = true; stayedCoinless = true
+        missedBoxes = 0; noPowerup = true; runBoxesCollected = 0; bonusMask = 0; shardMask = 0
+        lastDistance = 0; observedDistance = 0; lastSwipeFrom = -1; lastSwipeTo = -1
+        lastSwipeAt = 0L; reversals = 0
+        Progress.clearRunCoins()
+    }
+
     @Synchronized override fun setScore(v: Int) {
         if (over.get()) return
         scoreV.set(v)

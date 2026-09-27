@@ -125,6 +125,15 @@ abstract class Gdx3DGame(val session: GameSession) : ApplicationAdapter(), Touch
 
     /** While true the frame is drawn but nothing advances: [tick] gets dt = 0 and [time] holds. */
     open fun paused(): Boolean = false
+
+    /** Reset transient presentation; retain all shaders, batches, meshes and the SurfaceView. */
+    protected fun resetPresentation() {
+        shakeMag = 0f; slowLeft = 0f; slowScale = 1f; timeScale = 1f
+        flashColor.a = 0f
+        shards.clear()
+        (Gdx.input.inputProcessor as? TouchInput)?.reset()
+        frameStepper.reset()
+    }
     abstract fun renderWorld(batch: ModelBatch, env: Environment)
 
     /** Blended extras drawn after the ModelBatch pass (the bubble): depth-tested, not written. */

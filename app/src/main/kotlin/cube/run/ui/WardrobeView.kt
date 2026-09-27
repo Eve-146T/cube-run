@@ -56,9 +56,6 @@ class WardrobeView(activity: Activity, kit: UiKit, abilityStyle: Int = 0, onClos
     private var swiped = false
 
     init {
-        Stage.previewCat = cat
-        Stage.mode = Stage.SKINS
-        applyPreview()
         addRight(balance)
 
         // ---- tabs under the title
@@ -123,6 +120,12 @@ class WardrobeView(activity: Activity, kit: UiKit, abilityStyle: Int = 0, onClos
         for (i in 0 until tabs.childCount) Anim.riseIn(tabs.getChildAt(i), i * 15L, dpf(8f), 160)
         Anim.popIn(left, 0, 0.85f, 180); Anim.popIn(right, 0, 0.85f, 180)
         Anim.riseIn(itemDetails, 0, dpf(16f), 180)
+    }
+
+    override fun onNavigationShown() {
+        Stage.previewCat = cat
+        Stage.mode = Stage.SKINS
+        applyPreview()
     }
 
     /** Push the browsed item into the engine's preview slots. */

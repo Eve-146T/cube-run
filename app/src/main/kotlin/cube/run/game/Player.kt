@@ -130,6 +130,20 @@ class Player(private val game: Gdx3DGame, private val rnd: Random) {
         applySkin(baseHue, time)
     }
 
+    /** Reset simulation and pose while retaining the cube's mesh and material resources. */
+    fun resetToMenu(baseHue: Float, time: Float) {
+        flying = false; flyY = FLY_Y; hover = false
+        zappyEnabled = false; floaty = false; doubleJumpEnabled = false; airJumpAvailable = false
+        lane = 1; px = 0f; py = ground; air = false
+        duck = 0f; nudge = 0f; vy = 0f; roll = 0f; squash = 0f; duckT = 0f
+        slamming = false; coyoteLeft = 0f; jumpBuffer = 0f; trailT = 0f; trailK = 0; stretch = 0f
+        idleT = 0f; idleYaw = 0f; idleMix = 0f; quietLanding = false
+        menuX = 0f; menuY = ground; menuYaw = 0f; menuSpin = 0f
+        voidEmissiveSaved = false
+        applySkin(baseHue, time)
+        update(0f, 0f, time, baseHue, trail = false, groundH = 0f)
+    }
+
     /** The skin to show: the wardrobe's try-on if one is set, else the equipped one. */
     private fun wantedSkin(): Int = if (Stage.previewSkin >= 0) Stage.previewSkin else Progress.skin
     private fun wantedTrail(): Int = if (Stage.previewTrail >= 0) Stage.previewTrail else Progress.trail
