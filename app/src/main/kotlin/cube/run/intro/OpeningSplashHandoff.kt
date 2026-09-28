@@ -60,9 +60,16 @@ class OpeningSplashHandoff(
     fun install() {
         decor.viewTreeObserver.addOnPreDrawListener(beforeDraw)
         activity.splashScreen.setOnExitAnimationListener { splash ->
-            prepare(splash) // Also handles platform variants that notify before drawing.
-            exitReceived = true
-            removeWhenReady()
+            // The platform may send another exit view when an existing task is
+            // moved into split screen. The first handoff has already been
+            // disposed; preparing again would cover the live game indefinitely.
+            if (disposed || removed || (prepared != null && prepared !== splash)) {
+                splash.remove()
+            } else {
+                prepare(splash) // Also handles platform variants that notify before drawing.
+                exitReceived = true
+                removeWhenReady()
+            }
         }
     }
 
