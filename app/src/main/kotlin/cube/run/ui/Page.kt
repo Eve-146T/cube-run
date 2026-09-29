@@ -52,6 +52,15 @@ abstract class Page(
         private set
     private var instantNavigation = false
     private var deferredEntrance = false
+    protected var compactLayout = false
+        private set
+    protected open fun onCompactChanged(compact: Boolean) {}
+    private var headerAccessory: View? = null
+    protected fun reserveHeaderFor(view: View) { headerAccessory = view }
+    private var normalTitleLines = Int.MAX_VALUE
+    private var normalTitleSize = 0f
+    private var safeTop = 0
+    private var safeBottom = 0
     private val entrance = object : ViewTreeObserver.OnPreDrawListener {
         override fun onPreDraw(): Boolean {
             viewTreeObserver.removeOnPreDrawListener(this)
@@ -87,12 +96,44 @@ abstract class Page(
         setPadding(0, dp(36f), 0, 0)
         setOnApplyWindowInsetsListener { _, insets ->
             val (l, t, r, b) = insetsOf(insets)
-            setPadding(l, maxOf(dp(36f), t + dp(6f)), r, b) // edge to edge at the bottom: pages place their own bottom margins
+            safeTop = t; safeBottom = b
+            setPadding(l, maxOf(dp(if (height < dp(480f) && height > 0) 8f else 36f), t + dp(6f)), r, b)
             insets
         }
         // the title row starts a little lower than the corner pill so the two line up at the same height
         topBar.setPadding(dp(14f), dp(4f), dp(16f), dp(6f))
         alpha = 0f
+    }
+
+    override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
+        // A split pane needs its first row immediately below the status bar.
+        // The full-screen 36dp stage gutter otherwise consumes a fifth of it.
+        val short = CompactLayout.uses(this, MeasureSpec.getSize(heightMeasureSpec), safeTop, safeBottom)
+        if (compactLayout != short) {
+            compactLayout = short
+            if (titleView.parent === topBar) {
+                if (short) {
+                    normalTitleLines = titleView.maxLines; normalTitleSize = titleView.textSize
+                    titleView.maxLines = 1
+                    titleView.setAutoSizeTextTypeUniformWithConfiguration(12, 26, 1, android.util.TypedValue.COMPLEX_UNIT_SP)
+                } else {
+                    titleView.setAutoSizeTextTypeWithDefaults(TextView.AUTO_SIZE_TEXT_TYPE_NONE)
+                    titleView.maxLines = normalTitleLines
+                    titleView.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, normalTitleSize)
+                }
+            }
+            onCompactChanged(short)
+        }
+        var end = dp(16f)
+        if (short && titleView.parent === topBar) headerAccessory?.let { accessory ->
+            accessory.measure(MeasureSpec.makeMeasureSpec(MeasureSpec.getSize(widthMeasureSpec) / 2, MeasureSpec.AT_MOST),
+                MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED))
+            end += accessory.measuredWidth + dp(8f)
+        }
+        topBar.setPaddingRelative(dp(14f), dp(if (short) 0f else 10f), end, dp(if (short) 0f else 6f))
+        val top = maxOf(dp(if (short) 8f else 36f), safeTop + dp(6f))
+        if (paddingTop != top) setPadding(paddingLeft, top, paddingRight, paddingBottom)
+        super.onMeasure(widthMeasureSpec, heightMeasureSpec)
     }
 
     override fun onAttachedToWindow() {
@@ -147,6 +188,7 @@ abstract class Page(
 
     /** The corner slot (a balance): pinned top-right exactly where the menu keeps its bank pill, so it never shifts between screens. */
     protected fun addRight(v: View) {
+        reserveHeaderFor(v)
         addView(v, LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT).apply { gravity = Gravity.TOP or Gravity.END; topMargin = dp(4f); marginEnd = dp(14f) })
     }
 
@@ -205,11 +247,22 @@ abstract class Sheet(
         setPadding(dp(22f), dp(20f), dp(22f), dp(24f))
     }
     private var closing = false
+    protected val cardScroll = android.widget.ScrollView(activity).apply {
+        isFillViewport = false
+        clipChildren = false; clipToPadding = false
+        addView(card, FrameLayout.LayoutParams(-1, -2))
+    }
+
+    override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
+        val params = cardScroll.layoutParams
+        params.width = minOf(dp(320f), (MeasureSpec.getSize(widthMeasureSpec) - dp(24f)).coerceAtLeast(1))
+        super.onMeasure(widthMeasureSpec, heightMeasureSpec)
+    }
 
     init {
         isClickable = true
         setBackgroundColor(Theme.SCRIM)
-        addView(card, LayoutParams(dp(320f), LayoutParams.WRAP_CONTENT).apply { gravity = Gravity.CENTER })
+        addView(cardScroll, LayoutParams(dp(320f), LayoutParams.WRAP_CONTENT).apply { gravity = Gravity.CENTER; topMargin = dp(8f); bottomMargin = dp(8f) })
         // The backdrop consumes touches; only explicit controls dismiss the pause.
         alpha = 0f
         move().alpha(1f).setDuration(110).start()

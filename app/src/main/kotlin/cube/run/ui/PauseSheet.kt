@@ -3,6 +3,7 @@ package cube.run.ui
 import android.annotation.SuppressLint
 import android.app.Activity
 import android.view.Gravity
+import android.view.View
 import android.widget.LinearLayout
 import cube.run.R
 import cube.run.data.Settings
@@ -22,6 +23,14 @@ class PauseSheet(
     onRestart: () -> Unit,
     onMenu: () -> Unit,
 ) : Sheet(activity, kit, onResume) {
+
+    override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
+        // Sound and haptics remain in the main menu. In a short split pane they
+        // push the essential resume/restart/menu controls below the divider.
+        val short = CompactLayout.uses(this, MeasureSpec.getSize(heightMeasureSpec))
+        for (i in 4..5) card.getChildAt(i).visibility = if (short) View.GONE else View.VISIBLE
+        super.onMeasure(widthMeasureSpec, heightMeasureSpec)
+    }
 
     init {
         card.addView(LinearLayout(activity).apply { // header: back chip + title

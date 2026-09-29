@@ -55,6 +55,84 @@ class WardrobeView(activity: Activity, kit: UiKit, abilityStyle: Int = 0, onClos
     private var downY = 0f
     private var swiped = false
 
+    private data class Placement(val view: View, val parent: android.view.ViewGroup, val index: Int, val params: android.view.ViewGroup.LayoutParams)
+    private val placements = ArrayList<Placement>()
+    private var compactBody: LinearLayout? = null
+    private var compactScrollY = 0
+    private val preview = CompactCosmeticPreview(activity)
+
+    override fun onCompactChanged(compact: Boolean) {
+        actionLabel.compact = compact
+        if (compact) {
+            val moving = listOf(tabs, left, right, name, abilityDisplay.inline, abilityDisplay.floating, actionLabel)
+            placements.clear()
+            for (view in moving) {
+                val parent = view.parent as android.view.ViewGroup
+                placements.add(Placement(view, parent, parent.indexOfChild(view), view.layoutParams))
+            }
+            for (view in moving) (view.parent as android.view.ViewGroup).removeView(view)
+            itemDetails.visibility = View.GONE
+            val column = LinearLayout(activity).apply { orientation = LinearLayout.VERTICAL }
+            compactBody = column
+            column.addView(tabs, LinearLayout.LayoutParams(-1, dp(44f)))
+            val rows = LinearLayout(activity).apply {
+                orientation = LinearLayout.VERTICAL
+                gravity = Gravity.CENTER_HORIZONTAL
+                setPadding(dp(12f), dp(4f), dp(12f), dp(12f))
+            }
+            rows.addView(LinearLayout(activity).apply {
+                gravity = Gravity.CENTER_VERTICAL
+                addView(this@WardrobeView.left, LinearLayout.LayoutParams(dp(48f), dp(52f)))
+                addView(preview, LinearLayout.LayoutParams(dp(56f), dp(64f)))
+                addView(name, LinearLayout.LayoutParams(0, -2, 1f))
+                addView(this@WardrobeView.right, LinearLayout.LayoutParams(dp(48f), dp(52f)))
+            }, LinearLayout.LayoutParams(-1, -2))
+            rows.addView(abilityDisplay.inline, LinearLayout.LayoutParams(-1, -2))
+            rows.addView(abilityDisplay.floating, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(8f) })
+            column.addView(android.widget.ScrollView(activity).apply {
+                tag = "compact_wardrobe_scroll"
+                isVerticalScrollBarEnabled = true
+                addView(rows)
+                post { scrollTo(0, compactScrollY) }
+            }, LinearLayout.LayoutParams(-1, 0, 1f))
+            column.addView(actionLabel, LinearLayout.LayoutParams(-1, -2).apply {
+                marginStart = dp(16f); marginEnd = dp(16f); topMargin = dp(4f); bottomMargin = dp(8f)
+            })
+            content.addView(column, FrameLayout.LayoutParams(-1, -1))
+            setBackgroundColor(Theme.INK)
+            name.textSize = 22f
+            action.minimumHeight = dp(48f)
+            action.setPadding(dp(16f), dp(8f), dp(16f), dp(8f))
+        } else {
+            compactScrollY = findViewWithTag<android.widget.ScrollView>("compact_wardrobe_scroll")?.scrollY ?: 0
+            placements.forEach { (it.view.parent as? android.view.ViewGroup)?.removeView(it.view) }
+            content.removeView(compactBody)
+            (preview.parent as? android.view.ViewGroup)?.removeView(preview)
+            placements.sortedBy { it.index }.forEach { it.parent.addView(it.view, minOf(it.index, it.parent.childCount), it.params) }
+            placements.clear(); compactBody = null
+            itemDetails.visibility = View.VISIBLE
+            background = null
+            name.textSize = 32f
+            action.minimumHeight = dp(34f) + kotlin.math.ceil(action.paint.fontSpacing + action.paint.fontMetrics.bottom - action.paint.fontMetrics.top).toInt()
+            action.setPadding(dp(34f), dp(14f), dp(34f), dp(14f))
+        }
+        tabViews.forEach { tab ->
+            tab.layoutParams = LinearLayout.LayoutParams(if (compact) 0 else -2, if (compact) -1 else -2, if (compact) 1f else 0f).apply {
+                marginStart = dp(4f); marginEnd = dp(4f)
+            }
+            tab.setPadding(dp(if (compact) 4f else 16f), dp(7f), dp(if (compact) 4f else 16f), dp(7f))
+            if (compact) {
+                tab.setSingleLine()
+                tab.setAutoSizeTextTypeUniformWithConfiguration(10, 13, 1, TypedValue.COMPLEX_UNIT_SP)
+            } else {
+                tab.setAutoSizeTextTypeWithDefaults(TextView.AUTO_SIZE_TEXT_TYPE_NONE)
+                tab.setSingleLine(false); tab.textSize = 13f
+            }
+        }
+        abilityDisplay.setCompact(compact)
+        preview.bind(cat, index)
+    }
+
     init {
         addRight(balance)
 
@@ -105,7 +183,7 @@ class WardrobeView(activity: Activity, kit: UiKit, abilityStyle: Int = 0, onClos
             else { gravity = Gravity.TOP; topMargin = dp(108f) }
         })
         if (abilityStyle == 0) tabs.addOnLayoutChangeListener { view, _, _, _, _, _, _, _, _ ->
-            val params = abilityDisplay.floating.layoutParams as FrameLayout.LayoutParams
+            val params = abilityDisplay.floating.layoutParams as? FrameLayout.LayoutParams ?: return@addOnLayoutChangeListener
             val top = view.bottom + dp(10f)
             if (params.topMargin != top) {
                 params.topMargin = top
@@ -190,6 +268,7 @@ class WardrobeView(activity: Activity, kit: UiKit, abilityStyle: Int = 0, onClos
     private fun visibleItems(): List<Int> = Wardrobe.shopItems(cat).filter { Progress.secretAvailable(cat, it) }
 
     private fun render() {
+        preview.bind(cat, index)
         val owned = Progress.owns(cat, index)
         val equipped = Progress.equipped(cat) == index
         val price = Wardrobe.price(cat, index)
@@ -303,6 +382,7 @@ private class WardrobeActionLabel(
     private var amount = ""
     private var labelChanged = true
     private var fittedPx = Float.NaN
+    var compact = false
 
     init {
         clipChildren = false; clipToPadding = false
@@ -325,8 +405,9 @@ private class WardrobeActionLabel(
         val fullWidth = Layout.getDesiredWidth(labelAt(nominal), paint)
         // Preserve the usual big-button padding for short labels. Longer prices use
         // the otherwise empty edge space before reducing the visible letter size.
-        val horizontal = kit.dp(if (fullWidth <= width - kit.dp(70f)) 34f else 18f)
-        if (button.paddingLeft != horizontal) button.setPadding(horizontal, kit.dp(14f), horizontal, kit.dp(14f))
+        val horizontal = kit.dp(if (compact) 16f else if (fullWidth <= width - kit.dp(70f)) 34f else 18f)
+        val vertical = kit.dp(if (compact) 8f else 14f)
+        if (button.paddingLeft != horizontal || button.paddingTop != vertical) button.setPadding(horizontal, vertical, horizontal, vertical)
         val budget = (width - button.compoundPaddingLeft - button.compoundPaddingRight - kit.dp(2f)).coerceAtLeast(1)
         var size = nominal
         if (fullWidth > budget) {

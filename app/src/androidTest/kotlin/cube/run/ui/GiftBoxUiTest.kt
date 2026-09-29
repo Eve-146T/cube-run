@@ -154,15 +154,15 @@ class GiftBoxUiTest {
         capture("gift-reward-280dp-font150")
     }
 
-    @Test fun openingHidesHintAndReservedFooterNeverJumpsBetweenActions() = withGift { scenario, flow, kit ->
+    @Test fun openingOffersSkipAndReservedFooterNeverJumpsBetweenActions() = withGift { scenario, flow, kit ->
         scenario.onActivity {
             measure(flow, kit)
             val hint = text(flow, "gift_footer_hint")
             val initial = Rect(0, 0, hint.width, hint.height)
             flow.offsetDescendantRectToMyCoords(hint, initial)
             call(flow, "tapBox")
-            assertEquals("Opening has no skip prompt", View.INVISIBLE, hint.visibility)
-            assertFalse(hint.text.contains("SKIP"))
+            assertEquals("Opening offers skip", View.VISIBLE, hint.visibility)
+            assertEquals(kit.ctx.getString(cube.run.R.string.text_tap_to_skip), hint.text.toString())
             assertEquals(1, Stage.openRequests.get())
             // A second tap may finish the spectacle, but cannot spend or request another box.
             call(flow, "tapBox")

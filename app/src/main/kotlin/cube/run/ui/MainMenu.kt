@@ -39,6 +39,7 @@ class MainMenu(
     private fun dp(v: Float) = kit.dp(v)
     private fun dpf(v: Float) = kit.dpf(v)
     private var compact = false
+    private var compactAppearance = false
     private var safeInsets = intArrayOf(0, 0, 0, 0)
     private val anims = ArrayList<ValueAnimator>()
     private val startRipple = Runnable {
@@ -152,11 +153,9 @@ class MainMenu(
         val cutouts = safeInsets
         val available = MeasureSpec.getSize(widthMeasureSpec) - (cutouts?.get(0) ?: 0) - (cutouts?.get(2) ?: 0)
         val usableHeight = MeasureSpec.getSize(heightMeasureSpec) - (cutouts?.get(1) ?: 0) - (cutouts?.get(3) ?: 0)
-        compact = usableHeight < dp(500f)
+        compact = CompactLayout.uses(this, usableHeight)
         val letterSize = when {
-            usableHeight < dp(320f) -> 28f
-            usableHeight < dp(400f) -> 38f
-            compact -> 46f
+            compact -> 24f
             else -> 62f
         }
         for (letter in letters) {
@@ -165,7 +164,19 @@ class MainMenu(
                 letterSize, resources.displayMetrics)
             if (text.textSize != pixels) text.textSize = letterSize
         }
-        val singleLine = usableHeight < dp(320f)
+        top.orientation = if (compact) LinearLayout.HORIZONTAL else LinearLayout.VERTICAL
+        top.gravity = Gravity.CENTER
+        (logo.layoutParams as LinearLayout.LayoutParams).apply {
+            width = if (compact) 0 else LayoutParams.MATCH_PARENT
+            weight = if (compact) 1f else 0f
+        }
+        (bestRow.layoutParams as LinearLayout.LayoutParams).apply {
+            topMargin = if (compact) 0 else dp(2f)
+            marginEnd = if (compact) dp(14f) else 0
+        }
+        kit.labelOf(bestRow).textSize = if (compact) 14f else 22f
+        bestRow.getChildAt(0).layoutParams.apply { width = dp(if (compact) 22f else 28f); height = width }
+        val singleLine = compact
         logo.orientation = if (singleLine) LinearLayout.HORIZONTAL else LinearLayout.VERTICAL
         (logo.getChildAt(1).layoutParams as LinearLayout.LayoutParams).apply {
             topMargin = if (singleLine) 0 else -dp(18f * letterSize / 62f)
@@ -177,8 +188,26 @@ class MainMenu(
             (pill.layoutParams as LayoutParams).topMargin = maxOf(dp(if (compact) 16f else 40f),
                 (cutouts?.get(1) ?: 0) + dp(10f))
         }
+        for (i in 0 until leftChips.childCount) {
+            val column = leftChips.getChildAt(i) as LinearLayout
+            column.orientation = if (compact) LinearLayout.HORIZONTAL else LinearLayout.VERTICAL
+            column.layoutParams.width = if (compact) LinearLayout.LayoutParams.WRAP_CONTENT else dp(44f)
+            for (j in 0 until column.childCount) {
+                val params = column.getChildAt(j).layoutParams as LinearLayout.LayoutParams
+                params.bottomMargin = if (!compact && j < column.childCount - 1) dp(10f) else 0
+                params.marginEnd = if (compact && j < column.childCount - 1) dp(8f) else 0
+            }
+        }
+        if (compactAppearance != compact) {
+            compactAppearance = compact
+            tapHint.minimumHeight = if (compact) dp(48f) else 0
+            tapHint.background = if (compact) kit.cardDrawable(Theme.PLAY, null, 16f) else null
+            tapHint.setTextColor(if (compact) Theme.INK else Theme.WHITE)
+            val hintPadding = dp(if (compact) 12f else 5f)
+            tapHint.setPadding(hintPadding, dp(5f), hintPadding, dp(5f))
+        }
         val count = if (Progress.achievementsUnlocked) 3 else 2
-        val separateRows = available < dp(28f + 132f + 16f + 12f) + dp(48f) * count + dp(10f) * (count - 1)
+        val separateRows = compact || available < dp(28f + 132f + 16f + 12f) + dp(48f) * count + dp(10f) * (count - 1)
         val settingsWidth = if (separateRows) 0 else dp(132f + 16f)
         val chipSize = ((available - dp(28f) - settingsWidth - dp(10f) * (count - 1)) / count)
             .coerceIn(dp(48f), dp(58f))
@@ -188,14 +217,14 @@ class MainMenu(
         // Large display-size settings can leave less than 300dp. Keep real touch targets and
         // move the settings columns above the actions instead of letting the rows overlap.
         (leftChips.layoutParams as LayoutParams).bottomMargin = dp(if (compact) 12f else 28f) + (cutouts?.get(3) ?: 0) +
-            if (separateRows) chipSize + dp(20f) else 0
+            if (separateRows) chipSize + dp(if (compact) 8f else 20f) else 0
         (rightChips.layoutParams as LayoutParams).bottomMargin = dp(if (compact) 10f else 26f) + (cutouts?.get(3) ?: 0)
         super.onMeasure(widthMeasureSpec, heightMeasureSpec)
         if (compact) {
             val footer = maxOf(leftChips.measuredHeight + (leftChips.layoutParams as LayoutParams).bottomMargin,
                 rightChips.measuredHeight + (rightChips.layoutParams as LayoutParams).bottomMargin)
             val titleSpace = MeasureSpec.getSize(heightMeasureSpec) - footer -
-                (top.layoutParams as LayoutParams).topMargin - middle.measuredHeight - dp(24f)
+                (top.layoutParams as LayoutParams).topMargin - middle.measuredHeight - dp(12f)
             // Saved scores, debug controls and font scaling all change the space
             // required. Fit the brand after measuring those real controls.
             var fittedSize = letterSize

@@ -60,7 +60,7 @@ class ShopView(
         setPadding(dp(16f), dp(18f), dp(16f), dp(28f))
     }
     /** How tall the showroom strip is (the cube lives there; the camera is aimed to match). */
-    private val showroomDp = 150f
+    private var showroomDp = 150f
     private var progress = 0f
     private var navigation: ValueAnimator? = null
     private var balanceCount: ValueAnimator? = null
@@ -186,6 +186,7 @@ class ShopView(
     }
 
     init {
+        reserveHeaderFor(balance)
         content.addView(LinearLayout(activity).apply {
             orientation = LinearLayout.VERTICAL
             // clipChildren stays ON here: it is what clips the sheet's scrolled cards to the sheet
@@ -201,6 +202,13 @@ class ShopView(
             }, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f))
         })
         render()
+    }
+
+    override fun onCompactChanged(compact: Boolean) {
+        showroomDp = if (compact) 0f else 150f
+        showroom.visibility = if (compact) View.GONE else View.VISIBLE
+        showroom.layoutParams.height = dp(showroomDp)
+        setBackgroundColor(if (compact) Theme.INK else android.graphics.Color.TRANSPARENT)
     }
 
     /** Rebuild the whole list from [Progress] (cheap; done after every purchase). */
@@ -257,6 +265,12 @@ class ShopView(
 
     /** An opaque sheet rises from the bottom; the header waits for the menu title to clear. */
     override fun animateEntrance() {
+        if (compactLayout) {
+            Stage.mode = Stage.SHOP
+            alpha = 1f
+            place(1f)
+            return
+        }
         // Rasterize the cards before changing the GL scene; slide a cached layer, not dozens of labels.
         preparePanelLayer()
         Stage.shopProgress = 0f
@@ -550,6 +564,15 @@ class ShopView(
     private fun pay(btn: View, before: Int, key: String, u: Progress.Upgrade?, demo: Int, displayedBalance: Int) {
         paying = true
         Haptics.click()
+        if (compactLayout) {
+            balanceCount?.cancel()
+            kit.labelOf(balance).text = displayedBalance.toString()
+            paying = false
+            render(u)
+            SoundFx.play("success", rate = 1.4f, vol = 0.55f); Haptics.success()
+            if (key == "mystery") pendingBox?.let { pendingBox = null; onOpenMysteryBox(it) }
+            return
+        }
         if (key == "void") {
             // The void takes over immediately. Its opaque scene owns the payment animation
             // and sits above the shared menu bank, outside this page's inset content.

@@ -61,6 +61,8 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false, retu
     private val bubbles = kit.iconPill(BubbleIcon(), "", Theme.INK, 18f, Theme.lighten(Theme.CYAN, 0.55f)).apply { visibility = GONE }
     private val pauseChip = kit.chip(R.drawable.ic_pause, Theme.WHITE, Theme.INK, activity.getString(R.string.cd_pause)) { pause() }.apply { visibility = GONE }
     private var boost: BoostArrows? = null
+    private var safeTop = 0
+    private var safeBottom = 0
     private val bonusVisited = ArrayList<Int>()
     private val topBox = LinearLayout(activity).apply {
         orientation = LinearLayout.VERTICAL
@@ -187,6 +189,7 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false, retu
         setBubbles(Progress.bubbles)
         setOnApplyWindowInsetsListener { _, insets ->
             val (l, t, r, b) = insetsOf(insets)
+            safeTop = t; safeBottom = b
             val endInset = if (layoutDirection == View.LAYOUT_DIRECTION_RTL) l else r
             (topBox.layoutParams as LayoutParams).topMargin = maxOf(dp(44f), t + dp(6f))
             (pauseChip.layoutParams as LayoutParams).apply { topMargin = maxOf(dp(48f), t + dp(10f)); marginEnd = dp(14f) + endInset }
@@ -194,6 +197,22 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false, retu
             (achievementToast.layoutParams as LayoutParams).bottomMargin = dp(32f) + b
             insets
         }
+    }
+
+    override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
+        val compact = CompactLayout.uses(this, MeasureSpec.getSize(heightMeasureSpec), safeTop, safeBottom)
+        val size = if (compact) 32f else 60f
+        val pixels = android.util.TypedValue.applyDimension(android.util.TypedValue.COMPLEX_UNIT_SP, size, resources.displayMetrics)
+        if (scoreText.textSize != pixels) scoreText.textSize = size
+        (topBox.layoutParams as LayoutParams).topMargin = maxOf(dp(if (compact) 4f else 44f), safeTop + dp(6f))
+        (pauseChip.layoutParams as LayoutParams).topMargin = maxOf(dp(if (compact) 8f else 48f), safeTop + dp(10f))
+        boost?.layoutParams?.let { params ->
+            params as LayoutParams
+            params.width = dp(if (compact) 56f else 84f)
+            params.height = dp(if (compact) 96f else 160f)
+            params.topMargin = maxOf(dp(if (compact) 100f else 116f), safeTop + dp(if (compact) 98f else 110f))
+        }
+        super.onMeasure(widthMeasureSpec, heightMeasureSpec)
     }
 
     // ------------------------------------------------------------- pages

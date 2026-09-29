@@ -119,7 +119,7 @@ class WardrobePriceLayoutTest {
         try {
             browse(page, Wardrobe.CUBE, 1)
             measure(page, kit, 360f)
-            assertPrice(page, kit, "1500")
+            assertPrice(page, kit, Skins.get(1).price.toString())
             val button = page.findViewWithTag<CandyButton>("wardrobe_action_button")
             val nominal = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_SP, 22f, button.resources.displayMetrics)
             assertEquals("Ordinary prices preserve the intended22sp type", nominal, button.textSize, .01f)

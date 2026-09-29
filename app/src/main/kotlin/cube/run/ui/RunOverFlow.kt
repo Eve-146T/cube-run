@@ -17,6 +17,7 @@ import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
+import android.widget.ScrollView
 import cube.run.core.Haptics
 import cube.run.core.SoundFx
 import cube.run.core.Stage
@@ -61,6 +62,12 @@ class RunOverFlow(
     private val pending = ArrayList<Runnable>()
     private var rewardBeat: ValueAnimator? = null
     private var leaving = false
+    private var compactLayout = false
+    private var safeInsets = intArrayOf(0, 0, 0, 0)
+    private var adaptLayout: ((Boolean) -> Unit)? = null
+    private var compactBoxIcon: View? = null
+    private var hintPulse: ValueAnimator? = null
+
 
     fun confirm() { if (!leaving) page?.performClick() }
 
@@ -108,7 +115,7 @@ class RunOverFlow(
     /** A soft hint that breathes at the bottom of a page (hide it with visibility, not alpha). */
     private fun tapHint(text: String): TextView = kit.stageText(text, 14f, Theme.alpha(Theme.WHITE, 220), weight = 600, stroke = 2f).apply {
         letterSpacing = kit.tracking(0.14f)
-        anims.add(Anim.breathe(this, 0.5f, 1f, 700))
+        hintPulse = Anim.breathe(this, 0.5f, 1f, 700).also { anims.add(it) }
     }
 
     /** One stat cell inside the results card: icon (optional), value, label. */
@@ -207,6 +214,7 @@ class RunOverFlow(
             addView(coinCell, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
         }
         card.addView(stats, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(4f) })
+        var shardRow: LinearLayout? = null
         if (shards.any { it > 0 }) {
             val collected = LinearLayout(activity).apply {
                 orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER
@@ -217,6 +225,7 @@ class RunOverFlow(
                         LinearLayout.LayoutParams(-2, -2).apply { marginStart = dp(5f); marginEnd = dp(5f) })
                 }
             }
+            shardRow = collected
             card.addView(collected, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(8f) })
         }
         column.addView(card, LinearLayout.LayoutParams(dp(300f), LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(12f) })
@@ -229,16 +238,66 @@ class RunOverFlow(
         })
         fun fitResults() {
             if (host.height <= 0 || column.height <= 0) return
-            val available = (host.height - dp(200f) - dp(86f)).coerceAtLeast(1)
+            if (compactLayout) { column.scaleX = 1f; column.scaleY = 1f; return }
+            val top = dp(200f)
+            val params = column.layoutParams as LayoutParams
+            if (params.topMargin != top) {
+                params.topMargin = top
+                column.layoutParams = params
+            }
+            val available = (host.height - top - dp(86f)).coerceAtLeast(1)
             val scale = minOf(1f, available.toFloat() / column.height)
             column.pivotX = column.width / 2f; column.pivotY = 0f
             column.scaleX = scale; column.scaleY = scale
         }
         host.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ -> fitResults() }
         column.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ -> fitResults() }
-        host.addView(tapHint(if (boxes > 0) kit.ctx.getString(R.string.text_tap_to_continue) else kit.ctx.getString(R.string.text_tap_for_the_menu)), LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT).apply {
+        val hint = tapHint(if (boxes > 0) kit.ctx.getString(R.string.text_tap_to_continue) else kit.ctx.getString(R.string.text_tap_for_the_menu))
+        host.addView(hint, LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT).apply {
             gravity = Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL; bottomMargin = dp(32f)
         })
+        val originalColumnParams = column.layoutParams
+        val originalCardParams = card.layoutParams
+        val scroll = ScrollView(activity).apply { tag = "compact_results_scroll" }
+        val advance = kit.button(hint.text, Theme.PLAY, UiKit.Size.SMALL) {
+            if (counting) finishCount()
+            next()
+        }.apply { minimumHeight = dp(48f); tag = "compact_results_continue" }
+        var compactBefore = false
+        adaptLayout = { compact ->
+            if (compactBefore != compact) {
+                compactBefore = compact
+                shardRow?.orientation = if (compact) LinearLayout.VERTICAL else LinearLayout.HORIZONTAL
+                (column.parent as? android.view.ViewGroup)?.removeView(column)
+                if (compact) {
+                    if (counting) finishCount()
+                    stopEffects()
+                    fun settle(view: View) {
+                        Anim.reset(view)
+                        if (view is android.view.ViewGroup) for (i in 0 until view.childCount) settle(view.getChildAt(i))
+                    }
+                    Anim.reset(host)
+                    settle(column)
+                    scoreText.textSize = 48f
+                    record?.textSize = 20f
+                    column.scaleX = 1f; column.scaleY = 1f
+                    card.layoutParams = LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(4f); marginStart = dp(12f); marginEnd = dp(12f) }
+                    scroll.addView(column, FrameLayout.LayoutParams(-1, -2))
+                    host.addView(scroll, LayoutParams(-1, -1).apply { bottomMargin = dp(60f) })
+                    host.addView(advance, LayoutParams(-1, -2).apply { gravity = Gravity.BOTTOM; marginStart = dp(12f); marginEnd = dp(12f); bottomMargin = dp(4f) })
+                } else {
+                    host.removeView(scroll); host.removeView(advance)
+                    scoreText.textSize = 104f; record?.textSize = 30f
+                    card.layoutParams = originalCardParams
+                    host.addView(column, originalColumnParams)
+                }
+                hint.visibility = if (compact) GONE else VISIBLE
+                for (i in 0 until host.childCount) {
+                    val child = host.getChildAt(i)
+                    if (child is CelebrationView) child.visibility = if (compact) GONE else VISIBLE
+                }
+            }
+        }
         swap(host)
         record?.let { r -> Anim.popIn(r, 100, 0.3f, 480) { anims.add(Anim.heartbeat(r, 1.05f, 900)) } }
         Anim.popIn(scoreText, 160, 0.3f, 460)
@@ -326,6 +385,7 @@ class RunOverFlow(
 
     private fun showBoxes() {
         stopEffects()
+        adaptLayout = null
         val host = FrameLayout(activity).apply {
             isClickable = true
             clipChildren = false; clipToPadding = false
@@ -352,7 +412,10 @@ class RunOverFlow(
                 clipChildren = false; clipToPadding = false
                 for (i in 0 until boxes) addView(ImageView(activity).apply { setImageDrawable(BoxIcon()) }, LinearLayout.LayoutParams(dp(24f), dp(24f)).apply { marginStart = dp(3f); marginEnd = dp(3f) })
             }
-            addView(boxRack, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(4f) })
+            addView(android.widget.HorizontalScrollView(activity).apply {
+                isHorizontalScrollBarEnabled = false
+                addView(boxRack)
+            }, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(4f) })
         }
         host.addView(top, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT).apply { gravity = Gravity.TOP; topMargin = dp(24f) })
         val bottom = object : LinearLayout(activity) {
@@ -399,6 +462,56 @@ class RunOverFlow(
             addView(boxHint, LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, dp(48f)).apply { topMargin = dp(12f) })
         }
         host.addView(bottom, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT).apply { gravity = Gravity.BOTTOM; bottomMargin = dp(16f) })
+        val originalTopParams = top.layoutParams
+        val rewardParams = rewardCard!!.layoutParams
+        val hintParams = boxHint!!.layoutParams
+        val compactColumn = LinearLayout(activity).apply { orientation = LinearLayout.VERTICAL }
+        val compactRewards = LinearLayout(activity).apply {
+            orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER
+            setPadding(dp(12f), dp(8f), dp(12f), dp(8f))
+        }
+        val icon = ImageView(activity).apply { setImageDrawable(BoxIcon()); contentDescription = heading.text }
+        compactBoxIcon = icon
+        var compactBefore = false
+        adaptLayout = { compact ->
+            if (compactBefore != compact) {
+                compactBefore = compact
+                listOf(top, rewardCard!!, boxHint!!).forEach { (it.parent as? android.view.ViewGroup)?.removeView(it) }
+                if (compact) {
+                    host.removeView(bottom)
+                    compactColumn.addView(top, LinearLayout.LayoutParams(-1, -2))
+                    compactRewards.addView(icon, LinearLayout.LayoutParams(dp(56f), dp(56f)))
+                    compactRewards.addView(rewardCard, LinearLayout.LayoutParams(-1, -2))
+                    compactColumn.addView(ScrollView(activity).apply { isFillViewport = true; addView(compactRewards) }, LinearLayout.LayoutParams(-1, 0, 1f))
+                    hintPulse?.pause()
+                    Anim.reset(boxHint!!)
+                    boxHint!!.apply {
+                        background = kit.cardDrawable(Theme.PLAY, null, 14f)
+                        setTextColor(Theme.INK); minimumHeight = dp(48f)
+                        setSingleLine(false); maxLines = 2
+                        setAutoSizeTextTypeUniformWithConfiguration(12, 14, 1, TypedValue.COMPLEX_UNIT_SP)
+                        setOnClickListener { tapBox() }
+                    }
+                    compactColumn.addView(boxHint, LinearLayout.LayoutParams(-1, dp(52f)).apply { marginStart = dp(12f); marginEnd = dp(12f); bottomMargin = dp(4f) })
+                    host.addView(compactColumn, LayoutParams(-1, -1))
+                    rewardCard!!.visibility = if (boxRewardReady) VISIBLE else GONE
+                    icon.visibility = if (boxRewardReady) GONE else VISIBLE
+                } else {
+                    host.removeView(compactColumn)
+                    compactColumn.removeAllViews()
+                    compactRewards.removeView(icon)
+                    (compactRewards.parent as? android.view.ViewGroup)?.removeView(compactRewards)
+                    host.addView(top, originalTopParams)
+                    bottom.addView(rewardCard, rewardParams); bottom.addView(boxHint, hintParams)
+                    host.addView(bottom, LayoutParams(-1, -2).apply { gravity = Gravity.BOTTOM; bottomMargin = dp(16f) })
+                    hintPulse?.resume()
+                    boxHint!!.background = null; boxHint!!.setTextColor(Theme.alpha(Theme.WHITE, 220))
+                    boxHint!!.setAutoSizeTextTypeWithDefaults(TextView.AUTO_SIZE_TEXT_TYPE_NONE)
+                    boxHint!!.setSingleLine(); boxHint!!.setHorizontallyScrolling(false)
+                    rewardCard!!.visibility = VISIBLE
+                }
+            }
+        }
         Stage.openRequests.set(0)
         Stage.skipBoxRequests.set(0)
         Stage.mode = Stage.BOX
@@ -422,13 +535,21 @@ class RunOverFlow(
         boxHint?.text = kit.ctx.getString(R.string.text_tap_to_skip)
         boxHint?.visibility = VISIBLE
         rewardCard?.move()?.alpha(0f)?.scaleX(0.7f)?.scaleY(0.7f)?.setDuration(150)?.start()
-        Stage.openRequests.incrementAndGet() // the game shakes + opens it, then calls onBoxOpened
+        Stage.openRequests.incrementAndGet() // the game owns reward delivery in both layouts
+        if (compactLayout) {
+            rewardCard?.visibility = GONE
+            compactBoxIcon?.visibility = VISIBLE
+            skipBoxAnimation = true
+            Stage.skipBoxRequests.incrementAndGet()
+        }
     }
 
     /** The 3D stage just opened a box: pop the reward card in. */
     fun onBoxOpened(kind: Int, amount: Int, cat: Int, id: Int) {
         if (leaving || boxRewardReady) return
         boxRewardReady = true
+        rewardCard?.visibility = VISIBLE
+        compactBoxIcon?.visibility = GONE
         val big = rewardBig ?: return
         val sub = rewardSub ?: return
         big.setTextColor(Theme.INK)
@@ -469,11 +590,11 @@ class RunOverFlow(
         rewardCard?.requestLayout()
         rewardCard?.let { c ->
             rewardBeat?.cancel(); rewardBeat = null
-            Anim.popIn(c, 0, 0.3f, 460) {
+            if (compactLayout) Anim.reset(c) else Anim.popIn(c, 0, 0.3f, 460) {
                 if (rare) rewardBeat = Anim.heartbeat(c, 1.04f, 800)
             }
         }
-        if (rare) boxHost?.addView(CelebrationView(activity, focusY = 0.55f, rays = false, count = 140, burst = true, seconds = 3f), LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
+        if (rare && !compactLayout) boxHost?.addView(CelebrationView(activity, focusY = 0.55f, rays = false, count = 140, burst = true, seconds = 3f), LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
         boxRack?.let { r -> // the box just opened dims
             val opened = boxes - boxesLeft - 1
             r.getChildAt(opened)?.move()?.alpha(0.3f)?.scaleX(0.8f)?.scaleY(0.8f)?.setDuration(300)?.start()
@@ -504,11 +625,22 @@ class RunOverFlow(
         clipChildren = false; clipToPadding = false
         setPadding(0, dp(36f), 0, dp(24f))
         setOnApplyWindowInsetsListener { _, insets ->
-            val (_, t, _, b) = insetsOf(insets)
-            setPadding(0, maxOf(dp(36f), t + dp(6f)), 0, maxOf(dp(24f), b + dp(8f)))
+            safeInsets = insetsOf(insets)
+            requestLayout()
             insets
         }
         if (boxesOnly) showBoxes() else showResults()
+    }
+
+    override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
+        val (l, t, r, b) = safeInsets
+        compactLayout = CompactLayout.uses(this, MeasureSpec.getSize(heightMeasureSpec), t, b)
+        val top = maxOf(dp(if (compactLayout) 8f else 36f), t + dp(6f))
+        val bottom = maxOf(dp(if (compactLayout) 8f else 24f), b + dp(8f))
+        if (paddingTop != top || paddingBottom != bottom || paddingLeft != l || paddingRight != r) setPadding(l, top, r, bottom)
+        setBackgroundColor(if (compactLayout) Theme.INK else android.graphics.Color.TRANSPARENT)
+        adaptLayout?.invoke(compactLayout)
+        super.onMeasure(widthMeasureSpec, heightMeasureSpec)
     }
 
     override fun onDetachedFromWindow() {

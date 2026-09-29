@@ -66,6 +66,24 @@ class AchievementsView(activity: Activity, kit: UiKit, private val preparing: Bo
     internal var contentReady = false
         private set
 
+    private val compactProgress = kit.text("", 14f, Theme.WHITE, 700)
+    private val titleRow = LinearLayout(activity).apply { gravity = Gravity.CENTER_VERTICAL }
+
+    override fun onCompactChanged(compact: Boolean) {
+        hero.visibility = if (compact) View.GONE else View.VISIBLE
+        compactProgress.visibility = if (compact) View.VISIBLE else View.GONE
+        updateCompactProgress()
+        for (i in 0 until rows.childCount) {
+            val row = rows.getChildAt(i)
+            if (row.tag == "achievement_section") row.layoutParams = sectionParams()
+        }
+    }
+
+    private fun updateCompactProgress() {
+        val states = Achievements.snapshot()
+        compactProgress.text = "${states.sumOf { it.earnedTiers }} / ${states.sumOf { it.definition.thresholds.size }}"
+    }
+
     init {
         background = TrophyRoomBackdrop()
         titleView.maxLines = 1
@@ -76,7 +94,9 @@ class AchievementsView(activity: Activity, kit: UiKit, private val preparing: Bo
         content.addView(LinearLayout(activity).apply {
             orientation = LinearLayout.VERTICAL
             clipChildren = true; clipToPadding = true
-            addView(titleView, LinearLayout.LayoutParams(-1, -2).apply {
+            titleRow.addView(titleView, LinearLayout.LayoutParams(0, -2, 1f))
+            titleRow.addView(compactProgress.apply { visibility = View.GONE }, LinearLayout.LayoutParams(-2, -2).apply { marginStart = dp(8f) })
+            addView(titleRow, LinearLayout.LayoutParams(-1, -2).apply {
                 marginStart = dp(14f); marginEnd = dp(14f); topMargin = dp(4f); bottomMargin = dp(8f)
             })
             addView(scroll, LinearLayout.LayoutParams(-1, 0, 1f))
@@ -152,6 +172,7 @@ class AchievementsView(activity: Activity, kit: UiKit, private val preparing: Bo
 
     /** A heading between the groups, with how many are earned. */
     private fun section(label: String, count: String): View = LinearLayout(activity).apply {
+        tag = "achievement_section"
         orientation = LinearLayout.HORIZONTAL
         gravity = Gravity.CENTER_VERTICAL
         setPadding(dp(4f), 0, dp(4f), 0)
@@ -160,7 +181,7 @@ class AchievementsView(activity: Activity, kit: UiKit, private val preparing: Bo
         addView(kit.stageText(count, 18f, Theme.alpha(Theme.WHITE, 220), stroke = 2f))
     }
 
-    private fun sectionParams() = LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(26f); bottomMargin = dp(10f) }
+    private fun sectionParams() = LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(if (compactLayout) 8f else 26f); bottomMargin = dp(10f) }
 
     override fun animateEntrance() {
         super.animateEntrance()
@@ -182,6 +203,7 @@ class AchievementsView(activity: Activity, kit: UiKit, private val preparing: Bo
         } then {
             SoundFx.play("success", rate = 1.2f, vol = .5f); Haptics.success()
             hero.bind(Achievements.snapshot(), animate = true)
+            updateCompactProgress()
             paying = false
         }
     }

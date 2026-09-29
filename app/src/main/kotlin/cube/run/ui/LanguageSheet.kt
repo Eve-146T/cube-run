@@ -29,6 +29,12 @@ class LanguageSheet(
     onDismissed: () -> Unit,
 ) : Sheet(activity, kit, onDismissed) {
     private var outsideTouch = false
+    private lateinit var languageScroll: ScrollView
+    override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
+        languageScroll.layoutParams.width = minOf(dp(368f), MeasureSpec.getSize(widthMeasureSpec) - paddingLeft - paddingRight)
+        super.onMeasure(widthMeasureSpec, heightMeasureSpec)
+    }
+
 
     // Include the scroll container's padding in the backdrop; consume the whole gesture.
     override fun dispatchTouchEvent(event: MotionEvent): Boolean {
@@ -48,25 +54,20 @@ class LanguageSheet(
     init {
         accessibilityPaneTitle = activity.getString(R.string.languages_title)
         // Keep the card reachable on small displays and with larger system text.
-        removeView(card)
+        cardScroll.removeView(card)
+        removeView(cardScroll)
         val scroll = ScrollView(activity).apply {
             isFillViewport = false
             clipToPadding = false
             setPadding(dp(16f), dp(24f), dp(16f), dp(24f))
             addView(card, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT))
         }
+        languageScroll = scroll
         addView(scroll, LayoutParams(dp(368f), LayoutParams.WRAP_CONTENT, Gravity.CENTER))
         setOnApplyWindowInsetsListener { _, insets ->
             val (l, t, r, b) = insetsOf(insets)
             setPadding(l, t, r, b)
             insets
-        }
-        addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
-            val available = width - paddingLeft - paddingRight
-            val target = minOf(dp(368f), available)
-            if (target > 0 && scroll.layoutParams.width != target) {
-                scroll.layoutParams = (scroll.layoutParams as LayoutParams).apply { width = target }
-            }
         }
         card.addView(LinearLayout(activity).apply {
             orientation = LinearLayout.HORIZONTAL
