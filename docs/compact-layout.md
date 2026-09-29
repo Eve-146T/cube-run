@@ -13,11 +13,11 @@ and calls `onCompactChanged` when a live resize crosses it.
 - Achievements: progress beside the title, no trophy hero, smaller section gaps.
 - Pause: essential actions, a window-constrained card, and scrolling when text
   or window height requires it. Sound and haptics remain in the main menu.
-- Results: readable score/rewards, scrollable overflow, and an explicit action.
+- Results: readable score/rewards, scrollable overflow, and the original plain tap-to-continue prompt.
   Compact mode settles the count rather than scaling the entire results column.
-- Gifts: a small box/reward, a pinned action, and immediate stage skipping;
+- Gifts: a small box/reward, a pinned plain tap prompt, and immediate stage skipping;
   the GL stage remains responsible for delivering each reward exactly once.
-- Main menu: compact branding/best score, a visible start control, and separate
+- Main menu: compact branding/best score, the original plain start prompt, and separate
   settings/navigation rows. Gameplay uses a smaller score and boost indicator.
 
 Full-height layouts retain their original sizing. Resizing changes presentation,

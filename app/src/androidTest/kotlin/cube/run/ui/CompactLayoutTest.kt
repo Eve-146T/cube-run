@@ -70,6 +70,28 @@ class CompactLayoutTest {
         } }
     }
 
+    @Test fun scrollingRewardsDoesNotCountAsTapToContinue() {
+        ActivityScenario.launch(GameActivity::class.java).use { scenario -> scenario.onActivity { activity ->
+            val kit = UiKit(activity)
+            var taps = 0
+            val scroll = TapScrollView(activity) { taps++ }
+            scroll.addView(View(activity), android.widget.FrameLayout.LayoutParams(kit.dp(280f), kit.dp(900f)))
+            measure(scroll, kit, 280, 180)
+            fun gesture(move: Boolean) {
+                val down = android.os.SystemClock.uptimeMillis()
+                val events = if (move) listOf(0 to 120f, 2 to 40f, 1 to 40f) else listOf(0 to 80f, 1 to 80f)
+                events.forEachIndexed { index, (action, y) ->
+                    val event = android.view.MotionEvent.obtain(down, down + index * 100L, action, 50f, y, 0)
+                    scroll.dispatchTouchEvent(event); event.recycle()
+                }
+            }
+            gesture(true)
+            assertEquals("A scroll must not advance a reward", 0, taps)
+            gesture(false)
+            assertEquals("A tap on the content still advances once", 1, taps)
+        } }
+    }
+
     @Test fun wardrobeKeepsPurchaseVisibleAndRestoresItsFullLayout() {
         ActivityScenario.launch(GameActivity::class.java).use { scenario -> scenario.onActivity { activity ->
             for (scale in listOf(1f, 1.5f)) {
@@ -142,6 +164,8 @@ class CompactLayoutTest {
                 val button = flow.findViewWithTag<View>("compact_results_continue")
                 if (h < 480) {
                     assertNotNull(button); inside(flow, button)
+                    assertNull("Tap prompts remain plain", button.background)
+                    assertFalse(button.isClickable)
                     val score = field(flow, "scoreText") as TextView
                     assertEquals("1234", score.text.toString())
                     assertEquals(1f, score.alpha)
@@ -151,7 +175,7 @@ class CompactLayoutTest {
                 } else assertNull(button)
             }
             measure(flow, kit, 360, 375)
-            flow.findViewWithTag<View>("compact_results_continue").performClick()
+            flow.confirm()
             assertEquals(1, closed)
             Anim.cancelTree(flow)
         } }

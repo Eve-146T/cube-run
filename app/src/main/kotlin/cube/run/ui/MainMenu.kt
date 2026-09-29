@@ -196,15 +196,22 @@ class MainMenu(
                 val params = column.getChildAt(j).layoutParams as LinearLayout.LayoutParams
                 params.bottomMargin = if (!compact && j < column.childCount - 1) dp(10f) else 0
                 params.marginEnd = if (compact && j < column.childCount - 1) dp(8f) else 0
+                params.resolveLayoutDirection(layoutDirection)
             }
         }
         if (compactAppearance != compact) {
             compactAppearance = compact
-            tapHint.minimumHeight = if (compact) dp(48f) else 0
-            tapHint.background = if (compact) kit.cardDrawable(Theme.PLAY, null, 16f) else null
-            tapHint.setTextColor(if (compact) Theme.INK else Theme.WHITE)
-            val hintPadding = dp(if (compact) 12f else 5f)
-            tapHint.setPadding(hintPadding, dp(5f), hintPadding, dp(5f))
+            middle.setPadding(dp(if (compact) 16f else 0f), 0, dp(if (compact) 16f else 0f), 0)
+        }
+        (leftChips.layoutParams as LayoutParams).apply {
+            gravity = Gravity.BOTTOM or if (compact) Gravity.CENTER_HORIZONTAL else Gravity.START
+            marginStart = if (compact) 0 else dp(14f) + (cutouts?.get(0) ?: 0)
+            if (compact) { leftMargin = 0; rightMargin = 0; marginEnd = 0 }
+        }
+        (rightChips.layoutParams as LayoutParams).apply {
+            gravity = Gravity.BOTTOM or if (compact) Gravity.CENTER_HORIZONTAL else Gravity.END
+            marginEnd = if (compact) 0 else dp(14f) + (cutouts?.get(2) ?: 0)
+            if (compact) { leftMargin = 0; rightMargin = 0; marginStart = 0 }
         }
         val count = if (Progress.achievementsUnlocked) 3 else 2
         val separateRows = compact || available < dp(28f + 132f + 16f + 12f) + dp(48f) * count + dp(10f) * (count - 1)

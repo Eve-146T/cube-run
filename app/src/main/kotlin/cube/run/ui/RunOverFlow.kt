@@ -258,11 +258,8 @@ class RunOverFlow(
         })
         val originalColumnParams = column.layoutParams
         val originalCardParams = card.layoutParams
-        val scroll = ScrollView(activity).apply { tag = "compact_results_scroll" }
-        val advance = kit.button(hint.text, Theme.PLAY, UiKit.Size.SMALL) {
-            if (counting) finishCount()
-            next()
-        }.apply { minimumHeight = dp(48f); tag = "compact_results_continue" }
+        val scroll = TapScrollView(activity) { host.performClick() }.apply { tag = "compact_results_scroll" }
+        val originalHintParams = hint.layoutParams
         var compactBefore = false
         adaptLayout = { compact ->
             if (compactBefore != compact) {
@@ -284,14 +281,17 @@ class RunOverFlow(
                     card.layoutParams = LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(4f); marginStart = dp(12f); marginEnd = dp(12f) }
                     scroll.addView(column, FrameLayout.LayoutParams(-1, -2))
                     host.addView(scroll, LayoutParams(-1, -1).apply { bottomMargin = dp(60f) })
-                    host.addView(advance, LayoutParams(-1, -2).apply { gravity = Gravity.BOTTOM; marginStart = dp(12f); marginEnd = dp(12f); bottomMargin = dp(4f) })
+                    hint.layoutParams = LayoutParams(-1, dp(48f)).apply { gravity = Gravity.BOTTOM; marginStart = dp(12f); marginEnd = dp(12f); bottomMargin = dp(4f) }
+                    hint.tag = "compact_results_continue"
                 } else {
-                    host.removeView(scroll); host.removeView(advance)
+                    host.removeView(scroll)
+                    hint.layoutParams = originalHintParams
+                    hint.tag = null
                     scoreText.textSize = 104f; record?.textSize = 30f
                     card.layoutParams = originalCardParams
                     host.addView(column, originalColumnParams)
                 }
-                hint.visibility = if (compact) GONE else VISIBLE
+                hint.visibility = VISIBLE
                 for (i in 0 until host.childCount) {
                     val child = host.getChildAt(i)
                     if (child is CelebrationView) child.visibility = if (compact) GONE else VISIBLE
@@ -482,15 +482,12 @@ class RunOverFlow(
                     compactColumn.addView(top, LinearLayout.LayoutParams(-1, -2))
                     compactRewards.addView(icon, LinearLayout.LayoutParams(dp(56f), dp(56f)))
                     compactRewards.addView(rewardCard, LinearLayout.LayoutParams(-1, -2))
-                    compactColumn.addView(ScrollView(activity).apply { isFillViewport = true; addView(compactRewards) }, LinearLayout.LayoutParams(-1, 0, 1f))
+                    compactColumn.addView(TapScrollView(activity) { tapBox() }.apply { isFillViewport = true; addView(compactRewards) }, LinearLayout.LayoutParams(-1, 0, 1f))
                     hintPulse?.pause()
                     Anim.reset(boxHint!!)
                     boxHint!!.apply {
-                        background = kit.cardDrawable(Theme.PLAY, null, 14f)
-                        setTextColor(Theme.INK); minimumHeight = dp(48f)
                         setSingleLine(false); maxLines = 2
                         setAutoSizeTextTypeUniformWithConfiguration(12, 14, 1, TypedValue.COMPLEX_UNIT_SP)
-                        setOnClickListener { tapBox() }
                     }
                     compactColumn.addView(boxHint, LinearLayout.LayoutParams(-1, dp(52f)).apply { marginStart = dp(12f); marginEnd = dp(12f); bottomMargin = dp(4f) })
                     host.addView(compactColumn, LayoutParams(-1, -1))
