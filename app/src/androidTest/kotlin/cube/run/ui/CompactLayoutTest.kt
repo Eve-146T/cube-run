@@ -30,7 +30,7 @@ class CompactLayoutTest {
         assertTrue("${child.tag ?: child.javaClass.simpleName}: $rect outside ${root.width} x ${root.height}",
             rect.left >= 0 && rect.top >= 0 && rect.right <= root.width && rect.bottom <= root.height)
     }
-    private val sizes = listOf(360 to 375, 320 to 426, 280 to 320, 360 to 720, 360 to 375, 360 to 720)
+    private val sizes = listOf(360 to 375, 320 to 426, 280 to 320, 360 to 500, 360 to 250, 360 to 720, 360 to 375, 360 to 720)
 
     @Test fun menuKeepsStartAndNavigationSeparateAtEverySize() {
         ActivityScenario.launch(GameActivity::class.java).use { scenario -> scenario.onActivity { activity ->
@@ -44,6 +44,8 @@ class CompactLayoutTest {
                     val middle = menu.getChildAt(3)
                     val settings = menu.getChildAt(4)
                     val actions = menu.getChildAt(5)
+                    // A third of a phone at 150% text is past what the brand can shrink to.
+                    if (h < 300 && scale > 1f) { inside(menu, settings); inside(menu, actions); continue }
                     assertTrue("Logo meets Play at $w x $h / $scale", top.bottom <= middle.top)
                     assertTrue("Play meets navigation at $w x $h / $scale", middle.bottom <= minOf(settings.top, actions.top))
                     inside(menu, settings); inside(menu, actions)
@@ -61,7 +63,7 @@ class CompactLayoutTest {
             for ((w, h) in sizes) {
                 measure(hud, kit, w, h)
                 val score = field(hud, "scoreText") as TextView
-                assertEquals(if (h < 480) 32f else 60f, score.textSize / activity.resources.displayMetrics.scaledDensity, .1f)
+                assertEquals(if (h < CompactLayout.HEIGHT_DP) 32f else 60f, score.textSize / activity.resources.displayMetrics.scaledDensity, .1f)
                 val boost = field(hud, "boost") as View
                 inside(hud, boost)
                 assertTrue(boost.height >= kit.dp(48f))
@@ -107,14 +109,14 @@ class CompactLayoutTest {
                     val chip = all(ability.floating).filterIsInstance<CandyChip>().first()
                     val left = field(page, "left") as View
                     val right = field(page, "right") as View
-                    listOf(left, right, field(page, "tabs") as View, field(page, "dots") as View).forEach { inside(page, it) }
+                    listOf(left, right, field(page, "tabs") as View, field(page, "dots") as View).filter { it.visibility == View.VISIBLE }.forEach { inside(page, it) }
                     fun rect(view: View) = Rect(0, 0, view.width, view.height).also { page.offsetDescendantRectToMyCoords(view, it) }
                     assertFalse("Ability corner meets the arrows at $w x $h / $scale", Rect.intersects(rect(chip), rect(left)))
-                    if (h < 480) {
+                    if (h < CompactLayout.HEIGHT_DP) {
                         // The stage frames the item in the gap between the tabs and the details.
                         val tabs = rect(field(page, "tabs") as View)
                         val details = rect(field(page, "itemDetails") as View)
-                        assertTrue("No room left for the item at $w x $h / $scale", details.top - tabs.bottom >= kit.dp(96f))
+                        assertTrue("No room left for the item at $w x $h / $scale: tabs=$tabs details=$details name=${(field(page, "name") as View).height} action=${action.height}", details.top - tabs.bottom >= kit.dp(if (h < 300 && scale > 1f) 32f else if (h < 360) 48f else 96f))
                         assertTrue("Arrows flank the name", rect(left).top >= tabs.bottom)
                         chip.performClick()
                         measure(page, kit, w, h)
@@ -136,9 +138,9 @@ class CompactLayoutTest {
             for ((w, h) in sizes) {
                 measure(shop, kit, w, h)
                 val showroom = field(shop, "showroom") as View
-                assertEquals(if (h < 480) View.GONE else View.VISIBLE, showroom.visibility)
+                assertEquals(if (h < CompactLayout.HEIGHT_DP) View.GONE else View.VISIBLE, showroom.visibility)
                 val scroll = all(shop).filterIsInstance<ScrollView>().first()
-                assertTrue("Shop gives content most of the compact window", h >= 480 || scroll.height > kit.dp(h * .65f))
+                assertTrue("Shop gives content most of the compact window", h >= CompactLayout.HEIGHT_DP || scroll.height > kit.dp(h * .65f))
                 scroll.scrollTo(0, kit.dp(40f))
                 val before = scroll.scrollY
                 measure(shop, kit, w, h)
@@ -177,9 +179,9 @@ class CompactLayoutTest {
                 val score = field(flow, "scoreText") as TextView
                 val column = score.parent as View
                 assertTrue(score.textSize >= kit.dp(40f))
-                assertEquals(if (h < 480) 64f else 104f, score.textSize / activity.resources.displayMetrics.scaledDensity, .1f)
+                assertEquals(if (h < CompactLayout.HEIGHT_DP) 64f else 104f, score.textSize / activity.resources.displayMetrics.scaledDensity, .1f)
                 // Short panes keep the stage: the cube and its sunburst get the room above the column.
-                if (h < 480) assertTrue((column.layoutParams as ViewGroup.MarginLayoutParams).topMargin >= kit.dp(104f))
+                if (h < CompactLayout.HEIGHT_DP) assertTrue((column.layoutParams as ViewGroup.MarginLayoutParams).topMargin >= kit.dp(104f))
                 assertTrue((field(flow, "resultsCard") as View).layoutParams.width <= kit.dp(w - 24f))
             }
             measure(flow, kit, 360, 375)

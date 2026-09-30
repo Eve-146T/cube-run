@@ -190,9 +190,12 @@ class Showcase(private val game: Gdx3DGame, private val player: Player, private 
                 ?: game.fractionForDp(36f + 120f))                               // the results column starts below this
             Stage.SHOP -> rig.shop(game.fractionForDp(36f + 60f + 75f))         // the middle of the showroom strip
             else -> {
-                // A short pane's gap is shallow: pull back for the bubble as the loop does for trails.
+                // A short pane's gap is shallow: pull back for the bubble as the loop does for trails,
+                // and further when the gap is too shallow for the cube (a third of a phone).
                 val focus = Stage.focusFraction
-                if (focus.isNaN()) rig.wardrobe(wide) else rig.wardrobe(wide + 0.8f * bubbleMix, focus)
+                val span = Stage.focusSpan
+                val fit = if (span > 0f) max(0f, (2.1f / span - 7f) / 2.8f) else 0f
+                if (focus.isNaN()) rig.wardrobe(wide) else rig.wardrobe(wide + 0.8f * bubbleMix + fit, focus)
             }
         }
         if (shop) {

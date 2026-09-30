@@ -24,30 +24,56 @@ class PauseSheet(
     onMenu: () -> Unit,
 ) : Sheet(activity, kit, onResume) {
 
+    private lateinit var header: View
+    private lateinit var resume: View
+    private lateinit var restart: View
+    private lateinit var menu: View
+    private lateinit var pair: LinearLayout
+
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
         // Sound and haptics remain in the main menu. In a short split pane they
         // push the essential resume/restart/menu controls below the divider.
-        val short = CompactLayout.uses(this, MeasureSpec.getSize(heightMeasureSpec))
-        for (i in 4..5) card.getChildAt(i).visibility = if (short) View.GONE else View.VISIBLE
+        val height = MeasureSpec.getSize(heightMeasureSpec)
+        val short = CompactLayout.uses(this, height)
+        for (i in 3..4) card.getChildAt(i).visibility = if (short) View.GONE else View.VISIBLE
+        // A third of a phone: RESUME alone does what the back chip does, and
+        // RESTART / MENU share a row.
+        val tiny = height < dp(320f)
+        header.visibility = if (tiny) View.GONE else View.VISIBLE
+        (resume.layoutParams as LinearLayout.LayoutParams).topMargin = if (tiny) 0 else dp(20f)
+        pair.orientation = if (tiny) LinearLayout.HORIZONTAL else LinearLayout.VERTICAL
+        for ((i, button) in listOf(restart, menu).withIndex()) (button.layoutParams as LinearLayout.LayoutParams).apply {
+            width = if (tiny) 0 else LinearLayout.LayoutParams.MATCH_PARENT
+            weight = if (tiny) 1f else 0f
+            topMargin = if (tiny || i == 0) 0 else dp(12f)
+            marginStart = if (tiny && i == 1) dp(10f) else 0
+            resolveLayoutDirection(layoutDirection)
+        }
         super.onMeasure(widthMeasureSpec, heightMeasureSpec)
     }
 
     init {
-        card.addView(LinearLayout(activity).apply { // header: back chip + title
+        header = LinearLayout(activity).apply { // header: back chip + title
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
             clipChildren = false; clipToPadding = false
             addView(kit.chip(R.drawable.ic_back, Theme.CARD_ALT, Theme.INK, activity.getString(R.string.cd_back)) { dismiss() }, LinearLayout.LayoutParams(dp(42f), dp(46f)))
             addView(kit.text(kit.ctx.getString(R.string.text_paused), 24f, Theme.INK, 700, Gravity.START).apply { letterSpacing = kit.tracking(0.06f) },
                 LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply { marginStart = dp(12f) })
-        }, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
+        }
+        card.addView(header, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
 
-        card.addView(kit.button(kit.ctx.getString(R.string.text_resume), Theme.PLAY, UiKit.Size.BIG) { dismiss() },
-            LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(20f) })
-        card.addView(kit.button(kit.ctx.getString(R.string.text_restart), Theme.SKY, UiKit.Size.BIG) { onRestart() },
-            LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(12f) })
-        card.addView(kit.button(kit.ctx.getString(R.string.text_menu), Theme.LAVENDER, UiKit.Size.BIG) { onMenu() },
-            LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(12f) })
+        resume = kit.button(kit.ctx.getString(R.string.text_resume), Theme.PLAY, UiKit.Size.BIG) { dismiss() }
+        card.addView(resume, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(20f) })
+        restart = kit.button(kit.ctx.getString(R.string.text_restart), Theme.SKY, UiKit.Size.BIG) { onRestart() }
+        menu = kit.button(kit.ctx.getString(R.string.text_menu), Theme.LAVENDER, UiKit.Size.BIG) { onMenu() }
+        pair = LinearLayout(activity).apply {
+            orientation = LinearLayout.VERTICAL
+            clipChildren = false; clipToPadding = false
+            addView(restart, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
+            addView(menu, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(12f) })
+        }
+        card.addView(pair, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(12f) })
 
         card.addView(divider(), LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(2f)).apply { topMargin = dp(18f); marginStart = dp(20f); marginEnd = dp(20f) })
         card.addView(LinearLayout(activity).apply {

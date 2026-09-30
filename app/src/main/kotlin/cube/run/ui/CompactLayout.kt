@@ -4,8 +4,13 @@ import android.view.View
 
 /** Use the available pane, never the physical display, to select content-first layouts. */
 internal object CompactLayout {
+    /**
+     * The full-screen layouts need a phone's full height (16:9 phones have 640 dp).
+     * Anything shorter is a split pane, a flip phone or a big display size.
+     */
+    const val HEIGHT_DP = 600f
     fun uses(heightPx: Int, density: Float, top: Int = 0, bottom: Int = 0): Boolean =
-        heightPx - top - bottom < 480f * density
+        heightPx - top - bottom < HEIGHT_DP * density
     fun uses(view: View, heightPx: Int, top: Int = 0, bottom: Int = 0) =
         uses(heightPx, view.resources.displayMetrics.density, top, bottom)
 }

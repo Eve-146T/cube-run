@@ -63,6 +63,7 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false, retu
     private var boost: BoostArrows? = null
     private var safeTop = 0
     private var safeBottom = 0
+    private val uncovered = Uncovered(this)
     private val bonusVisited = ArrayList<Int>()
     private val topBox = LinearLayout(activity).apply {
         orientation = LinearLayout.VERTICAL
@@ -200,6 +201,7 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false, retu
     }
 
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
+        val (_, safeTop, _, safeBottom) = uncovered.of(intArrayOf(0, safeTop, 0, safeBottom))
         val compact = CompactLayout.uses(this, MeasureSpec.getSize(heightMeasureSpec), safeTop, safeBottom)
         val size = if (compact) 32f else 60f
         val pixels = android.util.TypedValue.applyDimension(android.util.TypedValue.COMPLEX_UNIT_SP, size, resources.displayMetrics)

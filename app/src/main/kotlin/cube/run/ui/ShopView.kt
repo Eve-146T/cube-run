@@ -22,7 +22,6 @@ import android.view.ViewTreeObserver
 import android.widget.ImageView
 import android.widget.FrameLayout
 import android.widget.LinearLayout
-import android.widget.TextView
 import android.widget.ScrollView
 import cube.run.core.Haptics
 import cube.run.core.SoundFx
@@ -67,7 +66,6 @@ class ShopView(
     private var balanceCount: ValueAnimator? = null
     private val bars = HashMap<String, SegmentBar>()
     private val cards = HashMap<String, View>()
-    private val compactCards = ArrayList<(Boolean) -> Unit>()
     private val nowViews = HashMap<String, View>()
     private val nextViews = HashMap<String, View>()
     private var paying = false
@@ -210,7 +208,6 @@ class ShopView(
         showroomDp = if (compact) 0f else 150f
         showroom.visibility = if (compact) View.GONE else View.VISIBLE
         showroom.layoutParams.height = dp(showroomDp)
-        compactCards.forEach { it(compact) }
         list.setPadding(dp(16f), dp(if (compact) 8f else 18f), dp(16f), dp(28f))
         setBackgroundColor(if (compact) Theme.INK else android.graphics.Color.TRANSPARENT)
     }
@@ -221,7 +218,7 @@ class ShopView(
         val keepBottom = sheet != null && sheet.height > 0 && sheet.scrollY + sheet.height >= list.height - dp(12f)
         kit.labelOf(balance).text = Progress.coins.toString()
         list.removeAllViews()
-        bars.clear(); cards.clear(); nowViews.clear(); nextViews.clear(); compactCards.clear()
+        bars.clear(); cards.clear(); nowViews.clear(); nextViews.clear()
         list.addView(heading(kit.ctx.getString(R.string.text_consumables)), LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { marginStart = dp(8f); bottomMargin = dp(12f) })
         list.addView(bubbleCard(), LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
         list.addView(reviveCard(), LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(12f) })
@@ -241,7 +238,6 @@ class ShopView(
             cards["darkness"] = darkness
             list.addView(darkness, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(28f) })
         }
-        compactCards.forEach { it(compactLayout) }
         if (Settings.devMode) list.addView(kit.button(activity.getString(R.string.shop_reset_progress), Theme.BERRY) { confirmProgressReset() }.apply {
             tag = "reset_progress"
             contentDescription = activity.getString(R.string.shop_reset_progress)
@@ -384,16 +380,6 @@ class ShopView(
             setPadding(dp(16f), dp(12f), dp(16f), dp(14f))
             body()
         }, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
-        val bodyView = outer.getChildAt(1)
-        val applyCompact: (Boolean) -> Unit = { compact ->
-            header.setPadding(dp(12f), dp(if (compact) 6f else 12f), dp(12f), dp(if (compact) 6f else 12f))
-            // Keep original horizontal gutters in the full-height showroom.
-            if (!compact) header.setPadding(dp(16f), dp(12f), dp(16f), dp(12f))
-            header.getChildAt(0).layoutParams.apply { width = dp(if (compact) 32f else 48f); height = width }
-            bodyView.setPadding(dp(16f), dp(if (compact) 4f else 12f), dp(16f), dp(if (compact) 6f else 14f))
-        }
-        compactCards.add(applyCompact)
-        applyCompact(compactLayout)
         return outer
     }
 
@@ -402,13 +388,6 @@ class ShopView(
         orientation = LinearLayout.HORIZONTAL
         gravity = Gravity.CENTER_VERTICAL
         addView(kit.stageText("×$n", 30f, color, stroke = 3.5f), LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { marginEnd = dp(12f) })
-        val applyCompact: (Boolean) -> Unit = { compact ->
-            (getChildAt(0) as TextView).textSize = if (compact) 22f else 30f
-            for (i in 1 until childCount) getChildAt(i).layoutParams.apply {
-                width = dp(if (compact) 14f else 24f); height = width
-            }
-        }
-        compactCards.add(applyCompact)
         val lit = if (n == 0) 0 else ((n - 1) % slots) + 1
         for (i in 0 until slots) {
             addView(ImageView(activity).apply { setImageDrawable(icon()); alpha = if (i < lit) 1f else 0.22f }, LinearLayout.LayoutParams(dp(24f), dp(24f)).apply { if (i > 0) marginStart = dp(3f) })

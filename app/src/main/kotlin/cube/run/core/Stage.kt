@@ -105,6 +105,8 @@ object Stage {
      * fraction of the screen height from the top. NaN keeps each mode's own framing.
      */
     @Volatile var focusFraction = Float.NaN
+    /** With [focusFraction]: how much of the screen height that room spans (0 = unknown). */
+    @Volatile var focusSpan = 0f
 
     /** Wardrobe: which category is being browsed (data.Wardrobe.CUBE / BUBBLE / TRAIL). */
     @Volatile var previewCat = 0
@@ -119,6 +121,7 @@ object Stage {
         homeScreen = true; botOwner = null; pointerDown = false
         mode = NONE
         focusFraction = Float.NaN
+        focusSpan = 0f
         shopProgress = 0f
         shopPlayRequests.set(0)
         paused = false

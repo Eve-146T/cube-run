@@ -59,7 +59,6 @@ class WardrobeView(activity: Activity, kit: UiKit, abilityStyle: Int = 0, onClos
         // Short panes keep the full layout and the real stage, just tighter:
         // the tabs hug the title, the details sit at the bottom edge, and the
         // stage frames the item in whatever gap is left between them.
-        actionLabel.compact = compact
         (tabs.layoutParams as FrameLayout.LayoutParams).topMargin = dp(if (compact) 0f else 4f)
         tabViews.forEach { tab ->
             tab.textSize = if (compact) 12f else 13f
@@ -71,21 +70,26 @@ class WardrobeView(activity: Activity, kit: UiKit, abilityStyle: Int = 0, onClos
             resolveLayoutDirection(layoutDirection)
         }
         (itemDetails.layoutParams as FrameLayout.LayoutParams).bottomMargin = dp(if (compact) 8f else 112f)
-        (dots.layoutParams as LinearLayout.LayoutParams).topMargin = dp(if (compact) 6f else 12f)
-        (actionLabel.layoutParams as LinearLayout.LayoutParams).topMargin = dp(if (compact) 10f else 18f)
-        name.textSize = if (compact) 24f else 32f
-        if (compact) {
-            action.minimumHeight = dp(48f)
-            action.setPadding(dp(16f), dp(8f), dp(16f), dp(8f))
-        } else {
-            action.minimumHeight = dp(34f) + kotlin.math.ceil(action.paint.fontSpacing + action.paint.fontMetrics.bottom - action.paint.fontMetrics.top).toInt()
-            action.setPadding(dp(34f), dp(14f), dp(34f), dp(14f))
-            Stage.focusFraction = Float.NaN
-        }
+        if (!compact) { Stage.focusFraction = Float.NaN; Stage.focusSpan = 0f }
         updateDotSpacing()
     }
 
     private val windowPosition = IntArray(2)
+    private var tight = false
+    private var fullButtonHeight = 0
+
+    override fun onPaneMeasured(usableHeight: Int) {
+        // A third of a phone keeps every control, a little closer together.
+        tight = compactLayout && usableHeight < dp(360f)
+        (dots.layoutParams as LinearLayout.LayoutParams).topMargin = dp(if (tight) 3f else if (compactLayout) 6f else 12f)
+        (actionLabel.layoutParams as LinearLayout.LayoutParams).topMargin = dp(if (tight) 6f else if (compactLayout) 10f else 18f)
+        dots.visibility = if (tight) View.GONE else View.VISIBLE
+        // The same candy button, only less tall: at full height it would take a third of the pane.
+        val buttonHeight = if (tight) dp(58f) else fullButtonHeight
+        if (action.minimumHeight != buttonHeight) action.minimumHeight = buttonHeight
+        val size = if (tight) 20f else if (compactLayout) 24f else 32f
+        if (name.textSize != size * resources.displayMetrics.scaledDensity) name.textSize = size
+    }
 
     override fun onLayout(changed: Boolean, l: Int, t: Int, r: Int, b: Int) {
         super.onLayout(changed, l, t, r, b)
@@ -94,13 +98,18 @@ class WardrobeView(activity: Activity, kit: UiKit, abilityStyle: Int = 0, onClos
         // stage frames the item in the real gap between them, and the arrows flank
         // its name so they stay clear of the ability corner.
         val middle = (tabs.bottom + itemDetails.top) / 2
-        val row = itemDetails.top + name.top + name.height / 2
+        // A third of a phone: the ability corner reaches the name row, so they flank the button.
+        val beside = if (tight) actionLabel else name
+        val row = itemDetails.top + beside.top + beside.height / 2
         for (arrow in listOf(left, right)) arrow.layout(arrow.left, row - arrow.measuredHeight / 2, arrow.right, row + arrow.measuredHeight - arrow.measuredHeight / 2)
         val at = windowPosition
         content.getLocationInWindow(at)
         val window = rootView.height
         // The framed point sits a little below the item's visual centre.
-        if (window > 0 && !closing) Stage.focusFraction = (at[1] + middle + dp(12f)).toFloat() / window
+        if (window > 0 && !closing) {
+            Stage.focusFraction = (at[1] + middle + dp(12f)).toFloat() / window
+            Stage.focusSpan = (itemDetails.top - tabs.bottom).toFloat() / window
+        }
     }
 
     init {
@@ -133,6 +142,7 @@ class WardrobeView(activity: Activity, kit: UiKit, abilityStyle: Int = 0, onClos
             setHorizontallyScrolling(false)
         }
         actionLabel = WardrobeActionLabel(activity, kit, action)
+        fullButtonHeight = action.minimumHeight
         itemDetails = LinearLayout(activity).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER_HORIZONTAL
@@ -171,7 +181,7 @@ class WardrobeView(activity: Activity, kit: UiKit, abilityStyle: Int = 0, onClos
     }
 
     override fun onNavigationShown() {
-        if (!compactLayout) Stage.focusFraction = Float.NaN
+        if (!compactLayout) { Stage.focusFraction = Float.NaN; Stage.focusSpan = 0f }
         Stage.previewCat = cat
         Stage.mode = Stage.SKINS
         applyPreview()
@@ -345,7 +355,7 @@ class WardrobeView(activity: Activity, kit: UiKit, abilityStyle: Int = 0, onClos
 
     override fun onBack() {
         Stage.clearPreview()
-        Stage.focusFraction = Float.NaN
+        Stage.focusFraction = Float.NaN; Stage.focusSpan = 0f
         Stage.mode = Stage.NONE
         close()
     }
@@ -362,7 +372,6 @@ private class WardrobeActionLabel(
     private var amount = ""
     private var labelChanged = true
     private var fittedPx = Float.NaN
-    var compact = false
 
     init {
         clipChildren = false; clipToPadding = false
@@ -385,9 +394,8 @@ private class WardrobeActionLabel(
         val fullWidth = Layout.getDesiredWidth(labelAt(nominal), paint)
         // Preserve the usual big-button padding for short labels. Longer prices use
         // the otherwise empty edge space before reducing the visible letter size.
-        val horizontal = kit.dp(if (compact) 16f else if (fullWidth <= width - kit.dp(70f)) 34f else 18f)
-        val vertical = kit.dp(if (compact) 8f else 14f)
-        if (button.paddingLeft != horizontal || button.paddingTop != vertical) button.setPadding(horizontal, vertical, horizontal, vertical)
+        val horizontal = kit.dp(if (fullWidth <= width - kit.dp(70f)) 34f else 18f)
+        if (button.paddingLeft != horizontal) button.setPadding(horizontal, kit.dp(14f), horizontal, kit.dp(14f))
         val budget = (width - button.compoundPaddingLeft - button.compoundPaddingRight - kit.dp(2f)).coerceAtLeast(1)
         var size = nominal
         if (fullWidth > budget) {

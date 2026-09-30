@@ -64,6 +64,7 @@ class RunOverFlow(
     private var leaving = false
     private var compactLayout = false
     private var safeInsets = intArrayOf(0, 0, 0, 0)
+    private val uncovered = Uncovered(this)
     private var adaptLayout: ((Boolean) -> Unit)? = null
     private var hintPulse: ValueAnimator? = null
     private var resultsCard: View? = null
@@ -160,7 +161,7 @@ class RunOverFlow(
     private fun showResults() {
         Stage.resultHue = rayHue()
         Stage.resultRecord = isNewBest
-        Stage.focusFraction = Float.NaN // short panes set it once the column is laid out
+        Stage.focusFraction = Float.NaN; Stage.focusSpan = 0f // short panes set it once the column is laid out
         Stage.mode = Stage.RESULT // the engine poses your cube up top, the sunburst behind it
         val host = FrameLayout(activity).apply {
             isClickable = true
@@ -341,7 +342,7 @@ class RunOverFlow(
     }
 
     private fun next() {
-        Stage.focusFraction = Float.NaN
+        Stage.focusFraction = Float.NaN; Stage.focusSpan = 0f
         if (boxes > 0) showBoxes() else leave(onMenu)
     }
 
@@ -629,7 +630,7 @@ class RunOverFlow(
     }
 
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
-        val (l, t, r, b) = safeInsets
+        val (l, t, r, b) = uncovered.of(safeInsets)
         compactLayout = CompactLayout.uses(this, MeasureSpec.getSize(heightMeasureSpec), t, b)
         val top = maxOf(dp(if (compactLayout) 8f else 36f), t + dp(6f))
         val bottom = maxOf(dp(if (compactLayout) 8f else 24f), b + dp(8f))

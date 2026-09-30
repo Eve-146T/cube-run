@@ -41,6 +41,7 @@ class MainMenu(
     private var compact = false
     private var compactAppearance = false
     private var safeInsets = intArrayOf(0, 0, 0, 0)
+    private val uncovered = Uncovered(this)
     private val anims = ArrayList<ValueAnimator>()
     private val startRipple = Runnable {
         if (isAttachedToWindow && visibility == VISIBLE && top.visibility == VISIBLE) anims.add(ripple())
@@ -150,15 +151,14 @@ class MainMenu(
 
     /** Keep a real gutter beside the settings on narrow phones, even after the third chip appears. */
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
-        val cutouts = safeInsets
+        val cutouts = uncovered.of(safeInsets)
         val available = MeasureSpec.getSize(widthMeasureSpec) - (cutouts?.get(0) ?: 0) - (cutouts?.get(2) ?: 0)
         val usableHeight = MeasureSpec.getSize(heightMeasureSpec) - (cutouts?.get(1) ?: 0) - (cutouts?.get(3) ?: 0)
         compact = CompactLayout.uses(this, usableHeight)
         val compactRows = compact && available < dp(352f)
-        val letterSize = when {
-            compact -> 24f
-            else -> 62f
-        }
+        // Compact: one line of letters that grows with the pane, within its width.
+        val letterSize = if (!compact) 62f else minOf(24f + (usableHeight / resources.displayMetrics.density - 375f) / 8f,
+            available / resources.displayMetrics.density / 9.5f).coerceIn(22f, 40f)
         for (letter in letters) {
             val text = letter as android.widget.TextView
             val pixels = android.util.TypedValue.applyDimension(android.util.TypedValue.COMPLEX_UNIT_SP,
@@ -264,7 +264,7 @@ class MainMenu(
             // Saved scores, debug controls and font scaling all change the space
             // required. Fit the brand after measuring those real controls.
             var fittedSize = letterSize
-            while (top.measuredHeight > titleSpace && fittedSize > 20f) {
+            while (top.measuredHeight > titleSpace && fittedSize > 12f) {
                 fittedSize -= 2f
                 for (letter in letters) (letter as android.widget.TextView).textSize = fittedSize
                 if (!singleLine) (logo.getChildAt(1).layoutParams as LinearLayout.LayoutParams).topMargin =
@@ -276,14 +276,19 @@ class MainMenu(
 
     override fun onLayout(changed: Boolean, left: Int, top: Int, right: Int, bottom: Int) {
         super.onLayout(changed, left, top, right, bottom)
+        var fits = true
         if (compact) {
             // The centre of a short pane lies inside the logo. Put the start
             // prompt in the actual gap above the controls, preserving touch sizes.
+            // A third of a phone has no gap: the prompt goes (any tap still starts).
             val gapTop = this.top.bottom + dp(6f)
             val gapBottom = minOf(leftChips.top, rightChips.top) - dp(6f)
-            val y = gapTop + (gapBottom - gapTop - middle.measuredHeight) / 2
-            middle.layout(middle.left, y, middle.right, y + middle.measuredHeight)
+            fits = gapBottom - gapTop >= middle.measuredHeight
+            val y = if (fits) gapTop + (gapBottom - gapTop - middle.measuredHeight) / 2 else minOf(gapTop, gapBottom)
+            middle.layout(middle.left, y, middle.right, if (fits) y + middle.measuredHeight else y)
         }
+        val shown = if (fits) VISIBLE else INVISIBLE
+        if (tapHint.visibility != shown) tapHint.visibility = shown
     }
 
     private val top = LinearLayout(activity).apply {

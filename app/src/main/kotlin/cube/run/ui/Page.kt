@@ -24,6 +24,47 @@ fun insetsOf(insets: WindowInsets): IntArray =
     }
 
 /**
+ * Cutout insets still uncovered where [view] sits. In a split pane Android may lay the
+ * window's content out below the status bar, or the game root may pad for a visible
+ * bar, while the cutout is still reported: counting it again left a gap that came and
+ * went with the status bar. Re-measures [view] when a layout moves it.
+ */
+internal class Uncovered(private val view: View) : ViewTreeObserver.OnGlobalLayoutListener {
+    private var raw = IntArray(4)
+    private var used = IntArray(4)
+    private val at = IntArray(2)
+
+    init {
+        view.addOnAttachStateChangeListener(object : View.OnAttachStateChangeListener {
+            override fun onViewAttachedToWindow(v: View) = v.viewTreeObserver.addOnGlobalLayoutListener(this@Uncovered)
+            override fun onViewDetachedFromWindow(v: View) = v.viewTreeObserver.removeOnGlobalLayoutListener(this@Uncovered)
+        })
+    }
+
+    /** [insets] (left, top, right, bottom) less whatever the window and parents already keep clear. */
+    fun of(insets: IntArray): IntArray {
+        raw = insets.copyOf()
+        used = compute()
+        return used
+    }
+
+    private fun compute(): IntArray {
+        val parent = view.parent as? View ?: return raw.copyOf()
+        val window = view.rootView
+        parent.getLocationInWindow(at)
+        val left = at[0] + parent.paddingLeft
+        val top = at[1] + parent.paddingTop
+        val right = window.width - at[0] - parent.width + parent.paddingRight
+        val bottom = window.height - at[1] - parent.height + parent.paddingBottom
+        return intArrayOf(maxOf(0, raw[0] - left), maxOf(0, raw[1] - top), maxOf(0, raw[2] - right), maxOf(0, raw[3] - bottom))
+    }
+
+    override fun onGlobalLayout() {
+        if (!compute().contentEquals(used)) view.requestLayout()
+    }
+}
+
+/**
  * The frame every full-screen page shares: the back button in the top-left
  * corner, a title beside it, an optional right-hand slot, and the page's
  * [content] below — all kept clear of the status bar, cutout and nav bar.
@@ -55,12 +96,15 @@ abstract class Page(
     protected var compactLayout = false
         private set
     protected open fun onCompactChanged(compact: Boolean) {}
+    /** Every measure, with the pane's usable height: for adjustments finer than compact/full. */
+    protected open fun onPaneMeasured(usableHeight: Int) {}
     private var headerAccessory: View? = null
     protected fun reserveHeaderFor(view: View) { headerAccessory = view }
     private var normalTitleLines = Int.MAX_VALUE
     private var normalTitleSize = 0f
     private var safeTop = 0
     private var safeBottom = 0
+    private val uncovered = Uncovered(this)
     private val entrance = object : ViewTreeObserver.OnPreDrawListener {
         override fun onPreDraw(): Boolean {
             viewTreeObserver.removeOnPreDrawListener(this)
@@ -97,7 +141,7 @@ abstract class Page(
         setOnApplyWindowInsetsListener { _, insets ->
             val (l, t, r, b) = insetsOf(insets)
             safeTop = t; safeBottom = b
-            setPadding(l, maxOf(dp(if (height < dp(480f) && height > 0) 8f else 36f), t + dp(6f)), r, b)
+            setPadding(l, maxOf(dp(if (height < dp(CompactLayout.HEIGHT_DP) && height > 0) 8f else 36f), t + dp(6f)), r, b)
             insets
         }
         // the title row starts a little lower than the corner pill so the two line up at the same height
@@ -108,6 +152,7 @@ abstract class Page(
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
         // A split pane needs its first row immediately below the status bar.
         // The full-screen 36dp stage gutter otherwise consumes a fifth of it.
+        val (_, safeTop, _, safeBottom) = uncovered.of(intArrayOf(0, safeTop, 0, safeBottom))
         val short = CompactLayout.uses(this, MeasureSpec.getSize(heightMeasureSpec), safeTop, safeBottom)
         if (compactLayout != short) {
             compactLayout = short
@@ -124,6 +169,7 @@ abstract class Page(
             }
             onCompactChanged(short)
         }
+        onPaneMeasured(MeasureSpec.getSize(heightMeasureSpec) - safeTop - safeBottom)
         var end = dp(16f)
         if (short && titleView.parent === topBar) headerAccessory?.let { accessory ->
             accessory.measure(MeasureSpec.makeMeasureSpec(MeasureSpec.getSize(widthMeasureSpec) / 2, MeasureSpec.AT_MOST),
