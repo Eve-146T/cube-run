@@ -64,7 +64,7 @@ class WardrobeView(activity: Activity, kit: UiKit, abilityStyle: Int = 0, onClos
     override fun onCompactChanged(compact: Boolean) {
         actionLabel.compact = compact
         if (compact) {
-            val moving = listOf(tabs, left, right, name, abilityDisplay.inline, abilityDisplay.floating, actionLabel)
+            val moving = listOf(tabs, left, right, name, dots, abilityDisplay.inline, abilityDisplay.floating, actionLabel)
             placements.clear()
             for (view in moving) {
                 val parent = view.parent as android.view.ViewGroup
@@ -83,15 +83,21 @@ class WardrobeView(activity: Activity, kit: UiKit, abilityStyle: Int = 0, onClos
             rows.addView(LinearLayout(activity).apply {
                 gravity = Gravity.CENTER_VERTICAL
                 addView(this@WardrobeView.left, LinearLayout.LayoutParams(dp(48f), dp(52f)))
-                addView(preview, LinearLayout.LayoutParams(dp(56f), dp(64f)))
-                addView(name, LinearLayout.LayoutParams(0, -2, 1f))
+                addView(LinearLayout(activity).apply {
+                    orientation = LinearLayout.VERTICAL
+                    gravity = Gravity.CENTER_HORIZONTAL
+                    addView(preview, LinearLayout.LayoutParams(dp(80f), dp(80f)))
+                    addView(name, LinearLayout.LayoutParams(-1, -2))
+                }, LinearLayout.LayoutParams(0, -2, 1f))
                 addView(this@WardrobeView.right, LinearLayout.LayoutParams(dp(48f), dp(52f)))
             }, LinearLayout.LayoutParams(-1, -2))
+            rows.addView(dots, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(4f); bottomMargin = dp(4f) })
             rows.addView(abilityDisplay.inline, LinearLayout.LayoutParams(-1, -2))
             rows.addView(abilityDisplay.floating, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(8f) })
             column.addView(android.widget.ScrollView(activity).apply {
                 tag = "compact_wardrobe_scroll"
                 isVerticalScrollBarEnabled = true
+                isFillViewport = true
                 addView(rows)
                 post { scrollTo(0, compactScrollY) }
             }, LinearLayout.LayoutParams(-1, 0, 1f))
@@ -129,6 +135,7 @@ class WardrobeView(activity: Activity, kit: UiKit, abilityStyle: Int = 0, onClos
                 tab.setSingleLine(false); tab.textSize = 13f
             }
         }
+        updateDotSpacing()
         abilityDisplay.setCompact(compact)
         preview.bind(cat, index)
     }
@@ -317,6 +324,15 @@ class WardrobeView(activity: Activity, kit: UiKit, abilityStyle: Int = 0, onClos
                     setColor(when { i == index -> Theme.WHITE; Progress.owns(cat, i) -> Theme.alpha(Theme.WHITE, 130); else -> Theme.alpha(Theme.WHITE, 55) })
                 }
             }, LinearLayout.LayoutParams(dp(if (i == index) 9f else 6f), dp(if (i == index) 9f else 6f)).apply { marginStart = dp(3f); marginEnd = dp(3f) })
+        }
+        updateDotSpacing()
+    }
+
+    private fun updateDotSpacing() {
+        for (i in 0 until dots.childCount) {
+            (dots.getChildAt(i).layoutParams as LinearLayout.LayoutParams).apply {
+                marginStart = dp(if (compactLayout) 1.5f else 3f); marginEnd = marginStart
+            }
         }
     }
 

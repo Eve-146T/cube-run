@@ -213,6 +213,7 @@ class AbilityDisplay(private val activity: Activity, private val kit: UiKit, val
             inline.visibility = View.GONE
             floating.addView(column().apply {
                 addView(row().apply {
+                    gravity = Gravity.CENTER
                     abilities.forEachIndexed { i, ability ->
                         addView(chip(ability, i), LinearLayout.LayoutParams(dp(48f), dp(52f)).apply { marginEnd = dp(8f) })
                     }

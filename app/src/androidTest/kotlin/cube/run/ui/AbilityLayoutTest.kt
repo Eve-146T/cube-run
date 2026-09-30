@@ -37,7 +37,7 @@ class AbilityLayoutTest {
                 descendants(display.floating).filterIsInstance<CandyChip>().single().performClick()
                 measure(display.floating, kit.dp(236f)) // 280dp viewport minus wardrobe margins.
                 val texts = descendants(display.floating).filterIsInstance<TextView>()
-                listOf("Lottery", "1 in 100,000", "per 1 coin of value", "1.3%", "per mystery box").forEach { expected ->
+                listOf("Lottery", activity.getString(cube.run.R.string.lottery_one_in), "per 1 coin of value", "1.3%", "per mystery box").forEach { expected ->
                     assertTrue("Missing $expected", texts.any { it.text.toString() == expected })
                 }
                 assertTrue(texts.any { it.text.toString().contains("The jackpot is 250k") })

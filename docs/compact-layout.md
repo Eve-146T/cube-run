@@ -7,7 +7,7 @@ and calls `onCompactChanged` when a live resize crosses it.
 
 - Shop: no showroom; purchases update their card and balance directly. Mystery
   boxes still use the game's reward delivery and the normal return handoff.
-- Wardrobe: a static cosmetic swatch, browsing controls, scrollable ability
+- Wardrobe: a centered static preview, item name and position dots, scrollable ability
   details, and a pinned purchase/equip action. The same controls and selected
   item survive resizing. Full-height mode restores the original stage layout.
 - Achievements: progress beside the title, no trophy hero, smaller section gaps.
@@ -17,8 +17,8 @@ and calls `onCompactChanged` when a live resize crosses it.
   Compact mode settles the count rather than scaling the entire results column.
 - Gifts: a small box/reward, a pinned plain tap prompt, and immediate stage skipping;
   the GL stage remains responsible for delivering each reward exactly once.
-- Main menu: compact branding/best score, the original plain start prompt, and separate
-  settings/navigation rows. Gameplay uses a smaller score and boost indicator.
+- Main menu: compact branding/best score, the original plain start prompt, and corner
+  controls, separating settings/navigation into rows only below 352 dp width. Gameplay uses a smaller score and boost indicator.
 
 Full-height layouts retain their original sizing. Resizing changes presentation,
 not navigation, purchases or reward state. Cutout padding remains authoritative.
@@ -31,6 +31,4 @@ text. It checks essential control bounds, readable results, long ability text,
 shop scrolling, language-sheet width, gameplay HUD size and reward continuity.
 
 Also run WindowGeometryTest, WardrobePriceLayoutTest, GiftBoxUiTest,
-GiftBoxReturnTest, ShopResetProgressTest and LanguageTest. The opt-in
-`CompactLayoutCaptureTest` (`-e captureCompact true`) saves attached-view
-screenshots under the app's external-files `compact-review` directory.
+GiftBoxReturnTest, ShopResetProgressTest and LanguageTest.

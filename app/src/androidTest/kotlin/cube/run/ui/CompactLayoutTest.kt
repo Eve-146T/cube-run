@@ -107,6 +107,14 @@ class CompactLayoutTest {
                     if (h < 480) {
                         assertNotNull(page.findViewWithTag<View>("compact_wardrobe_scroll"))
                         val chip = all(ability.floating).filterIsInstance<CandyChip>().first()
+                        inside(page, field(page, "dots") as View)
+                        if (w == 360 && h == 375 && scale == 1f) {
+                            val chipRect = Rect(0, 0, chip.width, chip.height)
+                            val actionRect = Rect(0, 0, action.width, action.height)
+                            page.offsetDescendantRectToMyCoords(chip, chipRect)
+                            page.offsetDescendantRectToMyCoords(action, actionRect)
+                            assertTrue("Collapsed ability must clear the pinned action", chipRect.bottom <= actionRect.top)
+                        }
                         chip.performClick()
                         measure(page, kit, w, h)
                         inside(page, action)

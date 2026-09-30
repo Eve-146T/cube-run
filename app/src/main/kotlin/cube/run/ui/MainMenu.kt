@@ -154,6 +154,7 @@ class MainMenu(
         val available = MeasureSpec.getSize(widthMeasureSpec) - (cutouts?.get(0) ?: 0) - (cutouts?.get(2) ?: 0)
         val usableHeight = MeasureSpec.getSize(heightMeasureSpec) - (cutouts?.get(1) ?: 0) - (cutouts?.get(3) ?: 0)
         compact = CompactLayout.uses(this, usableHeight)
+        val compactRows = compact && available < dp(352f)
         val letterSize = when {
             compact -> 24f
             else -> 62f
@@ -163,24 +164,28 @@ class MainMenu(
             val pixels = android.util.TypedValue.applyDimension(android.util.TypedValue.COMPLEX_UNIT_SP,
                 letterSize, resources.displayMetrics)
             if (text.textSize != pixels) text.textSize = letterSize
+            (text.layoutParams as LinearLayout.LayoutParams).apply {
+                marginStart = -dp(if (compact) 2f else 6f); marginEnd = marginStart
+            }
         }
-        top.orientation = if (compact) LinearLayout.HORIZONTAL else LinearLayout.VERTICAL
+        top.orientation = LinearLayout.VERTICAL
         top.gravity = Gravity.CENTER
         (logo.layoutParams as LinearLayout.LayoutParams).apply {
-            width = if (compact) 0 else LayoutParams.MATCH_PARENT
-            weight = if (compact) 1f else 0f
+            width = LayoutParams.MATCH_PARENT
+            weight = 0f
         }
         (bestRow.layoutParams as LinearLayout.LayoutParams).apply {
             topMargin = if (compact) 0 else dp(2f)
-            marginEnd = if (compact) dp(14f) else 0
+            marginEnd = 0
         }
         kit.labelOf(bestRow).textSize = if (compact) 14f else 22f
         bestRow.getChildAt(0).layoutParams.apply { width = dp(if (compact) 22f else 28f); height = width }
         val singleLine = compact
+        logo.gravity = Gravity.CENTER_HORIZONTAL
         logo.orientation = if (singleLine) LinearLayout.HORIZONTAL else LinearLayout.VERTICAL
         (logo.getChildAt(1).layoutParams as LinearLayout.LayoutParams).apply {
             topMargin = if (singleLine) 0 else -dp(18f * letterSize / 62f)
-            marginStart = if (singleLine) dp(4f) else 0
+            marginStart = if (singleLine) dp(10f) else 0
         }
         (top.layoutParams as LayoutParams).topMargin = maxOf(dp(if (compact) 56f else 70f),
             (cutouts?.get(1) ?: 0) + dp(if (compact) 48f else 40f))
@@ -190,12 +195,12 @@ class MainMenu(
         }
         for (i in 0 until leftChips.childCount) {
             val column = leftChips.getChildAt(i) as LinearLayout
-            column.orientation = if (compact) LinearLayout.HORIZONTAL else LinearLayout.VERTICAL
-            column.layoutParams.width = if (compact) LinearLayout.LayoutParams.WRAP_CONTENT else dp(44f)
+            column.orientation = if (compactRows) LinearLayout.HORIZONTAL else LinearLayout.VERTICAL
+            column.layoutParams.width = if (compactRows) LinearLayout.LayoutParams.WRAP_CONTENT else dp(44f)
             for (j in 0 until column.childCount) {
                 val params = column.getChildAt(j).layoutParams as LinearLayout.LayoutParams
-                params.bottomMargin = if (!compact && j < column.childCount - 1) dp(10f) else 0
-                params.marginEnd = if (compact && j < column.childCount - 1) dp(8f) else 0
+                params.bottomMargin = if (!compactRows && j < column.childCount - 1) dp(10f) else 0
+                params.marginEnd = if (compactRows && j < column.childCount - 1) dp(8f) else 0
                 params.resolveLayoutDirection(layoutDirection)
             }
         }
@@ -204,20 +209,20 @@ class MainMenu(
             middle.setPadding(dp(if (compact) 16f else 0f), 0, dp(if (compact) 16f else 0f), 0)
         }
         (leftChips.layoutParams as LayoutParams).apply {
-            gravity = Gravity.BOTTOM or if (compact) Gravity.CENTER_HORIZONTAL else Gravity.START
-            marginStart = if (compact) 0 else dp(14f) + (cutouts?.get(0) ?: 0)
-            if (compact) { leftMargin = 0; rightMargin = 0; marginEnd = 0 }
+            gravity = Gravity.BOTTOM or if (compactRows) Gravity.CENTER_HORIZONTAL else Gravity.START
+            marginStart = if (compactRows) 0 else dp(14f) + (cutouts?.get(0) ?: 0)
+            if (compactRows) { leftMargin = 0; rightMargin = 0; marginEnd = 0 }
         }
         (rightChips.layoutParams as LayoutParams).apply {
-            gravity = Gravity.BOTTOM or if (compact) Gravity.CENTER_HORIZONTAL else Gravity.END
-            marginEnd = if (compact) 0 else dp(14f) + (cutouts?.get(2) ?: 0)
-            if (compact) { leftMargin = 0; rightMargin = 0; marginStart = 0 }
+            gravity = Gravity.BOTTOM or if (compactRows) Gravity.CENTER_HORIZONTAL else Gravity.END
+            marginEnd = if (compactRows) 0 else dp(14f) + (cutouts?.get(2) ?: 0)
+            if (compactRows) { leftMargin = 0; rightMargin = 0; marginStart = 0 }
         }
         val count = if (Progress.achievementsUnlocked) 3 else 2
-        val separateRows = compact || available < dp(28f + 132f + 16f + 12f) + dp(48f) * count + dp(10f) * (count - 1)
+        val separateRows = compactRows || available < dp(28f + 132f + 16f + 12f) + dp(48f) * count + dp(10f) * (count - 1)
         val settingsWidth = if (separateRows) 0 else dp(132f + 16f)
         val chipSize = ((available - dp(28f) - settingsWidth - dp(10f) * (count - 1)) / count)
-            .coerceIn(dp(48f), dp(58f))
+            .coerceIn(dp(48f), dp(if (compact) 48f else 58f))
         for (i in 0 until rightChips.childCount) {
             rightChips.getChildAt(i).layoutParams.apply { width = chipSize; height = chipSize + dp(4f) }
         }
