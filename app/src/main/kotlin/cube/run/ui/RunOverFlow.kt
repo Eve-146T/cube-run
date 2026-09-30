@@ -65,8 +65,9 @@ class RunOverFlow(
     private var compactLayout = false
     private var safeInsets = intArrayOf(0, 0, 0, 0)
     private var adaptLayout: ((Boolean) -> Unit)? = null
-    private var compactBoxIcon: View? = null
     private var hintPulse: ValueAnimator? = null
+    private var resultsCard: View? = null
+    private val windowPosition = IntArray(2)
 
 
     fun confirm() { if (!leaving) page?.performClick() }
@@ -159,6 +160,7 @@ class RunOverFlow(
     private fun showResults() {
         Stage.resultHue = rayHue()
         Stage.resultRecord = isNewBest
+        Stage.focusFraction = Float.NaN // short panes set it once the column is laid out
         Stage.mode = Stage.RESULT // the engine poses your cube up top, the sunburst behind it
         val host = FrameLayout(activity).apply {
             isClickable = true
@@ -204,17 +206,19 @@ class RunOverFlow(
             }
         }
         card.addView(stars, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, dp(48f)))
-        card.addView(View(activity).apply { background = android.graphics.drawable.GradientDrawable().apply { cornerRadius = dpf(2f); setColor(Theme.alpha(Theme.WHITE, 70)) } },
+        val divider = View(activity).apply { background = android.graphics.drawable.GradientDrawable().apply { cornerRadius = dpf(2f); setColor(Theme.alpha(Theme.WHITE, 70)) } }
+        card.addView(divider,
             LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(2f)).apply { topMargin = dp(10f); marginStart = dp(10f); marginEnd = dp(10f) })
+        lateinit var coinRow: LinearLayout
         val stats = LinearLayout(activity).apply {
             orientation = LinearLayout.HORIZONTAL
             clipChildren = false; clipToPadding = false
             val coinCell = cell(CoinIcon(), "+0", kit.ctx.getString(R.string.text_coins), Theme.YELLOW)
             coinText = coinCell.getChildAt(1) as TextView
+            coinRow = coinCell
             addView(coinCell, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
         }
         card.addView(stats, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(4f) })
-        var shardRow: LinearLayout? = null
         if (shards.any { it > 0 }) {
             val collected = LinearLayout(activity).apply {
                 orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER
@@ -225,9 +229,9 @@ class RunOverFlow(
                         LinearLayout.LayoutParams(-2, -2).apply { marginStart = dp(5f); marginEnd = dp(5f) })
                 }
             }
-            shardRow = collected
             card.addView(collected, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(8f) })
         }
+        resultsCard = card
         column.addView(card, LinearLayout.LayoutParams(dp(300f), LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(12f) })
         later(700) { if (counting) coinAnim = Anim.countUp(coinText, coins, 900) { "+$it" } }
         later(1700) { counting = false }
@@ -238,17 +242,27 @@ class RunOverFlow(
         })
         fun fitResults() {
             if (host.height <= 0 || column.height <= 0) return
-            if (compactLayout) { column.scaleX = 1f; column.scaleY = 1f; return }
-            val top = dp(200f)
+            // Full height: the stage frames the cube at 156 dp and the column starts below it.
+            // Short panes: the column sits on the tap hint and the cube takes the room above it.
+            val bottom = dp(if (compactLayout) 44f else 86f)
+            val natural = column.height
+            var top = dp(200f)
+            if (compactLayout) top = (host.height - bottom - natural).coerceAtLeast(dp(104f))
             val params = column.layoutParams as LayoutParams
             if (params.topMargin != top) {
                 params.topMargin = top
-                column.layoutParams = params
+                // A request made while this layout pass runs is dropped: move the column on the next frame.
+                column.post { column.layoutParams = params }
             }
-            val available = (host.height - top - dp(86f)).coerceAtLeast(1)
-            val scale = minOf(1f, available.toFloat() / column.height)
+            val available = (host.height - top - bottom).coerceAtLeast(1)
+            val scale = minOf(1f, available.toFloat() / natural)
             column.pivotX = column.width / 2f; column.pivotY = 0f
             column.scaleX = scale; column.scaleY = scale
+            if (compactLayout && Stage.mode == Stage.RESULT) {
+                val at = windowPosition
+                host.getLocationInWindow(at)
+                if (host.rootView.height > 0) Stage.focusFraction = (at[1] + top / 2f) / host.rootView.height
+            }
         }
         host.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ -> fitResults() }
         column.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ -> fitResults() }
@@ -256,46 +270,39 @@ class RunOverFlow(
         host.addView(hint, LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT).apply {
             gravity = Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL; bottomMargin = dp(32f)
         })
-        val originalColumnParams = column.layoutParams
-        val originalCardParams = card.layoutParams
-        val scroll = TapScrollView(activity) { host.performClick() }.apply { tag = "compact_results_scroll" }
-        val originalHintParams = hint.layoutParams
         var compactBefore = false
         adaptLayout = { compact ->
             if (compactBefore != compact) {
                 compactBefore = compact
-                shardRow?.orientation = if (compact) LinearLayout.VERTICAL else LinearLayout.HORIZONTAL
-                (column.parent as? android.view.ViewGroup)?.removeView(column)
-                if (compact) {
-                    if (counting) finishCount()
-                    stopEffects()
-                    fun settle(view: View) {
-                        Anim.reset(view)
-                        if (view is android.view.ViewGroup) for (i in 0 until view.childCount) settle(view.getChildAt(i))
-                    }
-                    Anim.reset(host)
-                    settle(column)
-                    scoreText.textSize = 48f
-                    record?.textSize = 20f
-                    column.scaleX = 1f; column.scaleY = 1f
-                    card.layoutParams = LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(4f); marginStart = dp(12f); marginEnd = dp(12f) }
-                    scroll.addView(column, FrameLayout.LayoutParams(-1, -2))
-                    host.addView(scroll, LayoutParams(-1, -1).apply { bottomMargin = dp(60f) })
-                    hint.layoutParams = LayoutParams(-1, dp(48f)).apply { gravity = Gravity.BOTTOM; marginStart = dp(12f); marginEnd = dp(12f); bottomMargin = dp(4f) }
-                    hint.tag = "compact_results_continue"
-                } else {
-                    host.removeView(scroll)
-                    hint.layoutParams = originalHintParams
-                    hint.tag = null
-                    scoreText.textSize = 104f; record?.textSize = 30f
-                    card.layoutParams = originalCardParams
-                    host.addView(column, originalColumnParams)
+                // The same views, only smaller: counting and the pops keep running across a resize.
+                scoreText.textSize = if (compact) 64f else 104f
+                record?.textSize = if (compact) 22f else 30f
+                (scoreText.layoutParams as LinearLayout.LayoutParams).topMargin = -dp(if (compact) 8f else 14f)
+                for (i in 0 until stars.childCount) (stars.getChildAt(i).layoutParams as LinearLayout.LayoutParams).apply {
+                    width = dp(if (i == 2) (if (compact) 34f else 44f) else if (compact) 28f else 36f); height = width
                 }
-                hint.visibility = VISIBLE
+                stars.layoutParams.height = dp(if (compact) 36f else 48f)
+                divider.visibility = if (compact) GONE else VISIBLE
+                coinRow.orientation = if (compact) LinearLayout.HORIZONTAL else LinearLayout.VERTICAL
+                coinRow.setPadding(dp(6f), dp(if (compact) 2f else 10f), dp(6f), dp(if (compact) 2f else 10f))
+                (coinRow.getChildAt(0).layoutParams as LinearLayout.LayoutParams).apply {
+                    bottomMargin = if (compact) 0 else dp(4f); marginEnd = if (compact) dp(6f) else 0
+                    resolveLayoutDirection(coinRow.layoutDirection)
+                }
+                (coinRow.getChildAt(1).layoutParams as LinearLayout.LayoutParams).width = if (compact) -2 else -1
+                (coinRow.getChildAt(2).layoutParams as LinearLayout.LayoutParams).apply {
+                    width = if (compact) -2 else -1
+                    marginStart = if (compact) dp(6f) else 0
+                    resolveLayoutDirection(coinRow.layoutDirection)
+                }
+                card.setPadding(dp(16f), dp(if (compact) 8f else 14f), dp(16f), dp(if (compact) 6f else 10f))
+                (card.layoutParams as LinearLayout.LayoutParams).topMargin = dp(if (compact) 4f else 12f)
+                (hint.layoutParams as LayoutParams).bottomMargin = dp(if (compact) 12f else 32f)
                 for (i in 0 until host.childCount) {
                     val child = host.getChildAt(i)
                     if (child is CelebrationView) child.visibility = if (compact) GONE else VISIBLE
                 }
+                if (!compact) Stage.focusFraction = Float.NaN
             }
         }
         swap(host)
@@ -334,6 +341,7 @@ class RunOverFlow(
     }
 
     private fun next() {
+        Stage.focusFraction = Float.NaN
         if (boxes > 0) showBoxes() else leave(onMenu)
     }
 
@@ -386,6 +394,7 @@ class RunOverFlow(
     private fun showBoxes() {
         stopEffects()
         adaptLayout = null
+        resultsCard = null
         val host = FrameLayout(activity).apply {
             isClickable = true
             clipChildren = false; clipToPadding = false
@@ -467,11 +476,10 @@ class RunOverFlow(
         val hintParams = boxHint!!.layoutParams
         val compactColumn = LinearLayout(activity).apply { orientation = LinearLayout.VERTICAL }
         val compactRewards = LinearLayout(activity).apply {
-            orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER
+            // Low in the pane, like the full layout: the opened reward stays visible on the stage above it.
+            orientation = LinearLayout.VERTICAL; gravity = Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL
             setPadding(dp(12f), dp(8f), dp(12f), dp(8f))
         }
-        val icon = ImageView(activity).apply { setImageDrawable(BoxIcon()); contentDescription = heading.text }
-        compactBoxIcon = icon
         var compactBefore = false
         adaptLayout = { compact ->
             if (compactBefore != compact) {
@@ -480,7 +488,6 @@ class RunOverFlow(
                 if (compact) {
                     host.removeView(bottom)
                     compactColumn.addView(top, LinearLayout.LayoutParams(-1, -2))
-                    compactRewards.addView(icon, LinearLayout.LayoutParams(dp(56f), dp(56f)))
                     compactRewards.addView(rewardCard, LinearLayout.LayoutParams(-1, -2))
                     compactColumn.addView(TapScrollView(activity) { tapBox() }.apply { isFillViewport = true; addView(compactRewards) }, LinearLayout.LayoutParams(-1, 0, 1f))
                     hintPulse?.pause()
@@ -492,11 +499,9 @@ class RunOverFlow(
                     compactColumn.addView(boxHint, LinearLayout.LayoutParams(-1, dp(52f)).apply { marginStart = dp(12f); marginEnd = dp(12f); bottomMargin = dp(4f) })
                     host.addView(compactColumn, LayoutParams(-1, -1))
                     rewardCard!!.visibility = if (boxRewardReady) VISIBLE else GONE
-                    icon.visibility = if (boxRewardReady) GONE else VISIBLE
                 } else {
                     host.removeView(compactColumn)
                     compactColumn.removeAllViews()
-                    compactRewards.removeView(icon)
                     (compactRewards.parent as? android.view.ViewGroup)?.removeView(compactRewards)
                     host.addView(top, originalTopParams)
                     bottom.addView(rewardCard, rewardParams); bottom.addView(boxHint, hintParams)
@@ -533,12 +538,7 @@ class RunOverFlow(
         boxHint?.visibility = VISIBLE
         rewardCard?.move()?.alpha(0f)?.scaleX(0.7f)?.scaleY(0.7f)?.setDuration(150)?.start()
         Stage.openRequests.incrementAndGet() // the game owns reward delivery in both layouts
-        if (compactLayout) {
-            rewardCard?.visibility = GONE
-            compactBoxIcon?.visibility = VISIBLE
-            skipBoxAnimation = true
-            Stage.skipBoxRequests.incrementAndGet()
-        }
+        if (compactLayout) rewardCard?.visibility = GONE // it sits over the box on short panes; back when the box opens
     }
 
     /** The 3D stage just opened a box: pop the reward card in. */
@@ -546,7 +546,6 @@ class RunOverFlow(
         if (leaving || boxRewardReady) return
         boxRewardReady = true
         rewardCard?.visibility = VISIBLE
-        compactBoxIcon?.visibility = GONE
         val big = rewardBig ?: return
         val sub = rewardSub ?: return
         big.setTextColor(Theme.INK)
@@ -587,7 +586,7 @@ class RunOverFlow(
         rewardCard?.requestLayout()
         rewardCard?.let { c ->
             rewardBeat?.cancel(); rewardBeat = null
-            if (compactLayout) Anim.reset(c) else Anim.popIn(c, 0, 0.3f, 460) {
+            Anim.popIn(c, 0, 0.3f, 460) {
                 if (rare) rewardBeat = Anim.heartbeat(c, 1.04f, 800)
             }
         }
@@ -635,8 +634,12 @@ class RunOverFlow(
         val top = maxOf(dp(if (compactLayout) 8f else 36f), t + dp(6f))
         val bottom = maxOf(dp(if (compactLayout) 8f else 24f), b + dp(8f))
         if (paddingTop != top || paddingBottom != bottom || paddingLeft != l || paddingRight != r) setPadding(l, top, r, bottom)
-        setBackgroundColor(if (compactLayout) Theme.INK else android.graphics.Color.TRANSPARENT)
         adaptLayout?.invoke(compactLayout)
+        // Narrow panes (and large display sizes) must not push the results card past the edges.
+        resultsCard?.layoutParams?.let { params ->
+            val width = minOf(dp(300f), MeasureSpec.getSize(widthMeasureSpec) - l - r - dp(24f))
+            if (params.width != width) params.width = width
+        }
         super.onMeasure(widthMeasureSpec, heightMeasureSpec)
     }
 

@@ -29,15 +29,6 @@ class AbilityDisplay(private val activity: Activity, private val kit: UiKit, val
     private var selected = -1
     private var revision = 0
     private var changing = false
-    private var compact = false
-
-    fun setCompact(value: Boolean) {
-        if (compact == value) return
-        compact = value
-        revision++; changing = false
-        render()
-    }
-
     private var cornerHost: LinearLayout? = null
     private val cornerChips = ArrayList<CandyChip>()
     private var cornerCard: View? = null
@@ -68,7 +59,7 @@ class AbilityDisplay(private val activity: Activity, private val kit: UiKit, val
         if (abilities == values && item == itemKey) return
         abilities = values; item = itemKey; selected = -1
         val token = ++revision
-        if (compact || style != 0 || !floating.isAttachedToWindow) {
+        if (style != 0 || !floating.isAttachedToWindow) {
             changing = false
             render()
             return
@@ -94,10 +85,7 @@ class AbilityDisplay(private val activity: Activity, private val kit: UiKit, val
             return
         }
         selected = if (selected == index) -1 else index
-        if (style == 0 && !compact) revealCorner() else render()
-        if (compact && selected >= 0) floating.post {
-            floating.requestRectangleOnScreen(android.graphics.Rect(0, 0, floating.width, floating.height), false)
-        }
+        if (style == 0) revealCorner() else render()
     }
 
     /** Keep the pressed icon alive so its shared 220 ms release can finish. */
@@ -200,25 +188,11 @@ class AbilityDisplay(private val activity: Activity, private val kit: UiKit, val
                 selected = if (it) abilities.indexOf(Ability.SECRET) else -1
             })
             mysteryDisplay = mystery
-            if (selected >= 0) mystery.toggle()
             cornerChips.add(mystery.button)
             floating.addView(row().apply {
                 gravity = Gravity.TOP
                 addView(mystery.button, LinearLayout.LayoutParams(dp(48f), dp(52f)))
                 addView(mystery.panel, LinearLayout.LayoutParams(0, -2, 1f).apply { leftMargin = dp(10f) })
-            }, FrameLayout.LayoutParams(-1, -2))
-            return
-        }
-        if (compact) {
-            inline.visibility = View.GONE
-            floating.addView(column().apply {
-                addView(row().apply {
-                    gravity = Gravity.CENTER
-                    abilities.forEachIndexed { i, ability ->
-                        addView(chip(ability, i), LinearLayout.LayoutParams(dp(48f), dp(52f)).apply { marginEnd = dp(8f) })
-                    }
-                })
-                if (selected >= 0) addView(card(listOf(abilities[selected])), LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(8f) })
             }, FrameLayout.LayoutParams(-1, -2))
             return
         }
@@ -236,7 +210,6 @@ class AbilityDisplay(private val activity: Activity, private val kit: UiKit, val
                 host.addView(FrameLayout(activity).apply { clipChildren = false; clipToPadding = false },
                     LinearLayout.LayoutParams(0, -2, 1f).apply { marginStart = dp(10f) })
                 floating.addView(host)
-                if (selected >= 0) revealCorner()
             }
             1 -> { // Labeled ability tabs above the cube.
                 val host = column()

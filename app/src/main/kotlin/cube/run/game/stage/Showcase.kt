@@ -186,9 +186,14 @@ class Showcase(private val game: Gdx3DGame, private val player: Player, private 
 
     fun aim(rig: RunCamera) {
         when (Stage.mode) {
-            Stage.RESULT -> rig.results(game.fractionForDp(36f + 120f))         // the results column starts below this
+            Stage.RESULT -> rig.results(Stage.focusFraction.takeUnless { it.isNaN() }
+                ?: game.fractionForDp(36f + 120f))                               // the results column starts below this
             Stage.SHOP -> rig.shop(game.fractionForDp(36f + 60f + 75f))         // the middle of the showroom strip
-            else -> rig.wardrobe(wide)
+            else -> {
+                // A short pane's gap is shallow: pull back for the bubble as the loop does for trails.
+                val focus = Stage.focusFraction
+                if (focus.isNaN()) rig.wardrobe(wide) else rig.wardrobe(wide + 0.8f * bubbleMix, focus)
+            }
         }
         if (shop) {
             // Interpolate from the captured menu shot, never from last frame's already-blended camera.

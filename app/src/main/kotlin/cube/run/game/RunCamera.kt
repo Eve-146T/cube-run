@@ -47,13 +47,9 @@ class RunCamera(private val cam: PerspectiveCamera) {
         cam.fieldOfView = 60f + max(0f, spd - 10f) * 0.42f + kick * kick * 9f
     }
 
-    /** The wardrobe: the cube centred, a little above eye level. [wide] pulls back for the trail demo. */
-    fun wardrobe(wide: Float) {
-        cam.position.set(0f, 2.3f + 0.5f * wide, 7.0f + 2.8f * wide)
-        cam.lookAt(0f, 0.75f + 0.15f * wide, 0f)
-        cam.up.set(0f, 1f, 0f)
-        cam.fieldOfView = 40f
-    }
+    /** The wardrobe: the cube at [fraction] of the screen (centred by default), a little above eye level. [wide] pulls back for the trail demo. */
+    fun wardrobe(wide: Float, fraction: Float = 0.5f) =
+        frame(0.75f + 0.15f * wide, fraction, 2.3f + 0.5f * wide, 7.0f + 2.8f * wide, 40f)
 
     /**
      * Frame the world point (0, [targetY], 0) at [fraction] of the screen

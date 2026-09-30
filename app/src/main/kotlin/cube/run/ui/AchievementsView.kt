@@ -66,22 +66,22 @@ class AchievementsView(activity: Activity, kit: UiKit, private val preparing: Bo
     internal var contentReady = false
         private set
 
-    private val compactProgress = kit.text("", 14f, Theme.WHITE, 700)
-    private val titleRow = LinearLayout(activity).apply { gravity = Gravity.CENTER_VERTICAL }
+    private val titleRow = LinearLayout(activity).apply { orientation = LinearLayout.VERTICAL }
 
     override fun onCompactChanged(compact: Boolean) {
+        // Short panes: the title joins the back button's row like every other page,
+        // and the trophy hero gives its height to the first cards (sections keep their counts).
         hero.visibility = if (compact) View.GONE else View.VISIBLE
-        compactProgress.visibility = if (compact) View.VISIBLE else View.GONE
-        updateCompactProgress()
+        (titleView.parent as? android.view.ViewGroup)?.removeView(titleView)
+        if (compact) topBar.addView(titleView, 1, LinearLayout.LayoutParams(0, -2, 1f).apply { marginStart = dp(12f) })
+        else titleRow.addView(titleView, LinearLayout.LayoutParams(-1, -2))
+        titleRow.visibility = if (compact) View.GONE else View.VISIBLE
         for (i in 0 until rows.childCount) {
             val row = rows.getChildAt(i)
-            if (row.tag == "achievement_section") row.layoutParams = sectionParams()
+            if (row.tag == "achievement_section") row.layoutParams = sectionParams().apply {
+                if (compact && i == 1) topMargin = dp(4f) // right under the hidden hero
+            }
         }
-    }
-
-    private fun updateCompactProgress() {
-        val states = Achievements.snapshot()
-        compactProgress.text = "${states.sumOf { it.earnedTiers }} / ${states.sumOf { it.definition.thresholds.size }}"
     }
 
     init {
@@ -94,8 +94,7 @@ class AchievementsView(activity: Activity, kit: UiKit, private val preparing: Bo
         content.addView(LinearLayout(activity).apply {
             orientation = LinearLayout.VERTICAL
             clipChildren = true; clipToPadding = true
-            titleRow.addView(titleView, LinearLayout.LayoutParams(0, -2, 1f))
-            titleRow.addView(compactProgress.apply { visibility = View.GONE }, LinearLayout.LayoutParams(-2, -2).apply { marginStart = dp(8f) })
+            titleRow.addView(titleView, LinearLayout.LayoutParams(-1, -2))
             addView(titleRow, LinearLayout.LayoutParams(-1, -2).apply {
                 marginStart = dp(14f); marginEnd = dp(14f); topMargin = dp(4f); bottomMargin = dp(8f)
             })
@@ -203,7 +202,6 @@ class AchievementsView(activity: Activity, kit: UiKit, private val preparing: Bo
         } then {
             SoundFx.play("success", rate = 1.2f, vol = .5f); Haptics.success()
             hero.bind(Achievements.snapshot(), animate = true)
-            updateCompactProgress()
             paying = false
         }
     }

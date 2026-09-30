@@ -165,7 +165,8 @@ class MainMenu(
                 letterSize, resources.displayMetrics)
             if (text.textSize != pixels) text.textSize = letterSize
             (text.layoutParams as LinearLayout.LayoutParams).apply {
-                marginStart = -dp(if (compact) 2f else 6f); marginEnd = marginStart
+                marginStart = -dp(6f); marginEnd = marginStart
+                resolveLayoutDirection(layoutDirection) // relative margins set after inflation stay unapplied otherwise
             }
         }
         top.orientation = LinearLayout.VERTICAL
@@ -185,7 +186,8 @@ class MainMenu(
         logo.orientation = if (singleLine) LinearLayout.HORIZONTAL else LinearLayout.VERTICAL
         (logo.getChildAt(1).layoutParams as LinearLayout.LayoutParams).apply {
             topMargin = if (singleLine) 0 else -dp(18f * letterSize / 62f)
-            marginStart = if (singleLine) dp(10f) else 0
+            marginStart = if (singleLine) dp(16f) else 0
+            resolveLayoutDirection(layoutDirection) // the word gap between CUBE and RUN
         }
         (top.layoutParams as LayoutParams).topMargin = maxOf(dp(if (compact) 56f else 70f),
             (cutouts?.get(1) ?: 0) + dp(if (compact) 48f else 40f))
@@ -193,10 +195,22 @@ class MainMenu(
             (pill.layoutParams as LayoutParams).topMargin = maxOf(dp(if (compact) 16f else 40f),
                 (cutouts?.get(1) ?: 0) + dp(10f))
         }
+        // Short and narrow (a flip phone, a split pane on a small phone): the two groups
+        // stand as columns at the edges, so neither row lands on the cube in the middle.
+        // Too short even for that, they fall back to centred rows under the prompt.
+        val columns = compactRows && usableHeight >= dp(400f)
+        val rows = compactRows && !columns
+        leftChips.orientation = if (columns) LinearLayout.VERTICAL else LinearLayout.HORIZONTAL
+        leftChips.gravity = if (columns) Gravity.START else Gravity.BOTTOM
         for (i in 0 until leftChips.childCount) {
             val column = leftChips.getChildAt(i) as LinearLayout
             column.orientation = if (compactRows) LinearLayout.HORIZONTAL else LinearLayout.VERTICAL
-            column.layoutParams.width = if (compactRows) LinearLayout.LayoutParams.WRAP_CONTENT else dp(44f)
+            (column.layoutParams as LinearLayout.LayoutParams).apply {
+                width = if (compactRows) LinearLayout.LayoutParams.WRAP_CONTENT else dp(44f)
+                marginStart = if (!columns && i > 0) dp(8f) else 0
+                topMargin = if (columns && i > 0) dp(8f) else 0
+                resolveLayoutDirection(layoutDirection)
+            }
             for (j in 0 until column.childCount) {
                 val params = column.getChildAt(j).layoutParams as LinearLayout.LayoutParams
                 params.bottomMargin = if (!compactRows && j < column.childCount - 1) dp(10f) else 0
@@ -204,22 +218,32 @@ class MainMenu(
                 params.resolveLayoutDirection(layoutDirection)
             }
         }
+        rightChips.orientation = if (columns) LinearLayout.VERTICAL else LinearLayout.HORIZONTAL
+        for (i in 0 until rightChips.childCount) (rightChips.getChildAt(i).layoutParams as LinearLayout.LayoutParams).apply {
+            // the achievements chip keeps its physical right gap, as it always has
+            rightMargin = if (!columns && i == 0) dp(10f) else 0
+            if (i == 2) marginStart = if (columns) 0 else dp(10f)
+            topMargin = if (columns && i > 0) dp(8f) else 0
+            resolveLayoutDirection(layoutDirection)
+        }
         if (compactAppearance != compact) {
             compactAppearance = compact
             middle.setPadding(dp(if (compact) 16f else 0f), 0, dp(if (compact) 16f else 0f), 0)
         }
         (leftChips.layoutParams as LayoutParams).apply {
-            gravity = Gravity.BOTTOM or if (compactRows) Gravity.CENTER_HORIZONTAL else Gravity.START
-            marginStart = if (compactRows) 0 else dp(14f) + (cutouts?.get(0) ?: 0)
-            if (compactRows) { leftMargin = 0; rightMargin = 0; marginEnd = 0 }
+            gravity = Gravity.BOTTOM or if (rows) Gravity.CENTER_HORIZONTAL else Gravity.START
+            marginStart = if (rows) 0 else dp(14f) + (cutouts?.get(0) ?: 0)
+            if (rows) { leftMargin = 0; rightMargin = 0; marginEnd = 0 }
+            resolveLayoutDirection(layoutDirection)
         }
         (rightChips.layoutParams as LayoutParams).apply {
-            gravity = Gravity.BOTTOM or if (compactRows) Gravity.CENTER_HORIZONTAL else Gravity.END
-            marginEnd = if (compactRows) 0 else dp(14f) + (cutouts?.get(2) ?: 0)
-            if (compactRows) { leftMargin = 0; rightMargin = 0; marginStart = 0 }
+            gravity = Gravity.BOTTOM or if (rows) Gravity.CENTER_HORIZONTAL else Gravity.END
+            marginEnd = if (rows) 0 else dp(14f) + (cutouts?.get(2) ?: 0)
+            if (rows) { leftMargin = 0; rightMargin = 0; marginStart = 0 }
+            resolveLayoutDirection(layoutDirection)
         }
         val count = if (Progress.achievementsUnlocked) 3 else 2
-        val separateRows = compactRows || available < dp(28f + 132f + 16f + 12f) + dp(48f) * count + dp(10f) * (count - 1)
+        val separateRows = rows || !compactRows && available < dp(28f + 132f + 16f + 12f) + dp(48f) * count + dp(10f) * (count - 1)
         val settingsWidth = if (separateRows) 0 else dp(132f + 16f)
         val chipSize = ((available - dp(28f) - settingsWidth - dp(10f) * (count - 1)) / count)
             .coerceIn(dp(48f), dp(if (compact) 48f else 58f))

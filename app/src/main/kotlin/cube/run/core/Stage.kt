@@ -100,6 +100,12 @@ object Stage {
     @Volatile var resultHue = 46f
     @Volatile var resultRecord = false
 
+    /**
+     * Short (split-screen) panes: where the page left room for the showpiece, as a
+     * fraction of the screen height from the top. NaN keeps each mode's own framing.
+     */
+    @Volatile var focusFraction = Float.NaN
+
     /** Wardrobe: which category is being browsed (data.Wardrobe.CUBE / BUBBLE / TRAIL). */
     @Volatile var previewCat = 0
     /** Cube skin id to show on the wardrobe stage (-1 = the equipped one). */
@@ -112,6 +118,7 @@ object Stage {
     fun reset() {
         homeScreen = true; botOwner = null; pointerDown = false
         mode = NONE
+        focusFraction = Float.NaN
         shopProgress = 0f
         shopPlayRequests.set(0)
         paused = false

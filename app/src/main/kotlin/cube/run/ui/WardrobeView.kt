@@ -55,89 +55,52 @@ class WardrobeView(activity: Activity, kit: UiKit, abilityStyle: Int = 0, onClos
     private var downY = 0f
     private var swiped = false
 
-    private data class Placement(val view: View, val parent: android.view.ViewGroup, val index: Int, val params: android.view.ViewGroup.LayoutParams)
-    private val placements = ArrayList<Placement>()
-    private var compactBody: LinearLayout? = null
-    private var compactScrollY = 0
-    private val preview = CompactCosmeticPreview(activity)
-
     override fun onCompactChanged(compact: Boolean) {
+        // Short panes keep the full layout and the real stage, just tighter:
+        // the tabs hug the title, the details sit at the bottom edge, and the
+        // stage frames the item in whatever gap is left between them.
         actionLabel.compact = compact
+        (tabs.layoutParams as FrameLayout.LayoutParams).topMargin = dp(if (compact) 0f else 4f)
+        tabViews.forEach { tab ->
+            tab.textSize = if (compact) 12f else 13f
+            tab.setPadding(dp(if (compact) 12f else 16f), dp(if (compact) 5f else 7f), dp(if (compact) 12f else 16f), dp(if (compact) 5f else 7f))
+        }
+        for (arrow in listOf(left, right)) (arrow.layoutParams as FrameLayout.LayoutParams).apply {
+            width = dp(if (compact) 46f else 54f); height = dp(if (compact) 50f else 58f)
+            marginStart = dp(if (compact) 8f else 12f); marginEnd = marginStart
+            resolveLayoutDirection(layoutDirection)
+        }
+        (itemDetails.layoutParams as FrameLayout.LayoutParams).bottomMargin = dp(if (compact) 8f else 112f)
+        (dots.layoutParams as LinearLayout.LayoutParams).topMargin = dp(if (compact) 6f else 12f)
+        (actionLabel.layoutParams as LinearLayout.LayoutParams).topMargin = dp(if (compact) 10f else 18f)
+        name.textSize = if (compact) 24f else 32f
         if (compact) {
-            val moving = listOf(tabs, left, right, name, dots, abilityDisplay.inline, abilityDisplay.floating, actionLabel)
-            placements.clear()
-            for (view in moving) {
-                val parent = view.parent as android.view.ViewGroup
-                placements.add(Placement(view, parent, parent.indexOfChild(view), view.layoutParams))
-            }
-            for (view in moving) (view.parent as android.view.ViewGroup).removeView(view)
-            itemDetails.visibility = View.GONE
-            val column = LinearLayout(activity).apply { orientation = LinearLayout.VERTICAL }
-            compactBody = column
-            column.addView(tabs, LinearLayout.LayoutParams(-1, dp(44f)))
-            val rows = LinearLayout(activity).apply {
-                orientation = LinearLayout.VERTICAL
-                gravity = Gravity.CENTER_HORIZONTAL
-                setPadding(dp(12f), dp(4f), dp(12f), dp(12f))
-            }
-            rows.addView(LinearLayout(activity).apply {
-                gravity = Gravity.CENTER_VERTICAL
-                addView(this@WardrobeView.left, LinearLayout.LayoutParams(dp(48f), dp(52f)))
-                addView(LinearLayout(activity).apply {
-                    orientation = LinearLayout.VERTICAL
-                    gravity = Gravity.CENTER_HORIZONTAL
-                    addView(preview, LinearLayout.LayoutParams(dp(80f), dp(80f)))
-                    addView(name, LinearLayout.LayoutParams(-1, -2))
-                }, LinearLayout.LayoutParams(0, -2, 1f))
-                addView(this@WardrobeView.right, LinearLayout.LayoutParams(dp(48f), dp(52f)))
-            }, LinearLayout.LayoutParams(-1, -2))
-            rows.addView(dots, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(4f); bottomMargin = dp(4f) })
-            rows.addView(abilityDisplay.inline, LinearLayout.LayoutParams(-1, -2))
-            rows.addView(abilityDisplay.floating, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(8f) })
-            column.addView(android.widget.ScrollView(activity).apply {
-                tag = "compact_wardrobe_scroll"
-                isVerticalScrollBarEnabled = true
-                isFillViewport = true
-                addView(rows)
-                post { scrollTo(0, compactScrollY) }
-            }, LinearLayout.LayoutParams(-1, 0, 1f))
-            column.addView(actionLabel, LinearLayout.LayoutParams(-1, -2).apply {
-                marginStart = dp(16f); marginEnd = dp(16f); topMargin = dp(4f); bottomMargin = dp(8f)
-            })
-            content.addView(column, FrameLayout.LayoutParams(-1, -1))
-            setBackgroundColor(Theme.INK)
-            name.textSize = 22f
             action.minimumHeight = dp(48f)
             action.setPadding(dp(16f), dp(8f), dp(16f), dp(8f))
         } else {
-            compactScrollY = findViewWithTag<android.widget.ScrollView>("compact_wardrobe_scroll")?.scrollY ?: 0
-            placements.forEach { (it.view.parent as? android.view.ViewGroup)?.removeView(it.view) }
-            content.removeView(compactBody)
-            (preview.parent as? android.view.ViewGroup)?.removeView(preview)
-            placements.sortedBy { it.index }.forEach { it.parent.addView(it.view, minOf(it.index, it.parent.childCount), it.params) }
-            placements.clear(); compactBody = null
-            itemDetails.visibility = View.VISIBLE
-            background = null
-            name.textSize = 32f
             action.minimumHeight = dp(34f) + kotlin.math.ceil(action.paint.fontSpacing + action.paint.fontMetrics.bottom - action.paint.fontMetrics.top).toInt()
             action.setPadding(dp(34f), dp(14f), dp(34f), dp(14f))
-        }
-        tabViews.forEach { tab ->
-            tab.layoutParams = LinearLayout.LayoutParams(if (compact) 0 else -2, if (compact) -1 else -2, if (compact) 1f else 0f).apply {
-                marginStart = dp(4f); marginEnd = dp(4f)
-            }
-            tab.setPadding(dp(if (compact) 4f else 16f), dp(7f), dp(if (compact) 4f else 16f), dp(7f))
-            if (compact) {
-                tab.setSingleLine()
-                tab.setAutoSizeTextTypeUniformWithConfiguration(10, 13, 1, TypedValue.COMPLEX_UNIT_SP)
-            } else {
-                tab.setAutoSizeTextTypeWithDefaults(TextView.AUTO_SIZE_TEXT_TYPE_NONE)
-                tab.setSingleLine(false); tab.textSize = 13f
-            }
+            Stage.focusFraction = Float.NaN
         }
         updateDotSpacing()
-        abilityDisplay.setCompact(compact)
-        preview.bind(cat, index)
+    }
+
+    private val windowPosition = IntArray(2)
+
+    override fun onLayout(changed: Boolean, l: Int, t: Int, r: Int, b: Int) {
+        super.onLayout(changed, l, t, r, b)
+        if (!compactLayout) return
+        // The middle of a short pane is covered by the tabs or the details: the
+        // stage frames the item in the real gap between them, and the arrows flank
+        // its name so they stay clear of the ability corner.
+        val middle = (tabs.bottom + itemDetails.top) / 2
+        val row = itemDetails.top + name.top + name.height / 2
+        for (arrow in listOf(left, right)) arrow.layout(arrow.left, row - arrow.measuredHeight / 2, arrow.right, row + arrow.measuredHeight - arrow.measuredHeight / 2)
+        val at = windowPosition
+        content.getLocationInWindow(at)
+        val window = rootView.height
+        // The framed point sits a little below the item's visual centre.
+        if (window > 0 && !closing) Stage.focusFraction = (at[1] + middle + dp(12f)).toFloat() / window
     }
 
     init {
@@ -208,6 +171,7 @@ class WardrobeView(activity: Activity, kit: UiKit, abilityStyle: Int = 0, onClos
     }
 
     override fun onNavigationShown() {
+        if (!compactLayout) Stage.focusFraction = Float.NaN
         Stage.previewCat = cat
         Stage.mode = Stage.SKINS
         applyPreview()
@@ -275,7 +239,6 @@ class WardrobeView(activity: Activity, kit: UiKit, abilityStyle: Int = 0, onClos
     private fun visibleItems(): List<Int> = Wardrobe.shopItems(cat).filter { Progress.secretAvailable(cat, it) }
 
     private fun render() {
-        preview.bind(cat, index)
         val owned = Progress.owns(cat, index)
         val equipped = Progress.equipped(cat) == index
         val price = Wardrobe.price(cat, index)
@@ -382,6 +345,7 @@ class WardrobeView(activity: Activity, kit: UiKit, abilityStyle: Int = 0, onClos
 
     override fun onBack() {
         Stage.clearPreview()
+        Stage.focusFraction = Float.NaN
         Stage.mode = Stage.NONE
         close()
     }

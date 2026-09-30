@@ -104,24 +104,25 @@ class CompactLayoutTest {
                     val action = page.findViewWithTag<View>("wardrobe_action_button")
                     inside(page, action)
                     assertTrue(action.height >= kit.dp(48f))
+                    val chip = all(ability.floating).filterIsInstance<CandyChip>().first()
+                    val left = field(page, "left") as View
+                    val right = field(page, "right") as View
+                    listOf(left, right, field(page, "tabs") as View, field(page, "dots") as View).forEach { inside(page, it) }
+                    fun rect(view: View) = Rect(0, 0, view.width, view.height).also { page.offsetDescendantRectToMyCoords(view, it) }
+                    assertFalse("Ability corner meets the arrows at $w x $h / $scale", Rect.intersects(rect(chip), rect(left)))
                     if (h < 480) {
-                        assertNotNull(page.findViewWithTag<View>("compact_wardrobe_scroll"))
-                        val chip = all(ability.floating).filterIsInstance<CandyChip>().first()
-                        inside(page, field(page, "dots") as View)
-                        if (w == 360 && h == 375 && scale == 1f) {
-                            val chipRect = Rect(0, 0, chip.width, chip.height)
-                            val actionRect = Rect(0, 0, action.width, action.height)
-                            page.offsetDescendantRectToMyCoords(chip, chipRect)
-                            page.offsetDescendantRectToMyCoords(action, actionRect)
-                            assertTrue("Collapsed ability must clear the pinned action", chipRect.bottom <= actionRect.top)
-                        }
+                        // The stage frames the item in the gap between the tabs and the details.
+                        val tabs = rect(field(page, "tabs") as View)
+                        val details = rect(field(page, "itemDetails") as View)
+                        assertTrue("No room left for the item at $w x $h / $scale", details.top - tabs.bottom >= kit.dp(96f))
+                        assertTrue("Arrows flank the name", rect(left).top >= tabs.bottom)
                         chip.performClick()
                         measure(page, kit, w, h)
                         inside(page, action)
                         val detail = all(ability.floating).filterIsInstance<TextView>()
-                        assertTrue("Long ability text remains in the scrollable content", detail.any { it.text.contains("250k") })
+                        assertTrue("The ability explanation opens", detail.any { it.text.contains("250k") })
                         chip.performClick()
-                    } else assertNull(page.findViewWithTag<View>("compact_wardrobe_scroll"))
+                    }
                 }
                 Anim.cancelTree(page)
             }
@@ -167,22 +168,22 @@ class CompactLayoutTest {
             val kit = UiKit(activity)
             var closed = 0
             val flow = RunOverFlow(activity, kit, 1234, 1234, true, 99, 0, "", emptyList(), {}, { closed++ })
+            val prompt = activity.getString(cube.run.R.string.text_tap_for_the_menu)
             for ((w, h) in sizes) {
                 measure(flow, kit, w, h)
-                val button = flow.findViewWithTag<View>("compact_results_continue")
-                if (h < 480) {
-                    assertNotNull(button); inside(flow, button)
-                    assertNull("Tap prompts remain plain", button.background)
-                    assertFalse(button.isClickable)
-                    val score = field(flow, "scoreText") as TextView
-                    assertEquals("1234", score.text.toString())
-                    assertEquals(1f, score.alpha)
-                    assertEquals(1f, (field(flow, "page") as View).alpha)
-                    assertTrue(score.textSize >= kit.dp(40f))
-                    assertEquals(1f, (field(flow, "scoreText") as View).parent.let { it as View }.scaleX)
-                } else assertNull(button)
+                val hint = all(flow).filterIsInstance<TextView>().first { it.text.toString() == prompt }
+                inside(flow, hint)
+                assertNull("Tap prompts remain plain", hint.background)
+                val score = field(flow, "scoreText") as TextView
+                val column = score.parent as View
+                assertTrue(score.textSize >= kit.dp(40f))
+                assertEquals(if (h < 480) 64f else 104f, score.textSize / activity.resources.displayMetrics.scaledDensity, .1f)
+                // Short panes keep the stage: the cube and its sunburst get the room above the column.
+                if (h < 480) assertTrue((column.layoutParams as ViewGroup.MarginLayoutParams).topMargin >= kit.dp(104f))
+                assertTrue((field(flow, "resultsCard") as View).layoutParams.width <= kit.dp(w - 24f))
             }
             measure(flow, kit, 360, 375)
+            flow.confirm() // the first tap settles the count, as at full height
             flow.confirm()
             assertEquals(1, closed)
             Anim.cancelTree(flow)

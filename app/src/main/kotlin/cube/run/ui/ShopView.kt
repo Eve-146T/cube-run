@@ -586,7 +586,7 @@ class ShopView(
     private fun pay(btn: View, before: Int, key: String, u: Progress.Upgrade?, demo: Int, displayedBalance: Int) {
         paying = true
         Haptics.click()
-        if (compactLayout) {
+        if (compactLayout && key == "void") { // the black hole needs the showroom; short panes just settle the purchase
             balanceCount?.cancel()
             kit.labelOf(balance).text = displayedBalance.toString()
             paying = false
@@ -625,7 +625,7 @@ class ShopView(
             if (closing) return@fly
             paying = false
             SoundFx.play("success", rate = 1.4f, vol = 0.55f); Haptics.success()
-            Stage.demoRequests.set(demo)
+            if (!compactLayout) Stage.demoRequests.set(demo) // short panes have no showroom to play it in
             render(u)
             cards[key]?.let { PayFx.flash(it, dpf(24f)) }
             nowViews[key]?.let { Anim.popIn(it, 0, 0.6f, 360) }
