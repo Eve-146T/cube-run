@@ -109,6 +109,9 @@ class Player(private val game: Gdx3DGame, private val rnd: Random) {
     private var zappyFx: ZappyFx? = null
     private lateinit var shellBlend: BlendingAttribute
     private var curSkinId = -1
+    /** The run's phase charge is gone: a see-through ghost settles into a solid, dimmer cube. */
+    var phaseSpent = false
+    private var spentMix = 0f
     var skin: Skins.Skin = Skins.get(0)
         private set
     var trail: Trails.Trail = Trails.get(0)
@@ -146,6 +149,7 @@ class Player(private val game: Gdx3DGame, private val rnd: Random) {
         idleT = 0f; idleYaw = 0f; idleMix = 0f; quietLanding = false
         menuX = 0f; menuY = ground; menuYaw = 0f; menuSpin = 0f
         voidEmissiveSaved = false
+        phaseSpent = false; spentMix = 0f
         applySkin(baseHue, time)
         update(0f, 0f, time, baseHue, trail = false, groundH = 0f)
     }
@@ -374,11 +378,12 @@ class Player(private val game: Gdx3DGame, private val rnd: Random) {
         val sq = squash * 0.3f
         val st = stretch * stretch * 0.35f
         val duY = duck * 0.20f - lift // hug the ground while rolling
+        spentMix += ((if (phaseSpent) 1f else 0f) - spentMix) * min(1f, dt * 4f)
         // skin colours are pure functions of time — sampled every frame, no allocation
-        hsvInto(col, skin.hueAt(time, baseHue), skin.sat, skin.valueAt(time))
+        hsvInto(col, skin.hueAt(time, baseHue), skin.sat, skin.valueAt(time) * (1f - 0.45f * spentMix))
         visualTime = time
         hsvInto(shellCol, skin.hueAt(time, baseHue), skin.sat * 0.9f, 1f)
-        openingMaterial(skin.opacity, if (skin.id == 13) 1f else 0f)
+        openingMaterial(skin.opacity + (1f - skin.opacity) * spentMix, (if (skin.id == 13) 1f else 0f) * (1f - spentMix))
         val breathe = 1f + 0.03f * idleMix * sin(time * 2.4f)
         inst.transform.setToTranslation(px + nudge, py - squash * 0.08f - duY, 0f)
             .rotate(Vector3.Y, idleYaw * idleMix)
@@ -387,7 +392,7 @@ class Player(private val game: Gdx3DGame, private val rnd: Random) {
             .scale(breathe, 1f / breathe, breathe)
             .scale(0.9f * (1f + sq + duck * 0.35f - st * 0.5f), 0.9f * (1f - sq + st) * (1f - duck * 0.5f), 0.9f * (1f + sq + duck * 0.1f - st * 0.5f))
         val pulse = glowScale(time)
-        shellBlend.opacity = shellOpacity(time)
+        shellBlend.opacity = shellOpacity(time) * (1f - spentMix)
         shellInst.transform.setToTranslation(px + nudge, py - duY, 0f)
             .rotate(Vector3.Y, idleYaw * idleMix).rotate(Vector3.Z, tilt).rotate(Vector3.X, -roll)
             .scale(pulse, pulse, pulse)
