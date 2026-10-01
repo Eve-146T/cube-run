@@ -183,9 +183,11 @@ object Progress {
     val voidAvailable: Boolean get() = Settings.devMode || totalCoins >= VOID_LIFETIME_GATE
     /** Steadily rising offerings, rounded to 500 and capped safely below the bank limit. */
     val voidPrice: Int get() = voidPurchases.coerceIn(0, 10000).toLong().let { n -> (5000L + n * 2500L + n * n * 500L).coerceAtMost(1_000_000_000L).toInt() }
-    val voidLine: String get() = voidLines.getOrElse(voidPurchases) { voidEchoes[(voidPurchases - voidLines.size).mod(voidEchoes.size)] }
+    /** The void stays silent until the first offering; line N answers purchase N. */
+    val voidLine: String get() = if (voidPurchases == 0) "" else
+        voidLines.getOrElse(voidPurchases - 1) { voidEchoes[(voidPurchases - 1 - voidLines.size).mod(voidEchoes.size)] }
     private val voidLines = listOf(
-        "This upgrade does nothing.", "What did you think was going to happen?", "Do you never learn?",
+        "What did you think was going to happen?", "Do you never learn?",
         "Still nothing.", "You could have bought something useful.", "The silence is getting expensive.",
         "There is no refund in the dark.", "You are very persistent.", "One more will change nothing.", "Are you sure?",
         "Fine.", "There was more.", "Don't look so pleased.", "The dark remembers you.", "Something follows.",
