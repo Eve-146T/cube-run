@@ -68,16 +68,18 @@ internal class VoidShowOverlay(
         addView(box, LayoutParams(LayoutParams.MATCH_PARENT, 0, Gravity.TOP).apply { leftMargin = side; rightMargin = side })
     }
 
-    override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
-        super.onSizeChanged(w, h, oldw, oldh)
-        // From just under the reborn cube down to the bottom edge.
-        val top = (h * REGION_TOP).toInt()
-        val height = h - top - kit24()
-        (box.layoutParams as LayoutParams).let { if (it.height != height || it.topMargin != top) { it.height = height; it.topMargin = top; box.layoutParams = it } }
-        breaks = null
+    override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
+        // From just under the reborn cube down to the bottom edge. Set while measuring, so the
+        // box has its size from the very first frame (a layout request from onSizeChanged waits).
+        val h = MeasureSpec.getSize(heightMeasureSpec)
+        (box.layoutParams as LayoutParams).apply { topMargin = (h * REGION_TOP).toInt(); height = h - topMargin - (24f * density).toInt() }
+        super.onMeasure(widthMeasureSpec, heightMeasureSpec)
     }
 
-    private fun kit24() = (24f * density).toInt()
+    override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
+        super.onSizeChanged(w, h, oldw, oldh)
+        breaks = null
+    }
 
     override fun onAttachedToWindow() {
         super.onAttachedToWindow()
