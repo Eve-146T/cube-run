@@ -14,8 +14,8 @@ import cube.run.R
  * The HUD's half of the void show, which the GL stage plays (game.stage.VoidShow).
  * A transparent, touch-swallowing layer over the whole HUD: it follows the GL clock
  * ([Stage.voidClock]), types the void's line over the blast's afterglow, tells the host
- * when to bring the shop back ([onReturn]) and when it is over ([onEnd]). A tap after the
- * blast skips to the return.
+ * when to bring the shop back ([onReturn]) and when it is over ([onEnd]). The stage holds
+ * on the spoken line until a tap; a tap earlier in the afterglow jumps to that hold.
  */
 @SuppressLint("ViewConstructor")
 internal class VoidShowOverlay(

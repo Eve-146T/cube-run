@@ -12,6 +12,7 @@ import cube.run.core.VoidBeats
 import cube.run.core.VoidBeats.COLLAPSE
 import cube.run.core.VoidBeats.END
 import cube.run.core.VoidBeats.FEED
+import cube.run.core.VoidBeats.HOLD
 import cube.run.core.VoidBeats.NOVA
 import cube.run.core.VoidBeats.PULL
 import cube.run.core.VoidBeats.REBIRTH
@@ -45,6 +46,8 @@ class VoidShow(private val game: Gdx3DGame, private val player: Player) {
     var active = false
         private set
     private var t = 0f
+    /** The player has tapped the held line away. */
+    private var released = false
     private val rnd = Random(146)
     private var renderer: VoidRenderer? = null
 
@@ -134,7 +137,7 @@ class VoidShow(private val game: Gdx3DGame, private val player: Player) {
 
     fun start(px: Float, py: Float) {
         active = true
-        t = 0f; spin = 0f; gulp = 0f; heat = 0f; eaten = 0; cubeYaw = 0f
+        t = 0f; released = false; spin = 0f; gulp = 0f; heat = 0f; eaten = 0; cubeYaw = 0f
         home.set(px, py, 0f)
         hole.set(px, py + 2.6f, -5.2f)
         java.util.Arrays.fill(coinDone, false)
@@ -148,9 +151,12 @@ class VoidShow(private val game: Gdx3DGame, private val player: Player) {
 
     fun update(dt: Float) {
         if (!active) return
-        if (Stage.voidSkips.getAndSet(0) > 0 && t > NOVA + 0.4f && t < RETURN) t = RETURN
+        if (Stage.voidSkips.getAndSet(0) > 0 && t > NOVA + 0.4f && t < RETURN) {
+            if (t < HOLD) t = HOLD else released = true
+        }
         val before = t
-        t += dt
+        // Nothing moves on to the shop until the player taps the line away.
+        t = if (released || t > HOLD) t + dt else min(t + dt, HOLD)
         Stage.voidClock = t
         fun crossed(beat: Float) = before < beat && t >= beat
 

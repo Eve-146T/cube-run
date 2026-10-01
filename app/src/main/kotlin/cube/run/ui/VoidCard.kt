@@ -20,7 +20,7 @@ import kotlin.math.sin
 /**
  * The void's shop card: a black slab with a live black hole in it that slowly swallows the
  * stars around it, a soft nebula behind it, a glow that creeps round the card's edge like an
- * event horizon, the last thing the void said (nothing before the first offering), and the gold price button every card uses. There is
+ * event horizon, "???" until the first offering (nothing after it), and the gold price button every card uses. There is
  * deliberately no progress shown: every offering should feel hopeless. Paying hands over to
  * the 3D show (game.stage.VoidShow).
  */
@@ -51,7 +51,7 @@ internal class VoidCardView(context: Context, kit: UiKit, line: String, price: V
         clipChildren = false; clipToPadding = false
         setPadding(kit.dp(20f), kit.dp(4f), kit.dp(20f), kit.dp(22f))
         addView(sigil, LayoutParams(LayoutParams.MATCH_PARENT, kit.dp(158f)))
-        // Before the first offering the void has nothing to say.
+        // After the first offering the card falls silent; the void only speaks in its show.
         if (line.isNotEmpty()) addView(kit.text(line, 19f, 0xfff1eaff.toInt(), 700).apply { minHeight = kit.dp(50f); gravity = Gravity.CENTER },
             LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT))
         addView(price, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT).apply { topMargin = kit.dp(18f) })
