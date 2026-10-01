@@ -2,8 +2,6 @@ package cube.run.intro
 
 import android.annotation.TargetApi
 import android.app.Activity
-import android.os.Build
-import android.view.SurfaceControl
 import android.view.ViewGroup
 import android.view.SurfaceView
 import android.view.View
@@ -97,27 +95,10 @@ class OpeningSplashHandoff(
             View.MeasureSpec.makeMeasureSpec(splash.height, View.MeasureSpec.EXACTLY))
         cover.layout(0, 0, splash.width, splash.height)
         native.invalidate()
-        if (Build.VERSION.SDK_INT >= 33) {
-            SurfaceControl.Transaction().use { transaction ->
-                val ready = {
-                    if (!disposed) {
-                        submitted = true
-                        removeWhenReady()
-                    }
-                }
-                if (Build.VERSION.SDK_INT >= 35) {
-                    transaction.addTransactionCompletedListener(activity.mainExecutor) { ready() }
-                } else {
-                    transaction.addTransactionCommittedListener(activity.mainExecutor) { ready() }
-                }
-                // A View frame-commit callback only reports render submission.
-                // Wait until the compositor has applied the window buffer and
-                // Android's starting-window hide before releasing the old icon.
-                if (decor.rootSurfaceControl?.applyTransactionOnDraw(transaction) == true) return
-            }
-        }
-        // Android 12 has no public compositor-commit callback. Keep the live
-        // replacement through a second submitted frame before releasing the host.
+        // Do not queue a SurfaceControl.Transaction here: applyTransactionOnDraw
+        // merges it on Android's render thread, after a scoped transaction would
+        // already be closed. Keep the live replacement through a second
+        // submitted frame before releasing the splash on every Android version.
         decor.viewTreeObserver.registerFrameCommitCallback {
             decor.postOnAnimation {
                 if (!decor.isAttachedToWindow) return@postOnAnimation
