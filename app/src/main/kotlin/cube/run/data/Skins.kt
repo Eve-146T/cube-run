@@ -11,6 +11,7 @@ object Skins {
     const val COAL_ID = 15
     const val MINT_ID = 8
     const val VOID_ID = 24
+    const val ZEN_ID = 25
     // colour modes
     const val COMP = 0      // complementary to the world's base hue (the classic look)
     const val FIXED = 1     // one fixed hue
@@ -42,6 +43,8 @@ object Skins {
         CLOSE_SHAVE("Close Shave", "Near misses give you 3 times the bonus points!"),
         GIGAJUMP("Gigajump", "Jump twice as high while your bubble is active!"),
         TOXIC_FORTUNE("Toxic Fortune", "Coins are worth 60% more, but 1% are green and kill you instantly!"),
+        ZEN("Zen", "Obstacles melt away. Nothing is scored, earned or lost. Just roll."),
+        CALM("Calm", "A soft haze settles over the world and mutes its colours."),
     }
 
     class Skin(
@@ -121,6 +124,8 @@ object Skins {
         Skin(22, "Eclipse", 0, STROBE, hue = 285f, hue2 = 325f, sat = 0.9f, value = 0.55f, glow = 3f, trail = 2.2f, sparkle = true, shardType = Shards.VOID, abilities = listOf(Ability.ZAPPY)),
         Skin(23, "Speedy cube", 3_000, FIXED, hue = 42f, sat = 0.95f, glow = 1.7f, trail = 1.8f, abilities = listOf(Ability.SPEED)),
         Skin(VOID_ID, "Black void", 300_000, FIXED, hue = 265f, sat = 0.25f, value = 0.012f, glow = 0.7f, trail = 0.7f, abilities = listOf(Ability.SECRET)),
+        // Black and white: the yin-yang texture is the body, so the tint stays white (see Player).
+        Skin(ZEN_ID, "Zen", 500, FIXED, sat = 0f, value = 1f, glow = 0.6f, trail = 0.7f, abilities = listOf(Ability.ZEN, Ability.CALM)),
     )
 
     fun mintSynergy(cube: Int, bubble: Int): Boolean = cube == MINT_ID && bubble == BubbleSkins.MINT_ID

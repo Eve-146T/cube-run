@@ -380,6 +380,21 @@ class AbilityIcon(private val ability: Ability) : Icon() {
             paint.style = Paint.Style.FILL; paint.color = Theme.INK; canvas.drawPath(path, paint)
             paint.style = Paint.Style.STROKE; paint.color = Theme.LAVENDER; paint.strokeWidth = 2f
             canvas.drawLine(15f, 18f, 25f, 13f, paint); canvas.drawLine(25f, 13f, 32f, 20f, paint)
+        } else if (ability == Ability.ZEN) {
+            // An ensō: one ink brush circle, left open where the stroke lifts.
+            paint.style = Paint.Style.STROKE; paint.strokeCap = Paint.Cap.ROUND
+            paint.color = Theme.INK; paint.strokeWidth = 7f
+            canvas.drawArc(8f, 8f, 40f, 40f, 300f, 300f, false, paint)
+            paint.strokeWidth = 3f
+            canvas.drawArc(8f, 8f, 40f, 40f, 240f, 40f, false, paint)
+        } else if (ability == Ability.CALM) {
+            // Three still lines of haze, softening as they rise.
+            paint.style = Paint.Style.STROKE; paint.strokeCap = Paint.Cap.ROUND; paint.strokeWidth = 4f
+            for ((i, y) in listOf(35f, 24f, 13f).withIndex()) {
+                paint.color = Theme.lighten(Theme.INK, i * .3f)
+                path.reset(); path.moveTo(8f, y); path.cubicTo(18f, y - 5f, 30f, y + 5f, 40f, y)
+                canvas.drawPath(path, paint)
+            }
         } else if (ability == Ability.FLOATY) {
             path.reset(); path.moveTo(13f, 34f)
             path.cubicTo(0f, 34f, 3f, 17f, 15f, 19f)

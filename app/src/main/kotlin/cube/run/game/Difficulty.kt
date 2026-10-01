@@ -19,11 +19,13 @@ class Difficulty {
 
     var diff = startDiff
         private set
+    /** Where the auto-climb stops (Zen keeps the pace easy). A fire boost may still go past it. */
+    var ceiling = 1f
 
-    fun reset() { diff = startDiff }
+    fun reset() { diff = min(startDiff, ceiling) }
 
     /** Auto-climb toward the ceiling. */
-    fun ramp(dt: Float) { if (diff < 1f) diff = min(1f, diff + dt / rampSeconds) }
+    fun ramp(dt: Float) { if (diff < ceiling) diff = min(ceiling, diff + dt / rampSeconds) }
 
     /** Jump straight to [d] if that's higher than where we are (fire boost). */
     fun boostTo(d: Float) { if (d > diff) diff = d.coerceAtMost(1f) }

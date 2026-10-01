@@ -42,7 +42,7 @@ object SoundFx {
             val p = SoundPool.Builder().setMaxStreams(12).setAudioAttributes(attrs).build()
             pool = p
             val dir = File(ctx.cacheDir, "sfx").apply { mkdirs() }
-            val names = listOf("tap", "blip", "pop", "place", "perfect", "combo", "success", "fail", "whoosh", "boom", "coin", "rise", "slide", "fanfare", "drain")
+            val names = listOf("tap", "blip", "pop", "place", "perfect", "combo", "success", "fail", "whoosh", "boom", "coin", "rise", "slide", "fanfare", "drain", "bell")
             fun file(name: String) = File(dir, if (name == "coin") "coin-chime-v2.wav" else "$name.wav")
             // Installed games already have these WAVs. Do not synthesize all samples again.
             if (names.any { !file(it).exists() || file(it).length() == 0L }) {
@@ -106,6 +106,11 @@ object SoundFx {
         "slide" to lowpassed(130, 0.22) { _, p -> noise() * sin(p * PI).pow(0.8) * 0.8 },
         "fanfare" to fanfare(),
         "drain" to drain(),
+        "bell" to synth(1400, vol = 0.8) { t, p -> // a singing bowl: a soft strike and inharmonic partials ringing out
+            val f = 392.0
+            (sin(t * f * TAU) + 0.5 * sin(t * f * 2.76 * TAU) * exp(-p * 3.0) + 0.25 * sin(t * f * 5.4 * TAU) * exp(-p * 6.0)) /
+                1.75 * (0.85 + 0.15 * sin(t * 4.5 * TAU)) * decay(p, 3.4)
+        },
     )
 
     private const val TAU = 2.0 * PI

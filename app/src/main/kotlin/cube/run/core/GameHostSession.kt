@@ -223,10 +223,12 @@ class GameHostSession(
     override fun gameOver() {
         if (!over.compareAndSet(false, true)) return
         Progress.addMetric("long_hauler", observedDistance - lastDistance)
-        val finalScore = scoreV.get()
-        val runCoins = coinsV.get()
-        val boxes = boxesV.get()
-        val runShards = IntArray(3) { shardsV.get(it) }
+        // Zen cannot crash; only the developer's END RUN gets here, and a Zen run still keeps nothing.
+        val zen = Progress.zenRun
+        val finalScore = if (zen) 0 else scoreV.get()
+        val runCoins = if (zen) 0 else coinsV.get()
+        val boxes = if (zen) 0 else boxesV.get()
+        val runShards = IntArray(3) { if (zen) 0 else shardsV.get(it) }
         Progress.bestMetric("magpie", runCoins.coerceAtMost(10000))
         if (finalScore == 67) Progress.bestMetric("exactly_67", 1)
         if (finalScore >= 100 && silentAtStart && silentRevision == Settings.audioHapticRevision && !Settings.soundEnabled && !Settings.hapticsEnabled)
@@ -237,7 +239,7 @@ class GameHostSession(
         Progress.recordRunProgress(finalScore, 0)
         Progress.clearRunCoins()
         Progress.addCoins(runCoins)
-        Progress.countRun()
+        if (!zen) Progress.countRun()
         val prevBest = Scores.best(id)
         val isNew = finalScore > 0 && Scores.submit(id, finalScore)
         if (isNew) {

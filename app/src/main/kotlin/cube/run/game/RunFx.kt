@@ -10,6 +10,10 @@ import cube.run.game.track.ObType
 import cube.run.game.track.Row
 import kotlin.random.Random
 
+private val ZEN_INK = Color(0.06f, 0.06f, 0.07f, 1f)
+/** Pentatonic steps for the bowl, so consecutive rings always sound kind. */
+private val ZEN_NOTES = floatArrayOf(1f, 1.125f, 1.25f, 1.5f, 1.6875f)
+
 /**
  * The run's feedback vocabulary: every event's sound + haptic + flash +
  * shards in one place, so the conductor reads as rules and the feel is
@@ -70,6 +74,33 @@ class RunFx(private val game: Gdx3DGame, private val rnd: Random) {
                 n = if (impact) 14 else 4, speed = if (impact) 9f else 3f,
                 size = if (impact) 0.24f else 0.14f, life = if (impact) 0.9f else 0.6f)
         }
+    }
+
+    /** Zen: a touched row melts into slow black and white motes; a singing bowl rings, a soft tick. */
+    fun melt(row: Row) {
+        for (ob in row.obs) {
+            if (ob.type != ObType.SOLID) continue
+            tmp.set(ob.x, ob.cy, row.z)
+            game.burst3d(tmp, Color.WHITE, n = 9, speed = 1.6f, size = 0.14f, life = 1.3f)
+            game.burst3d(tmp, ZEN_INK, n = 9, speed = 1.6f, size = 0.14f, life = 1.3f)
+        }
+        zenChime()
+    }
+
+    /** Zen: lifted onto a platform you ran into. */
+    fun zenLift(px: Float, py: Float) {
+        game.burst3d(tmp.set(px, py - 0.4f, 0f), Color.WHITE, n = 8, speed = 1.4f, size = 0.12f, life = 1f)
+        zenChime()
+    }
+
+    private var lastChime = -1L
+    private fun zenChime() {
+        val now = System.nanoTime()
+        if (now - lastChime > 150_000_000L) { // rows in a cluster share one ring
+            lastChime = now
+            SoundFx.play("bell", rate = ZEN_NOTES[rnd.nextInt(ZEN_NOTES.size)], vol = 0.55f)
+        }
+        Haptics.tick()
     }
 
     /** One impact per collision, regardless of how many rows the recovery zone clears. */

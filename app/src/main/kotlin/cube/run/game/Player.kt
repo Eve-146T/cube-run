@@ -26,6 +26,8 @@ import kotlin.math.min
 import kotlin.math.sin
 import kotlin.random.Random
 
+private val ZEN_INK = Color(.05f, .05f, .06f, 1f)
+
 /**
  * The player: lane, jump/roll physics, the tumbling pose, and its look (the
  * equipped [Skins.Skin]: colour behaviour + glow shell; the equipped
@@ -104,7 +106,8 @@ class Player(private val game: Gdx3DGame, private val rnd: Random) {
         private set
     private lateinit var shellInst: ModelInstance
     private lateinit var shellCol: Color
-    private var voidEdges = emptyArray<ModelInstance>()
+    /** Hairline edges: Black void's faint violet seams, Zen's ink outline. */
+    private var edges = emptyArray<ModelInstance>()
     private var visualTime = 0f
     private var zappyFx: ZappyFx? = null
     private lateinit var shellBlend: BlendingAttribute
@@ -165,11 +168,11 @@ class Player(private val game: Gdx3DGame, private val rnd: Random) {
             DepthTestAttribute(GL20.GL_LEQUAL, 0f, 1f, false),
         )
         if (skin.id == 13) inst.materials.first().set(ColorAttribute.createEmissive(.24f, .25f, .26f, 1f))
-        if (skin.id == Skins.VOID_ID && voidEdges.isEmpty()) {
-            voidEdges = Array(12) { ModelInstance(unit).apply {
-                materials.first().set(ColorAttribute.createDiffuse(Color(.35f, .3f, .5f, 1f)),
-                    ColorAttribute.createEmissive(Color(.27f, .23f, .38f, 1f)))
-            } }
+        if (hasEdges() && edges.isEmpty()) edges = Array(12) { ModelInstance(unit) }
+        if (hasEdges()) for (e in edges) {
+            if (skin.id == Skins.VOID_ID) e.materials.first().set(ColorAttribute.createDiffuse(Color(.35f, .3f, .5f, 1f)),
+                ColorAttribute.createEmissive(Color(.27f, .23f, .38f, 1f)))
+            else e.materials.first().set(ColorAttribute.createDiffuse(ZEN_INK), ColorAttribute.createEmissive(Color.BLACK))
         }
         col = (inst.materials.first().get(ColorAttribute.Diffuse) as ColorAttribute).color
         hsvInto(col, skin.hueAt(time, baseHue), skin.sat, skin.valueAt(time))
@@ -179,6 +182,8 @@ class Player(private val game: Gdx3DGame, private val rnd: Random) {
         if (skin.opacity < 1f) shellInst.materials.first().set(DepthTestAttribute(GL20.GL_LEQUAL, 0f, 1f, false))
         shellCol = (shellInst.materials.first().get(ColorAttribute.Diffuse) as ColorAttribute).color
     }
+
+    private fun hasEdges() = skin.id == Skins.VOID_ID || skin.id == Skins.ZEN_ID
 
     /** Shard colour for dust/bursts: white sparkle for sparkle skins, else the body colour. */
     fun trailCol(): Color = if (skin.sparkle) Color.WHITE else col
@@ -617,13 +622,13 @@ class Player(private val game: Gdx3DGame, private val rnd: Random) {
             inst.transform.mulLeft(liftM); shellInst.transform.mulLeft(liftM)
         }
         batch.render(inst, env)
-        if (skin.id == Skins.VOID_ID) {
-            // Hairline geometry preserves the black silhouette on every stage background.
-            val width = .013f + .003f * sin(visualTime * 1.8f)
+        if (hasEdges()) {
+            // Hairline geometry: Void keeps its black silhouette on every background; Zen gets an ink outline.
+            val width = if (skin.id == Skins.ZEN_ID) .045f else .013f + .003f * sin(visualTime * 1.8f)
             var edge = 0
             for (axis in 0..2) for (ai in 0..1) for (bi in 0..1) {
                 val a = ai * 2 - 1; val b = bi * 2 - 1
-                val e = voidEdges[edge++]
+                val e = edges[edge++]
                 e.transform.set(inst.transform)
                 when (axis) {
                     0 -> e.transform.translate(0f, a * .5f, b * .5f).scale(1.015f, width, width)
@@ -632,7 +637,8 @@ class Player(private val game: Gdx3DGame, private val rnd: Random) {
                 }
                 batch.render(e, env)
             }
-        } else batch.render(shellInst, env)
+        }
+        if (skin.id != Skins.VOID_ID) batch.render(shellInst, env)
         zappyFx?.render(batch, env, ground, inst.transform)
         if (ground != 0f) {
             liftM.setToTranslation(0f, -ground, 0f)
