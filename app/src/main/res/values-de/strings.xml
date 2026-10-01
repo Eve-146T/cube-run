@@ -53,7 +53,7 @@
     <string name="text_tap_for_the_menu">TIPPEN FÜRS MENÜ</string>
     <string name="text_tap_to_open">TIPPEN ZUM ÖFFNEN</string>
     <string name="text_tap_to_skip">TIPPEN ZUM ÜBERSPRINGEN</string>
-    <string name="text_tap_to_return">TIPPEN ZURÜCK</string>
+    <string name="text_tap_to_return">ZUM ZURÜCKKEHREN TIPPEN</string>
     <string name="text_bubble_shield_upper">SCHUTZBLASE</string>
     <string name="text_tap_for_the_next_box">TIPPEN FÜR DIE NÄCHSTE BOX</string>
     <string name="text_ability">FÄHIGKEIT</string>
@@ -202,4 +202,6 @@
     <plurals name="count_taps"><item quantity="one">%d Tipp</item><item quantity="other">%d Tipps</item></plurals>
     <plurals name="count_rows"><item quantity="one">%d Reihe</item><item quantity="other">%d Reihen</item></plurals>
     <plurals name="mystery_boxes"><item quantity="one">ÜBERRASCHUNGSBOX</item><item quantity="other">ÜBERRASCHUNGSBOXEN</item></plurals>
+    <string name="achievement_toast_description">%1$s. %2$s. %3$s.</string>
+    <string name="text_unknown_ability">Unbekannte Fähigkeit</string>
 </resources>

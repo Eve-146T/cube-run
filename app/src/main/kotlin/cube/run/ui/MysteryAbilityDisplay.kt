@@ -34,7 +34,7 @@ class MysteryAbilityDisplay(
         background = kit.cardDrawable(Theme.WHITE, null, 20f)
         visibility = View.GONE
         importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_YES
-        contentDescription = "??? ??? ???"
+        contentDescription = context.getString(R.string.text_unknown_ability)
         addView(kit.text("???", 15f, Theme.INK, 500, Gravity.START).apply {
             importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
         }, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))

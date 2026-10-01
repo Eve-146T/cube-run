@@ -144,7 +144,12 @@ class AchievementToast(activity: Activity, private val kit: UiKit) : FrameLayout
         detail.text = kit.coins(number(reward), 12f)
         val tier = if (unlock.definition.tiered) context.achievementTierName(unlock.tier)
             else context.getString(cube.run.R.string.achievement_challenge_complete)
-        card.contentDescription = "${title.text}. $tier. ${context.getString(cube.run.R.string.achievement_reward_description, number(reward))}"
+        card.contentDescription = context.getString(
+            cube.run.R.string.achievement_toast_description,
+            title.text,
+            tier,
+            context.getString(cube.run.R.string.achievement_reward_description, number(reward)),
+        )
         showing = true
         currentUnlock = unlock
         card.visibility = VISIBLE

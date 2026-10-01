@@ -4,7 +4,7 @@
     <string name="ability_gold_bubble_detail">Münzen sind 60% mehr wert, solange deine Blase aktiv ist!</string>
     <string name="game_purple_cube">Lila Würfel</string>
     <string name="ability_toxic_fortune">Giftiges Glück</string>
-    <string name="ability_toxic_fortune_detail">Münzen sind 60% mehr wert, aber 1% sind grün und töten dich sofort!</string>
+    <string name="ability_toxic_fortune_detail" formatted="false">Münzen sind 60% mehr wert, aber 1% sind grün und töten dich sofort!</string>
     <string name="achievement_pile_driver">Rammstoß</string>
     <string name="achievement_goal_pile_driver">Führe in einem Lauf 300 Bodenstampfer aus.</string>
     <string name="achievement_greed">Gier</string>

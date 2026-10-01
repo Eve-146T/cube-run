@@ -4,7 +4,7 @@
     <string name="ability_gold_bubble_detail">Coins worth 60% more while bubble is active!</string>
     <string name="game_purple_cube">Purple Cube</string>
     <string name="ability_toxic_fortune">Toxic Fortune</string>
-    <string name="ability_toxic_fortune_detail">Coins are worth 60% more, but 1% are green and kill you instantly!</string>
+    <string name="ability_toxic_fortune_detail" formatted="false">Coins are worth 60% more, but 1% are green and kill you instantly!</string>
     <string name="achievement_pile_driver">Pile Driver</string>
     <string name="achievement_goal_pile_driver">Ground pound 300 times in one run.</string>
     <string name="achievement_greed">Greed</string>
@@ -221,4 +221,6 @@
     <plurals name="count_taps"><item quantity="one">%d tap</item><item quantity="other">%d taps</item></plurals>
     <plurals name="count_rows"><item quantity="one">%d row</item><item quantity="other">%d rows</item></plurals>
     <plurals name="mystery_boxes"><item quantity="one">MYSTERY BOX</item><item quantity="other">MYSTERY BOXES</item></plurals>
+    <string name="achievement_toast_description">%1$s. %2$s. %3$s.</string>
+    <string name="text_unknown_ability">Unknown ability</string>
 </resources>

@@ -2,7 +2,7 @@
 <resources>
     <string name="achievements_title">הישגים</string>
     <string name="achievement_good_runner">רץ מצטיין</string>
-    <string name="achievement_lifetime_coins">מטבעות לכל החיים</string>
+    <string name="achievement_lifetime_coins">סך המטבעות שנאספו</string>
     <string name="achievement_unlocked_cubes">קוביות שנפתחו</string>
     <string name="achievement_power_collector">אספן שדרוגים</string>
     <string name="achievement_mystery_seeker">מחפש הפתעות</string>

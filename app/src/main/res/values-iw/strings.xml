@@ -214,4 +214,6 @@
         <item quantity="two">תיבות הפתעה</item>
         <item quantity="other">תיבות הפתעה</item>
     </plurals>
+    <string name="achievement_toast_description">%1$s. %2$s. %3$s.</string>
+    <string name="text_unknown_ability">יכולת לא ידועה</string>
 </resources>

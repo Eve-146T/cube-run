@@ -4,7 +4,7 @@
     <string name="ability_gold_bubble_detail">מטבעות שווים 60% יותר כשהבועה שלך פעילה!</string>
     <string name="game_purple_cube">קובייה סגולה</string>
     <string name="ability_toxic_fortune">מזל רעיל</string>
-    <string name="ability_toxic_fortune_detail">מטבעות שווים 60% יותר, אבל 1% מהם ירוקים והורגים אותך מיד!</string>
+    <string name="ability_toxic_fortune_detail" formatted="false">מטבעות שווים 60% יותר, אבל 1% מהם ירוקים והורגים אותך מיד!</string>
     <string name="achievement_pile_driver">מכת מחץ</string>
     <string name="achievement_goal_pile_driver">בצעו 300 מכות קרקע בריצה אחת.</string>
     <string name="achievement_greed">חמדנות</string>

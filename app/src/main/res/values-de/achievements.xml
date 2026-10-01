@@ -2,7 +2,7 @@
 <resources>
     <string name="achievements_title">ERFOLGE</string>
     <string name="achievement_good_runner">Guter Läufer</string>
-    <string name="achievement_lifetime_coins">Münzen fürs Leben</string>
+    <string name="achievement_lifetime_coins">Insgesamt gesammelte Münzen</string>
     <string name="achievement_unlocked_cubes">Freigeschaltete Würfel</string>
     <string name="achievement_power_collector">Power-up-Sammler</string>
     <string name="achievement_mystery_seeker">Überraschungsjäger</string>
