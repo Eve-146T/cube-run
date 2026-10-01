@@ -32,6 +32,10 @@ object VoidBeats {
     const val SHEET = RETURN + 0.35f
     const val END = RETURN + 0.95f
 
+    /** Seconds per typed character: short lines finish in about 1.4 s, long ones read out. */
+    fun typeStep(length: Int) = (1.4f / length.coerceAtLeast(1)).coerceIn(0.03f, 0.045f)
+    fun speakSeconds(length: Int) = length * typeStep(length)
+
     private fun smooth(x: Float) = x.coerceIn(0f, 1f).let { it * it * (3f - 2f * it) }
 
     /** 0..1 progress of [t] between [a] and [b], eased at both ends. */

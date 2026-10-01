@@ -183,20 +183,48 @@ object Progress {
     val voidAvailable: Boolean get() = Settings.devMode || totalCoins >= VOID_LIFETIME_GATE
     /** Steadily rising offerings, rounded to 500 and capped safely below the bank limit. */
     val voidPrice: Int get() = voidPurchases.coerceIn(0, 10000).toLong().let { n -> (5000L + n * 2500L + n * n * 500L).coerceAtMost(1_000_000_000L).toInt() }
-    /** The void stays silent until the first offering; line N answers purchase N. */
-    val voidLine: String get() = if (voidPurchases == 0) "" else
-        voidLines.getOrElse(voidPurchases - 1) { voidEchoes[(voidPurchases - 1 - voidLines.size).mod(voidEchoes.size)] }
+    /**
+     * What the void says to purchase N: nothing before the first, one line each up to the
+     * 30th, then one more dot for every offering after that, forever.
+     */
+    val voidLine: String get() = when {
+        voidPurchases == 0 -> ""
+        voidPurchases <= voidLines.size -> voidLines[voidPurchases - 1]
+        else -> ".".repeat((voidPurchases - voidLines.size).coerceAtMost(MAX_VOID_DOTS))
+    }
+    private const val MAX_VOID_DOTS = 2000
     private val voidLines = listOf(
-        "What did you think was going to happen?", "Do you never learn?",
-        "Still nothing.", "You could have bought something useful.", "The silence is getting expensive.",
-        "There is no refund in the dark.", "You are very persistent.", "One more will change nothing.", "Are you sure?",
-        "Fine.", "There was more.", "Don't look so pleased.", "The dark remembers you.", "Something follows.",
-        "You cannot see it yet.", "Keep walking.", "Even nothing leaves a trace.", "Almost a shadow.", "Look behind you.",
-        "A trail. For your trouble.", "You are still here.", "The silence has a shape.", "It is getting closer.",
-        "Something wants to keep you safe.", "Or keep you here.", "A little more darkness.", "You feel it now.",
-        "One thin veil.", "Breathe.", "The dark surrounds you."
+        "This upgrade did nothing.",
+        "uooohh black hole scary?",
+        "Coins well spent :)",
+        "Everything glows.",
+        "https://www.youtube.com/watch?v=XeMVu1OYYps",
+        "omg it migu",
+        "Tralalero Tralala.",
+        "The meaning of life will be revealed next time.",
+        "I have a picture in my gallery that I took in a dream.",
+        "check your wardrobe 👀",
+        "The FitnessGram Pacer test is a multistage aerobic capacity test that progressively gets more difficult as it continues. The 20 meter Pacer test will begin in 30 seconds. Line up at the start. The running speed starts slowly, but gets faster each minute after you hear this signal *boop*. A single lap should be completed each time you hear this sound *ding*. Remember to run in a straight line, and run as long as possible. The second time you fail to complete a lap before the sound, your test is over. The test will begin on the word start. On your mark, get ready, start.",
+        "THE BOTTLE IS HALF FULL!!!!",
+        "bee nise 🐝",
+        "(You) will be happy.",
+        "Here is your pill, and your room.",
+        "Do not heat a lava lamp on a stove.",
+        "There will be traces.",
+        "How many dimensions are there?",
+        "😎",
+        "Check your wardrobe again :)",
+        "no more upgrades",
+        "trust me, no more upgrades",
+        "Taxes?",
+        "Taxes.",
+        "",
+        "tuturuuuu~",
+        "Never gonna give you up.",
+        "BELIEVE IN YOURSELF",
+        "it's not over 'till it's over.",
+        "Bubble?"
     )
-    private val voidEchoes = listOf("Nothing more. Probably.", "The void appreciates your donation.", "We have been here before.", "Still listening?", "The silence deepens.")
 
     @Synchronized fun buyAchievements(): Boolean {
         if (achievementsUnlocked || !spend(ACHIEVEMENTS_PRICE)) return false

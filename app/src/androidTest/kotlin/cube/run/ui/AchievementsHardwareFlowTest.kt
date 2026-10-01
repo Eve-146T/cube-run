@@ -289,7 +289,7 @@ class AchievementsHardwareFlowTest {
                 awaitUi(scenario, "Void animation completes", predicate = ::shopReady)
                 assertTrue(Progress.secretAvailable(Wardrobe.CUBE, Skins.VOID_ID))
                 assertFalse("Milestone reveals purchase, not free ownership", Progress.owns(Wardrobe.CUBE, Skins.VOID_ID))
-                assertEquals("Fine.", Progress.voidLine)
+                assertEquals("check your wardrobe 👀", Progress.voidLine)
                 scenario.onActivity {
                     assertShopKeepsOnlyTheOffering(it)
                     val price = descendants(shop(it)).single { view -> view.tag == "void_price_button" }
@@ -311,7 +311,7 @@ class AchievementsHardwareFlowTest {
                 scenario.onActivity { purchase(it, "void") }
                 awaitUi(scenario, "Coin sink continues after reveal", predicate = ::shopReady)
                 assertEquals(11, Progress.voidPurchases); assertEquals(nextBank - nextPrice, Progress.coins)
-                assertEquals("There was more.", Progress.voidLine)
+                assertTrue(Progress.voidLine.startsWith("The FitnessGram Pacer test"))
                 assertFalse("The next offering does not require buying the cube", Progress.owns(Wardrobe.CUBE, Skins.VOID_ID))
                 buyDiscoveryInWardrobe(scenario, Wardrobe.CUBE, Skins.VOID_ID)
 
