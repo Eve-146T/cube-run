@@ -151,6 +151,7 @@ class AchievementsHardwareFlowTest {
         }
         capture("void-show-nova", settle = 1800)
         awaitUi(scenario, "The void show hands the shop back", timeout = 12000) {
+            tapAwayVoidLine()
             field(hud(it), "voidPurchase").get(hud(it)) == null && Stage.voidClock < 0f
         }
         scenario.onActivity {
@@ -309,7 +310,7 @@ class AchievementsHardwareFlowTest {
                 capture("void-tenth-offering-continues")
                 val nextPrice = Progress.voidPrice; val nextBank = Progress.coins
                 scenario.onActivity { purchase(it, "void") }
-                awaitUi(scenario, "Coin sink continues after reveal", predicate = ::shopReady)
+                awaitUi(scenario, "Coin sink continues after reveal") { tapAwayVoidLine(); shopReady(it) }
                 assertEquals(11, Progress.voidPurchases); assertEquals(nextBank - nextPrice, Progress.coins)
                 assertTrue(Progress.voidLine.startsWith("The FitnessGram Pacer test"))
                 assertFalse("The next offering does not require buying the cube", Progress.owns(Wardrobe.CUBE, Skins.VOID_ID))
@@ -429,7 +430,7 @@ class AchievementsHardwareFlowTest {
                     scenario.onActivity { call(hud(it), "openShop") }
                     awaitUi(scenario, "$name shop ready", predicate = ::shopReady)
                     scenario.onActivity { assertShopKeepsOnlyTheOffering(it); purchase(it, "void") }
-                    awaitUi(scenario, "$name milestone does not block the next offering", predicate = ::shopReady)
+                    awaitUi(scenario, "$name milestone does not block the next offering") { tapAwayVoidLine(); shopReady(it) }
                     assertEquals(milestone + 1, Progress.voidPurchases)
                     assertFalse(Progress.owns(category, id))
                     scenario.onActivity { assertShopKeepsOnlyTheOffering(it) }
