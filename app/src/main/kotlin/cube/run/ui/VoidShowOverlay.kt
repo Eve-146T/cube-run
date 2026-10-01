@@ -3,12 +3,7 @@ package cube.run.ui
 import android.annotation.SuppressLint
 import android.content.Context
 import android.content.Intent
-import android.graphics.Canvas
-import android.graphics.LinearGradient
 import android.graphics.Paint
-import android.graphics.PorterDuff
-import android.graphics.PorterDuffXfermode
-import android.graphics.Shader
 import android.net.Uri
 import android.view.Gravity
 import android.view.MotionEvent
@@ -24,8 +19,8 @@ import cube.run.R
  * ([Stage.voidClock]), types the void's line over the blast's afterglow, tells the host
  * when to bring the shop back ([onReturn]) and when it is over ([onEnd]). The stage holds
  * on the spoken line until a tap; a tap while it is still typing finishes it. The line types
- * into the space under the reborn cube; a long one either slides up through it like credits
- * or shrinks to fit (an experiment, see [Fit]). A line that is a link opens when tapped.
+ * into the space under the reborn cube, and a long one shrinks so all of it always fits.
+ * A line that is a link opens when tapped.
  */
 @SuppressLint("ViewConstructor")
 internal class VoidShowOverlay(
@@ -35,12 +30,6 @@ internal class VoidShowOverlay(
     private val onReturn: () -> Unit,
     private val onEnd: () -> Unit,
 ) : FrameLayout(context) {
-    /** How a line too long for the space under the cube is shown. Experiment: one will go. */
-    enum class Fit { SLIDE, SHRINK }
-    private val fit = runCatching {
-        Fit.valueOf(context.getSharedPreferences("progress", Context.MODE_PRIVATE).getString("void_text_fit", null) ?: "SLIDE")
-    }.getOrDefault(Fit.SLIDE)
-
     private val density = resources.displayMetrics.density
     private val link = line.startsWith("https://")
     private val words = kit.stageText("", 26f).apply {
@@ -49,8 +38,8 @@ internal class VoidShowOverlay(
         setShadowLayer(0f, 0f, 0f, 0) // no drop shadows
         importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO
     }
-    /** The space under the cube the line lives in; what slides out of its top fades away. */
-    private val box = FadeBox(context, 28f * density).apply { addView(words, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT)) }
+    /** The space under the cube the line lives in. */
+    private val box = WordsBox(context).apply { addView(words, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT)) }
     private val side = kit.dp(28f)
     private var started = false
     private var returned = false
@@ -58,7 +47,6 @@ internal class VoidShowOverlay(
     private var shown = -1
     private var waitedFrames = 0
     private var lift = 0f
-    private var slid = 0f
     private var scale = 1f
     private var targetScale = 1f
     private var lastFrame = 0L
@@ -127,21 +115,17 @@ internal class VoidShowOverlay(
         if (chars != shown) {
             if (chars > shown && chars > 0 && !line[chars - 1].isWhitespace()) SoundFx.play("tap", rate = .55f + (chars * 7 % 5) * .03f, vol = .25f)
             shown = chars
-            if (fit == Fit.SHRINK) targetScale = fitScale(chars)
+            // Plan a line ahead, so the words have room before the next line appears.
+            val target = fitScale(aheadOf(chars))
+            if (target < targetScale) { targetScale = target; wrap() }
             words.text = typed(chars)
             if (chars == line.length) contentDescription = line
         }
-        val ease = 1f - kotlin.math.exp(-dt * 9f)
-        if (fit == Fit.SHRINK && kotlin.math.abs(targetScale - scale) > 0.001f) {
-            scale += (targetScale - scale) * ease
+        if (scale != targetScale) {
+            scale += (targetScale - scale) * (1f - kotlin.math.exp(-dt * 9f))
             if (kotlin.math.abs(targetScale - scale) < 0.002f) scale = targetScale
-            sizeWords()
+            words.scaleX = scale; words.scaleY = scale
         }
-        // SLIDE: once the line outgrows the space, it glides up so the newest words stay in view.
-        val over = (words.height * scale - box.height).coerceAtLeast(0f)
-        slid += (over - slid) * ease
-        words.translationY = -slid
-        box.fade = (slid / (28f * density)).coerceIn(0f, 1f)
         words.alpha = 1f - VoidBeats.span(t, VoidBeats.RETURN - 0.3f, VoidBeats.RETURN)
         lift = density * 12f * VoidBeats.span(t, VoidBeats.SPEAK, VoidBeats.SPEAK + 0.5f)
         box.translationY = -lift
@@ -150,30 +134,41 @@ internal class VoidShowOverlay(
         Anim.repaint(this)
     }
 
-    /** SHRINK: the words are laid out wider and scaled down, so the outline shrinks with them. */
-    private fun sizeWords() {
+    /**
+     * Lay the words out for [targetScale]: wider, then scaled down, so the outline shrinks with
+     * them. They re-wrap once per step here, never while the size eases.
+     */
+    private fun wrap() {
         val lp = words.layoutParams as LayoutParams
-        val width = (box.width / scale).toInt()
-        if (lp.width != width) { lp.width = width; words.layoutParams = lp; breaks = null }
+        val width = (box.width / targetScale).toInt()
+        if (lp.width == width) return
+        lp.width = width; words.layoutParams = lp
+        breaks = null
         words.pivotX = width / 2f; words.pivotY = 0f
-        words.scaleX = scale; words.scaleY = scale
         words.translationX = (box.width - width) / 2f
         words.text = typed(shown)
     }
 
-    /** SHRINK: the largest scale at which the words typed so far fit the space. */
+    /** Where the line after the one being typed ends, at the current wrap. */
+    private fun aheadOf(chars: Int): Int {
+        typed(chars) // makes sure the breaks exist
+        val ends = breaks ?: return line.length
+        val at = ends.indexOfFirst { it >= chars }.coerceAtLeast(0)
+        return ends.getOrElse(at + 1) { line.length }
+    }
+
+    /** The largest scale (never above the current one) at which the first [chars] fit the space. */
     private fun fitScale(chars: Int): Float {
-        val inner = box.width - words.totalPaddingLeft - words.totalPaddingRight
-        if (inner <= 0 || box.height <= 0 || chars == 0) return scale
+        if (box.width <= 0 || box.height <= 0 || chars == 0) return targetScale
+        val pad = words.totalPaddingLeft + words.totalPaddingRight
         fun fits(s: Float): Boolean {
-            val pad = words.totalPaddingLeft + words.totalPaddingRight
             val w = (box.width / s).toInt() - pad
             val h = android.text.StaticLayout.Builder.obtain(line, 0, chars, words.paint, w).setIncludePad(false).build().height +
                 words.totalPaddingTop + words.totalPaddingBottom
             return h * s <= box.height
         }
-        if (fits(scale)) return scale // it never grows back while the line types
-        var lo = MIN_SCALE; var hi = scale
+        if (fits(targetScale)) return targetScale
+        var lo = MIN_SCALE; var hi = targetScale
         repeat(8) { val mid = (lo + hi) / 2f; if (fits(mid)) lo = mid else hi = mid }
         return lo
     }
@@ -215,29 +210,10 @@ internal class VoidShowOverlay(
     }
 }
 
-/** Clips its child to its bounds and fades out the top [edge] pixels by [fade] (0..1). */
-@SuppressLint("ViewConstructor")
-private class FadeBox(context: Context, private val edge: Float) : FrameLayout(context) {
-    var fade = 0f
-    private val eraser = Paint().apply { xfermode = PorterDuffXfermode(PorterDuff.Mode.DST_OUT) }
-    private var shaderEdge = -1f
+/** Holds the words where they belong; they may run past it while a shrink catches up. */
+private class WordsBox(context: Context) : FrameLayout(context) {
+    init { clipChildren = false; clipToPadding = false }
 
-    init { clipChildren = true; clipToPadding = true; setWillNotDraw(false) }
-
-    // The words may run taller than the box: it only shows a window onto them.
     override fun measureChildWithMargins(child: android.view.View, widthSpec: Int, widthUsed: Int, heightSpec: Int, heightUsed: Int) =
         super.measureChildWithMargins(child, widthSpec, widthUsed, MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED), heightUsed)
-
-    override fun dispatchDraw(canvas: Canvas) {
-        if (fade <= 0f) { super.dispatchDraw(canvas); return }
-        val saved = canvas.saveLayer(0f, 0f, width.toFloat(), height.toFloat(), null)
-        super.dispatchDraw(canvas)
-        if (shaderEdge != edge) {
-            eraser.shader = LinearGradient(0f, 0f, 0f, edge, 0xff000000.toInt(), 0x00000000, Shader.TileMode.CLAMP)
-            shaderEdge = edge
-        }
-        eraser.alpha = (255 * fade).toInt()
-        canvas.drawRect(0f, 0f, width.toFloat(), edge, eraser)
-        canvas.restoreToCount(saved)
-    }
 }
