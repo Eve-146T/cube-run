@@ -265,7 +265,7 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
         player.gigajumpEnabled = false
         trackArt.coalCoins = Skins.Ability.COAL in runSkin.abilities
         lottery = Lottery(rnd, if (Settings.devMode) Lottery.DEV_COIN_CHANCE else Lottery.COIN_CHANCE)
-        phaseUsed = false; phasedObstacle = null; lastTapT = -9f
+        phaseUsed = false; player.phaseSpent = false; phasedObstacle = null; lastTapT = -9f
         runT = 0f
         startGateRunT = -1f
         sideBounces = 0; smoothWall = 0
@@ -368,6 +368,7 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
     private fun phase(ob: Ob): Boolean {
         if (phaseUsed || Skins.Ability.PHASE !in runSkin.abilities) return false
         phaseUsed = true
+        player.phaseSpent = true
         phasedObstacle = ob
         SoundFx.play("whoosh", rate = 1.4f)
         Haptics.success()
