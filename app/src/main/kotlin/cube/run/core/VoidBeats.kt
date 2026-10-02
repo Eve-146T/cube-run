@@ -21,11 +21,20 @@ object VoidBeats {
     const val REBIRTH = 3.55f
     /** The void says its piece. */
     const val SPEAK = 3.9f
-    /** The camera heads back to the shop. A tap after the blast skips straight here. */
+    /**
+     * The scene holds here, the line fully spoken, until a tap lets it go. A tap before
+     * this (after the blast) jumps straight to the hold.
+     */
+    const val HOLD = 5.4f
+    /** The camera heads back to the shop. */
     const val RETURN = 6.0f
     /** The shop sheet rises back once the cube is clear of it. */
     const val SHEET = RETURN + 0.35f
     const val END = RETURN + 0.95f
+
+    /** Seconds per typed character: short lines finish in about 1.4 s, long ones read out. */
+    fun typeStep(length: Int) = (1.4f / length.coerceAtLeast(1)).coerceIn(0.03f, 0.045f)
+    fun speakSeconds(length: Int) = length * typeStep(length)
 
     private fun smooth(x: Float) = x.coerceIn(0f, 1f).let { it * it * (3f - 2f * it) }
 

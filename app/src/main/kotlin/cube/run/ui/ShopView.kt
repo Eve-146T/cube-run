@@ -530,7 +530,8 @@ class ShopView(
             LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
     }
 
-    private fun voidCard(): View = VoidCardView(activity, kit, activity.gameText(Progress.voidLine),
+    // The card only ever says "???", and only until the first offering: the void speaks in its show.
+    private fun voidCard(): View = VoidCardView(activity, kit, if (Progress.voidPurchases == 0) "???" else "",
         priceButton(Progress.voidPrice, "void", null, 0) { Progress.buyVoid() }).also { cards["void"] = it }
 
     /**

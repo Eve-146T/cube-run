@@ -15,6 +15,7 @@ import cube.run.R
 import cube.run.core.Haptics
 import cube.run.core.SoundFx
 import cube.run.core.Stage
+import cube.run.core.VoidBeats
 import cube.run.core.PhysicalAction
 import cube.run.data.Settings
 import cube.run.data.Progress
@@ -466,7 +467,9 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false, retu
         // A beat for the press to land where you tapped, then the sheet drops away.
         shop?.stepAside(away = true)
         lateinit var fx: VoidShowOverlay
-        fx = VoidShowOverlay(activity, kit, activity.gameText(Progress.voidLine), onReturn = {
+        val line = activity.gameText(Progress.voidLine)
+        Stage.voidSpeechSeconds = VoidBeats.speakSeconds(line.length)
+        fx = VoidShowOverlay(activity, kit, line, onReturn = {
             onCovered() // the next offering is in place before the page comes back
             shop?.stepAside(away = false)
         }, onEnd = {

@@ -236,6 +236,7 @@ class AchievementDevModeUiTest {
                 assertTrue(button.performClick())
             }
             awaitUi(scenario, "Developer offering finishes its fullscreen scene") {
+                tapAwayVoidLine()
                 field(hud(it), "voidPurchase").get(hud(it)) == null && !field(page(it), "paying").getBoolean(page(it))
             }
             assertEquals(1, Progress.voidPurchases); assertEquals(before - cost, Progress.coins)

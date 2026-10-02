@@ -12,6 +12,7 @@ import cube.run.core.VoidBeats
 import cube.run.core.VoidBeats.COLLAPSE
 import cube.run.core.VoidBeats.END
 import cube.run.core.VoidBeats.FEED
+import cube.run.core.VoidBeats.HOLD
 import cube.run.core.VoidBeats.NOVA
 import cube.run.core.VoidBeats.PULL
 import cube.run.core.VoidBeats.REBIRTH
@@ -45,6 +46,8 @@ class VoidShow(private val game: Gdx3DGame, private val player: Player) {
     var active = false
         private set
     private var t = 0f
+    /** The player has tapped the held line away. */
+    private var released = false
     private val rnd = Random(146)
     private var renderer: VoidRenderer? = null
 
@@ -134,13 +137,14 @@ class VoidShow(private val game: Gdx3DGame, private val player: Player) {
 
     fun start(px: Float, py: Float) {
         active = true
-        t = 0f; spin = 0f; gulp = 0f; heat = 0f; eaten = 0; cubeYaw = 0f
+        t = 0f; released = false; spin = 0f; gulp = 0f; heat = 0f; eaten = 0; cubeYaw = 0f
         home.set(px, py, 0f)
         hole.set(px, py + 2.6f, -5.2f)
         java.util.Arrays.fill(coinDone, false)
         java.util.Arrays.fill(coins, 0f)
         Stage.voidFed = 0f
         Stage.voidClock = 0f
+        Stage.voidSpeech = 0f
         SoundFx.play("drain", vol = 0.9f)
         SoundFx.play("whoosh", rate = 0.5f, vol = 0.6f)
         Haptics.click()
@@ -148,9 +152,16 @@ class VoidShow(private val game: Gdx3DGame, private val player: Player) {
 
     fun update(dt: Float) {
         if (!active) return
-        if (Stage.voidSkips.getAndSet(0) > 0 && t > NOVA + 0.4f && t < RETURN) t = RETURN
+        if (Stage.voidSkips.getAndSet(0) > 0 && t > NOVA + 0.4f && t < RETURN) {
+            // The first tap finishes the line, the next one lets the show go.
+            val said = Stage.voidSpeech >= Stage.voidSpeechSeconds
+            if (t < HOLD || !said) { t = max(t, HOLD); Stage.voidSpeech = max(Stage.voidSpeech, Stage.voidSpeechSeconds) }
+            else released = true
+        }
         val before = t
-        t += dt
+        // Nothing moves on to the shop until the player taps the line away.
+        t = if (released || t > HOLD) t + dt else min(t + dt, HOLD)
+        if (t >= VoidBeats.SPEAK) Stage.voidSpeech += dt
         Stage.voidClock = t
         fun crossed(beat: Float) = before < beat && t >= beat
 

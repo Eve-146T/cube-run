@@ -63,10 +63,14 @@ object Stage {
 
     /** The shop asked the void to take its offering (see [VoidBeats]). */
     val voidRequests = AtomicInteger(0)
-    /** A tap after the blast: skip to the shop's return. */
+    /** A tap after the blast: finish the line, or let the held show return to the shop. */
     val voidSkips = AtomicInteger(0)
     /** Seconds into the void show, or -1 when none is playing. GL-owned. */
     @Volatile var voidClock = -1f
+    /** Seconds the void has been speaking; it keeps running while the show holds. GL-owned. */
+    @Volatile var voidSpeech = 0f
+    /** How long the current line takes to type ([VoidBeats.speakSeconds]); set before a request. */
+    @Volatile var voidSpeechSeconds = 0f
     /** How much of the offering has gone down the hole (0..1): the bank drains coin by coin. GL-owned. */
     @Volatile var voidFed = 0f
     /** Where on screen (0..1 from the top-left) the coins leave from: the bank pill. */
@@ -131,6 +135,7 @@ object Stage {
         voidRequests.set(0)
         voidSkips.set(0)
         voidClock = -1f
+        voidSpeech = 0f
         openRequests.set(0)
         skipBoxRequests.set(0)
         giftShowing = false
