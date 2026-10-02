@@ -425,6 +425,8 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false, retu
         })
         languageSheet = sheet
         addView(sheet, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
+        // Apply cutout clearance on the first opening, just as after a locale rebuild.
+        sheet.requestApplyInsets()
     }
 
     private fun openShop() {

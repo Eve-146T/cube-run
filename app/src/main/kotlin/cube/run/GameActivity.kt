@@ -21,7 +21,7 @@ import cube.run.ui.Hud
 import android.view.View
 
 /** Single-game launcher host: builds the HUD over the libGDX surface and runs Cube Run. */
-class GameActivity : AndroidApplication() {
+open class GameActivity : AndroidApplication() {
 
     override fun attachBaseContext(newBase: android.content.Context) {
         super.attachBaseContext(cube.run.data.Languages.wrap(newBase))
@@ -201,20 +201,43 @@ class GameActivity : AndroidApplication() {
 
         val root = FrameLayout(this).apply {
             setBackgroundColor(cube.run.intro.OpeningPose.INK)
+            clipToPadding = false
             // Some devices (including keypad phones) cannot hide their navigation
             // bar. Keep both the GL viewport and controls inside the usable window.
             setOnApplyWindowInsetsListener { view, insets ->
+                // Split screen can keep a status bar visible. Reserve it for the
+                // HUD, but let the scene fill that area behind the status icons.
+                fun extendScene(top: Int) {
+                    for (scene in listOfNotNull(gameView, openingTouch)) {
+                        val params = scene.layoutParams as? FrameLayout.LayoutParams ?: continue
+                        if (params.topMargin != -top) {
+                            params.topMargin = -top
+                            scene.layoutParams = params
+                        }
+                    }
+                }
                 if (android.os.Build.VERSION.SDK_INT >= 30) {
                     val bars = insets.getInsets(android.view.WindowInsets.Type.systemBars())
-                    view.setPadding(bars.left, bars.top, bars.right, bars.bottom)
-                    insets.inset(bars.left, bars.top, bars.right, bars.bottom)
+                    val gestureOverlay = insets.getInsets(android.view.WindowInsets.Type.systemGestures()).bottom > 0 &&
+                        insets.getInsets(android.view.WindowInsets.Type.tappableElement()).bottom == 0
+                    val bottom = if (gestureOverlay) insets.getInsets(android.view.WindowInsets.Type.captionBar()).bottom else bars.bottom
+                    val reservedTop = insets.getInsets(android.view.WindowInsets.Type.navigationBars() or
+                        android.view.WindowInsets.Type.captionBar()).top
+                    // Revealing transient bars in fullscreen must not move the
+                    // menu anchors. Permanent cutouts still reach the HUD.
+                    val top = if (isInMultiWindowMode) bars.top else reservedTop
+                    view.setPadding(bars.left, top, bars.right, bottom)
+                    extendScene((top - reservedTop).coerceAtLeast(0))
+                    insets.inset(bars.left, top, bars.right, bottom)
                 } else {
                     @Suppress("DEPRECATION")
                     val bars = intArrayOf(insets.systemWindowInsetLeft, insets.systemWindowInsetTop,
                         insets.systemWindowInsetRight, insets.systemWindowInsetBottom)
-                    view.setPadding(bars[0], bars[1], bars[2], bars[3])
+                    val top = if (isInMultiWindowMode) bars[1] else 0
+                    view.setPadding(bars[0], top, bars[2], bars[3])
+                    extendScene(top)
                     if (android.os.Build.VERSION.SDK_INT >= 29) {
-                        insets.inset(bars[0], bars[1], bars[2], bars[3])
+                        insets.inset(bars[0], top, bars[2], bars[3])
                     } else {
                         @Suppress("DEPRECATION")
                         insets.replaceSystemWindowInsets(0, 0, 0, 0)
@@ -262,7 +285,44 @@ class GameActivity : AndroidApplication() {
                 }
             }, 40L)
         } }
-        setContentView(root)
+        // TCL Flip 2's Activity.setContentView enables a proprietary 30px MenuBar
+        // in DecorView, even in immersive mode and outside system-bar insets.
+        // Install directly on Window to avoid that hook. Our NoActionBar theme
+        // doesn't need Activity's action-bar initialization; Window still sends
+        // onContentChanged and requests insets for the entire game/HUD tree.
+        window.setContentView(root)
+        if (android.os.Build.VERSION.SDK_INT >= 30) {
+            val decor = window.decorView as android.view.ViewGroup
+            // DecorView forces status-bar consumption in split screen even with
+            // decorFitsSystemWindows=false. Let the game own that inset instead:
+            // its scene fills the pane and its HUD reserves space for the icons.
+            decor.setOnApplyWindowInsetsListener { view, insets ->
+                val applied = view.onApplyWindowInsets(insets)
+                val status = insets.getInsets(android.view.WindowInsets.Type.statusBars())
+                val remaining = applied.getInsets(android.view.WindowInsets.Type.statusBars())
+                val consumedTop = (status.top - remaining.top).coerceAtLeast(0)
+                val navigation = insets.getInsets(android.view.WindowInsets.Type.navigationBars())
+                val gestureOverlay = insets.getInsets(android.view.WindowInsets.Type.systemGestures()).bottom > 0 &&
+                    insets.getInsets(android.view.WindowInsets.Type.tappableElement()).bottom == 0
+                val consumedBottom = if (gestureOverlay) (navigation.bottom - applied.getInsets(
+                    android.view.WindowInsets.Type.navigationBars()).bottom).coerceAtLeast(0) else 0
+                var content: View = root
+                while (content.parent is View && content.parent !== decor) content = content.parent as View
+                val params = content.layoutParams as? android.view.ViewGroup.MarginLayoutParams
+                val restoreTop = params != null && consumedTop > 0 && params.topMargin >= consumedTop
+                val restoreBottom = params != null && consumedBottom > 0 && params.bottomMargin >= consumedBottom
+                if (params != null && (restoreTop || restoreBottom)) {
+                    if (restoreTop) params.topMargin -= consumedTop
+                    if (restoreBottom) params.bottomMargin -= consumedBottom
+                    content.layoutParams = params
+                    android.view.WindowInsets.Builder(applied)
+                        .apply {
+                            if (restoreTop) setInsets(android.view.WindowInsets.Type.statusBars(), status)
+                            if (restoreBottom) setInsets(android.view.WindowInsets.Type.navigationBars(), navigation)
+                        }.build()
+                } else applied
+            }
+        }
         cube.run.core.LaunchTrace.mark("content attached")
         goFullscreen()
         if (android.os.Build.VERSION.SDK_INT >= 33) {
