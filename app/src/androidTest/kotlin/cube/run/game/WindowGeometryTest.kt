@@ -73,6 +73,28 @@ class WindowGeometryTest {
                 assertEquals("GL and HUD must share the usable viewport", surface.height, hud.height)
                 assertEquals(290, hud.bottom)
 
+                // A visible split-screen status bar must not leave a blank scene strip.
+                root.dispatchApplyWindowInsets(WindowInsets.Builder()
+                    .setInsets(WindowInsets.Type.statusBars(), Insets.of(0, 24, 0, 0))
+                    .setVisible(WindowInsets.Type.statusBars(), true).build())
+                layout()
+                assertEquals("Scene must extend behind status icons", 0, surface.top)
+                assertEquals(320, surface.height)
+                assertEquals("Controls must remain below the status bar", 24, hud.top)
+                assertEquals(296, hud.height)
+
+                // Pixel-style gesture navigation is an overlay, including the
+                // pill revealed during the swipe into overview.
+                root.dispatchApplyWindowInsets(WindowInsets.Builder()
+                    .setInsets(WindowInsets.Type.navigationBars(), Insets.of(0, 0, 0, 24))
+                    .setInsets(WindowInsets.Type.systemGestures(), Insets.of(16, 0, 16, 24))
+                    .setInsets(WindowInsets.Type.tappableElement(), Insets.NONE)
+                    .setVisible(WindowInsets.Type.navigationBars(), true).build())
+                layout()
+                assertEquals("Gesture pill must overlay the scene", 0, root.paddingBottom)
+                assertEquals(320, surface.height)
+                assertEquals(320, hud.height)
+
                 // A split-screen caption and side navigation bar must also be respected.
                 root.dispatchApplyWindowInsets(WindowInsets.Builder()
                     .setInsets(WindowInsets.Type.navigationBars(), Insets.of(20, 0, 0, 0))
