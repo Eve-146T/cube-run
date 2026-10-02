@@ -16,6 +16,7 @@ import androidx.test.core.app.ActivityScenario
 import androidx.test.platform.app.InstrumentationRegistry
 import com.badlogic.gdx.Gdx
 import cube.run.GameActivity
+import cube.run.R
 import cube.run.core.GameHostSession
 import cube.run.core.Gdx3DGame
 import cube.run.core.Stage
@@ -169,7 +170,10 @@ class AchievementsHardwareFlowTest {
         val page = shop(activity)
         val card = (field(page, "cards").get(page) as Map<*, *>)[key] as View
         val button = descendants(card).filterIsInstance<CandyButton>().last()
-        button.requestRectangleOnScreen(android.graphics.Rect(0, 0, button.width, button.height), true)
+        // Reveal the surrounding gutter explicitly; gesture navigation now overlays
+        // the game instead of supplying incidental bottom padding for this fixture.
+        button.requestRectangleOnScreen(android.graphics.Rect(0, 0, button.width,
+            button.height + UiKit(activity).dp(16f)), true)
         assertTrue("Real $key purchase button handles click", button.performClick())
         return button
     }
@@ -272,8 +276,8 @@ class AchievementsHardwareFlowTest {
                 awaitUi(scenario, "Achievement purchase settles", predicate = ::shopReady)
                 scenario.onActivity {
                     val card = (field(shop(it), "cards").get(shop(it)) as Map<*, *>)["achievements"] as View
-                    assertTrue(descendants(card).filterIsInstance<TextView>().any { text -> text.text.toString() == "Unlock the ability to collect achievments!" })
-                    val badge = descendants(card).filterIsInstance<CandyButton>().single { button -> button.text.toString().contains("UNLOCKED") }
+                    assertTrue(descendants(card).filterIsInstance<TextView>().any { text -> text.text.toString() == it.getString(R.string.shop_achievements_detail) })
+                    val badge = descendants(card).filterIsInstance<CandyButton>().single { button -> button.tag == "achievements_unlocked_status" }
                     assertFalse("Unlocked badge is status, not another purchase", badge.isClickable)
                 }
                 capture("achievement-purchased")

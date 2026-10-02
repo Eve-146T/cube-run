@@ -54,7 +54,9 @@ class AchievementDevModeUiTest {
         scenario.onActivity { Hud::class.java.getDeclaredMethod(method).apply { isAccessible = true }.invoke(hud(it)) }
         awaitUi(scenario, "$method ready") {
             val view = field(hud(it), "page").get(hud(it)) as? View
-            view != null && view.alpha == 1f && view.height > 0 && (view !is ShopView || field(view, "progress").getFloat(view) == 1f)
+            view != null && view.alpha == 1f && view.height > 0 &&
+                (view !is ShopView || field(view, "progress").getFloat(view) == 1f) &&
+                (view !is AchievementsView || view.contentReady)
         }
     }
     private fun close(scenario: ActivityScenario<GameActivity>) {
