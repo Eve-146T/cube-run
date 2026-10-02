@@ -105,6 +105,60 @@ class LanguageTest {
         bitmap.recycle()
     }
 
+    @Test fun languageChangesKeepTheOpenCardInPlace() {
+        Languages.select(context, "en")
+        ActivityScenario.launch<GameActivity>(Intent(context, GameActivity::class.java)
+            .putExtra(Hud.EXTRA_AUTOSTART, false)).use {
+            SystemClock.sleep(800)
+            tap(R.string.cd_languages)
+            SystemClock.sleep(300)
+            fun cardBounds(): android.graphics.Rect {
+                val bounds = android.graphics.Rect()
+                onActivity { a ->
+                    val sheet = views(a.window.decorView).filterIsInstance<LanguageSheet>().single()
+                    val scroll = views(sheet).filterIsInstance<android.widget.ScrollView>().single()
+                    scroll.getChildAt(0).getGlobalVisibleRect(bounds)
+                }
+                return bounds
+            }
+            val initial = cardBounds()
+            for (code in listOf("de", "he", "en")) {
+                onActivity { it.changeLanguage(code) }
+                await { a -> views(a.window.decorView).filterIsInstance<Hud>().count() == 1 }
+                SystemClock.sleep(250)
+                assertEquals("Selecting $code must preserve the language card bounds", initial, cardBounds())
+            }
+        }
+    }
+
+    @Test fun rtlAchievementsKeepTheSameGapAsTheOtherActions() {
+        val unlocked = Progress.achievementsUnlocked
+        val unlockField = Progress::class.java.getDeclaredField("achievementsUnlocked").apply { isAccessible = true }
+        try {
+            Languages.select(context, "he")
+            ActivityScenario.launch<GameActivity>(Intent(context, GameActivity::class.java)
+                .putExtra(Hud.EXTRA_AUTOSTART, false)).use {
+                onActivity { a ->
+                    unlockField.setBoolean(null, true)
+                    views(a.window.decorView).filterIsInstance<MainMenu>().single().refresh()
+                }
+                SystemClock.sleep(800)
+                onActivity { a ->
+                    val menu = views(a.window.decorView).filterIsInstance<MainMenu>().single()
+                    val chips = listOf(R.string.cd_shop, R.string.cd_skins, R.string.achievements_title).map { id ->
+                        views(menu).filterIsInstance<CandyChip>().single { it.contentDescription == a.getString(id) }
+                    }
+                    val gaps = chips.zipWithNext { left, right -> right.left - left.right }
+                    assertTrue("RTL actions need a visible gap: $gaps", gaps.all { it > 0 })
+                    assertEquals("Achievements need the same gap as the shop", gaps[0], gaps[1])
+                    chips.forEach { assertTrue(it.isShown) }
+                }
+                tap(R.string.achievements_title)
+                await { a -> views(a.window.decorView).any { it is AchievementsView && it.isShown } }
+            }
+        } finally { unlockField.setBoolean(null, unlocked) }
+    }
+
     @Test fun pickerSwitchesAllLanguagesAndPreservesProgressAcrossRecreation() {
         val prefs = context.getSharedPreferences("settings", Context.MODE_PRIVATE)
         val original = prefs.getString("language", null)

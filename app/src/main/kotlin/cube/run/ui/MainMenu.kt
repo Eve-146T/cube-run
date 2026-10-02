@@ -142,7 +142,7 @@ class MainMenu(
         orientation = LinearLayout.HORIZONTAL
         clipChildren = false; clipToPadding = false
         val size = dp(58f)
-        addView(achievements, LinearLayout.LayoutParams(size, size + dp(4f)).apply { rightMargin = dp(10f) })
+        addView(achievements, LinearLayout.LayoutParams(size, size + dp(4f)).apply { marginEnd = dp(10f) })
         addView(kit.chip(R.drawable.ic_skins, Theme.GRAPE, Theme.WHITE, activity.getString(R.string.cd_skins)) { openWardrobe() }.apply { val p = dp(13f); setPadding(p, p, p, p) },
             LinearLayout.LayoutParams(size, size + dp(4f)))
         addView(kit.chip(R.drawable.ic_shop, Theme.GOLD, Theme.INK, activity.getString(R.string.cd_shop)) { openShop() }.apply { val p = dp(13f); setPadding(p, p, p, p) },
@@ -220,8 +220,7 @@ class MainMenu(
         }
         rightChips.orientation = if (columns) LinearLayout.VERTICAL else LinearLayout.HORIZONTAL
         for (i in 0 until rightChips.childCount) (rightChips.getChildAt(i).layoutParams as LinearLayout.LayoutParams).apply {
-            // the achievements chip keeps its physical right gap, as it always has
-            rightMargin = if (!columns && i == 0) dp(10f) else 0
+            marginEnd = if (!columns && i == 0) dp(10f) else 0
             if (i == 2) marginStart = if (columns) 0 else dp(10f)
             topMargin = if (columns && i > 0) dp(8f) else 0
             resolveLayoutDirection(layoutDirection)
