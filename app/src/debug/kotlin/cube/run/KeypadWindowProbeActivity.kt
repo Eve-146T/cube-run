@@ -25,3 +25,8 @@ class KeypadWindowProbeActivity : GameActivity() {
         const val MENU_BAR_TAG = "keypad-menu-bar"
     }
 }
+
+/** Keep split-window inset expectations testable without resizing the device. */
+class SplitWindowProbeActivity : GameActivity() {
+    override fun isInMultiWindowMode(): Boolean = true
+}

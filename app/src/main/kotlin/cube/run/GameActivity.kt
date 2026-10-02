@@ -221,19 +221,23 @@ open class GameActivity : AndroidApplication() {
                     val gestureOverlay = insets.getInsets(android.view.WindowInsets.Type.systemGestures()).bottom > 0 &&
                         insets.getInsets(android.view.WindowInsets.Type.tappableElement()).bottom == 0
                     val bottom = if (gestureOverlay) insets.getInsets(android.view.WindowInsets.Type.captionBar()).bottom else bars.bottom
-                    view.setPadding(bars.left, bars.top, bars.right, bottom)
                     val reservedTop = insets.getInsets(android.view.WindowInsets.Type.navigationBars() or
                         android.view.WindowInsets.Type.captionBar()).top
-                    extendScene((bars.top - reservedTop).coerceAtLeast(0))
-                    insets.inset(bars.left, bars.top, bars.right, bottom)
+                    // Revealing transient bars in fullscreen must not move the
+                    // menu anchors. Permanent cutouts still reach the HUD.
+                    val top = if (isInMultiWindowMode) bars.top else reservedTop
+                    view.setPadding(bars.left, top, bars.right, bottom)
+                    extendScene((top - reservedTop).coerceAtLeast(0))
+                    insets.inset(bars.left, top, bars.right, bottom)
                 } else {
                     @Suppress("DEPRECATION")
                     val bars = intArrayOf(insets.systemWindowInsetLeft, insets.systemWindowInsetTop,
                         insets.systemWindowInsetRight, insets.systemWindowInsetBottom)
-                    view.setPadding(bars[0], bars[1], bars[2], bars[3])
-                    extendScene(bars[1])
+                    val top = if (isInMultiWindowMode) bars[1] else 0
+                    view.setPadding(bars[0], top, bars[2], bars[3])
+                    extendScene(top)
                     if (android.os.Build.VERSION.SDK_INT >= 29) {
-                        insets.inset(bars[0], bars[1], bars[2], bars[3])
+                        insets.inset(bars[0], top, bars[2], bars[3])
                     } else {
                         @Suppress("DEPRECATION")
                         insets.replaceSystemWindowInsets(0, 0, 0, 0)

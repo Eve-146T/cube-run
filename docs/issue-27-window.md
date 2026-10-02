@@ -90,3 +90,13 @@ shrink when the pill appears during a swipe toward overview.
 `WindowGeometryTest` exercises a visible gesture pill with a 24px navigation
 inset, verifies the scene and HUD keep their full height, then transitions to
 side navigation/captions and back to hidden bars.
+
+## Fullscreen menu anchor follow-up
+
+The status bar revealed by an overview swipe moved the title, coin counter and
+bubble counter down by 56px on the test phone. A regression test reproduces the
+change with a permanent cutout and transient status/navigation bars. Fullscreen
+now leaves status-bar padding out of the game root and continues to deliver
+permanent cutout insets to the HUD. Split windows continue to reserve status-bar
+space for controls. A debug split-window host preserves those separate geometry
+checks without requiring device resizing.
