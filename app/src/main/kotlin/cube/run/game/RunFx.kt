@@ -10,7 +10,6 @@ import cube.run.game.track.ObType
 import cube.run.game.track.Row
 import kotlin.random.Random
 
-private val ZEN_INK = Color(0.06f, 0.06f, 0.07f, 1f)
 /** Pentatonic steps for the bowl, so consecutive rings always sound kind. */
 private val ZEN_NOTES = floatArrayOf(1f, 1.125f, 1.25f, 1.5f, 1.6875f)
 
@@ -76,13 +75,12 @@ class RunFx(private val game: Gdx3DGame, private val rnd: Random) {
         }
     }
 
-    /** Zen: a touched row melts into slow black and white motes; a singing bowl rings, a soft tick. */
+    /** A few glints accent the tile dissolve; a singing bowl rings with a soft tick. */
     fun melt(row: Row) {
         for (ob in row.obs) {
             if (ob.type != ObType.SOLID) continue
             tmp.set(ob.x, ob.cy, row.z)
-            game.burst3d(tmp, Color.WHITE, n = 9, speed = 1.6f, size = 0.14f, life = 1.3f)
-            game.burst3d(tmp, ZEN_INK, n = 9, speed = 1.6f, size = 0.14f, life = 1.3f)
+            game.burst3d(tmp, Color.WHITE, n = 4, speed = 0.7f, size = 0.06f, life = 0.55f)
         }
         zenChime()
     }

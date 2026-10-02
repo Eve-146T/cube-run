@@ -21,6 +21,7 @@ import cube.run.data.Settings
 import cube.run.game.stage.GiftStage
 import cube.run.game.stage.Showcase
 import cube.run.game.track.Coin
+import cube.run.game.track.ZenDissolve
 import cube.run.game.track.Debris
 import cube.run.game.track.ObType
 import cube.run.game.track.ObstacleFactory
@@ -87,6 +88,7 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
     private val track = Track(rnd, obstacles)
     private val trackArt = TrackRenderer(this)
     private val debris = Debris(this)
+    private val zenDissolve = ZenDissolve(this)
     private val player = Player(this, rnd)
     private val bubble = Bubble(this)
     private var shownBubbleCooldown = 0
@@ -225,7 +227,7 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
         smoothAnchorX = 0f; smoothAnchorLane = 1; lastTapT = -9f
         coinsRun = 0; coinsRunF = 0.0; boxesRun = 0; coinStreak = 0; coinPitch = 0; lastCoinT = -9f
         powerUps.reset(); redPill.reset(); bubble.reset(); shownBubbleCooldown = 0
-        track.rows.clear(); debris.clear()
+        track.rows.clear(); debris.clear(); zenDissolve.clear()
         rnd.reset()
         worlds.reset()
         scenery.init(worlds.world)
@@ -386,8 +388,9 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
         }
     }
 
-    /** Zen: the obstacle you touch dissolves into black and white motes with a bowl's ring. No shake, no flash. */
+    /** Zen: release a visual copy before removing the collision geometry. */
     private fun melt(row: Row) {
+        for (ob in row.obs) if (ob.type == ObType.SOLID) zenDissolve.melt(ob, row.z)
         fx.melt(row)
         row.obs.removeAll { it.type == ObType.SOLID }
     }
@@ -590,6 +593,7 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
             if (r.z > front && r.z < 1.2f && r.obs.any { it.type == ObType.SOLID }) shatter(r, impact = r.z > -16f)
         }
         debris.update(dt, 0f)
+        zenDissolve.update(dt, 0f)
         if (jackpot.takeBanked()) session.setCoins(coinsRun)
         if (!jackpot.active) { session.setCoins(coinsRun); return }
         jackpot.tintSky(bgTop, bgBottom)
@@ -902,6 +906,7 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
         // ---- obstacle rows: move, collide, score; coins: magnet + collect; pickups
         track.scroll(mv, time, dt)
         debris.update(dt, mv)
+        zenDissolve.update(dt, mv)
         collide(dt)
 
         rig.chase(dt, player.px, player.py, player.ground, deathT, spd)
@@ -1026,6 +1031,7 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
         scenery.renderRoad()
         trackArt.render(track, time, kaleido, kaleidoHue)
         debris.render()
+        zenDissolve.render()
         val wind = if (dead) 0f else ((spd - 13f) / 15f).coerceIn(0f, 1f)
         scenery.render(if (player.flying) 1f else wind, time)
         if (jackpot.active) jackpot.render()

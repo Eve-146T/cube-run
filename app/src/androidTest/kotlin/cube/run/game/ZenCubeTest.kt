@@ -19,6 +19,7 @@ import cube.run.game.track.ObType
 import cube.run.game.track.Pickup
 import cube.run.game.track.Row
 import cube.run.game.track.Track
+import cube.run.game.track.ZenDissolve
 import cube.run.ui.Hud
 import org.junit.Assert.*
 import org.junit.Test
@@ -89,12 +90,48 @@ class ZenCubeTest {
     }
     private fun wall() = Row(0f, arrayListOf(Ob(Color.RED, 0f, 1f, .8f, ObType.SOLID, 1.6f, 2f, 1f)))
 
+    private fun captureDissolve(game: CubeRun, name: String) {
+        if (InstrumentationRegistry.getArguments().getString("captureZenDissolve") != "true") return
+        game.render()
+        val folder = java.io.File(context.getExternalFilesDir(null), "zen-dissolve").apply { mkdirs() }
+        val pixmap = com.badlogic.gdx.utils.ScreenUtils.getFrameBufferPixmap(0, 0,
+            Gdx.graphics.backBufferWidth, Gdx.graphics.backBufferHeight)
+        try {
+            com.badlogic.gdx.graphics.PixmapIO.writePNG(Gdx.files.absolute(java.io.File(folder, "$name.png").path), pixmap)
+        } finally { pixmap.dispose() }
+    }
+
     @Test fun zenMeltsTheObstacleInsteadOfCrashing() = fixture(Skins.ZEN_ID) { game ->
         val row = wall()
         call(game, "hit", row)
         assertFalse("Zen cannot crash", read<Boolean>(game, "dead"))
         assertTrue("The wall melted", row.obs.none { it.type == ObType.SOLID })
         assertEquals("No bubble was spent", 5, Progress.bubbles)
+    }
+
+    @Test fun dissolvePreservesTheBlockThenRetiresAndResets() = fixture(Skins.ZEN_ID) { game ->
+        val row = wall()
+        val obstacle = row.obs.single()
+        val effect = read<ZenDissolve>(game, "zenDissolve")
+        call(game, "hit", row)
+        captureDissolve(game, "01-contact")
+        val count = read<Int>(effect, "live")
+        assertTrue("Collision leaves a visible block copy", count > 1)
+        val tiles = read<Array<*>>(effect, "pool").take(count).filterNotNull()
+        val volume = tiles.sumOf { (read<Float>(it, "sx") * read<Float>(it, "sy") * read<Float>(it, "sz")).toDouble() }
+        assertEquals("Tiles cover the full block volume", (obstacle.sx * obstacle.sy * obstacle.sz).toDouble(), volume, 0.001)
+        assertTrue("Release travels through the block", tiles.map { read<Float>(it, "delay") }.distinct().size > 1)
+        effect.update(0.25f, 2f)
+        captureDissolve(game, "02-release")
+        assertEquals("The dissolve lingers after contact", count, read<Int>(effect, "live"))
+        effect.update(0.3f, 1f)
+        captureDissolve(game, "03-drift")
+        effect.update(0.7f, 0f)
+        assertEquals("Every tile retires", 0, read<Int>(effect, "live"))
+        repeat(20) { effect.melt(obstacle, 0f) }
+        assertEquals("Dense collisions stay within the pool", read<Array<*>>(effect, "pool").size, read<Int>(effect, "live"))
+        game.resetToMenu()
+        assertEquals("Returning to the menu clears the effect", 0, read<Int>(effect, "live"))
     }
 
     @Test fun anActiveBubbleTakesTheHitBeforeZen() = fixture(Skins.ZEN_ID) { game ->
@@ -105,6 +142,7 @@ class ZenCubeTest {
         call(game, "hit", wall())
         assertFalse("The bubble took the hit and popped", bubble.active)
         assertFalse(read<Boolean>(game, "dead"))
+        assertEquals("A bubble uses its own shatter effect", 0, read<Int>(read<ZenDissolve>(game, "zenDissolve"), "live"))
     }
 
     @Test fun zenRecordsNoAchievementsScoresOrRewards() = fixture(Skins.ZEN_ID) { game ->
