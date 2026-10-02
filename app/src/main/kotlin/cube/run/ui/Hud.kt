@@ -679,8 +679,10 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false, retu
         page?.let { removeView(it); page = null }
         menu.hide()
         setBubbles(bubbleStock)
-        topBox.visibility = VISIBLE
-        Anim.popIn(topBox, 120, 0.6f)
+        if (!Progress.zenRun) { // Zen keeps no score, no haul, no stock: an empty sky
+            topBox.visibility = VISIBLE
+            Anim.popIn(topBox, 120, 0.6f)
+        }
         pauseChip.visibility = VISIBLE
         Anim.popIn(pauseChip, 200, 0.5f)
     }

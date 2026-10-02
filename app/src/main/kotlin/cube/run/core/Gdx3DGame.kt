@@ -111,6 +111,10 @@ abstract class Gdx3DGame(val session: GameSession) : ApplicationAdapter(), Touch
     var timeScale = 1f
         private set
     private var flashColor = Color(1f, 1f, 1f, 0f)
+    /** 0..1: the Calm filter, a soft haze over the 3D scene (heavier towards the sky) that mutes its colours. */
+    var calmWash = 0f
+    private val mistLow = Color(.95f, .94f, .92f, 0f)
+    private val mistHigh = Color(.97f, .96f, .95f, 0f)
     private val camSave = Vector3()
     private val uiMatrix = Matrix4()
 
@@ -349,6 +353,10 @@ abstract class Gdx3DGame(val session: GameSession) : ApplicationAdapter(), Touch
         Gdx.gl.glDisable(GL20.GL_DEPTH_TEST)
         shapes.projectionMatrix = uiMatrix.setToOrtho2D(0f, 0f, sw.toFloat(), sh.toFloat())
         shapes.begin(ShapeRenderer.ShapeType.Filled)
+        if (calmWash > 0.004f) {
+            mistLow.a = .2f * calmWash; mistHigh.a = .36f * calmWash
+            shapes.rect(0f, 0f, sw.toFloat(), sh.toFloat(), mistLow, mistLow, mistHigh, mistHigh)
+        }
         if (flashColor.a > 0.004f) {
             shapes.setColor(flashColor)
             shapes.rect(0f, 0f, sw.toFloat(), sh.toFloat())

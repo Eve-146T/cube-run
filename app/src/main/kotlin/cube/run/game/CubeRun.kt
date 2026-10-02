@@ -136,6 +136,9 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
     // ---- style points: tap mid-air for an ascending combo (purely for flair) ----
     private var styleCombo = 0
     private var runSkin = Skins.get(0)
+    /** The Zen cube is out: obstacles melt away and nothing counts. */
+    private var zen = false
+    private val zenCeiling = 0.4f     // the auto-climb rests at an unhurried pace
     private var phaseUsed = false
     private var phasedObstacle: Ob? = null
     private var groundObstacle: Ob? = null
@@ -180,6 +183,7 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
         initialInteraction = Stage.interactions.get()
         Lanes.reset(); Terrain.reset()
         setTerrain { z -> Terrain.y(z) }
+        zen = false; Progress.zenRun = false
         worlds.reset(firstWorld)
         scenery.init(worlds.world)
         bgTop.set(worlds.skyTop); bgBottom.set(worlds.skyBottom)
@@ -216,6 +220,7 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
         introT = 1.8f; introAtStart = 0f; skyBlend = 0f; bonus = Bonus.NONE
         kaleido = 0f; kaleidoHue = 0f; jetGrace = 0f; jetBoost = 0f
         phaseUsed = false; phasedObstacle = null; groundObstacle = null
+        zen = false; Progress.zenRun = false; difficulty.ceiling = 1f; calmWash = 0f
         styleCombo = 0; sideBounces = 0; smoothWall = 0; smoothVAccum = 0f
         smoothAnchorX = 0f; smoothAnchorLane = 1; lastTapT = -9f
         coinsRun = 0; coinsRunF = 0.0; boxesRun = 0; coinStreak = 0; coinPitch = 0; lastCoinT = -9f
@@ -251,6 +256,8 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
         rnd.reset() // menu idle duration must not change the course sequence
         runSkin = Skins.get(Progress.skin)
         runBubble = BubbleSkins.get(Progress.bubbleSkin)
+        zen = Skins.Ability.ZEN in runSkin.abilities
+        Progress.zenRun = zen
         player.zappyEnabled = Skins.Ability.ZAPPY in runSkin.abilities
         player.floaty = Skins.Ability.FLOATY in runSkin.abilities
         player.doubleJumpEnabled = false
@@ -284,6 +291,7 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
         bubble.reset(); shownBubbleCooldown = 0; session.setBubbleCooldown(0)
         bubble.cooldownDuration = 5f * runSkin.bubbleCooldownMultiplier
         bubble.duration = bubbleDuration()
+        difficulty.ceiling = if (zen) zenCeiling else 1f
         difficulty.reset()
         curTier = difficulty.tier()
         track.tier = curTier
@@ -368,14 +376,29 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
         return true
     }
 
-    /** A collision with a row: fatal, unless the bubble is up — then it takes the hit. */
+    /** A collision with a row: the bubble takes it if one is up; otherwise Zen melts it, or it is fatal. */
     private fun hit(row: Row) {
-        if (bubble.active) smash(row) else crash()
+        when {
+            bubble.active -> smash(row) // a bubble keeps its job, even on the Zen cube
+            zen -> melt(row)
+            else -> crash()
+        }
+    }
+
+    /** Zen: the obstacle you touch dissolves into black and white motes with a bowl's ring. No shake, no flash. */
+    private fun melt(row: Row) {
+        fx.melt(row)
+        row.obs.removeAll { it.type == ObType.SOLID }
     }
 
     /** Ran into the side of a platform: fatal, or the bubble hoists you onto it. */
     private fun sideHit(groundH: Float) {
         if (idlePilot.active) pilotContacts++
+        if (zen && !bubble.active) { // Zen lifts you onto the platform; a bubble still hoists (and pops) as usual
+            player.forceGround(groundH)
+            fx.zenLift(player.px, player.py)
+            return
+        }
         if (!bubble.active) {
             if (groundObstacle?.let { phase(it) } == true) return
             crash(); return
@@ -496,8 +519,8 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
                 session.addShard(Pickup.shardType(kind))
                 fx.coin(row.pickupX, .85f, cz, 1, trackArt.colorOf(kind))
             }
-            Pickup.BUBBLE -> { // Ocean doubles the pickup; its coin milestone reward is separate.
-                Progress.addBubble(if (Skins.Ability.BUBBLE_HAUL in runSkin.abilities) 2 else 1)
+            Pickup.BUBBLE -> { // Ocean doubles the pickup; its coin milestone reward is separate. Zen stocks nothing.
+                if (!zen) Progress.addBubble(if (Skins.Ability.BUBBLE_HAUL in runSkin.abilities) 2 else 1)
                 session.setBubbles(Progress.bubbles)
                 fx.pickup(hsvInto(tmpCol, 190f, 0.5f, 1f), row.pickupX, cz)
             }
@@ -512,8 +535,7 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
                         burst3d(phasePosition.set(row.pickupX, .8f, cz), Color.RED, n = 10, speed = 3f, size = .1f, life = .4f)
                     }
                 } else {
-                    boxesRun++
-                    session.setBoxes(boxesRun)
+                    if (!zen) { boxesRun++; session.setBoxes(boxesRun) } // a Zen run never reaches the boxes page
                     fx.boxPickup(trackArt.colorOf(Pickup.BOX), trackArt.colorOf(Pickup.NONE), row.pickupX, cz)
                 }
             }
@@ -601,7 +623,7 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
     /** Try to spend a stocked bubble (double tap). Returns true when one went up. */
     private fun tryBubble(): Boolean {
         if (!live() || !bubble.ready) return false
-        if (!Progress.useBubble(runSkin.bubbleSaveChance)) { fx.emptyStock(); return false }
+        if (!zen && !Progress.useBubble(runSkin.bubbleSaveChance)) { fx.emptyStock(); return false } // Zen bubbles are free
         session.setBubbles(Progress.bubbles)
         bubble.activate(player.px, player.py)
         refreshJumpAbility()
@@ -761,6 +783,9 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
         if (jackpot.active) { tickJackpot(dt); if (jackpot.active) return }
         if (Stage.endRun) { Stage.endRun = false; if (live()) crash() } // dev tool: END RUN from the pause card
 
+        // the Calm filter settles in with the run and lifts again for the menus
+        val calmTarget = if (started && !dead && Skins.Ability.CALM in runSkin.abilities) 1f else 0f
+        calmWash += (calmTarget - calmWash) * min(1f, dt * 0.8f)
         if (started && !dead) {
             jetBoost += ((if (player.flying) 1f else 0f) - jetBoost) * min(1f, dt * 2f)
             runT += dt

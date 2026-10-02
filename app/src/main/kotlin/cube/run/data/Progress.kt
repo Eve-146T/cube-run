@@ -103,8 +103,11 @@ object Progress {
 
     fun metric(id: String): Int = achievementMetrics[id] ?: 0
 
+    /** A Zen run is live: nothing it does counts towards achievements or records. */
+    @Volatile var zenRun = false
+
     @Synchronized fun addMetric(id: String, amount: Int = 1) {
-        if (amount <= 0) return
+        if (amount <= 0 || zenRun) return
         val next = saturatedAdd(metric(id), amount)
         if (next == metric(id)) return
         achievementMetrics[id] = next
@@ -113,7 +116,7 @@ object Progress {
     }
 
     @Synchronized fun bestMetric(id: String, value: Int) {
-        if (value <= metric(id)) return
+        if (value <= metric(id) || zenRun) return
         achievementMetrics[id] = value
         prefs.edit().putInt("metric_$id", value).apply()
         Achievements.evaluate()
@@ -228,7 +231,7 @@ object Progress {
     val achievementCoins: Int get() = saturatedAdd(totalCoins, unbankedRunCoins)
     /** Current run's unbanked earnings; clear immediately before addCoins banks them. */
     @Synchronized fun recordRunCoins(unbanked: Int) {
-        val current = unbanked.coerceAtLeast(0)
+        val current = if (zenRun) 0 else unbanked.coerceAtLeast(0)
         if (unbankedRunCoins == current) return
         unbankedRunCoins = current
         Achievements.evaluate()
@@ -239,6 +242,7 @@ object Progress {
 
     /** May be called during a run, allowing milestones to surface while playing. */
     @Synchronized fun recordRunProgress(score: Int, sideBounces: Int) {
+        if (zenRun) return
         val best = maxOf(bestRunScore, score)
         val bounces = maxOf(maxRunBounces, sideBounces)
         if (best == bestRunScore && bounces == maxRunBounces) return
@@ -251,12 +255,14 @@ object Progress {
         Achievements.evaluate()
     }
     @Synchronized fun recordPowerup() {
+        if (zenRun) return
         totalPowerups = saturatedAdd(totalPowerups, 1)
         prefs.edit().putInt("total_powerups", totalPowerups).apply()
         Achievements.evaluate()
     }
     /** Only the live session, with an unbroken middle-lane history, may call this. */
     @Synchronized fun recordCenteredScore(score: Int) {
+        if (zenRun) return
         val progress = score.coerceIn(0, 100)
         if (progress <= bestCenteredScore) return
         bestCenteredScore = progress
@@ -264,6 +270,7 @@ object Progress {
         Achievements.evaluate()
     }
     @Synchronized fun recordCoinlessScore(score: Int) {
+        if (zenRun) return
         val progress = score.coerceIn(0, 60)
         if (progress <= bestCoinlessScore) return
         bestCoinlessScore = progress
@@ -271,6 +278,7 @@ object Progress {
         Achievements.evaluate()
     }
     @Synchronized fun recordMissedBoxes(count: Int) {
+        if (zenRun) return
         val progress = count.coerceIn(0, 10)
         if (progress <= maxRunMissedBoxes) return
         maxRunMissedBoxes = progress
