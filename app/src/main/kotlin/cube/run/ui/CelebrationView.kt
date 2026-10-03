@@ -38,7 +38,11 @@ class CelebrationView(
     private class Confetto(
         var x: Float, var y: Float, var vx: Float, var vy: Float, var rot: Float, var vr: Float,
         val w: Float, val h: Float, val color: Int, val kind: Int, var flutter: Float, val flutterV: Float,
-    )
+    ) {
+        // These shades never change while a piece tumbles; only alpha changes.
+        val shadeColor = Theme.darken(color, 0.35f)
+        val backColor = Theme.darken(color, 0.2f)
+    }
 
     private val rnd = Random(System.nanoTime())
     private val rayPaint = Paint(Paint.ANTI_ALIAS_FLAG)
@@ -79,7 +83,7 @@ class CelebrationView(
     override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
         super.onSizeChanged(w, h, oldw, oldh)
         val cx = w / 2f; val cy = h * focusY
-        rayPaint.shader = RadialGradient(
+        if (rays) rayPaint.shader = RadialGradient(
             cx, cy, h * 0.6f,
             intArrayOf(Theme.alpha(rayColor, 170), Theme.alpha(rayColor, 70), Theme.alpha(rayColor, 0)),
             floatArrayOf(0f, 0.45f, 1f), Shader.TileMode.CLAMP,
@@ -125,6 +129,7 @@ class CelebrationView(
         elapsed += dt
         val alpha = ((seconds - elapsed) / 1.2f).coerceIn(0f, 1f)
         if (alpha > 0f) {
+            val a = (255 * alpha).toInt()
             for (c in confetti) {
                 // gravity + air drag: bursts slow into a gentle rain
                 c.vy += h * (if (burst) 0.9f else 0.25f) * dt
@@ -136,12 +141,11 @@ class CelebrationView(
                 c.flutter += c.flutterV * dt
                 if (c.y > h + c.h || c.y < -h) continue
                 val fl = abs(cos(c.flutter)) // tumbling: the piece thins as it turns edge-on
-                val a = (255 * alpha).toInt()
                 canvas.save()
                 canvas.rotate(c.rot, c.x, c.y)
                 val hw = c.w * (0.15f + 0.85f * fl) / 2f; val hh = c.h / 2f
-                shadePaint.color = Theme.alpha(Theme.darken(c.color, 0.35f), a)
-                confPaint.color = Theme.alpha(if (fl > 0.5f) c.color else Theme.darken(c.color, 0.2f), a)
+                shadePaint.color = Theme.alpha(c.shadeColor, a)
+                confPaint.color = Theme.alpha(if (fl > 0.5f) c.color else c.backColor, a)
                 when (c.kind) {
                     1 -> { canvas.drawCircle(c.x, c.y + hh * 0.15f, hw.coerceAtLeast(1f), shadePaint); canvas.drawCircle(c.x, c.y, hw.coerceAtLeast(1f), confPaint) }
                     else -> {
@@ -152,6 +156,7 @@ class CelebrationView(
                 canvas.restore()
             }
         } else if (!rays) {
+            spin?.cancel(); spin = null
             (parent as? android.view.ViewGroup)?.post { (parent as? android.view.ViewGroup)?.removeView(this) }
         }
     }

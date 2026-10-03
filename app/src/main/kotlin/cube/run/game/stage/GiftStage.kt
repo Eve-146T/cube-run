@@ -46,6 +46,7 @@ class GiftStage(private val game: Gdx3DGame) {
     private var dropV = 0f
     private var glow = 0f
     private var prizeUp = 0f       // the previous prize flying away
+    private var trailEmission = 0f
     private var reward: Progress.BoxReward? = null
     private val body = Color()
     private val band = Color()
@@ -84,6 +85,7 @@ class GiftStage(private val game: Gdx3DGame) {
     private fun newBox() {
         drop = 4f; dropV = 0f
         coinsLive = 0
+        trailEmission = 0f
     }
 
     fun update(dt: Float, time: Float) {
@@ -123,6 +125,21 @@ class GiftStage(private val game: Gdx3DGame) {
                 OPENED -> t = max(t, 1f)
             }
         }
+        // Trail previews emit at 30 Hz in simulation time, independent of how
+        // often the scene is drawn. Cap catch-up to one burst after a long slice.
+        val r = reward
+        if (phase == OPENED && r?.kind == Progress.BoxReward.SKIN && r.cat == Wardrobe.TRAIL) {
+            trailEmission += dt
+            val interval = 1f / 30f
+            if (trailEmission >= interval) {
+                trailEmission %= interval
+                val tr = Trails.get(r.id)
+                val a = time * 3f
+                val c = hsvInto(tmpCol, tr.hueAt(time, (time * 30f).toInt()), tr.sat, tr.value)
+                game.burst3d(tmp.set(cos(a) * 1.1f, prizeY(time), sin(a) * 1.1f), c,
+                    n = tr.count, speed = tr.speed, size = tr.size, life = tr.life * 1.5f, gravity = tr.gravity)
+            }
+        }
         var i = 0
         while (i < coinsLive) {
             val o = i * 7
@@ -141,7 +158,7 @@ class GiftStage(private val game: Gdx3DGame) {
 
     private fun shake() {
         phase = SHAKE; t = 0f
-        prizeUp = 0f; reward = null
+        prizeUp = 0f; reward = null; trailEmission = 0f
         SoundFx.play("slide", rate = 1.6f, vol = 0.8f)
     }
 
@@ -221,15 +238,10 @@ class GiftStage(private val game: Gdx3DGame) {
                     game.worldBoxSpin(0f, py, 0f, 0.95f * rise, 0.95f * rise, 0.95f * rise, time * 90f, tmpCol)
                 }
                 r.kind == Progress.BoxReward.SKIN && r.cat == Wardrobe.TRAIL -> { // a little cube orbiting, shedding the new trail
-                    val tr = Trails.get(r.id)
                     val a = time * 3f
                     val ox = cos(a) * 1.1f; val oz = sin(a) * 1.1f
                     hsvInto(tmpCol, 0f, 0f, 1f)
                     game.worldBoxSpin(ox, py, oz, 0.45f, 0.45f, 0.45f, time * 200f, tmpCol)
-                    if ((time * 30f).toInt() % 2 == 0) {
-                        val c = hsvInto(tmpCol, tr.hueAt(time, (time * 30f).toInt()), tr.sat, tr.value)
-                        game.burst3d(tmp.set(ox, py, oz), c, n = tr.count, speed = tr.speed, size = tr.size, life = tr.life * 1.5f, gravity = tr.gravity)
-                    }
                 }
                 r.kind == Progress.BoxReward.COINS -> { // one big spinning coin with a raised heart (two for a big win)
                     game.worldCoin(0f, py, 0f, 0.6f * rise, 0.16f, time * 120f, gold)

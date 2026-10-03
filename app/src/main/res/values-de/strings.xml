@@ -42,7 +42,7 @@
     <string name="text_every_run_begins_under_a_bubble">Starte jeden Lauf mit einer Schutzblase</string>
     <string name="text_every_coin_is_worth_more">Jede Münze ist mehr wert</string>
     <string name="text_portals_to_bonus_worlds_open_sooner">Portale zu Bonuswelten öffnen sich früher</string>
-    <string name="text_mystery_boxes_turn_up_more_often">Überraschungsboxen erscheinen öfter</string>
+    <string name="text_mystery_boxes_turn_up_more_often">Geschenke erscheinen öfter</string>
     <string name="text_none">keine</string>
     <string name="text_second_wind">Zweite Chance</string>
     <string name="text_revive_with_a_bubble">Kehre mit einer Schutzblase zurück</string>
@@ -55,7 +55,7 @@
     <string name="text_tap_to_skip">TIPPEN ZUM ÜBERSPRINGEN</string>
     <string name="text_tap_to_return">TIPPEN ZURÜCK</string>
     <string name="text_bubble_shield_upper">SCHUTZBLASE</string>
-    <string name="text_tap_for_the_next_box">TIPPEN FÜR DIE NÄCHSTE BOX</string>
+    <string name="text_tap_for_the_next_box">TIPPEN FÜR DAS NÄCHSTE GESCHENK</string>
     <string name="text_ability">FÄHIGKEIT</string>
     <string name="text_abilities">FÄHIGKEITEN</string>
     <string name="text_close_abilities">Fähigkeiten schließen</string>
@@ -114,7 +114,7 @@
     <string name="game_safe_start">Sicherer Start</string>
     <string name="game_rich_coins">Wertvolle Münzen</string>
     <string name="game_portal_luck">Portalglück</string>
-    <string name="game_lucky_boxes">Boxenglück</string>
+    <string name="game_lucky_boxes">Geschenkeglück</string>
     <string name="game_even_faster_starts">Mehr Startboosts</string>
     <string name="game_candy_fields">Bonbonfelder</string>
     <string name="game_neon_city">Neonstadt</string>
@@ -203,5 +203,5 @@
     <string name="text_ability_description">Fähigkeit: %1$s</string>
     <plurals name="count_taps"><item quantity="one">%d Tipp</item><item quantity="other">%d Tipps</item></plurals>
     <plurals name="count_rows"><item quantity="one">%d Reihe</item><item quantity="other">%d Reihen</item></plurals>
-    <plurals name="mystery_boxes"><item quantity="one">ÜBERRASCHUNGSBOX</item><item quantity="other">ÜBERRASCHUNGSBOXEN</item></plurals>
+    <plurals name="mystery_boxes"><item quantity="one">GESCHENK</item><item quantity="other">GESCHENKE</item></plurals>
 </resources>

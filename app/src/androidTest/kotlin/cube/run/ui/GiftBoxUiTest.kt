@@ -14,12 +14,14 @@ import android.widget.TextView
 import androidx.test.core.app.ActivityScenario
 import androidx.test.platform.app.InstrumentationRegistry
 import com.badlogic.gdx.Gdx
+import cube.run.R
 import cube.run.GameActivity
 import cube.run.core.Stage
 import cube.run.data.Progress
 import cube.run.data.Wardrobe
 import org.junit.Assert.*
 import org.junit.Test
+import java.util.Locale
 import java.io.File
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
@@ -31,7 +33,7 @@ class GiftBoxUiTest {
         RunOverFlow::class.java.getDeclaredMethod(method).apply { isAccessible = true }.invoke(flow)
     private fun text(flow: RunOverFlow, tag: String) = flow.findViewWithTag<TextView>(tag)
 
-    private fun withGift(test: (ActivityScenario<GameActivity>, RunOverFlow, UiKit) -> Unit) {
+    private fun withGift(locale: Locale = Locale.ENGLISH, test: (ActivityScenario<GameActivity>, RunOverFlow, UiKit) -> Unit) {
         val instrumentation = InstrumentationRegistry.getInstrumentation()
         val real = instrumentation.targetContext
         ActivityScenario.launch(GameActivity::class.java).use { scenario ->
@@ -50,7 +52,7 @@ class GiftBoxUiTest {
             // Let the render loop observe pause before creating a page that can request boxes.
             SystemClock.sleep(120)
             scenario.onActivity { activity ->
-                val config = Configuration(activity.resources.configuration).apply { fontScale = 1.5f }
+                val config = Configuration(activity.resources.configuration).apply { fontScale = 1.5f; setLocale(locale) }
                 kit = UiKit(activity.createConfigurationContext(config))
                 root = activity.findViewById(android.R.id.content)
                 container = FrameLayout(activity).apply { setBackgroundColor(0xff100a20.toInt()) }
@@ -107,62 +109,77 @@ class GiftBoxUiTest {
         bitmap.recycle()
     }
 
-    @Test fun narrowLargeFontFitsLongestRewardsAndTheirIcons() = withGift { scenario, flow, kit ->
-        scenario.onActivity {
-            val cases = listOf(
-                intArrayOf(Progress.BoxReward.COINS, 1000000, 0, 0),
-                intArrayOf(Progress.BoxReward.SHARDS, 1000, 0, 0),
-                intArrayOf(Progress.BoxReward.BUBBLE, 1000, 0, 0),
-            ) + (0..2).map { cat ->
-                val longest = (0 until Wardrobe.count(cat)).maxBy { Wardrobe.name(cat, it).length }
-                intArrayOf(Progress.BoxReward.SKIN, 1, cat, longest)
-            }
-            for ((kind, amount, cat, id) in cases) {
-                field(flow, "boxRewardReady").setBoolean(flow, false)
-                flow.onBoxOpened(kind, amount, cat, id)
-                call(flow, "finishBoxAnimation")
-                measure(flow, kit)
-                val value = text(flow, "gift_reward_value")
-                assertFits(value)
-                val category = text(flow, "gift_reward_category")
-                if (category.visibility == View.VISIBLE) assertFits(category)
-                assertFits(text(flow, "gift_footer_hint"))
-                (value.text as? Spanned)?.getSpans(0, value.text.length, CenteredImageSpan::class.java)?.forEach { span ->
-                    assertEquals("The reward icon tracks the actual fitted font size",
-                        (value.textSize * 1.15f).toInt(), span.drawable.bounds.width())
-                }
-                val card = flow.findViewWithTag<View>("gift_reward_card")
-                val bounds = Rect(0, 0, card.width, card.height)
-                flow.offsetDescendantRectToMyCoords(card, bounds)
-                val heartbeatExtra = card.width * .02f
-                assertTrue("Reward heartbeat leaves its left rounded corner visible", bounds.left - heartbeatExtra >= kit.dp(10f))
-                assertTrue("Reward heartbeat leaves its right rounded corner visible", bounds.right + heartbeatExtra <= flow.width - kit.dp(10f))
-            }
-            for (width in listOf(280f, 600f)) {
-                measure(flow, kit, width)
-                val card = flow.findViewWithTag<View>("gift_reward_card")
-                val bounds = Rect(0, 0, card.width, card.height)
-                flow.offsetDescendantRectToMyCoords(card, bounds)
-                val springExtra = card.width * .039f // .3→1 pop with spring tension1.8 peaks at1.077×.
-                assertTrue("The full entrance spring stays inside a ${width}dp screen", bounds.left - springExtra >= 0f)
-                assertTrue("The full entrance spring stays inside a ${width}dp screen", bounds.right + springExtra <= flow.width)
-                assertTrue("Large windows keep a focused reward card", card.width <= kit.dp(360f))
-            }
-            measure(flow, kit)
-        }
-        SystemClock.sleep(100)
-        capture("gift-reward-280dp-font150")
+    @Test fun germanGiftNamesUseSingularAndPluralAcrossScreens() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val config = Configuration(context.resources.configuration).apply { setLocale(Locale.GERMAN) }
+        val german = context.createConfigurationContext(config)
+        assertEquals("GESCHENK", german.resources.getQuantityString(R.plurals.mystery_boxes, 1))
+        assertEquals("GESCHENKE", german.resources.getQuantityString(R.plurals.mystery_boxes, 2))
+        assertEquals("Geschenk", german.getString(R.string.shop_mystery_box))
+        assertEquals("Geschenke geöffnet", german.getString(R.string.achievement_boxes_opened))
+        assertEquals("Geschenke erscheinen öfter", german.getString(R.string.text_mystery_boxes_turn_up_more_often))
+        assertEquals("pro Geschenk", german.getString(R.string.lottery_per_box))
+        assertEquals("TIPPEN FÜR DAS NÄCHSTE GESCHENK", german.getString(R.string.text_tap_for_the_next_box))
     }
 
-    @Test fun openingHidesHintAndReservedFooterNeverJumpsBetweenActions() = withGift { scenario, flow, kit ->
+    @Test fun narrowLargeFontFitsLongestRewardsAndTheirIcons() = listOf(Locale.ENGLISH, Locale.GERMAN).forEach { locale ->
+        withGift(locale) { scenario, flow, kit ->
+            scenario.onActivity {
+                val cases = listOf(
+                    intArrayOf(Progress.BoxReward.COINS, 1000000, 0, 0),
+                    intArrayOf(Progress.BoxReward.SHARDS, 1000, 0, 0),
+                    intArrayOf(Progress.BoxReward.BUBBLE, 1000, 0, 0),
+                ) + (0..2).map { cat ->
+                    val longest = (0 until Wardrobe.count(cat)).maxBy { Wardrobe.name(cat, it).length }
+                    intArrayOf(Progress.BoxReward.SKIN, 1, cat, longest)
+                }
+                for ((kind, amount, cat, id) in cases) {
+                    field(flow, "boxRewardReady").setBoolean(flow, false)
+                    flow.onBoxOpened(kind, amount, cat, id)
+                    call(flow, "finishBoxAnimation")
+                    measure(flow, kit)
+                    val value = text(flow, "gift_reward_value")
+                    assertFits(value)
+                    val category = text(flow, "gift_reward_category")
+                    if (category.visibility == View.VISIBLE) assertFits(category)
+                    assertFits(text(flow, "gift_footer_hint"))
+                    (value.text as? Spanned)?.getSpans(0, value.text.length, CenteredImageSpan::class.java)?.forEach { span ->
+                        assertEquals("The reward icon tracks the actual fitted font size",
+                            (value.textSize * 1.15f).toInt(), span.drawable.bounds.width())
+                    }
+                    val card = flow.findViewWithTag<View>("gift_reward_card")
+                    val bounds = Rect(0, 0, card.width, card.height)
+                    flow.offsetDescendantRectToMyCoords(card, bounds)
+                    val heartbeatExtra = card.width * .02f
+                    assertTrue("Reward heartbeat leaves its left rounded corner visible", bounds.left - heartbeatExtra >= kit.dp(10f))
+                    assertTrue("Reward heartbeat leaves its right rounded corner visible", bounds.right + heartbeatExtra <= flow.width - kit.dp(10f))
+                }
+                for (width in listOf(280f, 600f)) {
+                    measure(flow, kit, width)
+                    val card = flow.findViewWithTag<View>("gift_reward_card")
+                    val bounds = Rect(0, 0, card.width, card.height)
+                    flow.offsetDescendantRectToMyCoords(card, bounds)
+                    val springExtra = card.width * .039f // .3→1 pop with spring tension1.8 peaks at1.077×.
+                    assertTrue("The full entrance spring stays inside a ${width}dp screen", bounds.left - springExtra >= 0f)
+                    assertTrue("The full entrance spring stays inside a ${width}dp screen", bounds.right + springExtra <= flow.width)
+                    assertTrue("Large windows keep a focused reward card", card.width <= kit.dp(360f))
+                }
+                measure(flow, kit)
+            }
+            SystemClock.sleep(100)
+            capture("gift-reward-280dp-font150")
+        }
+    }
+
+    @Test fun openingShowsSkipHintAndReservedFooterNeverJumpsBetweenActions() = withGift { scenario, flow, kit ->
         scenario.onActivity {
             measure(flow, kit)
             val hint = text(flow, "gift_footer_hint")
             val initial = Rect(0, 0, hint.width, hint.height)
             flow.offsetDescendantRectToMyCoords(hint, initial)
             call(flow, "tapBox")
-            assertEquals("Opening has no skip prompt", View.INVISIBLE, hint.visibility)
-            assertFalse(hint.text.contains("SKIP"))
+            assertEquals("Opening offers a skip prompt", View.VISIBLE, hint.visibility)
+            assertEquals("TAP TO SKIP", hint.text.toString())
             assertEquals(1, Stage.openRequests.get())
             // A second tap may finish the spectacle, but cannot spend or request another box.
             call(flow, "tapBox")
