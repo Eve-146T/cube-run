@@ -34,8 +34,8 @@ android {
         applicationId = "cube.run"
         minSdk = 28
         targetSdk = 35
-        versionCode = 11
-        versionName = "2.4"
+        versionCode = 15
+        versionName = "2.6-beta3"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
