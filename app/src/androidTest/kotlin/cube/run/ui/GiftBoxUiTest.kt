@@ -3,6 +3,8 @@ package cube.run.ui
 import android.content.Context
 import android.content.res.Configuration
 import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.graphics.Paint
 import android.graphics.Rect
 import android.os.SystemClock
 import android.text.Spanned
@@ -107,6 +109,49 @@ class GiftBoxUiTest {
         val output = File(instrumentation.targetContext.getExternalFilesDir(null), "achievements-hardware").apply { mkdirs() }
         File(output, "$name.png").outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
         bitmap.recycle()
+    }
+
+    @Test fun giftConfettiFallsOffscreenAfterTheRewardBecomesReady() = withGift { scenario, flow, kit ->
+        lateinit var effect: CelebrationView
+        lateinit var host: ViewGroup
+        scenario.onActivity {
+            flow.onBoxOpened(Progress.BoxReward.COINS, 500, 0, 0)
+            host = field(flow, "boxHost").get(flow) as ViewGroup
+            effect = (0 until host.childCount).map { host.getChildAt(it) }.filterIsInstance<CelebrationView>().single()
+            call(flow, "finishBoxAnimation")
+            assertSame("Reward readiness must not cut off the confetti", host, effect.parent)
+            measure(flow, kit)
+            val pieces = field(effect, "confetti").get(effect) as List<*>
+            val original = pieces.filterNotNull().toList()
+            assertTrue(original.isNotEmpty())
+            // Exercise an upward piece as well as the downward rain.
+            for (piece in original) {
+                field(piece, "x").setFloat(piece, effect.width / 2f)
+                field(piece, "y").setFloat(piece, effect.height / 2f)
+                field(piece, "vx").setFloat(piece, 0f)
+                field(piece, "vy").setFloat(piece, 0f)
+            }
+            field(original.first(), "vy").setFloat(original.first(), -effect.height.toFloat())
+            val bitmap = Bitmap.createBitmap(effect.width, effect.height, Bitmap.Config.ARGB_8888)
+            try {
+                val canvas = Canvas(bitmap)
+                field(effect, "elapsed").setFloat(effect, 10f) // Past the old fade deadline.
+                field(effect, "lastT").setLong(effect, System.nanoTime() - 50_000_000L)
+                effect.draw(canvas)
+                assertTrue("The burst first rises", field(original.first(), "y").getFloat(original.first()) < effect.height / 2f)
+                assertEquals("Falling pieces stay opaque", 255, (field(effect, "confPaint").get(effect) as Paint).alpha)
+                repeat(200) {
+                    field(effect, "lastT").setLong(effect, System.nanoTime() - 50_000_000L)
+                    effect.draw(canvas)
+                }
+                assertTrue("Every piece eventually leaves the simulation", pieces.isEmpty())
+                for (piece in original) assertTrue("Pieces exit below the viewport before retiring",
+                    field(piece, "y").getFloat(piece) > effect.height)
+                assertNull("The completed effect stops scheduling frames", field(effect, "spin").get(effect))
+            } finally { bitmap.recycle() }
+        }
+        InstrumentationRegistry.getInstrumentation().waitForIdleSync()
+        scenario.onActivity { assertNull("Empty effects remove themselves", effect.parent) }
     }
 
     @Test fun germanGiftNamesUseSingularAndPluralAcrossScreens() {

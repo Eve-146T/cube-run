@@ -471,7 +471,7 @@ class RunOverFlow(
                 if (rare) rewardBeat = Anim.heartbeat(c, 1.04f, 800)
             }
         }
-        if (rare) boxHost?.addView(CelebrationView(activity, focusY = 0.55f, rays = false, count = 140, burst = true, seconds = 3f), LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
+        if (rare) boxHost?.addView(CelebrationView(activity, focusY = 0.55f, rays = false, count = 140, burst = true, fallOut = true), LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
         boxRack?.let { r -> // the box just opened dims
             val opened = boxes - boxesLeft - 1
             r.getChildAt(opened)?.move()?.alpha(0.3f)?.scaleX(0.8f)?.scaleY(0.8f)?.setDuration(300)?.start()
@@ -486,9 +486,6 @@ class RunOverFlow(
         boxReadyTask?.let { removeCallbacks(it) }; boxReadyTask = null
         rewardBeat?.cancel(); rewardBeat = null
         rewardCard?.let { Anim.reset(it) }
-        boxHost?.let { host ->
-            for (i in host.childCount - 1 downTo 0) if (host.getChildAt(i) is CelebrationView) host.removeViewAt(i)
-        }
         boxBusy = false
         boxHint?.text = if (boxesLeft > 0) kit.ctx.getString(R.string.text_tap_for_the_next_box)
         else if (boxesOnly) kit.ctx.getString(R.string.text_tap_to_return)

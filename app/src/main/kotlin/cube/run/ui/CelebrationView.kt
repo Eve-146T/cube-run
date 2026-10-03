@@ -23,6 +23,8 @@ import kotlin.random.Random
  * dots, ribbons), tumble (their width flutters as they turn), catch the
  * air (drag) and drift sideways. [focusY] (0..1) is where the rays radiate
  * from and where a [burst] starts; otherwise the confetti rains from the top.
+ * [fallOut] keeps pieces opaque until they fall below the screen, instead of
+ * fading them after [seconds].
  */
 @SuppressLint("ViewConstructor")
 class CelebrationView(
@@ -33,6 +35,7 @@ class CelebrationView(
     private val count: Int = 140,
     private val burst: Boolean = false,
     private val seconds: Float = 5.5f,
+    private val fallOut: Boolean = false,
 ) : View(ctx) {
 
     private class Confetto(
@@ -127,10 +130,11 @@ class CelebrationView(
         val dt = ((now - lastT) / 1e9f).coerceIn(0f, 0.05f)
         lastT = now
         elapsed += dt
-        val alpha = ((seconds - elapsed) / 1.2f).coerceIn(0f, 1f)
+        val alpha = if (fallOut) 1f else ((seconds - elapsed) / 1.2f).coerceIn(0f, 1f)
         if (alpha > 0f) {
             val a = (255 * alpha).toInt()
-            for (c in confetti) {
+            for (i in confetti.lastIndex downTo 0) {
+                val c = confetti[i]
                 // gravity + air drag: bursts slow into a gentle rain
                 c.vy += h * (if (burst) 0.9f else 0.25f) * dt
                 val drag = 1f - (if (burst) 1.8f else 0.4f) * dt
@@ -139,6 +143,19 @@ class CelebrationView(
                 c.y += c.vy * dt
                 c.rot += c.vr * dt
                 c.flutter += c.flutterV * dt
+                if (fallOut) {
+                    // Retire only below the viewport, with room for rotation and
+                    // the shadow. Upward pieces remain live and fall back in.
+                    val radius = maxOf(c.w, c.h)
+                    if (c.y - radius > h) {
+                        confetti[i] = confetti.last()
+                        confetti.removeAt(confetti.lastIndex)
+                        continue
+                    }
+                    // Keep the burst inside the sides so pieces leave by falling.
+                    if (c.x < radius) { c.x = radius; c.vx = abs(c.vx) * .35f }
+                    else if (c.x > w - radius) { c.x = w - radius; c.vx = -abs(c.vx) * .35f }
+                }
                 if (c.y > h + c.h || c.y < -h) continue
                 val fl = abs(cos(c.flutter)) // tumbling: the piece thins as it turns edge-on
                 canvas.save()
@@ -155,7 +172,8 @@ class CelebrationView(
                 }
                 canvas.restore()
             }
-        } else if (!rays) {
+        }
+        if (!rays && (alpha <= 0f || fallOut && confetti.isEmpty())) {
             spin?.cancel(); spin = null
             (parent as? android.view.ViewGroup)?.post { (parent as? android.view.ViewGroup)?.removeView(this) }
         }

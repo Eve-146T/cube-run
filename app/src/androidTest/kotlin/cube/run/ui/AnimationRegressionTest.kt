@@ -409,10 +409,14 @@ class AnimationRegressionTest {
             field<View>(flow, "page").performClick() // Open the next box before delivering its reward.
             flow.onBoxOpened(Progress.BoxReward.BUBBLE, 1, 0, 0)
             assertNull(field<ValueAnimator?>(flow, "rewardBeat"))
-            assertEquals(36f, field<TextView>(flow, "rewardBig").textSize / activity.resources.displayMetrics.scaledDensity, 0.1f)
         }
         waitFor(600)
-        ui { settled(field(flow, "rewardCard")); assertNull(field<ValueAnimator?>(flow, "rewardBeat")) }
+        ui {
+            settled(field(flow, "rewardCard"))
+            assertNull(field<ValueAnimator?>(flow, "rewardBeat"))
+            // Reward text is fitted during Android's next measurement pass.
+            assertEquals(36f, field<TextView>(flow, "rewardBig").textSize / activity.resources.displayMetrics.scaledDensity, 0.1f)
+        }
     }
 
     @Test fun paymentCannotCompleteOnADetachedPage() {
