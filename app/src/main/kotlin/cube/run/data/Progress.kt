@@ -103,11 +103,11 @@ object Progress {
 
     fun metric(id: String): Int = achievementMetrics[id] ?: 0
 
-    /** A Zen run is live: nothing it does counts towards achievements or records. */
+    /** A Zen run is live: only its Monk streak counts towards achievements. */
     @Volatile var zenRun = false
 
     @Synchronized fun addMetric(id: String, amount: Int = 1) {
-        if (amount <= 0 || zenRun) return
+        if (amount <= 0 || zenRun || id == "monk") return
         val next = saturatedAdd(metric(id), amount)
         if (next == metric(id)) return
         achievementMetrics[id] = next
@@ -116,7 +116,17 @@ object Progress {
     }
 
     @Synchronized fun bestMetric(id: String, value: Int) {
-        if (value <= metric(id) || zenRun) return
+        if (value <= metric(id) || zenRun || id == "monk") return
+        saveBestMetric(id, value)
+    }
+
+    /** Only Zen destruction may record Monk; ordinary metrics remain blocked. */
+    @Synchronized fun recordZenStreak(value: Int) {
+        if (!zenRun || value <= metric("monk")) return
+        saveBestMetric("monk", value.coerceIn(0, 100))
+    }
+
+    private fun saveBestMetric(id: String, value: Int) {
         achievementMetrics[id] = value
         prefs.edit().putInt("metric_$id", value).apply()
         Achievements.evaluate()
@@ -317,12 +327,13 @@ object Progress {
     }
     /** Call only for a user changing the mute toggle, never settings initialization. */
     @Synchronized fun recordMuteToggle() {
-        if (totalMuteToggles == Int.MAX_VALUE) return
+        if (zenRun || totalMuteToggles == Int.MAX_VALUE) return
         totalMuteToggles++
         prefs.edit().putInt("total_mute_toggles", totalMuteToggles).apply()
         Achievements.evaluate()
     }
     private fun recordBubbles() {
+        if (zenRun) return
         if (bubbles > maxBubbles) {
             maxBubbles = bubbles
             prefs.edit().putInt("max_bubbles", maxBubbles).apply()
@@ -457,6 +468,7 @@ object Progress {
 
     /** One more run finished (for the stats). */
     @Synchronized fun countRun() {
+        if (zenRun) return
         runs = saturatedAdd(runs, 1)
         prefs.edit().putInt("runs", runs).putInt("achievement_best_score", bestRunScore).putInt("max_run_bounces", maxRunBounces).apply()
         Achievements.evaluate()

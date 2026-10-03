@@ -68,7 +68,7 @@ class MoreAchievementsTest {
 
     @Test fun allSelectedAchievementsHaveTargetsAndPayouts() {
         val all = Achievements.all
-        assertEquals(37, all.size)
+        assertEquals(38, all.size)
         assertEquals(all.size, all.map { it.id }.toSet().size)
         assertFalse(all.any { it.id == "portal_hopper" })
         for (definition in all) {

@@ -51,4 +51,6 @@
     <string name="shop_achievements_detail">פתיחת אתגרים ואיסוף הפרסים שלהם.</string>
     <string name="shop_unlocked">נפתח</string>
     <string name="shop_achievements_unlocked">ההישגים נפתחו</string>
+    <string name="achievement_monk">נזיר</string>
+    <string name="achievement_goal_monk">השמד 100 מכשולים בדרכך ברצף באמצעות קוביית הזן. (מדרגות לא נחשבות, אפשר לדלג עליהן)</string>
 </resources>

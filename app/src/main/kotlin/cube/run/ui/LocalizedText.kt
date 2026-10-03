@@ -79,7 +79,7 @@ fun Context.gameText(stableLabel: String): String = when (stableLabel) {
     "Zen" -> getString(R.string.game_zen)
     "Calm" -> getString(R.string.ability_calm)
     "A soft haze settles over the world and mutes its colours." -> getString(R.string.ability_calm_detail)
-    "Obstacles melt away. Nothing is scored, earned or lost. Just roll." -> getString(R.string.ability_zen_detail)
+    "Obstacles melt away. Only the Monk challenge progresses. Just roll." -> getString(R.string.ability_zen_detail)
     "Floaty" -> getString(R.string.ability_floaty)
     "Your cube becomes floaty!" -> getString(R.string.ability_floaty_detail)
     "Double jump" -> getString(R.string.ability_double_jump)
@@ -257,6 +257,7 @@ fun Context.achievementTitle(id: String): String = getString(when (id) {
     "nervous_tic" -> R.string.achievement_nervous_tic
     "silent_treatment" -> R.string.achievement_silent_treatment
     "stage_fright" -> R.string.achievement_stage_fright
+    "monk" -> R.string.achievement_monk
     "neo" -> R.string.achievement_neo
     else -> R.string.achievement_cookie_clicker
 })
@@ -299,6 +300,7 @@ fun Context.achievementGoal(id: String): String = getString(when (id) {
     "nervous_tic" -> R.string.achievement_goal_nervous_tic
     "silent_treatment" -> R.string.achievement_goal_silent_treatment
     "stage_fright" -> R.string.achievement_goal_stage_fright
+    "monk" -> R.string.achievement_goal_monk
     "neo" -> R.string.achievement_goal_neo
     else -> R.string.achievement_toggle_sound
 })

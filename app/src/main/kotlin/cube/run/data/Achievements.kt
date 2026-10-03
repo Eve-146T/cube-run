@@ -34,7 +34,7 @@ object Achievements {
         definition.id == "cookie" -> 2000
         definition.id in setOf("greed", "greedy", "coal_miner", "full_kit", "insomniac", "bankrupt", "exactly_67", "nervous_tic", "silent_treatment", "stage_fright") -> 1500
         definition.id in setOf("scenic_route") -> 2500
-        definition.id in setOf("pile_driver", "just_browsing", "two_ez", "untouchable", "house_loses", "voidwalker", "magpie", "shard_hunter", "long_con", "neo") -> 2000
+        definition.id in setOf("pile_driver", "just_browsing", "two_ez", "untouchable", "house_loses", "voidwalker", "magpie", "shard_hunter", "long_con", "neo", "monk") -> 2000
         else -> 0
     }
 
@@ -81,6 +81,7 @@ object Achievements {
         Definition("nervous_tic", "Nervous Tic", "Pause and resume 50 times in one run.", intArrayOf(50), false),
         Definition("silent_treatment", "Silent Treatment", "Finish a 100-point run with sound and haptics off using the free cube.", intArrayOf(1), false),
         Definition("stage_fright", "Stage Fright", "Crash within two seconds of the start gate in 25 runs.", intArrayOf(25), false),
+        Definition("monk", "Monk", "Destroy 100 obstacles in your way using the zen cube in a row. (except stairs, you can skip stairs)", intArrayOf(100), false),
         Definition("neo", "Neo", "???", intArrayOf(1), false),
     )
     /** The achievements on offer. */
@@ -126,6 +127,7 @@ object Achievements {
         var edit: SharedPreferences.Editor? = null
         for (index in all.indices) {
             val definition = all[index]
+            if (Progress.zenRun && definition.id != "monk") continue
             val previous = prefs.getInt(definition.earnedKey, 0)
             val earned = maxOf(earnedTiers(definition, value(definition)), previous.coerceIn(0, definition.thresholds.size))
             if (earned > previous) {

@@ -60,6 +60,8 @@ class AchievementsReviewTest {
                     .putInt("max_run_missed_boxes", if (challengeComplete) 10 else 7)
                     .putInt("total_mute_toggles", if (challengeComplete) 1000 else 637)
                     .putInt("max_run_bounces", if (challengeComplete) 93 else 42).putInt("void_purchases", state.removePrefix("void").toIntOrNull() ?: 0)
+                if (state.startsWith("monk")) edit.putInt("metric_monk", if (state == "monk-progress") 63 else 100)
+                if (state == "monk-claimed") edit.putInt("achievement_claimed_monk", 1)
                 if (state == "claimed") for (definition in cube.run.data.Achievements.all)
                     edit.putInt("achievement_claimed_${definition.id}", definition.thresholds.size)
                 if (state == "diamond-ready") for (definition in cube.run.data.Achievements.all.filter { it.tiered })
@@ -81,6 +83,15 @@ class AchievementsReviewTest {
                         call(hud, if (state.startsWith("void") || state == "locked" || state == "shop-unlocked") "openShop" else "openAchievements")
                     }
                     capture("page-$state")
+                    if (state.startsWith("monk")) {
+                        scenario.onActivity { activity ->
+                            val root = activity.findViewById<View>(android.R.id.content)
+                            val card = root.findViewWithTag<View>("achievement_card_monk")
+                            assertNotNull("Monk card exists", card)
+                            scrolls(root).forEach { it.scrollTo(0, card.top) }
+                        }
+                        capture("card-$state")
+                    }
                     if (state.startsWith("void") || state == "shop-unlocked") {
                         scenario.onActivity { activity -> scrolls(activity.findViewById(android.R.id.content)).forEach { it.fullScroll(View.FOCUS_DOWN) } }
                         capture("bottom-$state")

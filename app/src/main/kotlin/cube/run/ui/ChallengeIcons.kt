@@ -204,6 +204,13 @@ internal class ChallengeIcon(private val id: String) : Icon() {
                 fill(Theme.INK); for (k in 0 until 8) canvas.drawRect(9f + k * 3.75f, if (k % 2 == 0) 8f else 12f, 12.75f + k * 3.75f, if (k % 2 == 0) 12f else 16f, paint)
                 burst(24f, 33f, Theme.BERRY)
             }
+            "monk" -> {
+                cube(10f, 14f, 26f, Theme.WHITE)
+                line(23f, 17f, 23f, 37f, Theme.INK, 3f)
+                line(12f, 26f, 34f, 26f, Theme.INK, 3f)
+                line(8f, 8f, 35f, 8f, Theme.INK, 2.4f)
+                sparkle(39f, 14f, 4f)
+            }
             "neo" -> {
                 // The red pill: a glossy capsule lying at a tilt, with its seam.
                 canvas.rotate(-38f, 24f, 24f)

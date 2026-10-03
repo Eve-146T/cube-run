@@ -138,8 +138,9 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
     // ---- style points: tap mid-air for an ascending combo (purely for flair) ----
     private var styleCombo = 0
     private var runSkin = Skins.get(0)
-    /** The Zen cube is out: obstacles melt away and nothing counts. */
+    /** The Zen cube is out: obstacles melt away; only Monk counts. */
     private var zen = false
+    private var zenStreak = 0
     private val zenCeiling = 0.4f     // the auto-climb rests at an unhurried pace
     private var phaseUsed = false
     private var phasedObstacle: Ob? = null
@@ -185,7 +186,7 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
         initialInteraction = Stage.interactions.get()
         Lanes.reset(); Terrain.reset()
         setTerrain { z -> Terrain.y(z) }
-        zen = false; Progress.zenRun = false
+        zen = false; zenStreak = 0; Progress.zenRun = false
         worlds.reset(firstWorld)
         scenery.init(worlds.world)
         bgTop.set(worlds.skyTop); bgBottom.set(worlds.skyBottom)
@@ -222,7 +223,7 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
         introT = 1.8f; introAtStart = 0f; skyBlend = 0f; bonus = Bonus.NONE
         kaleido = 0f; kaleidoHue = 0f; jetGrace = 0f; jetBoost = 0f
         phaseUsed = false; phasedObstacle = null; groundObstacle = null
-        zen = false; Progress.zenRun = false; difficulty.ceiling = 1f; calmWash = 0f
+        zen = false; zenStreak = 0; Progress.zenRun = false; difficulty.ceiling = 1f; calmWash = 0f
         styleCombo = 0; sideBounces = 0; smoothWall = 0; smoothVAccum = 0f
         smoothAnchorX = 0f; smoothAnchorLane = 1; lastTapT = -9f
         coinsRun = 0; coinsRunF = 0.0; boxesRun = 0; coinStreak = 0; coinPitch = 0; lastCoinT = -9f
@@ -260,6 +261,7 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
         runBubble = BubbleSkins.get(Progress.bubbleSkin)
         zen = Skins.Ability.ZEN in runSkin.abilities
         Progress.zenRun = zen
+        zenStreak = 0
         player.zappyEnabled = Skins.Ability.ZAPPY in runSkin.abilities
         player.floaty = Skins.Ability.FLOATY in runSkin.abilities
         player.doubleJumpEnabled = false
@@ -382,7 +384,7 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
     /** A collision with a row: the bubble takes it if one is up; otherwise Zen melts it, or it is fatal. */
     private fun hit(row: Row) {
         when {
-            bubble.active -> smash(row) // a bubble keeps its job, even on the Zen cube
+            bubble.active -> { zenStreak = 0; smash(row) } // a bubble keeps its job, even on the Zen cube
             zen -> melt(row)
             else -> crash()
         }
@@ -391,6 +393,8 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
     /** Zen: release a visual copy before removing the collision geometry. */
     private fun melt(row: Row) {
         for (ob in row.obs) if (ob.type == ObType.SOLID) zenDissolve.melt(ob, row.z)
+        zenStreak = (zenStreak + row.obs.count { it.type == ObType.SOLID }).coerceAtMost(100)
+        Progress.recordZenStreak(zenStreak)
         fx.melt(row)
         row.obs.removeAll { it.type == ObType.SOLID }
     }
@@ -436,6 +440,8 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
     }
 
     private fun scoreRow(row: Row) {
+        // Stairs/platforms and empty stretches are exempt; dodging a solid breaks Monk.
+        if (zen && row.obs.any { it.type == ObType.SOLID }) zenStreak = 0
         rowsPassed++
         val x2 = powerUps.mult.active
         session.addScore(if (x2) 2 else 1)
@@ -514,6 +520,7 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
     private fun collectPickup(row: Row, cz: Float) {
         val kind = row.pickup
         row.pickup = Pickup.NONE
+        if (zen && (kind == Pickup.BOX || Pickup.shardType(kind) >= 0)) return
         if (kind != Pickup.NONE && kind != Pickup.BOX && Pickup.shardType(kind) < 0) {
             Progress.recordPowerup()
             session.powerupPickedUp()
@@ -1074,6 +1081,6 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
         }
     }
     override fun pause() { idlePilot.stop(); super.pause() }
-    override fun dispose() { idlePilot.close(); showcase.dispose(); super.dispose() }
+    override fun dispose() { Progress.zenRun = false; idlePilot.close(); showcase.dispose(); super.dispose() }
 
 }

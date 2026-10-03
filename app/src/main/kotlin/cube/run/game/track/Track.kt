@@ -1,6 +1,7 @@
 package cube.run.game.track
 
 import cube.run.data.Bonus
+import cube.run.data.Skins
 import cube.run.data.Progress
 import cube.run.data.Settings
 import cube.run.game.Lanes
@@ -535,7 +536,8 @@ class Track(private val rnd: Random, private val fx: ObstacleFactory) {
         val kind = pickupBag.removeFirst()
         // Empty slots still consume the normal spacing: neither gated nor
         // skipped rare pickups turn into extra magnets, multipliers or bubbles.
-        row.pickup = when (kind) {
+        val zen = Progress.zenRun || Progress.skin == Skins.ZEN_ID
+        row.pickup = if (zen && (kind == Pickup.BOX || Pickup.shardType(kind) >= 0)) Pickup.NONE else when (kind) {
             Pickup.RED_PILL -> if (runScore >= 600 && rnd.nextInt(30) == 0) kind else Pickup.NONE
             Pickup.SHARD_EMBER -> if (runScore >= 100 && ++shardOffers % 2 == 0) Pickup.SHARD_EMBER + rnd.nextInt(3) else Pickup.NONE
             Pickup.JET -> if (runScore >= 100 && ++jetOffers % 2 == 0) kind else Pickup.NONE

@@ -51,4 +51,6 @@
     <string name="shop_achievements_detail">Unlock challenges and collect their rewards.</string>
     <string name="shop_unlocked">UNLOCKED</string>
     <string name="shop_achievements_unlocked">Achievements unlocked</string>
+    <string name="achievement_monk">Monk</string>
+    <string name="achievement_goal_monk">Destroy 100 obstacles in your way using the zen cube in a row. (except stairs, you can skip stairs)</string>
 </resources>

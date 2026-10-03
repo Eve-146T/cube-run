@@ -11,6 +11,7 @@ import com.badlogic.gdx.graphics.Color
 import cube.run.GameActivity
 import cube.run.core.Stage
 import cube.run.data.Progress
+import cube.run.data.Achievements
 import cube.run.data.Scores
 import cube.run.data.Settings
 import cube.run.data.Skins
@@ -31,7 +32,7 @@ class ZenCubeTest {
     private val context get() = InstrumentationRegistry.getInstrumentation().targetContext
     private fun field(owner: Any, name: String) = owner.javaClass.getDeclaredField(name).apply { isAccessible = true }
     private inline fun <reified T> read(owner: Any, name: String): T = field(owner, name).get(owner) as T
-    private fun call(game: CubeRun, name: String, vararg args: Any) {
+    private fun call(game: Any, name: String, vararg args: Any) {
         game.javaClass.declaredMethods.single { it.name == name && it.parameterCount == args.size }
             .apply { isAccessible = true }.invoke(game, *args)
     }
@@ -60,6 +61,7 @@ class ZenCubeTest {
         val prefs = context.getSharedPreferences("progress", Context.MODE_PRIVATE)
         val scores = context.getSharedPreferences("scores", Context.MODE_PRIVATE)
         val saved = prefs.all; val savedScores = scores.all; val savedDev = Settings.devMode
+        val savedZen = Progress.zenRun
         try {
             Settings.setDevMode(false)
             assertTrue(prefs.edit().clear().putBoolean("achievements_unlocked", true)
@@ -82,7 +84,7 @@ class ZenCubeTest {
                 }
             }
         } finally {
-            Stage.paused = false; Stage.mode = Stage.NONE
+            Stage.paused = false; Stage.mode = Stage.NONE; Progress.zenRun = savedZen
             restore(prefs, saved); restore(scores, savedScores)
             Settings.setDevMode(savedDev)
             Progress.init(context)
@@ -160,10 +162,100 @@ class ZenCubeTest {
         assertEquals("Nothing is banked or submitted", 0, Scores.best("cuberun"))
     }
 
+    @Test fun monkNeeds100ConsecutiveDestructionsAndAllowsStairs() = fixture(Skins.ZEN_ID) { game ->
+        val monk = Achievements.all.single { it.id == "monk" }
+        repeat(60) { call(game, "hit", wall()) }
+        call(game, "scoreRow", wall()) // a dodged or jumped obstacle
+        assertEquals(0, read<Int>(game, "zenStreak"))
+        repeat(60) { call(game, "hit", wall()) }
+        assertEquals("Separate streaks do not add together", 60, Progress.metric("monk"))
+        assertEquals(0, Achievements.snapshot(monk).earnedTiers)
+        val stairs = Row(0f, arrayListOf(Ob(Color.BLUE, 0f, 1f, .8f, ObType.PLAT, 1.6f, 2f, 4f)))
+        call(game, "scoreRow", stairs)
+        call(game, "scoreRow", Row(0f, arrayListOf()))
+        assertEquals("Stairs and empty rows leave the streak intact", 60, read<Int>(game, "zenStreak"))
+        repeat(39) { call(game, "hit", wall()) }
+        assertEquals(0, Achievements.snapshot(monk).earnedTiers)
+        call(game, "hit", wall())
+        assertEquals(1, Achievements.snapshot(monk).earnedTiers)
+        Progress.init(context)
+        assertEquals("Monk persists", 100, Progress.metric("monk"))
+        assertEquals(2000, Achievements.claim("monk"))
+        assertEquals(0, Achievements.claim("monk"))
+    }
+
+    @Test fun bubbleShattersAndNewRunsBreakTheMonkStreak() = fixture(Skins.ZEN_ID) { game ->
+        repeat(10) { call(game, "hit", wall()) }
+        call(game, "tryBubble")
+        call(game, "hit", wall())
+        assertEquals(0, read<Int>(game, "zenStreak"))
+        assertEquals("A bubble destruction does not count", 10, Progress.metric("monk"))
+        call(game, "hit", wall())
+        game.resetToMenu()
+        (game.session as cube.run.core.GameHostSession).resetToMenu()
+        call(game, "start")
+        assertEquals(0, read<Int>(game, "zenStreak"))
+    }
+
+    @Test fun zenNeverSpawnsBoxesOrShardsEvenWithDeveloperPickups() = fixture(Skins.ZEN_ID) { game ->
+        val track = read<Track>(game, "track")
+        field(track, "runScore").setInt(track, 5000)
+        val savedDev = Settings.devMode
+        try {
+            for (dev in listOf(false, true)) {
+                Settings.setDevMode(dev)
+                val seen = hashSetOf<Int>()
+                repeat(700) {
+                    field(track, "rowsSpawned").setInt(track, 1000)
+                    field(track, "rowsSincePickup").setInt(track, 1000)
+                    val row = Row(-10f, arrayListOf())
+                    call(track, "layPickup", row, cube.run.game.track.Step.EM)
+                    seen.add(row.pickup)
+                    assertFalse("No mystery box is generated", row.pickup == Pickup.BOX)
+                    assertTrue("No shard kind is generated", Pickup.shardType(row.pickup) < 0)
+                }
+                assertTrue("Zen still offers powerups", seen.contains(Pickup.MAGNET))
+                assertTrue(seen.contains(Pickup.BUBBLE))
+            }
+        } finally { Settings.setDevMode(savedDev) }
+        for (kind in listOf(Pickup.BOX, Pickup.SHARD_EMBER, Pickup.SHARD_FROST, Pickup.SHARD_VOID)) {
+            call(game, "collectPickup", Row(0f, arrayListOf()).apply { pickup = kind }, 0f)
+        }
+        assertEquals("Injected pickups cannot grant rewards either", 0, read<Int>(game, "boxesRun"))
+    }
+
+    @Test fun zenBlocksEveryOtherAchievementIncludingMuteToggles() = fixture(Skins.ZEN_ID) { game ->
+        val before = Achievements.snapshot().associate { it.definition.id to it.value }
+        for (definition in Achievements.tracked) {
+            Progress.addMetric(definition.id, 1000000)
+            Progress.bestMetric(definition.id, 1000000)
+            Progress.markMetricBit(definition.id, 2)
+        }
+        repeat(1000) { Progress.recordMuteToggle() }
+        Progress.recordRunProgress(10000, 100)
+        Progress.recordCenteredScore(100)
+        Progress.recordCoinlessScore(60)
+        Progress.recordMissedBoxes(10)
+        Progress.recordPowerup()
+        game.session.setScore(5000)
+        game.session.setCoins(10000)
+        game.session.groundPounded()
+        game.session.fullKitHeld()
+        game.session.redPillSurvived()
+        call(game, "hit", wall())
+        for (state in Achievements.snapshot()) if (state.definition.id != "monk") {
+            assertEquals(state.definition.id, before[state.definition.id], state.value)
+            assertEquals("No other achievement is earned", 0, state.earnedTiers)
+        }
+        assertEquals(1, Progress.metric("monk"))
+    }
+
     @Test fun otherCubesStillCrashAndCount() = fixture(0) { game ->
         assertFalse(Progress.zenRun)
         assertEquals(1, Progress.metric("regular"))
         call(game, "hit", wall())
         assertTrue(read<Boolean>(game, "dead"))
+        Progress.recordZenStreak(100)
+        assertEquals("Other cubes cannot earn Monk", 0, Progress.metric("monk"))
     }
 }

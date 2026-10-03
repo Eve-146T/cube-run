@@ -43,7 +43,7 @@ object Skins {
         CLOSE_SHAVE("Close Shave", "Near misses give you 3 times the bonus points!"),
         GIGAJUMP("Gigajump", "Jump twice as high while your bubble is active!"),
         TOXIC_FORTUNE("Toxic Fortune", "Coins are worth 60% more, but 1% are green and kill you instantly!"),
-        ZEN("Zen", "Obstacles melt away. Nothing is scored, earned or lost. Just roll."),
+        ZEN("Zen", "Obstacles melt away. Only the Monk challenge progresses. Just roll."),
         CALM("Calm", "A soft haze settles over the world and mutes its colours."),
     }
 
