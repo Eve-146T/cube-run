@@ -81,7 +81,7 @@ object Achievements {
         Definition("nervous_tic", "Nervous Tic", "Pause and resume 50 times in one run.", intArrayOf(50), false),
         Definition("silent_treatment", "Silent Treatment", "Finish a 100-point run with sound and haptics off using the free cube.", intArrayOf(1), false),
         Definition("stage_fright", "Stage Fright", "Crash within two seconds of the start gate in 25 runs.", intArrayOf(25), false),
-        Definition("monk", "Monk", "Destroy 100 obstacles in your way using the zen cube in a row. (except stairs, you can skip stairs)", intArrayOf(100), false),
+        Definition("monk", "Monk", "Destroy 100 consecutive obstacles with the Zen cube in one run. You can skip stairs.", intArrayOf(100), false),
         Definition("neo", "Neo", "???", intArrayOf(1), false),
     )
     /** The achievements on offer. */

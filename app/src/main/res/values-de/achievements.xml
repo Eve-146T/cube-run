@@ -52,5 +52,5 @@
     <string name="shop_unlocked">FREIGESCHALTET</string>
     <string name="shop_achievements_unlocked">Erfolge freigeschaltet</string>
     <string name="achievement_monk">Mönch</string>
-    <string name="achievement_goal_monk">Zerstöre mit dem Zen-Würfel 100 Hindernisse auf deinem Weg in Folge. (Treppen zählen nicht, du darfst sie überspringen)</string>
+    <string name="achievement_goal_monk">Zerstöre mit dem Zen-Würfel 100 Hindernisse in Folge in einem Lauf. Du kannst Treppen überspringen.</string>
 </resources>
