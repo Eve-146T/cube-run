@@ -5,7 +5,7 @@
     <string name="achievement_lifetime_coins">Insgesamt gesammelte Münzen</string>
     <string name="achievement_unlocked_cubes">Freigeschaltete Würfel</string>
     <string name="achievement_power_collector">Power-up-Sammler</string>
-    <string name="achievement_mystery_seeker">Überraschungsjäger</string>
+    <string name="achievement_mystery_seeker">Geschenkejäger</string>
     <string name="achievement_big_bubble">Riesenblase</string>
     <string name="achievement_bouncer">Abpraller</string>
     <string name="achievement_stay_centered">Bleib in der Mitte</string>
@@ -16,12 +16,12 @@
     <string name="achievement_collected_over_time">Insgesamt gesammelt</string>
     <string name="achievement_cube_collection">Würfelsammlung</string>
     <string name="achievement_powerups_collected">Power-ups gesammelt</string>
-    <string name="achievement_boxes_opened">Überraschungsboxen geöffnet</string>
+    <string name="achievement_boxes_opened">Geschenke geöffnet</string>
     <string name="achievement_hold_bubbles">Besitze gleichzeitig 1000 Blasen</string>
     <string name="achievement_wall_bounces">67 Wandabpraller in einem Lauf</string>
     <string name="achievement_stay_middle">Erreiche 100, ohne die mittlere Spur zu verlassen</string>
     <string name="achievement_no_coins">Erreiche 60, ohne eine Münze einzusammeln</string>
-    <string name="achievement_miss_boxes">Verpasse 10 Überraschungsboxen in einem Lauf</string>
+    <string name="achievement_miss_boxes">Verpasse 10 Geschenke in einem Lauf</string>
     <string name="achievement_toggle_sound">Schalte den Ton 1000-mal um</string>
     <string name="achievement_claimed">Abgeholt</string>
     <string name="achievement_claimed_with_best">Abgeholt · %1$s</string>
@@ -46,7 +46,7 @@
     <string name="achievement_suggest_title">Noch eine Herausforderung?</string>
     <string name="achievement_suggest_body">Schlag auf GitHub den nächsten Cube-Run-Erfolg vor.</string>
     <string name="achievement_suggest_button">ERFOLG VORSCHLAGEN</string>
-    <string name="shop_mystery_box">Überraschungsbox</string>
+    <string name="shop_mystery_box">Geschenk</string>
     <string name="shop_mystery_box_detail">Münzen, Blasen, Splitter oder ein neues Aussehen</string>
     <string name="shop_achievements_detail">Schalte Herausforderungen frei und sammle ihre Belohnungen.</string>
     <string name="shop_unlocked">FREIGESCHALTET</string>

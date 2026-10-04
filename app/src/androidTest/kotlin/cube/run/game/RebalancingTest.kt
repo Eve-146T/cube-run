@@ -7,6 +7,8 @@ import androidx.test.platform.app.InstrumentationRegistry
 import com.badlogic.gdx.Gdx
 import com.badlogic.gdx.graphics.Color
 import cube.run.GameActivity
+import cube.run.core.Gdx3DGame
+import cube.run.core.gfx.ShardSystem
 import cube.run.core.Stage
 import cube.run.core.gfx.TouchInput
 import cube.run.data.Progress
@@ -205,6 +207,32 @@ class RebalancingTest {
                 assertEquals(-1, Stage.previewSkin); assertEquals(Stage.NONE, Stage.mode)
             }
         }
+    }
+
+    @Test fun giftTrailEmissionIsBoundedAndIndependentOfRenderRate() = withGame { game ->
+        val particles = Gdx3DGame::class.java.getDeclaredField("shards").apply { isAccessible = true }.get(game) as ShardSystem
+        val gift = GiftStage(game)
+        val trail = Trails.get(1)
+        Stage.openRequests.set(0); Stage.skipBoxRequests.set(0)
+        for (fps in listOf(30, 60, 120)) {
+            particles.update(100f)
+            gift.enter(Color(), Color())
+            field(gift, "drop").setFloat(gift, 0f)
+            field(gift, "phase").setInt(gift, 2)
+            field(gift, "reward").set(gift, Progress.BoxReward(Progress.BoxReward.SKIN, 1, Wardrobe.TRAIL, trail.id))
+            repeat(fps / 2) { frame -> gift.update(1f / fps, (frame + 1f) / fps) }
+            assertTrue("$fps Hz emits about 15 bursts in half a second",
+                particles.count in (14 * trail.count)..(15 * trail.count))
+            val beforeDraw = particles.count
+            repeat(12) { gift.render(.5f) }
+            assertEquals("Redrawing the same scene never emits particles", beforeDraw, particles.count)
+            repeat(12) { gift.update(0f, .5f) }
+            assertEquals("A paused simulation never emits particles", beforeDraw, particles.count)
+            gift.update(1f, 1.5f)
+            assertEquals("A hitch seeds at most one burst", beforeDraw + trail.count, particles.count)
+            gift.exit()
+        }
+        particles.update(100f)
     }
 
     @Test fun boxSkipDuringDropShakeAndRevealAwardsEachBoxOnlyOnce() = withGame { game ->

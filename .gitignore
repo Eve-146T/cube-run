@@ -22,6 +22,7 @@ keystore.properties
 *.aab
 *.keystore
 *.jks
+output/fdroid-banners/
 
 # Local validation scratch files
 .build-tmp/
