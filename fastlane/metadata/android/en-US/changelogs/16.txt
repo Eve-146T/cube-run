@@ -1,0 +1,6 @@
+Fixed crashes and optimized performance.
+Description and translation improvements.
+Added Zen Cube and a new achievement.
+Balance changes (cheaper Mystery Boxes!).
+Ghost Cube improvements.
+Cube Run now looks good in split screen!
