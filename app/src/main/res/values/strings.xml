@@ -42,6 +42,8 @@
     <string name="text_choose_a_section">Choose a section</string>
     <string name="text_test_worlds">TEST WORLDS</string>
     <string name="text_red_pill">RED PILL</string>
+    <string name="text_outer_space">OUTER SPACE</string>
+    <string name="text_space_on_loop">Starts in space. Every portal leads back.</string>
     <string name="text_wardrobe">WARDROBE</string>
     <string name="text_equipped">EQUIPPED</string>
     <string name="text_equip">EQUIP</string>

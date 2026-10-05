@@ -58,6 +58,8 @@ object Settings {
     /** Debug: mystery boxes the next run starts with (dev mode only), so the box stage is one END RUN away. */
     @Volatile var testBoxes = 0
     @Volatile var testPillWorld = false
+    /** Section explorer: the run starts inside Outer Space and every portal leads back there. Process-scoped. */
+    @Volatile var testSpaceWorld = false
     @Volatile var testWorld: Int = -1
 
     @Volatile private var performanceCourseSelected = false
@@ -74,7 +76,7 @@ object Settings {
         }
         performanceCourseSelected = true
         setDevMode(true); Progress.enterDev()
-        testSection = 56; testWorld = 2; testPillWorld = false
+        testSection = 56; testWorld = 2; testPillWorld = false; testSpaceWorld = false
         testBonus = -1; testBonusNow = -1; testBoxes = 0
     }
 

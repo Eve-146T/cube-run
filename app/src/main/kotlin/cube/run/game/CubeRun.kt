@@ -287,11 +287,12 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
         if (Settings.devMode && Settings.testBoxes > 0) { boxesRun = Settings.testBoxes; session.setBoxes(boxesRun) } // dev: boxes to open
         track.portalPool = when {
             Settings.performanceCourse -> emptyList()
+            Settings.testSpaceWorld -> listOf(Bonus.SPACE)
             Settings.testBonus >= 0 -> listOf(Settings.testBonus)
             Settings.devMode -> Bonus.all.map { it.id }
             else -> Bonus.unlocked(Scores.best("cuberun")).map { it.id }
         }
-        track.portalEvery = if (Settings.devMode) 28 else 110 - 14 * Progress.level(Progress.PORTALS) // dev: portals galore too
+        track.portalEvery = if (Settings.devMode || Settings.testSpaceWorld) 28 else 110 - 14 * Progress.level(Progress.PORTALS) // dev: portals galore too
         powerUps.reset(); redPill.reset(); jetGrace = 0f
         if (BuildConfig.DEBUG && BuildConfig.JACKPOT_TEST_WORLD && !Settings.performanceCourse) {
             track.portalPool = emptyList()
@@ -305,11 +306,16 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
         curTier = difficulty.tier()
         track.tier = curTier
         val oldCount = Lanes.count
-        track.reset(coinTrailChance = 0.2f, hue = worldHue(), initialBonus = if (Settings.devMode) Settings.testBonusNow else Bonus.NONE)
+        val startBonus = when {
+            Settings.testSpaceWorld -> Bonus.SPACE // section explorer: Outer Space from the first row
+            Settings.devMode -> Settings.testBonusNow
+            else -> Bonus.NONE
+        }
+        track.reset(coinTrailChance = 0.2f, hue = worldHue(), initialBonus = startBonus)
         prepareToxicCoins()
         space.reset()
-        if (!track.isPillTest && Settings.devMode && Settings.testBonusNow >= 0) { // debug: begin inside a bonus world
-            bonus = Settings.testBonusNow
+        if (!track.isPillTest && startBonus >= 0) { // debug: begin inside a bonus world
+            bonus = startBonus
             player.remapLane(oldCount, Lanes.count)
             Terrain.set(bonus == Bonus.HILLS)
             if (bonus == Bonus.SPACE) space.enter(Random.nextInt(), instant = true)

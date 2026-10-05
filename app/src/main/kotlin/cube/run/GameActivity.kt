@@ -102,22 +102,23 @@ open class GameActivity : AndroidApplication() {
 
         // Debug builds only: adb shortcuts for testing individual sections and worlds.
         if (BuildConfig.DEBUG) {
-            if (intent.hasExtra("section") || intent.hasExtra("pillworld") || intent.hasExtra("bonusnow"))
+            if (intent.hasExtra("section") || intent.hasExtra("pillworld") || intent.hasExtra("spaceworld") || intent.hasExtra("bonusnow"))
                 Settings.leavePerformanceCourse()
             // Opt-in APK preset: survives launcher starts and RESTART without adb extras.
             if (BuildConfig.JACKPOT_TEST_WORLD && !Settings.performanceCourse) {
                 Settings.setDevMode(true)
                 Progress.enterDev()
                 Settings.testSection = 56 // MOTHERLODE: an obstacle-free field of coins.
-                Settings.testPillWorld = false
+                Settings.testPillWorld = false; Settings.testSpaceWorld = false
                 Settings.testBonus = -1
                 Settings.testBonusNow = -1
                 Progress.buy(cube.run.data.Wardrobe.CUBE, 1)
                 Progress.equip(cube.run.data.Wardrobe.CUBE, 1)
             }
             if (intent.getBooleanExtra("dev", false) && !Settings.devMode) { Settings.setDevMode(true); Progress.enterDev() }
-            intent.getIntExtra("section", -2).let { if (it >= -1) { Settings.testSection = it; Settings.testPillWorld = false } }
+            intent.getIntExtra("section", -2).let { if (it >= -1) { Settings.testSection = it; Settings.testPillWorld = false; Settings.testSpaceWorld = false } }
             if (intent.hasExtra("pillworld")) Settings.testPillWorld = intent.getBooleanExtra("pillworld", false)
+            if (intent.hasExtra("spaceworld")) Settings.testSpaceWorld = intent.getBooleanExtra("spaceworld", false)
             intent.getIntExtra("bonus", -2).let { if (it >= -1) Settings.testBonus = it }
             intent.getIntExtra("world", -2).let { if (it >= -1) Settings.testWorld = it }
             intent.getIntExtra("boxes", -1).let { if (it >= 0) Settings.testBoxes = it }
