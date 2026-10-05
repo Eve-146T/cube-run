@@ -76,6 +76,9 @@ abstract class Gdx3DGame(val session: GameSession) : ApplicationAdapter(), Touch
     private lateinit var coins: PrismBatch
     private lateinit var matrixWires: MatrixWireBatch
     private lateinit var crystals: cube.run.core.gfx.CrystalBatch
+    private lateinit var facetBatch: cube.run.core.gfx.FacetBatch
+    /** Faceted shapes (planets, asteroids, stars), drawn in one pass with the world. */
+    val facets: cube.run.core.gfx.FacetBatch get() = facetBatch
     private lateinit var capsules: CapsuleBatch
     /** The soap-bubble shader (blended pass; use from [renderBlended]). */
     private var bubbleRenderer: BubbleRenderer? = null
@@ -210,7 +213,10 @@ abstract class Gdx3DGame(val session: GameSession) : ApplicationAdapter(), Touch
             2 -> world = WorldBoxBatch(kit, wires = matrixWires).also { it.terrain = terrain }
             3 -> coins = PrismBatch(kit, wires = matrixWires).also { it.terrain = terrain }
             4 -> capsules = CapsuleBatch(kit).also { it.terrain = terrain }
-            5 -> crystals = cube.run.core.gfx.CrystalBatch(kit).also { it.terrain = terrain }
+            5 -> {
+                crystals = cube.run.core.gfx.CrystalBatch(kit).also { it.terrain = terrain }
+                facetBatch = cube.run.core.gfx.FacetBatch(kit)
+            }
             6 -> shards = ShardSystem(kit)
             7 -> { bubbles; LaunchTrace.mark("batches ready") }
         }
@@ -319,6 +325,7 @@ abstract class Gdx3DGame(val session: GameSession) : ApplicationAdapter(), Touch
         matrixWires.begin()
         capsules.begin()
         crystals.begin()
+        facetBatch.begin()
         world.begin(cam)
         coins.begin(cam)
         renderWorldBatched()
@@ -327,6 +334,7 @@ abstract class Gdx3DGame(val session: GameSession) : ApplicationAdapter(), Touch
         matrixWires.render(cam)
         capsules.render(cam)
         crystals.render(cam)
+        facetBatch.render(cam)
         // unlit blended shapes in the world (sunbursts): behind whatever the ModelBatch draws next
         Gdx.gl.glEnable(GL20.GL_DEPTH_TEST)
         Gdx.gl.glDepthMask(false)
@@ -404,7 +412,10 @@ abstract class Gdx3DGame(val session: GameSession) : ApplicationAdapter(), Touch
 
     /** Cube-shard explosion at a world position. Allocation-free in steady state (pooled). */
     fun burst3d(at: Vector3, color: Color, n: Int = 14, speed: Float = 6f, size: Float = 0.16f, life: Float = 0.8f, gravity: Float = 14f, biasZ: Float = 0f) =
-        shards.burst(at, color, n, speed, size, life, gravity, biasZ)
+        shards.burst(at, color, n, speed, size, life, gravity * burstGravity, biasZ)
+
+    /** Scales the pull on new bursts: in low gravity, sparks drift instead of falling. */
+    var burstGravity = 1f
 
     private val rayM = Matrix4()
     private val rayC0 = Color()
@@ -533,6 +544,7 @@ abstract class Gdx3DGame(val session: GameSession) : ApplicationAdapter(), Touch
         if (::matrixWires.isInitialized) matrixWires.dispose()
         if (::capsules.isInitialized) capsules.dispose()
         if (::crystals.isInitialized) crystals.dispose()
+        if (::facetBatch.isInitialized) facetBatch.dispose()
         bubbleRenderer?.dispose()
         if (::kit.isInitialized) kit.dispose()
         owned.forEach { it.dispose() }

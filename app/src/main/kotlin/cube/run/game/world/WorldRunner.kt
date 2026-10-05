@@ -70,9 +70,12 @@ class WorldRunner(private val game: Gdx3DGame, private val scenery: Scenery, pri
         hsvInto(bot, w.skyBotH, w.skyBotS, w.skyBotV)
     }
 
+    /** Held while a bonus world owns the picture (Outer Space): the next gate waits until it is over. */
+    var hold = false
+
     /** Called with the running row count; drops the next gate when it is time. */
     fun onRow(rowsPassed: Int) {
-        if (cube.run.data.Settings.performanceCourse) return
+        if (cube.run.data.Settings.performanceCourse || hold) return
         if (pendingWorld != null || rowsPassed - lastSwitchRow < rowsPerWorld) return
         lastSwitchRow = rowsPassed
         if (order.isEmpty()) order = ArrayList((0 until Worlds.all.size).filter { it != world.id }.shuffled(rnd))

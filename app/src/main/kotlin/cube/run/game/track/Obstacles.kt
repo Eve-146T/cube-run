@@ -133,6 +133,10 @@ class Row(var z: Float, val obs: ArrayList<Ob>, initialLaneWidth: Float = Lanes.
     var scoreless = false
     /** Spawned inside Outer Space: drawn in its look once the transformation reaches it. */
     var spaceLook = false
+    /** Which look it is showing now (the transformation re-pops a row when this flips). */
+    var shownSpace = false
+    /** The far end of a rift (its last slice): the chasm's back lip is drawn here. */
+    var riftEnd = false
     var minClear = 99f            // tightest clearance seen while crossing (near-miss detect)
     var coins: ArrayList<Coin>? = null
     var pickup = Pickup.NONE

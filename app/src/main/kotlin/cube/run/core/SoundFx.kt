@@ -20,7 +20,8 @@ import kotlin.random.Random
  *
  * Available sound names (pitch-shift with `rate` 0.5..2.0 for variety):
  *  tap, blip, pop, place, perfect, combo, success, fail,
- *  whoosh, boom, coin, rise, slide, fanfare, drain
+ *  whoosh, boom, coin, rise, slide, fanfare, drain, bell,
+ *  and Outer Space's: warp, moonjump, moonland, flyby, meteor, stardust, hum (a loop)
  */
 object SoundFx {
     // Investigation hooks: inactive in ordinary runs and release builds.
@@ -42,7 +43,8 @@ object SoundFx {
             val p = SoundPool.Builder().setMaxStreams(12).setAudioAttributes(attrs).build()
             pool = p
             val dir = File(ctx.cacheDir, "sfx").apply { mkdirs() }
-            val names = listOf("tap", "blip", "pop", "place", "perfect", "combo", "success", "fail", "whoosh", "boom", "coin", "rise", "slide", "fanfare", "drain", "bell")
+            val names = listOf("tap", "blip", "pop", "place", "perfect", "combo", "success", "fail", "whoosh", "boom", "coin", "rise", "slide", "fanfare", "drain", "bell",
+                "warp", "moonjump", "moonland", "flyby", "meteor", "stardust", "hum")
             fun file(name: String) = File(dir, if (name == "coin") "coin-chime-v2.wav" else "$name.wav")
             // Installed games already have these WAVs. Do not synthesize all samples again.
             if (names.any { !file(it).exists() || file(it).length() == 0L }) {
@@ -67,6 +69,22 @@ object SoundFx {
         val stream = pool?.play(id, v, v, 1, 0, rate.coerceIn(0.5f, 2f)) ?: 0
         if (observer != null) observer(name, before, System.nanoTime(), stream)
     }
+
+    /** Start [name] looping at [vol]; returns its stream (0 if sound is off or not loaded yet — try again later). */
+    fun loop(name: String, vol: Float): Int {
+        if (!ready || !Settings.soundEnabled) return 0
+        val id = ids[name] ?: return 0
+        val v = vol.coerceIn(0f, 1f)
+        return pool?.play(id, v, v, 2, -1, 1f) ?: 0
+    }
+
+    fun setVolume(stream: Int, vol: Float) {
+        if (stream == 0) return
+        val v = vol.coerceIn(0f, 1f)
+        pool?.setVolume(stream, v, v)
+    }
+
+    fun stop(stream: Int) { if (stream != 0) pool?.stop(stream) }
 
     // ------------------------------------------------------------------ synth
 
@@ -106,6 +124,17 @@ object SoundFx {
         "slide" to lowpassed(130, 0.22) { _, p -> noise() * sin(p * PI).pow(0.8) * 0.8 },
         "fanfare" to fanfare(),
         "drain" to drain(),
+        "warp" to warp(),
+        "moonjump" to moonJump(),
+        "moonland" to moonLand(),
+        "flyby" to flyby(),
+        "meteor" to meteor(),
+        "stardust" to synth(520, vol = 0.75) { t, p -> // a glass chime: rounder and longer than the coin, a faint inharmonic shimmer
+            val f = 1046.5
+            (sin(t * f * TAU) + 0.22 * sin(t * f * 2.0 * TAU) * exp(-p * 5.0) + 0.12 * sin(t * f * 2.76 * TAU) * exp(-p * 8.0)) /
+                1.34 * decay(p, 4.2)
+        },
+        "hum" to hum(),
         "bell" to synth(1400, vol = 0.8) { t, p -> // a singing bowl: a soft strike and inharmonic partials ringing out
             val f = 392.0
             (sin(t * f * TAU) + 0.5 * sin(t * f * 2.76 * TAU) * exp(-p * 3.0) + 0.25 * sin(t * f * 5.4 * TAU) * exp(-p * 6.0)) /
@@ -201,6 +230,99 @@ object SoundFx {
             (sin(phase * TAU) * 0.75 * (0.65 + 0.35 * sin(swirl * TAU)) + noise() * 0.3 * p) * env
         }
     }
+
+    // ------------------------------------------------------------ outer space
+
+    /** Through the portal: a rising shimmer of fifths over a whoosh that opens up, swelling then gone. */
+    private fun warp(): ShortArray {
+        var phase = 0.0
+        var acc = 0.0
+        return synth(1300, vol = 0.8) { t, p ->
+            val glide = 1.0 + 0.5 * p.pow(1.6)
+            phase += glide / SR
+            val chord = sin(phase * 330.0 * TAU) + 0.6 * sin(phase * 495.0 * TAU) + 0.45 * sin(phase * 660.0 * TAU + 0.4 * sin(t * 6.0 * TAU))
+            acc += (0.04 + 0.3 * p) * (noise() - acc)  // the whoosh brightens as it passes
+            val env = (p / 0.12).coerceAtMost(1.0) * exp(-max0(p - 0.45) * 5.0)
+            (chord * 0.28 + acc * 0.9 * sin(p * PI)) * env
+        }
+    }
+
+    /** A low-gravity take-off: a soft, airy sine that rises and floats away. */
+    private fun moonJump(): ShortArray {
+        var phase = 0.0
+        var acc = 0.0
+        return synth(340) { t, p ->
+            phase += (240.0 + 320.0 * p.pow(0.6)) / SR
+            acc += 0.06 * (noise() - acc)
+            val env = (p / 0.06).coerceAtMost(1.0) * (1.0 - p).pow(1.4)
+            (sin(phase * TAU + 0.15 * sin(t * 9.0 * TAU)) * 0.55 + acc * 0.5) * env
+        }
+    }
+
+    /** A low-gravity landing: a cushioned thump, no crack. */
+    private fun moonLand(): ShortArray {
+        var phase = 0.0
+        var acc = 0.0
+        return synth(260) { _, p ->
+            phase += (130.0 - 60.0 * p) / SR
+            acc += 0.05 * (noise() - acc)
+            (sin(phase * TAU) * 0.8 + acc * 0.7) * decay(p, 5.5)
+        }
+    }
+
+    /** An asteroid tumbling past: a swell of filtered air that drops in pitch as it goes by. */
+    private fun flyby(): ShortArray {
+        var phase = 0.0
+        var acc = 0.0
+        return synth(760) { _, p ->
+            acc += (0.2 - 0.16 * p) * (noise() - acc)
+            phase += (95.0 - 40.0 * p) / SR
+            val env = sin(p * PI).pow(1.6)
+            (acc * 1.3 + sin(phase * TAU) * 0.25) * env
+        }
+    }
+
+    /** A meteor coming down: a thin whistle falling through the scale, far off. */
+    private fun meteor(): ShortArray {
+        var phase = 0.0
+        var acc = 0.0
+        return synth(950, vol = 0.7) { t, p ->
+            phase += (1300.0 * (1.0 - 0.7 * p.pow(0.8))) / SR
+            acc += 0.12 * (noise() - acc)
+            val env = (p / 0.2).coerceAtMost(1.0) * (1.0 - p).pow(0.7)
+            (sin(phase * TAU + 0.3 * sin(t * 11.0 * TAU)) * 0.45 + acc * 0.25) * env
+        }
+    }
+
+    /**
+     * Space's hum: a calm pad (A, C#, E, with a slowly beating twin and a high
+     * shimmer) and a breath of solar wind. Every partial and wobble completes
+     * whole cycles in its 4 seconds, and the wind is cross-faded over its own
+     * seam, so it loops without a click.
+     */
+    private fun hum(): ShortArray {
+        val seconds = 4.0
+        val n = (SR * seconds).toInt()
+        val fade = SR / 2
+        val wind = DoubleArray(n + fade)
+        var acc = 0.0; var acc2 = 0.0
+        for (i in wind.indices) { acc += 0.02 * (noise() - acc); acc2 += 0.02 * (acc - acc2); wind[i] = acc2 }
+        val out = ShortArray(n)
+        for (i in 0 until n) {
+            val t = i.toDouble() / SR
+            val swell = 0.8 + 0.2 * sin(t * 0.25 * TAU)
+            val pad = sin(t * 220.0 * TAU) + sin(t * 220.5 * TAU) * 0.8 + sin(t * 277.25 * TAU) * 0.55 +
+                sin(t * 329.75 * TAU) * 0.6 + sin(t * 440.0 * TAU) * 0.25 * (0.5 + 0.5 * sin(t * 0.5 * TAU)) +
+                sin(t * 659.25 * TAU) * 0.08 * (0.5 + 0.5 * sin(t * 0.75 * TAU + 1.0))
+            // the wind's tail is blended into its head, so the loop point is seamless
+            val w = if (i < fade) wind[i] * i / fade + wind[n + i] * (1.0 - i.toDouble() / fade) else wind[i]
+            val v = pad * 0.16 * swell + w * 3.2
+            out[i] = (v.coerceIn(-1.0, 1.0) * 30000).toInt().toShort()
+        }
+        return out
+    }
+
+    private fun max0(v: Double) = if (v > 0.0) v else 0.0
 
     // ------------------------------------------------------------------- wav
 

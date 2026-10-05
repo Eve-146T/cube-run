@@ -104,7 +104,7 @@ class RunPerformanceTest {
     }
 
     private fun benchmark(mode: String, seconds: Int) {
-        require(mode in listOf("cruise", "hills", "second-wind", "jet", "wide", "late", "five-boosts", "matrix"))
+        require(mode in listOf("cruise", "hills", "second-wind", "jet", "wide", "late", "five-boosts", "matrix", "space"))
         val done = CountDownLatch(1)
         var failure: Throwable? = null
         val frames = ArrayList<Float>(seconds * 65)
@@ -180,6 +180,16 @@ class RunPerformanceTest {
                         if (mode == "wide") {
                             track.forceBonus(Bonus.WIDE)
                             field(Track::class.java, "bonusRowsLeft").setInt(track, 1_000_000)
+                        }
+                        if (mode == "space") { // the densest trip: the asteroid belt at its thickest
+                            track.forceBonus(Bonus.SPACE)
+                            field(Track::class.java, "bonusRowsLeft").setInt(track, 1_000_000)
+                            field(CubeRun::class.java, "bonus").setInt(game, Bonus.SPACE)
+                            val space = field(CubeRun::class.java, "space").get(game) as cube.run.game.space.SpaceWorld
+                            var seed = 0
+                            while (cube.run.game.space.SpaceTrip(seed).setPiece != cube.run.game.space.SpaceTrip.BELT) seed++
+                            space.enter(seed, instant = true)
+                            field(space.javaClass, "travelled").setFloat(space, 280f)
                         }
                         if (mode == "late") {
                             field(Gdx3DGame::class.java, "time").setFloat(game, 10000f)
