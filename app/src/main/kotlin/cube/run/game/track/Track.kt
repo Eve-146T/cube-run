@@ -6,6 +6,8 @@ import cube.run.data.Progress
 import cube.run.data.Settings
 import cube.run.game.Lanes
 import cube.run.game.Player
+import cube.run.game.space.SpaceSections
+import cube.run.game.space.SpaceSpacing
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.sin
@@ -100,8 +102,17 @@ class Track(private val rnd: Random, private val fx: ObstacleFactory) {
 
     /** Unlocked tier, supplied by the game each spawn (difficulty lives there). */
     var tier = 0
+    /** The run's speed when the last row spawned: low-gravity spacing grows with it. */
+    var speed = 12.4f
+    private var spaceIntro = false   // the first section through the Space portal is its intro
+    private var cometStep = 0        // where a comet wake's weave has got to
 
     private fun ml(l: Int) = if (mirror) 2 - l else l
+
+    private companion object {
+        /** The comet wake's path across the lanes: two coins in each lane it visits. */
+        val COMET_WEAVE = intArrayOf(1, 1, 2, 2, 1, 1, 0, 0)
+    }
 
     /** Start a run: wipe the walk and prefill the track. */
     fun reset(coinTrailChance: Float, hue: Float, initialBonus: Int = Bonus.NONE) {
@@ -113,6 +124,7 @@ class Track(private val rnd: Random, private val fx: ObstacleFactory) {
         rowsSincePickup = 0; pickupSpacing = 12; pickupBag.clear(); airCoins = false
         runScore = 0; jetOffers = 0; boxOffers = 0; shardOffers = 0
         bonus = Bonus.NONE; bonusRowsLeft = 0; rowsSincePortal = 0; portalPending = Bonus.NONE
+        spaceIntro = false; cometStep = 0
         this.coinTrailChance = coinTrailChance
         pillWorld = if (Settings.testPillWorld) PillTestWorld(fx) else null
         pillWorld?.let { it.reset(rows, hue); return }
@@ -133,6 +145,7 @@ class Track(private val rnd: Random, private val fx: ObstacleFactory) {
     fun spawn(mv: Float, hue: Float, score: Int, dt: Float = 0f) {
         pillWorld?.let { it.spawn(rows, mv, dt, hue); return }
         runScore = score
+        if (dt > 0f && mv > 0f) speed = mv / dt
         spawnAcc += mv
         while (true) {
             if (pendingSteps.isEmpty()) loadNextSection()
@@ -194,12 +207,15 @@ class Track(private val rnd: Random, private val fx: ObstacleFactory) {
             curSafe = curSafe.coerceIn(0, 2)
             return Bonus.NONE
         }
-        when (id) {
-            Bonus.WIDE -> { Lanes.count = 5; Lanes.targetW = Lanes.NORMAL_W }
-            Bonus.FLOAT -> { Lanes.count = 3; Lanes.targetW = 2.6f }
-            else -> { Lanes.count = 3; Lanes.targetW = Lanes.NORMAL_W }
-        }
+        shapeRoad(id)
         return id
+    }
+
+    /** The road takes bonus world [id]'s shape (the ordinary road for NONE). */
+    private fun shapeRoad(id: Int) {
+        val world = if (id == Bonus.NONE) null else Bonus.get(id)
+        Lanes.count = world?.lanes ?: 3
+        Lanes.targetW = world?.laneW ?: Lanes.NORMAL_W
     }
 
     /** Debug: be inside bonus world [id] from the first row (the exit comes after the usual stretch). */
@@ -207,16 +223,13 @@ class Track(private val rnd: Random, private val fx: ObstacleFactory) {
         beginBonus(id)
         rowsSincePortal = 0
         pendingSteps.clear()
-        when (id) {
-            Bonus.WIDE -> { Lanes.count = 5; Lanes.targetW = Lanes.NORMAL_W }
-            Bonus.FLOAT -> { Lanes.count = 3; Lanes.targetW = 2.6f }
-            else -> { Lanes.count = 3; Lanes.targetW = Lanes.NORMAL_W }
-        }
+        shapeRoad(id)
     }
 
     private fun beginBonus(id: Int) {
         bonus = id
-        bonusRowsLeft = when (id) { Bonus.HILLS -> 30; Bonus.WIDE -> 42; else -> 46 }
+        bonusRowsLeft = if (id == Bonus.NONE) 0 else Bonus.get(id).rows
+        spaceIntro = id == Bonus.SPACE
         wideSafe = curSafe + 1 // same physical lane when the two outer lanes unfold
         wideDirection = if (rnd.nextBoolean()) 1 else -1
         wideRows = 0
@@ -226,6 +239,7 @@ class Track(private val rnd: Random, private val fx: ObstacleFactory) {
 
     /** Distance to leave before the row that's about to spawn. */
     private fun gapFor(code: Int): Float {
+        if (bonus == Bonus.SPACE) return spaceGap(code)
         val recover = when {
             prevKind == -1 -> 0f                      // very first row
             Step.isJump(prevKind) -> jumpRecoverGap   // we were airborne — give room to land
@@ -239,12 +253,28 @@ class Track(private val rnd: Random, private val fx: ObstacleFactory) {
         }
     }
 
+    /** Low-gravity spacing: jumps hang long, so the road after one grows with the speed. */
+    private fun spaceGap(code: Int): Float {
+        val s = speed * 1.08f // the run may speed up a little while the row approaches
+        return when {
+            prevKind == -1 -> 0f
+            code == Step.RF && prevKind == Step.RF -> SpaceSpacing.RIFT_SLICE
+            code == Step.PORTAL || prevKind == Step.PORTAL -> 12f
+            Step.isTall(code) && Step.isPad(prevKind) -> SpaceSpacing.ringToHull(s)
+            Step.isJump(prevKind) -> SpaceSpacing.afterJump(s)
+            Step.isPlatform(code) && Step.isPlatform(prevKind) -> dodgeGap // roof segments meet end to end
+            code == Step.EM -> breatherGap
+            else -> SpaceSpacing.DODGE
+        }
+    }
+
     /** The section explorer alone shows the section bare: no pickups. Dev mode showers them instead. */
     private fun noPickups() = Settings.performanceCourse || (Settings.testSection >= 0 && !Settings.devMode)
 
     /** Intro first, an occasional breather, else a weighted pick from the unlocked tiers (bonus worlds have their own pools). */
     private fun pickSection(): Sect {
         Sections.byId(Settings.testSection)?.takeIf { bonus != Bonus.FLOAT || it in Sections.floatPool }?.let { return it }
+        if (bonus == Bonus.SPACE) return pickSpaceSection()
         if (Settings.devMode && bonus == Bonus.NONE) return Sections.devPool[devSectIdx++ % Sections.devPool.size]
         if (!introServed) { introServed = true; return Sections.intro }
         sectsSinceBreather++
@@ -256,6 +286,17 @@ class Track(private val rnd: Random, private val fx: ObstacleFactory) {
             else -> Sections.lib.filter { it.tier <= tier && it.id != lastSectId }
         }
         if (pool.isEmpty()) pool = if (bonus == Bonus.FLOAT) Sections.floatPool else Sections.lib.filter { it.tier <= tier }
+        var total = 0f; for (s in pool) total += s.weight
+        var r = rnd.nextFloat() * total
+        var chosen = pool[pool.size - 1]
+        for (s in pool) { r -= s.weight; if (r <= 0f) { chosen = s; break } }
+        lastSectId = chosen.id
+        return chosen
+    }
+
+    private fun pickSpaceSection(): Sect {
+        if (spaceIntro) { spaceIntro = false; return SpaceSections.intro }
+        val pool = SpaceSections.open(tier, lastSectId)
         var total = 0f; for (s in pool) total += s.weight
         var r = rnd.nextFloat() * total
         var chosen = pool[pool.size - 1]
@@ -397,11 +438,23 @@ class Track(private val rnd: Random, private val fx: ObstacleFactory) {
                 obs.add(fx.platform(l, hue, dodgeGap, if (prevPlatLane == l) 0f else rampLen))
             }
             code in 150..152 -> obs.add(fx.pad(walkTo(ml(code - 150)), hue))          // bounce pad on the walk lane
+            code in 200..202 -> { // meteor shower: boulders land beside the walk lane
+                val safe = walkTo(ml(code - 200))
+                for (b in 0..2) if (b != safe) obs.add(fx.meteor(b, hue))
+            }
+            code == Step.RF -> fx.addRift(hue, obs)                                     // a slice of a rift
+            code in 210..212 -> obs.add(fx.ring(walkTo(ml(code - 210)), hue))         // gravity ring on the walk lane
+            code == Step.HW -> fx.hull(hue, obs)                                       // a station hull: ride the ring over it
+            code == Step.CT -> { /* open row — a comet's wake of coins (layCoins) */ }
             else -> fx.addOneOpen(walkTo(ml(code)), hue, obs)                          // dodge
         }
         val row = Row(z, obs)
         row.safeLane = curSafe
-        layCoins(row, code, platLane)
+        row.spaceLook = bonus == Bonus.SPACE
+        // A rift's later slices continue the chasm: one hazard, one row of the stretch, one point.
+        val continued = code == Step.RF && prevKind == Step.RF
+        row.scoreless = continued
+        layCoins(row, code, platLane, continued)
         layPickup(row, code)
         row.alignLaneSpacing(Lanes.w)
         prevPlatLane = platLane
@@ -409,7 +462,7 @@ class Track(private val rnd: Random, private val fx: ObstacleFactory) {
         rowsSpawned++
         rowsSincePickup++
         rowsSincePortal++
-        if (bonus != Bonus.NONE) bonusRowsLeft--
+        if (bonus != Bonus.NONE && !continued) bonusRowsLeft--
         prevKind = code
     }
 
@@ -463,9 +516,10 @@ class Track(private val rnd: Random, private val fx: ObstacleFactory) {
      * Coins come in trails of a few rows at a time, always on the walk lane: an
      * arc over jump rows, a low run under duck rows, a line trailing every other row.
      */
-    private fun layCoins(row: Row, code: Int, platLane: Int) {
+    private fun layCoins(row: Row, code: Int, platLane: Int, continued: Boolean = false) {
         val x = fx.laneX(curSafe)
         val coins = ArrayList<Coin>(5)
+        if (bonus == Bonus.SPACE && !airCoins && laySpaceCoins(row, code, x, continued, coins)) return
         val hover = if (bonus == Bonus.FLOAT) Player.HOVER_Y - 0.45f else 0f
         if (airCoins) { // jetpack: a line every row — cruising, gliding down, or already on the ground
             for (k in 0 until 3) {
@@ -493,7 +547,7 @@ class Track(private val rnd: Random, private val fx: ObstacleFactory) {
             row.coins = coins
             return
         }
-        if (code == Step.TW) return // you're mid-bounce here: the pad's arc already covers it
+        if (Step.isTall(code)) return // you're mid-bounce here: the pad's arc already covers it
         if (coinRowsLeft <= 0) {
             val chance = if (bonus != Bonus.NONE) 1f else coinTrailChance
             if (rnd.nextFloat() < chance) coinRowsLeft = 3 + rnd.nextInt(4) else return
@@ -515,6 +569,42 @@ class Track(private val rnd: Random, private val fx: ObstacleFactory) {
     }
 
     /**
+     * Space's own coin shapes, traced on the low-gravity arcs: the rift's one
+     * long float, a ring's slow launch, a comet's weave. Returns false when the
+     * ordinary rules apply (they then lay a wider, higher jump arc).
+     */
+    private fun laySpaceCoins(row: Row, code: Int, x: Float, continued: Boolean, coins: ArrayList<Coin>): Boolean {
+        when {
+            code == Step.RF -> { // one arc over the whole chasm, laid by its first slice
+                if (continued) return true
+                for (k in 0 until 6) {
+                    val dz = 2.2f - k * 1.5f
+                    val u = (dz + SpaceSpacing.RIFT_SLICE) / 4.4f
+                    coins.add(Coin(x, 0.55f + 1.25f * (1f - u * u).coerceAtLeast(0f), dz))
+                }
+            }
+            Step.isPad(code) -> { // the ring's arc, timed at this speed: follow the launch and you take them all
+                for (k in 1..5) {
+                    val t = k * 0.24f
+                    coins.add(Coin(x, SpaceSpacing.ringArcY(t), -speed * t))
+                }
+            }
+            code == Step.CT -> { // a comet's wake: two coins a lane, weaving across the road
+                for (k in 0 until 4) {
+                    val lane = COMET_WEAVE[cometStep++ % COMET_WEAVE.size]
+                    coins.add(Coin(fx.laneX(lane), 0.5f, -k * 1.6f))
+                }
+            }
+            Step.isJump(code) && !Step.isTall(code) -> { // a long, high arc: low gravity carries you further
+                coins.add(Coin(x, 1.45f, 2.4f)); coins.add(Coin(x, 2.0f, 0f)); coins.add(Coin(x, 1.45f, -2.4f))
+            }
+            else -> return false
+        }
+        row.coins = coins
+        return true
+    }
+
+    /**
      * Regular pickups on the walk lane. A shuffled bag prevents any one kind
      * from disappearing for a whole run; Lucky Box adds boxes to each bag.
      * Red Pill slots only materialize from a score of 600, then 1 in 30 times, in every ordinary run
@@ -522,7 +612,7 @@ class Track(private val rnd: Random, private val fx: ObstacleFactory) {
      */
     private fun layPickup(row: Row, code: Int) {
         if (cube.run.BuildConfig.DEBUG && cube.run.BuildConfig.JACKPOT_TEST_WORLD) return
-        if (noPickups() || Step.isPlatform(code) || Step.isPad(code) || code == Step.TW || bonus == Bonus.FLOAT) return
+        if (noPickups() || Step.isPlatform(code) || Step.isPad(code) || Step.isTall(code) || code == Step.RF || bonus == Bonus.FLOAT) return
         val galore = Settings.devMode // dev mode: a pickup every few rows, boxes included, so everything can be tried
         if (!galore && (rowsSpawned < pickupMinRows || rowsSincePickup < pickupSpacing)) return
         if (galore && rowsSincePickup < 3) return

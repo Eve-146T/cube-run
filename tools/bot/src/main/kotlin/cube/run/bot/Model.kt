@@ -11,7 +11,18 @@ data class Body(var lane: Int = 1, var x: Float = 0f, var y: Float = .45f,
     var flyY: Float = 5.2f, var hover: Boolean = false, var pads: Long = 0L,
     var flightLeft: Float = Float.POSITIVE_INFINITY,
     var coyoteLeft: Float = 0f, var jumpBuffer: Float = 0f,
-    var landingGrace: Float = 0f)
+    var landingGrace: Float = 0f,
+    /** Outer Space: weaker gravity, slower launches, softer lane changes (mirrors Player.LOW_G*). */
+    var lowG: Boolean = false) {
+    val gravity: Float get() = if (lowG) 26f * LOW_G else 26f
+    val launchScale: Float get() = if (lowG) LOW_G_LAUNCH else 1f
+    val laneRate: Float get() = if (hover) 4.5f else if (lowG) LOW_G_LANE_RATE else 13f
+    companion object {
+        const val LOW_G = .52f
+        const val LOW_G_LAUNCH = .786f
+        const val LOW_G_LANE_RATE = 10f
+    }
+}
 
 /** Existing jetpack acceleration/deceleration; this predicts movement, never changes it. */
 data class JetMotion(val groundSpeed: Float, val boost: Float, val flightLeft: Float) {
@@ -55,7 +66,7 @@ object Action {
         }
     }
     fun takeOff(b: Body) {
-        b.air = true; b.vy = 8.4f; b.duckT = 0f; b.slam = false
+        b.air = true; b.vy = 8.4f * b.launchScale; b.duckT = 0f; b.slam = false
         b.coyoteLeft = 0f; b.jumpBuffer = 0f
     }
 }
@@ -138,7 +149,7 @@ class Timeline(val course: Course, val speed: Float, val dt: Float = 1f / 60f,
                 ground = max(ground, if (o.ramp > 0 && o.rowZ < o.ramp) o.top * o.rowZ / o.ramp else o.top)
             }
         }
-        b.x += ((b.lane - (course.lanes - 1) / 2f) * course.width - b.x) * min(1f, dt * if (b.hover) 4.5f else 13f)
+        b.x += ((b.lane - (course.lanes - 1) / 2f) * course.width - b.x) * min(1f, dt * b.laneRate)
         val gy = .45f + ground
         b.coyoteLeft = max(0f, b.coyoteLeft - dt)
         b.jumpBuffer = max(0f, b.jumpBuffer - dt)
@@ -147,7 +158,7 @@ class Timeline(val course: Course, val speed: Float, val dt: Float = 1f / 60f,
             b.flying -> b.y += (b.flyY - b.y) * min(1f, dt * if (b.flyY < 5.2f) 7f else 4f)
             b.hover -> { b.y += (1.4f + .15f * sin(f.time * 2.2f) - b.y) * min(1f, dt * 3f); b.air = false; b.vy = 0f }
             b.air -> {
-                b.vy -= 26f * dt; b.y += b.vy * dt
+                b.vy -= b.gravity * dt; b.y += b.vy * dt
                 if (b.y <= gy && b.vy <= 0f) {
                     b.y = gy; b.air = false; b.vy = 0f
                     if (b.slam) { b.slam = false; b.duckT = .5f }
@@ -164,7 +175,7 @@ class Timeline(val course: Course, val speed: Float, val dt: Float = 1f / 60f,
                 // A plan must reach the pad's interior. A last-frame edge catch is
                 // not reliable when Android delivers input between simulation slices.
                 abs(o.rowZ) < .75f - safetyMargin && abs(b.x - o.x) < .85f - safetyMargin * 2f) {
-                b.pads = b.pads or (1L shl o.pad); b.air = true; b.vy = 12.5f; b.duckT = 0f; b.slam = false
+                b.pads = b.pads or (1L shl o.pad); b.air = true; b.vy = 12.5f * b.launchScale; b.duckT = 0f; b.slam = false
                 b.coyoteLeft = 0f; b.jumpBuffer = 0f
             }
             // Expand the z test to cover a swept frame: high speed must not win by tunnelling.

@@ -67,7 +67,7 @@ object Achievements {
         Definition("greedy", "Greedy", "Collect 13 mystery boxes in one run.", intArrayOf(13), false),
         Definition("greed", "Greed", "Die collecting a mystery box from a risky position.", intArrayOf(1), false),
         Definition("pile_driver", "Pile Driver", "Ground pound 300 times in one run.", intArrayOf(300), false),
-        Definition("scenic_route", "Scenic Route", "Visit all four unique bonus worlds in one run.", intArrayOf(4), false),
+        Definition("scenic_route", "Scenic Route", "Visit four different bonus worlds in one run.", intArrayOf(4), false),
         Definition("coal_miner", "Coal Miner", "Collect 5000 coal.", intArrayOf(5000), false),
         Definition("magpie", "Magpie", "Collect 10000 coins in one run.", intArrayOf(10000), false),
         Definition("shard_hunter", "Shard Hunter", "Collect all three shard kinds in one run.", intArrayOf(3), false),

@@ -21,6 +21,12 @@ package cube.run.game.track
  *   130..132 platform climb: a ramped platform in that lane, pillars in the others — get on top
  *   140..142 platform: a platform segment in that lane (ramped if new), other lanes open — the high road
  *   150..152 bounce pad in that lane (the walk lane), other lanes open — run onto it to launch
+ * Outer Space only (game.space.SpaceSections):
+ *   200..202 meteor shower: boulders land on the two lanes beside that one — dodge, or hop them
+ *   RF       one slice of a rift across every lane; a run of slices is one long chasm to float over
+ *   210..212 gravity ring in that lane — run through it for a long, slow launch
+ *   HW       a station hull across every lane, too tall to jump — ride a ring over it
+ *   CT       a comet's wake: an open row with a coin line weaving across the lanes
  */
 object Step {
     fun dg(l: Int) = l
@@ -48,16 +54,25 @@ object Step {
     fun pl(l: Int) = 130 + l
     fun pf(l: Int) = 140 + l
     fun pd(l: Int) = 150 + l
+    fun mt(l: Int) = 200 + l
+    const val RF = 205
+    fun rg(l: Int) = 210 + l
+    const val HW = 215
+    const val CT = 216
 
     /** Rows that carry a platform segment. */
     fun isPlatform(code: Int) = code in 130..142
 
-    /** Rows that carry a bounce pad. */
-    fun isPad(code: Int) = code in 150..152
+    /** Rows that carry a bounce pad (or a gravity ring). */
+    fun isPad(code: Int) = code in 150..152 || code in 210..212
+
+    /** Walls only a launch clears: you are mid-bounce when they pass. */
+    fun isTall(code: Int) = code == TW || code == HW
 
     /** Rows whose guaranteed path is a jump (they need landing room afterwards; coins arc over them). */
     fun isJump(code: Int) =
-        code == JP || code == VD || code == PS || code == SW || code == TW || code in 50..52 || code in 70..72 || code in 120..122
+        code == JP || code == VD || code == PS || code == SW || code == TW || code in 50..52 || code in 70..72 || code in 120..122 ||
+            code == RF || code == HW
 
     /** Rows whose guaranteed path is a roll (coins go low). */
     fun isDuck(code: Int) = code == DK || code == PM || code in 60..62
@@ -147,7 +162,7 @@ object Sections {
     /** The Zero-G world: only pillar rows (nothing to jump or roll under while you hover). */
     val floatPool = lib.filter { s -> s.steps.all { it in 0..22 || it == EM || it == CF } }
 
-    fun byId(id: Int): Sect? = lib.firstOrNull { it.id == id }
+    fun byId(id: Int): Sect? = lib.firstOrNull { it.id == id } ?: cube.run.game.space.SpaceSections.byId(id)
 
     // preview cell kinds (for the section explorer's thumbnails)
     const val C_EMPTY = 0

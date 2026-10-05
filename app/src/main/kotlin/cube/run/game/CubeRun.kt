@@ -310,7 +310,7 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
         }
         session.runStarted()
         if (Settings.devMode) session.setScore(950)
-        if (bonus in 0..3) session.setBonus(bonus)
+        if (bonus >= 0) session.setBonus(bonus)
         session.laneChanged(player.lane, Lanes.count)
         refreshJumpAbility()
         fx.runStart(worldHue())
@@ -896,6 +896,7 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
         if (!dead) {
             refreshJumpAbility()
             player.hover = bonus == Bonus.FLOAT
+            player.lowGravity = bonus == Bonus.SPACE
             val gh = if (player.flying) 0f else groundAt(player.px)
             when (val event = player.update(dt, mv, time, worldHue(), trail = started, groundH = gh, stream = spd * 0.55f)) {
                 Player.EV_LANDED, Player.EV_GROUND_POUND -> {
@@ -985,7 +986,7 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
             }
             if (!row.scored && row.z > 1.2f) {
                 row.scored = true
-                if (started && !dead && !row.idle) scoreRow(row)
+                if (started && !dead && !row.idle && !row.scoreless) scoreRow(row)
             }
         }
     }
