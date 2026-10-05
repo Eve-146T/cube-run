@@ -34,7 +34,7 @@ class SpaceTrip(seed: Int) {
         val baseAzimuth: Float, val baseElevation: Float, var distance: Float,
         val radius: Float,
         val colors: Array<Color>,
-        /** Band edges up the planet (-1..1), or null for a plain faceted ball. */
+        /** Band edges up the planet (-1..1), or null for a plain voxel ball. */
         val bands: FloatArray?,
         val tilt: Float, val spin: Float,
         /** Ring radius relative to the planet (0 = none), tilt of the ring. */
@@ -73,10 +73,10 @@ class SpaceTrip(seed: Int) {
     init {
         // Two planets, on opposite sides so they frame the road, at different depths.
         val side = if (rnd.nextBoolean()) 1f else -1f
-        planets.add(planet(side * (6f + rnd.nextFloat() * 7f), 3f + rnd.nextFloat() * 9f, 230f + rnd.nextFloat() * 50f, 22f + rnd.nextFloat() * 16f))
+        planets.add(planet(side * (6f + rnd.nextFloat() * 7f), 3f + rnd.nextFloat() * 9f, 230f + rnd.nextFloat() * 50f, 17f + rnd.nextFloat() * 11f))
         planets.add(planet(-side * (8f + rnd.nextFloat() * 6f), -4f + rnd.nextFloat() * 16f, 160f + rnd.nextFloat() * 50f, 7f + rnd.nextFloat() * 7f))
         when (setPiece) {
-            FLYBY -> planets.add(planet(side * 3f, -7f - rnd.nextFloat() * 3f, 360f, 70f, approach = 0.3f, ringChance = 1f, slide = side * 24f))
+            FLYBY -> planets.add(planet(side * 3f, -7f - rnd.nextFloat() * 3f, 360f, 52f, approach = 0.3f, ringChance = 1f, slide = side * 24f))
             SUNRISE -> {
                 val sunColors = arrayOf(hsvInto(Color(), 44f + rnd.nextFloat() * 14f, 0.45f, 1f), hsvInto(Color(), 30f, 0.6f, 1f))
                 planets.add(Planet(-side * 3f, -9f, 330f, 18f, sunColors, null, 0f, 6f, 0f, 0f, sunColors, 0, 0.012f, glow = 1f, rise = 15f))
@@ -111,23 +111,23 @@ class SpaceTrip(seed: Int) {
 
         private const val DEG = (PI / 180.0).toFloat()
 
-        /** Sky top / bottom, road, neon, rock and star tints, HSV. Deep at the top, bright at the horizon: candy, never black. */
+        /** Sky top / bottom, road, neon, rock and star tints, HSV. Saturated like the other bonus worlds: candy, never black. */
         private val NEBULAE = listOf(
-            Nebula(258f, 0.85f, 0.38f, 318f, 0.70f, 0.62f, 262f, 0.70f, 0.31f, 188f, 280f, 190f, 0.15f), // grape soda
-            Nebula(232f, 0.90f, 0.36f, 188f, 0.75f, 0.56f, 228f, 0.75f, 0.29f, 322f, 210f, 200f, 0.10f), // lagoon
-            Nebula(272f, 0.80f, 0.36f, 18f, 0.72f, 0.68f, 268f, 0.62f, 0.29f, 46f, 300f, 40f, 0.20f),    // ember nebula
-            Nebula(246f, 0.85f, 0.34f, 160f, 0.62f, 0.52f, 240f, 0.70f, 0.29f, 130f, 230f, 150f, 0.12f), // aurora
-            Nebula(262f, 0.85f, 0.36f, 342f, 0.72f, 0.62f, 258f, 0.70f, 0.29f, 52f, 330f, 340f, 0.12f),  // cherry cosmos
+            Nebula(262f, 0.85f, 0.56f, 318f, 0.62f, 0.94f, 264f, 0.62f, 0.46f, 188f, 300f, 190f, 0.15f), // grape soda
+            Nebula(228f, 0.90f, 0.55f, 186f, 0.66f, 0.90f, 226f, 0.70f, 0.45f, 322f, 28f, 200f, 0.10f),  // lagoon
+            Nebula(272f, 0.80f, 0.52f, 22f, 0.66f, 0.96f, 268f, 0.60f, 0.44f, 46f, 300f, 40f, 0.20f),    // ember nebula
+            Nebula(244f, 0.85f, 0.52f, 158f, 0.56f, 0.86f, 240f, 0.66f, 0.44f, 130f, 330f, 150f, 0.12f), // aurora
+            Nebula(266f, 0.85f, 0.54f, 342f, 0.62f, 0.94f, 260f, 0.66f, 0.45f, 52f, 190f, 340f, 0.12f),  // cherry cosmos
         )
 
         /** Planet looks: three HSV colours each (body, band, accent). Bold candy, like the cubes. */
         private val PLANET_LOOKS = listOf(
-            floatArrayOf(12f, 0.62f, 0.95f, 32f, 0.5f, 1f, 350f, 0.6f, 0.8f),     // coral
-            floatArrayOf(160f, 0.55f, 0.85f, 140f, 0.38f, 1f, 182f, 0.6f, 0.7f),  // mint
-            floatArrayOf(275f, 0.45f, 0.9f, 300f, 0.32f, 1f, 255f, 0.55f, 0.75f), // lilac
-            floatArrayOf(205f, 0.7f, 0.85f, 188f, 0.42f, 1f, 222f, 0.75f, 0.62f), // ocean
-            floatArrayOf(46f, 0.6f, 1f, 32f, 0.55f, 0.95f, 18f, 0.62f, 0.85f),    // butter
-            floatArrayOf(330f, 0.52f, 1f, 310f, 0.36f, 1f, 346f, 0.65f, 0.8f),    // bubblegum
+            floatArrayOf(12f, 0.75f, 1f, 36f, 0.6f, 1f, 350f, 0.8f, 0.9f),     // coral
+            floatArrayOf(158f, 0.72f, 0.95f, 120f, 0.55f, 1f, 182f, 0.8f, 0.85f), // mint
+            floatArrayOf(275f, 0.62f, 1f, 305f, 0.45f, 1f, 255f, 0.72f, 0.9f),  // lilac
+            floatArrayOf(200f, 0.8f, 1f, 186f, 0.5f, 1f, 222f, 0.85f, 0.85f),   // ocean
+            floatArrayOf(46f, 0.78f, 1f, 30f, 0.7f, 1f, 16f, 0.78f, 0.95f),     // butter
+            floatArrayOf(330f, 0.68f, 1f, 310f, 0.48f, 1f, 346f, 0.8f, 0.9f),   // bubblegum
         )
     }
 }

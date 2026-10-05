@@ -14,10 +14,10 @@ import kotlin.math.sin
 import kotlin.math.sqrt
 
 /**
- * A flat-shaded triangle mesh: the planets, asteroids and stars of Outer
- * Space. Each face carries a palette [slot], a [tone] (a facet a little
- * lighter or darker than its neighbours) and its height [lat] on the shape
- * (-1 bottom … 1 top) for banded planets.
+ * A flat-shaded triangle mesh built from boxes: the planets, asteroids and
+ * stars of Outer Space. Each face carries a palette [slot], a [tone] (a face
+ * a little lighter or darker than its neighbours) and its height [lat] on
+ * the shape (-1 bottom … 1 top) for banded planets.
  */
 class FacetShape(
     /** Three corners per face, xyz each. */
@@ -32,10 +32,10 @@ class FacetShape(
 }
 
 /**
- * Faceted shapes in one draw call, lit like the boxes (the light rig is
+ * Box-built shapes in one draw call, lit like the boxes (the light rig is
  * baked into vertex colours by [BoxMeshKit.lightFace]). Shapes are turned on
- * all three axes, so rocks can tumble; [glow] lets a face shine with its own
- * colour (stars, comet tails, warm planet rims). Opaque only; anything past
+ * all three axes, so asteroids can tumble; [glow] lets a face shine with its
+ * own colour (stars, comet tails, a sun). Opaque only; anything past
  * the vertex budget is dropped, so queue the important things first.
  */
 class FacetBatch(private val kit: BoxMeshKit, private val maxVerts: Int = 40000) : Disposable {
@@ -127,123 +127,115 @@ class FacetBatch(private val kit: BoxMeshKit, private val maxVerts: Int = 40000)
     override fun dispose() = mesh.dispose()
 }
 
-/** The shape library: built once, shared by every space scene. */
+/**
+ * The shape library, built once and shared by every space scene. Everything
+ * is made of boxes, like the rest of the game: planets are chunky voxel
+ * balls, asteroids clumps of cubes, rings pixel rings.
+ */
 object FacetShapes {
-    /** A smooth-ish faceted ball (subdivided icosahedron), radius 1. Faces are a little uneven in tone, like cut candy. */
-    fun ball(subdivisions: Int, toneSeed: Int = 7): FacetShape = build(sphere(subdivisions), toneSeed, jitter = 0f, craters = 0f)
+    /** A unit cube (half-size 1). */
+    fun cube(): FacetShape = boxes(listOf(Box(0f, 0f, 0f, 1f, 1f, 1f)))
 
-    /** A rock: a lumpy ball, radius ~1, with a few dark crater faces (slot 1). [detail] 0 is 20 faces (far away), 1 is 80. */
-    fun rock(variant: Int, detail: Int = 1): FacetShape = build(sphere(detail), 300 + variant * 31, jitter = 0.32f, craters = if (detail == 0) 0.2f else 0.16f)
-
-    /** A star glint: a flat four-pointed diamond facing +z (two faces): stars are far, so they never turn. */
-    fun glint(): FacetShape {
-        val pos = floatArrayOf(0f, 1f, 0f, -0.45f, 0f, 0f, 0.45f, 0f, 0f, 0.45f, 0f, 0f, -0.45f, 0f, 0f, 0f, -1f, 0f)
-        return FacetShape(pos, floatArrayOf(0f, 0f, 1f, 0f, 0f, 1f), byteArrayOf(0, 0), floatArrayOf(1f, 1f), floatArrayOf(0.5f, -0.5f))
-    }
-
-    /** A star point: an octahedron, radius 1. */
-    fun star(): FacetShape {
-        val v = arrayOf(floatArrayOf(1f, 0f, 0f), floatArrayOf(-1f, 0f, 0f), floatArrayOf(0f, 1f, 0f),
-            floatArrayOf(0f, -1f, 0f), floatArrayOf(0f, 0f, 1f), floatArrayOf(0f, 0f, -1f))
-        val faces = arrayOf(intArrayOf(0, 2, 4), intArrayOf(4, 2, 1), intArrayOf(1, 2, 5), intArrayOf(5, 2, 0),
-            intArrayOf(4, 3, 0), intArrayOf(1, 3, 4), intArrayOf(5, 3, 1), intArrayOf(0, 3, 5))
-        return build(Mesh3(v.toMutableList(), faces.toMutableList()), 1, 0f, 0f)
+    /**
+     * A voxel ball, radius 1, [res] cells across. Only its outer faces are
+     * kept; each face knows its height ([FacetShape.lat]) for bands.
+     */
+    fun voxelBall(res: Int): FacetShape {
+        val c = res / 2f
+        fun inside(i: Int, j: Int, k: Int): Boolean {
+            if (i !in 0 until res || j !in 0 until res || k !in 0 until res) return false
+            val x = i + 0.5f - c; val y = j + 0.5f - c; val z = k + 0.5f - c
+            return x * x + y * y + z * z <= c * c + 0.35f
+        }
+        val out = Builder()
+        val h = 1f / res
+        for (i in 0 until res) for (j in 0 until res) for (k in 0 until res) {
+            if (!inside(i, j, k)) continue
+            val x = (i + 0.5f - c) / c; val y = (j + 0.5f - c) / c; val z = (k + 0.5f - c) / c
+            val open = BooleanArray(6) { f -> !inside(i + DX[f], j + DY[f], k + DZ[f]) }
+            out.box(x, y, z, h * 2f, h * 2f, h * 2f, 0, 1f, y, open)
+        }
+        return out.shape()
     }
 
     /**
-     * A flat ring in the XZ plane between radii [inner] and [outer] (outer = 1),
-     * split into [bands] concentric bands (slots 0, 1, 0…), seen from both sides.
+     * A flat pixel ring in the XZ plane between radii [inner] and 1, [res]
+     * cells across and one cell thick, in [bands] concentric bands (slots 0, 1, 0…).
      */
-    fun ring(segments: Int, inner: Float, bands: Int): FacetShape {
+    fun voxelRing(res: Int, inner: Float, bands: Int): FacetShape {
+        val c = res / 2f
+        fun radius(i: Int, k: Int): Float { val x = (i + 0.5f - c) / c; val z = (k + 0.5f - c) / c; return sqrt(x * x + z * z) }
+        fun inside(i: Int, k: Int) = i in 0 until res && k in 0 until res && radius(i, k).let { it in inner..1f }
+        val out = Builder()
+        val h = 1f / res
+        for (i in 0 until res) for (k in 0 until res) {
+            if (!inside(i, k)) continue
+            val band = ((radius(i, k) - inner) / (1f - inner) * bands).toInt().coerceAtMost(bands - 1)
+            val open = BooleanArray(6) { f -> DY[f] != 0 || !inside(i + DX[f], k + DZ[f]) }
+            out.box((i + 0.5f - c) / c, 0f, (k + 0.5f - c) / c, h * 2f, h * 1.2f, h * 2f, band % 2, if ((i + k) % 2 == 0) 1f else 0.94f, 0f, open)
+        }
+        return out.shape()
+    }
+
+    /** An asteroid: a big cube with one to three smaller cubes stuck to it, about radius 1. Small ones are slot 1. */
+    fun clump(variant: Int): FacetShape {
+        val rnd = kotlin.random.Random(300 + variant * 31)
+        val parts = arrayListOf(Box(0f, 0f, 0f, 0.72f, 0.66f, 0.7f))
+        repeat(1 + variant % 3) {
+            val axis = rnd.nextInt(3); val side = if (rnd.nextBoolean()) 1f else -1f
+            val s = 0.3f + rnd.nextFloat() * 0.16f
+            val o = FloatArray(3) { (rnd.nextFloat() - 0.5f) * 0.6f }
+            o[axis] = side * (0.6f + s * 0.4f)
+            parts.add(Box(o[0], o[1], o[2], s, s, s, slot = 1))
+        }
+        return boxes(parts)
+    }
+
+    /** A square frame in the XZ plane, outer half-size 1, bars [bar] wide: a chunky ring for the road. */
+    fun frame(bar: Float): FacetShape {
+        val m = 1f - bar / 2f
+        return boxes(listOf(Box(0f, 0f, m, 1f, 0.5f, bar / 2f), Box(0f, 0f, -m, 1f, 0.5f, bar / 2f),
+            Box(m, 0f, 0f, bar / 2f, 0.5f, m - bar / 2f), Box(-m, 0f, 0f, bar / 2f, 0.5f, m - bar / 2f)))
+    }
+
+    /** A box: centre, half-size, palette slot. */
+    class Box(val x: Float, val y: Float, val z: Float, val hx: Float, val hy: Float, val hz: Float, val slot: Int = 0)
+
+    private fun boxes(parts: List<Box>): FacetShape {
+        val out = Builder()
+        val all = BooleanArray(6) { true }
+        for (b in parts) out.box(b.x, b.y, b.z, b.hx * 2f, b.hy * 2f, b.hz * 2f, b.slot, if (b.slot == 0) 1f else 0.92f, b.y, all)
+        return out.shape()
+    }
+
+    // face order: +x, -x, +y, -y, +z, -z
+    private val DX = intArrayOf(1, -1, 0, 0, 0, 0)
+    private val DY = intArrayOf(0, 0, 1, -1, 0, 0)
+    private val DZ = intArrayOf(0, 0, 0, 0, 1, -1)
+
+    private class Builder {
         val pos = ArrayList<Float>(); val nrm = ArrayList<Float>(); val slot = ArrayList<Byte>()
         val tone = ArrayList<Float>(); val lat = ArrayList<Float>()
-        fun tri(ax: Float, az: Float, bx: Float, bz: Float, cx: Float, cz: Float, up: Boolean, s: Int, t: Float) {
-            // wind so the face's normal points up (top side) or down (underside)
-            val ny = (bz - az) * (cx - ax) - (bx - ax) * (cz - az)
-            if ((ny > 0f) == up) pos.addAll(listOf(ax, 0f, az, bx, 0f, bz, cx, 0f, cz)) else pos.addAll(listOf(ax, 0f, az, cx, 0f, cz, bx, 0f, bz))
-            nrm.addAll(listOf(0f, if (up) 1f else -1f, 0f)); slot.add(s.toByte()); tone.add(t); lat.add(0f)
-        }
-        for (b in 0 until bands) {
-            val r0 = inner + (1f - inner) * b / bands
-            val r1 = inner + (1f - inner) * (b + 1) / bands
-            for (i in 0 until segments) {
-                val a0 = i * 2f * Math.PI.toFloat() / segments
-                val a1 = (i + 1) * 2f * Math.PI.toFloat() / segments
-                val c0 = cos(a0); val s0 = sin(a0); val c1 = cos(a1); val s1 = sin(a1)
-                val t = if (i % 2 == 0) 1f else 0.93f
-                for (up in booleanArrayOf(true, false)) {
-                    tri(c0 * r0, s0 * r0, c1 * r1, s1 * r1, c1 * r0, s1 * r0, up, b % 2, t)
-                    tri(c0 * r0, s0 * r0, c0 * r1, s0 * r1, c1 * r1, s1 * r1, up, b % 2, t)
+
+        /** The [open] faces of a box at (x,y,z) sized (w,h,d), two triangles each, wound outward. */
+        fun box(x: Float, y: Float, z: Float, w: Float, h: Float, d: Float, s: Int, t: Float, height: Float, open: BooleanArray) {
+            val hx = w / 2f; val hy = h / 2f; val hz = d / 2f
+            for (f in 0 until 6) {
+                if (!open[f]) continue
+                val nx = DX[f].toFloat(); val ny = DY[f].toFloat(); val nz = DZ[f].toFloat()
+                // two axes spanning the face
+                val (ux, uy, uz) = when { nx != 0f -> Triple(0f, nx, 0f); ny != 0f -> Triple(0f, 0f, ny); else -> Triple(nz, 0f, 0f) }
+                val vx = ny * uz - nz * uy; val vy = nz * ux - nx * uz; val vz = nx * uy - ny * ux // v = n × u, so u × v = n
+                val cx = x + nx * hx; val cy = y + ny * hy; val cz = z + nz * hz
+                fun corner(a: Float, b: Float) = floatArrayOf(cx + (ux * a + vx * b) * hx, cy + (uy * a + vy * b) * hy, cz + (uz * a + vz * b) * hz)
+                val c00 = corner(-1f, -1f); val c10 = corner(1f, -1f); val c11 = corner(1f, 1f); val c01 = corner(-1f, 1f)
+                for (tri in arrayOf(arrayOf(c00, c10, c11), arrayOf(c00, c11, c01))) {
+                    for (p in tri) { pos.add(p[0]); pos.add(p[1]); pos.add(p[2]) }
+                    nrm.add(nx); nrm.add(ny); nrm.add(nz); slot.add(s.toByte()); tone.add(t); lat.add(height)
                 }
             }
         }
-        return FacetShape(pos.toFloatArray(), nrm.toFloatArray(), slot.toByteArray(), tone.toFloatArray(), lat.toFloatArray())
-    }
 
-    private class Mesh3(val v: MutableList<FloatArray>, val f: MutableList<IntArray>)
-
-    private fun sphere(subdivisions: Int): Mesh3 {
-        val t = (1f + sqrt(5f)) / 2f
-        val v = mutableListOf(
-            floatArrayOf(-1f, t, 0f), floatArrayOf(1f, t, 0f), floatArrayOf(-1f, -t, 0f), floatArrayOf(1f, -t, 0f),
-            floatArrayOf(0f, -1f, t), floatArrayOf(0f, 1f, t), floatArrayOf(0f, -1f, -t), floatArrayOf(0f, 1f, -t),
-            floatArrayOf(t, 0f, -1f), floatArrayOf(t, 0f, 1f), floatArrayOf(-t, 0f, -1f), floatArrayOf(-t, 0f, 1f))
-        for (p in v) normalize(p)
-        var f = mutableListOf(
-            intArrayOf(0, 11, 5), intArrayOf(0, 5, 1), intArrayOf(0, 1, 7), intArrayOf(0, 7, 10), intArrayOf(0, 10, 11),
-            intArrayOf(1, 5, 9), intArrayOf(5, 11, 4), intArrayOf(11, 10, 2), intArrayOf(10, 7, 6), intArrayOf(7, 1, 8),
-            intArrayOf(3, 9, 4), intArrayOf(3, 4, 2), intArrayOf(3, 2, 6), intArrayOf(3, 6, 8), intArrayOf(3, 8, 9),
-            intArrayOf(4, 9, 5), intArrayOf(2, 4, 11), intArrayOf(6, 2, 10), intArrayOf(8, 6, 7), intArrayOf(9, 8, 1))
-        repeat(subdivisions) {
-            val mid = HashMap<Long, Int>()
-            fun midpoint(a: Int, b: Int): Int {
-                val key = if (a < b) a.toLong() shl 32 or b.toLong() else b.toLong() shl 32 or a.toLong()
-                return mid.getOrPut(key) {
-                    val p = floatArrayOf((v[a][0] + v[b][0]) / 2f, (v[a][1] + v[b][1]) / 2f, (v[a][2] + v[b][2]) / 2f)
-                    normalize(p); v.add(p); v.size - 1
-                }
-            }
-            val next = ArrayList<IntArray>(f.size * 4)
-            for (tri in f) {
-                val a = midpoint(tri[0], tri[1]); val b = midpoint(tri[1], tri[2]); val c = midpoint(tri[2], tri[0])
-                next.add(intArrayOf(tri[0], a, c)); next.add(intArrayOf(tri[1], b, a))
-                next.add(intArrayOf(tri[2], c, b)); next.add(intArrayOf(a, b, c))
-            }
-            f = next
-        }
-        return Mesh3(v, f)
-    }
-
-    private fun normalize(p: FloatArray) {
-        val l = sqrt(p[0] * p[0] + p[1] * p[1] + p[2] * p[2])
-        p[0] /= l; p[1] /= l; p[2] /= l
-    }
-
-    /** Flat faces with outward normals; [jitter] pushes corners in/out (shared corners move together, so no cracks). */
-    private fun build(mesh: Mesh3, seed: Int, jitter: Float, craters: Float): FacetShape {
-        val rnd = kotlin.random.Random(seed)
-        val verts = mesh.v.map { p ->
-            val k = 1f + (rnd.nextFloat() - 0.5f) * 2f * jitter
-            floatArrayOf(p[0] * k, p[1] * k * (1f - jitter * 0.3f), p[2] * k)
-        }
-        val n = mesh.f.size
-        val pos = FloatArray(n * 9); val nrm = FloatArray(n * 3); val slot = ByteArray(n)
-        val tone = FloatArray(n); val lat = FloatArray(n)
-        for ((i, tri) in mesh.f.withIndex()) {
-            val a = verts[tri[0]]; val b = verts[tri[1]]; val c = verts[tri[2]]
-            val ux = b[0] - a[0]; val uy = b[1] - a[1]; val uz = b[2] - a[2]
-            val vx = c[0] - a[0]; val vy = c[1] - a[1]; val vz = c[2] - a[2]
-            var nx = uy * vz - uz * vy; var ny = uz * vx - ux * vz; var nz = ux * vy - uy * vx
-            val cx = (a[0] + b[0] + c[0]) / 3f; val cy = (a[1] + b[1] + c[1]) / 3f; val cz = (a[2] + b[2] + c[2]) / 3f
-            val corners = if (nx * cx + ny * cy + nz * cz < 0f) { nx = -nx; ny = -ny; nz = -nz; arrayOf(a, c, b) } else arrayOf(a, b, c)
-            val l = sqrt(nx * nx + ny * ny + nz * nz)
-            nrm[i * 3] = nx / l; nrm[i * 3 + 1] = ny / l; nrm[i * 3 + 2] = nz / l
-            for ((k, p) in corners.withIndex()) { pos[i * 9 + k * 3] = p[0]; pos[i * 9 + k * 3 + 1] = p[1]; pos[i * 9 + k * 3 + 2] = p[2] }
-            val crater = rnd.nextFloat() < craters
-            slot[i] = if (crater) 1 else 0
-            tone[i] = if (crater) 0.8f else 0.92f + rnd.nextFloat() * 0.16f
-            lat[i] = cy / sqrt(cx * cx + cy * cy + cz * cz)
-        }
-        return FacetShape(pos, nrm, slot, tone, lat)
+        fun shape() = FacetShape(pos.toFloatArray(), nrm.toFloatArray(), slot.toByteArray(), tone.toFloatArray(), lat.toFloatArray())
     }
 }

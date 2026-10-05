@@ -52,7 +52,6 @@ class Scenery(private val game: Gdx3DGame, private val rnd: Random) {
     /** Outer Space (null outside a run's reach): the land falls away under it, the road takes its colours. */
     var space: cube.run.game.space.SpaceWorld? = null
     private val tileA = Color(); private val tileB = Color()
-    private val laneLight = Color()
     private var dropY = 0f          // how far the land (and everything on it) has fallen away
 
     private val laneW: Float get() = Lanes.NORMAL_W
@@ -185,11 +184,6 @@ class Scenery(private val game: Gdx3DGame, private val rnd: Random) {
             }
             game.worldGround(-kerb, -0.1f, t.z, 0.24f, 0.34f, tileD, edgeCol, fog)
             game.worldGround(kerb, -0.1f, t.z, 0.24f, 0.34f, tileD, edgeCol, fog)
-            if (sp > 0.05f) { // lane lights streaming past in the seams: the road's own speedometer
-                laneLight.set(edgeCol).lerp(Color.WHITE, 0.35f)
-                val lightFog = max(fog, 1f - sp)
-                for (k in -1..1 step 2) game.worldGround(k * w / 2f, 0.0f, t.z, 0.07f, 0.03f, tileD * 0.45f, laneLight, lightFog)
-            }
             if (dropY < 60f) {
                 game.worldGround(-landX, -0.16f - dropY, t.z, landW, 0.3f, tileD, t.ground, fog)
                 game.worldGround(landX, -0.16f - dropY, t.z, landW, 0.3f, tileD, t.ground, fog)

@@ -13,32 +13,28 @@ import cube.run.game.track.Row
 import kotlin.math.abs
 import kotlin.math.cos
 import kotlin.math.max
-import kotlin.math.min
 import kotlin.math.sin
 
 /**
- * How the road's obstacles look in Outer Space. Every one keeps its exact
+ * How the road's obstacles look in Outer Space, built from a few chunky
+ * boxes like everything else in the game. Every one keeps its exact
  * collision box and its colour (the colour still says the verb); only the
  * thing changes: pillars become tumbling asteroids, low walls energy fences
  * between beacons, overhead bars station girders, tar pits black holes, a
  * full-width pit a rift in the floating road, pads gravity rings, platforms
  * moon rock, pistons plasma vents, sweepers solar drones, pendulums
  * tethered satellites. Meteors fall out of the sky onto their landing
- * marks; station hulls are panelled and lit.
+ * marks; station hulls carry a neon band and lit windows.
  */
 class SpaceLook(private val game: Gdx3DGame, private val space: SpaceWorld) {
 
-    private val rocks = Array(4) { FacetShapes.rock(it) }
-    private val pebble = FacetShapes.rock(5)
-    private val ring = FacetShapes.ring(24, 0.72f, 1)
-    private val starShape = FacetShapes.star()
-    private val disc = FacetShapes.ball(1)
+    private val clumps = Array(4) { FacetShapes.clump(it) }
+    private val cube = FacetShapes.cube()
+    private val frame = FacetShapes.frame(0.3f)
 
     private val pal2 = arrayOf(Color(), Color())
     private val pal1 = arrayOf(Color())
     private val glowPal = arrayOf(Color())
-    private val steel = Color(0.62f, 0.66f, 0.78f, 1f)
-    private val steelDark = Color(0.24f, 0.26f, 0.36f, 1f)
     private val panel = Color()
     private val white = Color(1f, 1f, 1f, 1f)
     private val voidCol = Color()
@@ -47,8 +43,8 @@ class SpaceLook(private val game: Gdx3DGame, private val space: SpaceWorld) {
     private val b = Color()
 
     init {
-        hsvInto(panel, 222f, 0.62f, 0.62f)
-        hsvInto(ember, 26f, 0.85f, 1f)
+        hsvInto(panel, 214f, 0.72f, 0.96f)
+        hsvInto(ember, 30f, 0.85f, 1f)
     }
 
     /** Draw [row]'s obstacles in the space look. [fog] is the row's haze, [p] its stream-in. */
@@ -64,7 +60,7 @@ class SpaceLook(private val game: Gdx3DGame, private val space: SpaceWorld) {
                 ob.type == ObType.DECO -> {} // painted stripes belong to the ground's walls
                 ob.shape == ObShape.METEOR -> meteor(ob, z, fog, time, p, phase + i)
                 ob.shape == ObShape.HULL -> hull(ob, z, fog, time, p)
-                ob.anim == ObAnim.PISTON -> plasmaVent(ob, z, fog, time)
+                ob.anim == ObAnim.PISTON -> plasmaVent(ob, z, fog)
                 ob.anim == ObAnim.SWEEP -> drone(ob, z, fog, time, p)
                 ob.anim == ObAnim.STOMP -> stomper(ob, z, fog, time, p, phase)
                 ob.anim == ObAnim.PENDULUM -> satellite(ob, z, fog, time, p)
@@ -75,14 +71,17 @@ class SpaceLook(private val game: Gdx3DGame, private val space: SpaceWorld) {
         }
     }
 
-    private fun rockColours(ob: Ob) {
-        pal2[0].set(ob.col).lerp(space.rock, 0.35f)
-        pal2[1].set(pal2[0]).mul(0.55f, 0.55f, 0.6f, 1f)
+    /** The obstacle's own colour, its small cubes a lighter candy shade. */
+    private fun clumpColours(ob: Ob) {
+        pal2[0].set(ob.col)
+        pal2[1].set(ob.col).lerp(white, 0.4f)
     }
 
-    /** A pillar: a big tumbling asteroid filling its box, with a few pebbles in orbit (two for a double-width block). */
+    private fun blink(time: Float, rate: Float, offset: Float): Color = if (sin(time * rate + offset) > 0f) space.neon else white
+
+    /** A pillar: a big tumbling cube asteroid filling its box, two pebbles in orbit (two asteroids for a double-width block). */
     private fun asteroid(ob: Ob, z: Float, fog: Float, time: Float, p: Float, phase: Float) {
-        rockColours(ob)
+        clumpColours(ob)
         val h = ob.sy * p
         val cy = ob.bottom + h / 2f
         val wide = ob.halfW > 1.2f
@@ -90,87 +89,73 @@ class SpaceLook(private val game: Gdx3DGame, private val space: SpaceWorld) {
         val w = ob.sx / n
         for (k in 0 until n) {
             val x = ob.x + if (wide) (k - 0.5f) * w else 0f
-            val rx = w * 0.5f / 1.15f * p
-            game.facets.add(rocks[(abs(phase * 7f).toInt() + k) % rocks.size], x, cy, z, rx, h * 0.5f / 1.05f, max(ob.sz, 1.1f) * 0.5f / 1.15f * p,
+            game.facets.add(clumps[(abs(phase * 7f).toInt() + k) % clumps.size], x, cy, z, w * 0.5f / 0.8f * p, h * 0.5f / 0.72f, max(ob.sz, 1.1f) * 0.5f / 0.8f * p,
                 time * 22f + phase * 90f + k * 70f, 8f * sin(time * 0.9f + phase), 0f, pal2, fog, game.fogColor)
         }
-        if (p > 0.9f) for (k in 0 until 3) { // pebbles circling it
-            val ang = time * (1.4f + k * 0.3f) + k * 2.1f + phase
+        if (p > 0.9f) for (k in 0 until 2) { // pebbles circling it
+            val ang = time * (1.4f + k * 0.3f) + k * 3.1f + phase
             val r = ob.halfW * 0.95f + 0.35f
-            val s = 0.13f + k * 0.03f
-            game.facets.add(pebble, ob.x + cos(ang) * r, cy + 0.5f * sin(ang * 0.7f + k), z + sin(ang) * r * 0.6f, s, s, s,
+            game.facets.add(cube, ob.x + cos(ang) * r, cy + 0.5f * sin(ang * 0.7f + k), z + sin(ang) * r * 0.6f, 0.16f, 0.16f, 0.16f,
                 time * 120f, time * 80f, 0f, pal2, fog, game.fogColor)
         }
     }
 
     /**
-     * A meteor: falls out of the sky on a slant, trailing fire, onto the ring
+     * A meteor: falls out of the sky on a slant, trailing fire, onto the frame
      * that marked its spot; then lies there, still glowing. Lands well before
      * it can matter ([METEOR_LAND_Z]); the collision is the landed boulder.
      */
     private fun meteor(ob: Ob, z: Float, fog: Float, time: Float, p: Float, phase: Float) {
-        pal2[0].set(ob.col).lerp(space.rock, 0.45f)
-        pal2[1].set(ember)
+        pal2[0].set(ob.col); pal2[1].set(ember)
         val fall = ((METEOR_LAND_Z - z) / (METEOR_LAND_Z - METEOR_FALL_START)).coerceIn(0f, 1f)
         val side = if (ob.x >= 0f) 1f else -1f
         val x = ob.x + side * fall * 9f
         val y = ob.cy + fall * 36f
-        val s = 0.7f / 1.1f
         if (fall > 0f) {
-            // the landing mark: a ring on the road that tightens as the rock comes down
+            // the landing mark: a square on the road that tightens as the rock comes down
             glowPal[0].set(space.neon)
-            val rr = 0.55f + 0.35f * fall + 0.05f * sin(time * 9f)
-            game.facets.add(ring, ob.x, 0.03f, z, rr, 1f, rr, time * 60f, 0f, 0f, glowPal, fog, game.fogColor, glow = 1f)
+            val rr = 0.6f + 0.35f * fall + 0.05f * sin(time * 9f)
+            game.facets.add(frame, ob.x, 0.03f, z, rr, 0.05f, rr, time * 60f, 0f, 0f, glowPal, fog, game.fogColor, glow = 1f)
             // the fire trail, back up along the path
             glowPal[0].set(ember)
-            for (k in 1..7) {
-                val t = k * 0.55f
-                val ts = 0.42f * (1f - k / 8.5f)
-                game.facets.add(starShape, x + side * t * 0.25f, y + t, z, ts, ts, ts, k * 50f + time * 200f, 30f, 0f,
+            for (k in 1..4) {
+                val t = k * 0.9f
+                val ts = 0.32f * (1f - k / 5.5f)
+                game.facets.add(cube, x + side * t * 0.25f, y + t, z, ts, ts, ts, k * 50f + time * 200f, 30f, 0f,
                     glowPal, fog, game.fogColor, glow = 1f)
             }
         }
         val spin = if (fall > 0f) time * 260f else phase * 40f
-        game.facets.add(rocks[abs(phase * 5f).toInt() % rocks.size], x, y, z, s * p, ob.sy * 0.5f / 1.0f * p, 0.6f * p,
+        game.facets.add(clumps[abs(phase * 5f).toInt() % clumps.size], x, y, z, 0.62f * p, ob.sy * 0.5f * p, 0.58f * p,
             spin, if (fall > 0f) time * 190f else 10f, 0f, pal2, fog, game.fogColor, glow = if (fall > 0f) 0.35f else 0.12f)
     }
 
-    /** A low wall: an energy fence strung between two beacons — bright, thin, unmistakably "jump". */
+    /** A low wall: an energy fence between two posts with beacons on top: bright and unmistakably "jump". */
     private fun fence(ob: Ob, z: Float, fog: Float, time: Float, p: Float, phase: Float) {
         val h = ob.sy * p
         val w = ob.sx * (0.4f + 0.6f * p)
-        val x0 = ob.x - w / 2f; val x1 = ob.x + w / 2f
-        a.set(ob.col).lerp(white, 0.2f)
-        game.worldBox(ob.x, h / 2f, z, w - 0.2f, h * 0.86f, 0.14f, a, fog)                        // the field
-        game.worldBox(ob.x, h, z, w, 0.07f, 0.2f, white, fog)                                      // top wire
-        game.worldBox(ob.x, 0.04f, z, w, 0.08f, 0.32f, steelDark, fog)                             // the footing
-        val scan = 0.08f + (0.5f + 0.5f * sin(time * 4f + phase)) * (h - 0.16f)
-        game.worldBox(ob.x, scan, z + 0.08f, w - 0.24f, 0.035f, 0.03f, white, fog)                // a scan line
-        for (x in floatArrayOf(x0 + 0.1f, x1 - 0.1f)) { // the beacons
-            game.worldBox(x, (h + 0.25f) / 2f, z, 0.2f, h + 0.25f, 0.24f, steel, fog)
-            val blink = if (sin(time * 5f + phase + x) > 0f) space.neon else white
-            game.worldBox(x, h + 0.33f, z, 0.16f, 0.16f, 0.16f, blink, fog)
+        a.set(ob.col).lerp(white, 0.15f)
+        b.set(ob.col).mul(0.78f, 0.78f, 0.82f, 1f)
+        game.worldBox(ob.x, h * 0.45f, z, w - 0.3f, h * 0.9f, 0.2f, a, fog)                        // the field
+        game.worldBox(ob.x, h - 0.1f, z, w, 0.2f, 0.3f, b, fog)                                    // the top rail
+        val beacon = blink(time, 5f, phase)
+        for (k in -1..1 step 2) {
+            val x = ob.x + k * (w / 2f - 0.15f)
+            game.worldBox(x, (h + 0.2f) / 2f, z, 0.3f, h + 0.2f, 0.34f, b, fog)                   // the posts
+            game.worldBox(x, h + 0.36f, z, 0.26f, 0.26f, 0.26f, beacon, fog)                     // the beacons
         }
     }
 
-    /** An overhead bar: a station girder — two bright chords and a truss of posts, lamps at its ends. */
+    /** An overhead bar: a chunky station girder with a lit stripe and a lamp at each end. */
     private fun girder(ob: Ob, z: Float, fog: Float, time: Float, p: Float) {
         val w = ob.sx * (0.4f + 0.6f * p)
         val hh = ob.sy * p
-        val top = ob.cy + hh / 2f; val bot = ob.cy - hh / 2f
         a.set(ob.col)
-        b.set(steelDark).lerp(ob.col, 0.25f)
-        game.worldBox(ob.x, ob.cy, z, w, hh * 0.5f, ob.sz * 0.55f, b, fog)                          // the web
-        game.worldBox(ob.x, top - 0.07f, z, w, 0.14f, ob.sz, a, fog)                               // top chord
-        game.worldBox(ob.x, bot + 0.07f, z, w, 0.14f, ob.sz, a, fog)                               // bottom chord: the edge you roll under
-        val posts = max(2, (w / 0.65f).toInt())
-        for (k in 0..posts) {
-            val x = ob.x - w / 2f + w * k / posts
-            game.worldBox(x, ob.cy, z + ob.sz * 0.3f, 0.09f, hh - 0.2f, 0.08f, steel, fog)
-        }
-        val blink = if (sin(time * 4f + z) > 0f) space.neon else white
-        game.worldBox(ob.x - w / 2f, ob.cy, z, 0.18f, 0.18f, 0.18f, blink, fog)
-        game.worldBox(ob.x + w / 2f, ob.cy, z, 0.18f, 0.18f, 0.18f, blink, fog)
+        b.set(ob.col).lerp(white, 0.45f)
+        game.worldBox(ob.x, ob.cy, z, w, hh, ob.sz, a, fog)                                         // the beam
+        game.worldBox(ob.x, ob.cy, z + ob.sz / 2f + 0.02f, w - 0.5f, hh * 0.35f, 0.06f, b, fog)    // the lit stripe
+        val lamp = blink(time, 4f, z)
+        for (k in -1..1 step 2) game.worldBox(ob.x + k * w / 2f, ob.cy, z, 0.36f, hh + 0.16f, 0.36f, lamp, fog)
     }
 
     /** A full-width pit: a gap in the floating road, deep space showing through, neon lips at its ends. */
@@ -179,78 +164,78 @@ class SpaceLook(private val game: Gdx3DGame, private val space: SpaceWorld) {
         if (ob.type == ObType.DECO) { // the lip: only along the outer edges, and across the ends of the chasm
             a.set(ob.col).lerp(white, 0.15f)
             val d = ob.sz
-            game.worldBox(ob.x - w / 2f, 0.02f, row.z, 0.14f, 0.12f, d, a, fog)
-            game.worldBox(ob.x + w / 2f, 0.02f, row.z, 0.14f, 0.12f, d, a, fog)
-            if (!row.scoreless) game.worldBox(ob.x, 0.02f, row.z + d / 2f, w, 0.12f, 0.16f, a, fog)
-            if (row.riftEnd) game.worldBox(ob.x, 0.02f, row.z - d / 2f, w, 0.12f, 0.16f, a, fog)
+            game.worldBox(ob.x - w / 2f, 0.02f, row.z, 0.2f, 0.14f, d, a, fog)
+            game.worldBox(ob.x + w / 2f, 0.02f, row.z, 0.2f, 0.14f, d, a, fog)
+            if (!row.scoreless) game.worldBox(ob.x, 0.02f, row.z + d / 2f, w, 0.14f, 0.2f, a, fog)
+            if (row.riftEnd) game.worldBox(ob.x, 0.02f, row.z - d / 2f, w, 0.14f, 0.2f, a, fog)
             return
         }
-        game.worldBox(ob.x, -0.0f, row.z, w - 0.1f, 0.05f, ob.sz + 0.02f, voidCol, fog)          // the hole: deep sky
+        game.worldBox(ob.x, 0f, row.z, w - 0.1f, 0.05f, ob.sz + 0.02f, voidCol, fog)             // the hole: deep sky
         pal1[0].set(space.star)
-        for (k in 0 until 7) { // far stars seen through it
+        for (k in 0 until 4) { // far stars seen through it
             val sx = ob.x + ((row.visualPhase * 13f + k * 1.37f) % 1f - 0.5f) * (w - 0.6f)
             val sz = row.z + ((row.visualPhase * 7f + k * 0.61f) % 1f - 0.5f) * (ob.sz - 0.3f)
-            val s = 0.05f + 0.025f * sin(time * 3f + k * 2f)
-            game.facets.add(starShape, sx, 0.035f, sz, s, s * 0.3f, s, 0f, 0f, 0f, pal1, fog, game.fogColor, glow = 1f)
+            val s = 0.09f + 0.02f * sin(time * 3f + k * 2f)
+            game.facets.add(cube, sx, 0.04f, sz, s, s * 0.4f, s, time * 40f + k * 30f, 0f, 0f, pal1, fog, game.fogColor, glow = 1f)
         }
     }
 
-    /** A tar pit in a lane: a little black hole, its accretion ring spinning, sparks spiralling in. */
+    /** A tar pit in a lane: a little black hole, a glowing square spinning round it, cubes spiralling in. */
     private fun blackHole(ob: Ob, z: Float, fog: Float, time: Float, p: Float, phase: Float) {
         val r = ob.sx * 0.5f * p
-        if (ob.type == ObType.DECO) { // the lip: a glowing accretion ring
+        if (ob.type == ObType.DECO) { // the lip: the glowing accretion square
             glowPal[0].set(ob.col).lerp(white, 0.2f)
-            game.facets.add(ring, ob.x, 0.03f, z, r * 1.05f, 1f, ob.sz * 0.52f * p, time * 90f, 0f, 0f, glowPal, fog, game.fogColor, glow = 1f)
+            game.facets.add(frame, ob.x, 0.03f, z, r * 0.9f, 0.05f, ob.sz * 0.46f * p, time * 90f, 0f, 0f, glowPal, fog, game.fogColor, glow = 1f)
             return
         }
-        pal1[0].set(0.02f, 0.01f, 0.04f, 1f)
-        game.facets.add(disc, ob.x, 0.0f, z, r * 0.8f, 0.04f, ob.sz * 0.42f * p, 0f, 0f, 0f, pal1, fog, game.fogColor)
+        a.set(0.08f, 0.04f, 0.14f, 1f)
+        game.worldBox(ob.x, 0f, z, r * 1.3f, 0.04f, ob.sz * 0.66f * p, a, fog)
         glowPal[0].set(space.neonSoft)
-        for (k in 0 until 6) { // sparks falling in
-            val u = ((time * 0.6f + k / 6f + phase) % 1f + 1f) % 1f
+        for (k in 0 until 3) { // cubes falling in
+            val u = ((time * 0.6f + k / 3f + phase) % 1f + 1f) % 1f
             val rr = r * 0.95f * (1f - u)
-            val ang = time * 3f + k * 1.05f + u * 6f
-            val s = 0.07f * (1f - u * 0.6f)
-            game.facets.add(starShape, ob.x + cos(ang) * rr, 0.08f + 0.1f * (1f - u), z + sin(ang) * rr * 0.9f, s, s, s,
-                0f, 45f, 0f, glowPal, fog, game.fogColor, glow = 1f)
+            val ang = time * 3f + k * 2.1f + u * 6f
+            val s = 0.12f * (1f - u * 0.5f)
+            game.facets.add(cube, ob.x + cos(ang) * rr, 0.1f + 0.1f * (1f - u), z + sin(ang) * rr * 0.9f, s, s, s,
+                time * 200f, 45f, 0f, glowPal, fog, game.fogColor, glow = 1f)
         }
     }
 
-    /** A bounce pad: a gravity ring on the road with a second one bobbing above it, motes lifting off. */
+    /** A bounce pad: a glowing square on the road with a second one bobbing above it, cubes lifting off. */
     private fun gravityRing(ob: Ob, z: Float, fog: Float, time: Float, p: Float) {
         val r = 0.72f * (0.5f + 0.5f * p)
         glowPal[0].set(space.neon)
-        game.facets.add(ring, ob.x, 0.04f, z, r, 1f, r, time * 120f, 0f, 0f, glowPal, fog, game.fogColor, glow = 1f)
-        val bob = 0.45f + 0.15f * sin(time * 3f)
+        game.facets.add(frame, ob.x, 0.05f, z, r, 0.06f, r, time * 120f, 0f, 0f, glowPal, fog, game.fogColor, glow = 1f)
+        a.set(space.neonSoft)
+        game.worldBox(ob.x, 0.02f, z, r * 0.9f, 0.04f, r * 0.9f, a, fog)
         glowPal[0].set(ob.col).lerp(white, 0.3f)
-        game.facets.add(ring, ob.x, bob, z, r * 0.8f, 1f, r * 0.8f, -time * 160f, 0f, 0f, glowPal, fog, game.fogColor, glow = 1f)
-        pal1[0].set(space.neonSoft)
-        game.facets.add(disc, ob.x, 0.02f, z, r * 0.6f, 0.02f, r * 0.6f, 0f, 0f, 0f, pal1, fog, game.fogColor, glow = 0.6f)
-        for (k in 0 until 4) {
-            val u = (time * 0.9f + k * 0.25f) % 1f
-            val s = 0.08f * (1f - u)
-            game.facets.add(starShape, ob.x + cos(k * 1.6f + time) * r * 0.5f, 0.1f + u * 1.6f, z + sin(k * 1.6f + time) * r * 0.5f,
-                s, s, s, 0f, 45f, 0f, glowPal, fog, game.fogColor, glow = 1f)
+        val bob = 0.45f + 0.15f * sin(time * 3f)
+        game.facets.add(frame, ob.x, bob, z, r * 0.78f, 0.06f, r * 0.78f, -time * 160f, 0f, 0f, glowPal, fog, game.fogColor, glow = 1f)
+        for (k in 0 until 2) {
+            val u = (time * 0.9f + k * 0.5f) % 1f
+            val s = 0.13f * (1f - u * 0.6f)
+            game.facets.add(cube, ob.x + cos(k * 3.1f + time) * r * 0.4f, 0.15f + u * 1.6f, z + sin(k * 3.1f + time) * r * 0.4f,
+                s, s, s, time * 90f, 45f, 0f, glowPal, fog, game.fogColor, glow = 1f)
         }
     }
 
-    /** A platform: a slab of moon rock with craters on top and a neon edge along its roof. */
+    /** A platform: a slab of candy moon rock with square craters on top and a neon edge along its roof. */
     private fun moonSlab(ob: Ob, front: Float, fog: Float, p: Float, phase: Float) {
-        a.set(ob.col).lerp(space.rock, 0.6f)
-        b.set(a).mul(0.7f, 0.7f, 0.75f, 1f)
+        a.set(ob.col).lerp(space.rock, 0.25f)
+        b.set(a).mul(0.84f, 0.84f, 0.88f, 1f)
         val top = ob.clear * p
         val bodyLen = ob.sz - ob.ramp
         val cz = front - ob.ramp - bodyLen / 2f
         game.worldBox(ob.x, top / 2f, cz, ob.sx, top, bodyLen, a, fog)
-        game.worldBox(ob.x - ob.sx / 2f + 0.04f, top, cz, 0.08f, 0.06f, bodyLen, space.neon, fog)
-        game.worldBox(ob.x + ob.sx / 2f - 0.04f, top, cz, 0.08f, 0.06f, bodyLen, space.neon, fog)
-        for (k in 0 until 3) { // craters
+        game.worldBox(ob.x - ob.sx / 2f + 0.08f, top, cz, 0.16f, 0.08f, bodyLen, space.neon, fog)
+        game.worldBox(ob.x + ob.sx / 2f - 0.08f, top, cz, 0.16f, 0.08f, bodyLen, space.neon, fog)
+        for (k in 0 until 2) { // craters
             val u = ((phase * 3.7f + k * 0.37f) % 1f + 1f) % 1f
             val v = ((phase * 5.3f + k * 0.53f) % 1f + 1f) % 1f
-            game.worldBox(ob.x + (u - 0.5f) * (ob.sx - 0.5f), top + 0.005f, cz + (v - 0.5f) * (bodyLen - 0.6f), 0.36f, 0.03f, 0.36f, b, fog)
+            game.worldBox(ob.x + (u - 0.5f) * (ob.sx - 0.8f), top + 0.01f, cz + (v - 0.5f) * (bodyLen - 0.8f), 0.5f, 0.04f, 0.5f, b, fog)
         }
         if (ob.ramp > 0f) { // the ramp as rock steps
-            val n = 4
+            val n = 3
             val d = ob.ramp / n
             for (i in 0 until n) {
                 val h = top * (i + 1) / n
@@ -259,9 +244,10 @@ class SpaceLook(private val game: Gdx3DGame, private val space: SpaceWorld) {
         }
     }
 
-    /** A piston: a plasma vent — a grate in the road that spits a glowing column. */
-    private fun plasmaVent(ob: Ob, z: Float, fog: Float, time: Float) {
-        game.worldBox(ob.x, 0.01f, z, ob.sx, 0.03f, ob.sz, steelDark, fog)
+    /** A piston: a plasma vent: a grate in the road that spits a glowing column. */
+    private fun plasmaVent(ob: Ob, z: Float, fog: Float) {
+        a.set(ob.col).mul(0.6f, 0.6f, 0.68f, 1f)
+        game.worldBox(ob.x, 0.01f, z, ob.sx, 0.03f, ob.sz, a, fog)
         game.worldBox(ob.x, 0.025f, z, ob.sx * 0.7f, 0.03f, ob.sz * 0.7f, space.neonSoft, fog)
         if (ob.sy < 0.03f) return
         a.set(ob.col).lerp(white, 0.25f)
@@ -269,28 +255,25 @@ class SpaceLook(private val game: Gdx3DGame, private val space: SpaceWorld) {
         game.worldBox(ob.x, ob.cy, z, ob.sx * 0.45f, ob.sy + 0.04f, ob.sz * 0.45f, white, fog)
     }
 
-    /** A sweeper: a solar drone skimming the road, panels spread across its box. */
+    /** A sweeper: a solar drone skimming the road, its panels spread across its box. */
     private fun drone(ob: Ob, z: Float, fog: Float, time: Float, p: Float) {
         val w = ob.sx * p
-        a.set(ob.col)
-        game.worldBox(ob.x, ob.cy, z, 0.42f, ob.sy, 0.42f, a, fog)                                  // the body
-        game.worldBox(ob.x, ob.cy, z, w, 0.07f, ob.sz * 0.9f, panel, fog)                         // the panels
-        for (k in -1..1 step 2) game.worldBox(ob.x + k * w * 0.3f, ob.cy + 0.04f, z, 0.04f, 0.02f, ob.sz * 0.9f, steel, fog)
-        val blink = if (sin(time * 7f + z) > 0f) space.neon else white
-        game.worldBox(ob.x, ob.top + 0.08f, z, 0.08f, 0.16f, 0.08f, blink, fog)
+        game.worldBox(ob.x, ob.cy, z, 0.5f, ob.sy, 0.5f, ob.col, fog)                               // the body
+        game.worldBox(ob.x, ob.cy, z, w, 0.12f, ob.sz * 0.9f, panel, fog)                         // the panels
+        game.worldBox(ob.x, ob.top + 0.1f, z, 0.2f, 0.2f, 0.2f, blink(time, 7f, z), fog)
     }
 
-    /** A stomper: a boulder hung in the dark that drops onto the road — burning as it falls. */
+    /** A stomper: a cube boulder hung in the dark that drops onto the road, burning as it falls. */
     private fun stomper(ob: Ob, z: Float, fog: Float, time: Float, p: Float, phase: Float) {
-        rockColours(ob)
-        game.facets.add(rocks[abs(phase * 3f).toInt() % rocks.size], ob.x, ob.cy, z, ob.sx * 0.5f / 1.1f * p, ob.sy * 0.5f / 1.0f * p,
-            ob.sz * 0.5f / 1.1f * p, time * 30f + phase * 50f, 0f, 0f, pal2, fog, game.fogColor)
+        clumpColours(ob)
+        game.facets.add(clumps[abs(phase * 3f).toInt() % clumps.size], ob.x, ob.cy, z, ob.sx * 0.5f / 0.8f * p, ob.sy * 0.5f / 0.72f * p,
+            ob.sz * 0.5f / 0.8f * p, time * 30f + phase * 50f, 0f, 0f, pal2, fog, game.fogColor)
         val falling = cos(time * 2.6f + ob.phase) < 0f && ob.bottom > 0.25f
         if (falling) {
             glowPal[0].set(ember)
-            for (k in 1..3) {
-                val s = 0.2f * (1f - k / 4f)
-                game.facets.add(starShape, ob.x, ob.top + k * 0.28f, z, s, s, s, time * 300f, 30f, 0f, glowPal, fog, game.fogColor, glow = 1f)
+            for (k in 1..2) {
+                val s = 0.22f * (1f - k / 3.5f)
+                game.facets.add(cube, ob.x, ob.top + k * 0.36f, z, s, s, s, time * 300f, 30f, 0f, glowPal, fog, game.fogColor, glow = 1f)
             }
         }
     }
@@ -298,36 +281,25 @@ class SpaceLook(private val game: Gdx3DGame, private val space: SpaceWorld) {
     /** A pendulum: a satellite swinging on its tether from a station beam overhead. */
     private fun satellite(ob: Ob, z: Float, fog: Float, time: Float, p: Float) {
         a.set(ob.col)
+        b.set(ob.col).mul(0.78f, 0.78f, 0.82f, 1f)
         game.worldBox(ob.x, ob.cy, z, ob.sx * 0.5f * p, ob.sy * p, ob.sz * 0.7f, a, fog)            // the body
-        game.worldBox(ob.x, ob.cy, z, ob.sx * p, ob.sy * 0.55f * p, 0.06f, panel, fog)             // the wings
-        game.worldBox(ob.x, ob.cy, z + ob.sz * 0.36f, ob.sx * 0.22f, ob.sy * 0.3f, 0.04f, white, fog)
-        game.worldBox(ob.x * 0.5f, ob.top + 1.1f, z, abs(ob.x) + 0.08f, 0.08f, 0.08f, steel, fog) // the tether
-        game.worldBox(0f, ob.top + 2.2f, z, 6.4f * p, 0.22f, 0.3f, steelDark, fog)                 // the beam
-        val blink = if (sin(time * 6f) > 0f) space.neon else white
-        game.worldBox(ob.x, ob.top + 0.08f, z, 0.12f, 0.12f, 0.12f, blink, fog)
+        game.worldBox(ob.x, ob.cy, z, ob.sx * p, ob.sy * 0.55f * p, 0.12f, panel, fog)             // the wings
+        game.worldBox(ob.x * 0.5f, ob.top + 1.1f, z, abs(ob.x) + 0.16f, 0.16f, 0.16f, b, fog)     // the tether
+        game.worldBox(0f, ob.top + 2.2f, z, 6.4f * p, 0.3f, 0.36f, b, fog)                         // the beam
+        game.worldBox(ob.x, ob.top + 0.1f, z, 0.2f, 0.2f, 0.2f, blink(time, 6f, 0f), fog)
     }
 
-    /** A station hull: panels, seams, a row of lit windows and hazard stripes along the top. */
+    /** A station hull: one big block, a neon band along its top, three lit windows and a beacon. */
     private fun hull(ob: Ob, z: Float, fog: Float, time: Float, p: Float) {
         val h = ob.sy * p
         val w = ob.sx * (0.4f + 0.6f * p)
         val face = z + ob.sz / 2f + 0.02f
-        a.set(ob.col)
-        game.worldBox(ob.x, h / 2f, z, w, h, ob.sz, a, fog)
-        b.set(a).mul(0.72f, 0.72f, 0.78f, 1f)
-        val panels = 5
-        for (k in 1 until panels) game.worldBox(ob.x - w / 2f + w * k / panels, h / 2f, face, 0.06f, h, 0.04f, b, fog)
-        game.worldBox(ob.x, h * 0.42f, face, w, 0.06f, 0.04f, b, fog)
-        for (k in 0 until 7) { // windows, some lit
-            val lit = sin(k * 2.3f + z * 0.1f + time * 0.5f) > -0.3f
-            game.worldBox(ob.x - w / 2f + w * (k + 0.5f) / 7f, h * 0.68f, face + 0.01f, 0.32f, 0.2f, 0.04f, if (lit) space.neonSoft else steelDark, fog)
-        }
-        val stripes = 12
-        for (k in 0 until stripes) game.worldBox(ob.x - w / 2f + w * (k + 0.5f) / stripes, h - 0.09f, face + 0.01f, w / stripes, 0.18f, 0.05f,
-            if (k % 2 == 0) space.neon else steelDark, fog)
-        val blink = if (sin(time * 3f) > 0f) space.neon else white
-        game.worldBox(ob.x, h + 0.35f, z, 0.07f, 0.7f, 0.07f, steel, fog)
-        game.worldBox(ob.x, h + 0.75f, z, 0.16f, 0.16f, 0.16f, blink, fog)
+        game.worldBox(ob.x, h / 2f, z, w, h, ob.sz, ob.col, fog)
+        game.worldBox(ob.x, h - 0.14f, face, w, 0.28f, 0.06f, space.neon, fog)
+        for (k in 0 until 3) game.worldBox(ob.x - w / 2f + w * (k + 0.5f) / 3f, h * 0.55f, face, w / 5f, h * 0.24f, 0.06f, space.neonSoft, fog)
+        b.set(ob.col).mul(0.78f, 0.78f, 0.82f, 1f)
+        game.worldBox(ob.x, h + 0.3f, z, 0.16f, 0.6f, 0.16f, b, fog)
+        game.worldBox(ob.x, h + 0.7f, z, 0.28f, 0.28f, 0.28f, blink(time, 3f, 0f), fog)
     }
 
     companion object {

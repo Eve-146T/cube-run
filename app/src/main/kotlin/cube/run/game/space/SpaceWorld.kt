@@ -50,7 +50,7 @@ class SpaceWorld(private val game: Gdx3DGame) {
     val skyTop = Color(); val skyBottom = Color()
     val road = Color(); val roadAlt = Color()
     val neon = Color(); val neonSoft = Color()
-    val rock = Color(); val rockDark = Color()
+    val rock = Color(); val rockAccent = Color()
     val star = Color()
     private val tmp = Vector3()
 
@@ -63,11 +63,11 @@ class SpaceWorld(private val game: Gdx3DGame) {
         val n = t.nebula
         t.skyTop(skyTop); t.skyBottom(skyBottom)
         hsvInto(road, n.roadH, n.roadS, n.roadV)
-        hsvInto(roadAlt, n.roadH + 12f, n.roadS * 0.9f, n.roadV * 1.25f)
+        hsvInto(roadAlt, n.roadH + 10f, n.roadS * 0.85f, n.roadV * 1.35f) // a clear checker, like every road
         hsvInto(neon, n.neonH, 0.7f, 1f)
         hsvInto(neonSoft, n.neonH, 0.35f, 1f)
-        hsvInto(rock, n.rockH, 0.42f, 0.86f)
-        hsvInto(rockDark, n.rockH, 0.5f, 0.5f)
+        hsvInto(rock, n.rockH, 0.6f, 1f)
+        hsvInto(rockAccent, n.rockH + 28f, 0.72f, 0.95f)
         hsvInto(star, n.starH, n.starS, 1f)
         sky.begin(t)
         if (instant) { blend = 1f; waveFront = Float.POSITIVE_INFINITY; lookBefore = true; warp = 0f }

@@ -49,8 +49,6 @@ class TrackRenderer(private val game: Gdx3DGame) {
     private val portalA = Color()
     private val portalB = Color()
     private val tmpCol = Color()
-    private val glint = cube.run.core.gfx.FacetShapes.glint()
-    private val starPal = arrayOf(Color())
 
     init {
         hsvInto(coinCol, 44f, 0.9f, 1f)
@@ -152,14 +150,12 @@ class TrackRenderer(private val game: Gdx3DGame) {
             val s = 0.2f
             game.worldBoxSpin(cx + cos(a) * rr, cy + sin(a) * rr, r.z + 0.3f, s, s, s, -time * 300f + i * 40f, Color.WHITE, fog)
         }
-        if (r.portal == cube.run.data.Bonus.SPACE && !r.portalExit) { // the doorway to space: a swirl of stars turning inside the ring
-            starPal[0].set(1f, 1f, 1f, 1f)
-            for (i in 0 until 26) {
-                val k = i / 26f
-                val a = time * (0.6f + k * 0.8f) + i * 2.4f
-                val rr = radius * (0.15f + 0.8f * ((i * 0.618f) % 1f))
-                val s = 0.07f + 0.09f * ((i * 0.37f) % 1f) * (0.7f + 0.3f * sin(time * 5f + i))
-                game.facets.add(glint, cx + cos(a) * rr, cy + sin(a) * rr, r.z - 0.2f, s, s, s, 0f, 0f, 0f, starPal, fog, game.fogColor, glow = 1f)
+        if (r.portal == cube.run.data.Bonus.SPACE && !r.portalExit) { // the doorway to space: a swirl of little cube stars inside the ring
+            for (i in 0 until 14) {
+                val a = time * (0.6f + i / 14f * 0.8f) + i * 2.4f
+                val rr = radius * (0.15f + 0.75f * ((i * 0.618f) % 1f))
+                val s = 0.14f + 0.1f * ((i * 0.37f) % 1f)
+                game.worldBoxSpin(cx + cos(a) * rr, cy + sin(a) * rr, r.z - 0.2f, s, s, s, time * 200f + i * 30f, Color.WHITE, fog)
             }
         }
         // the frame's feet
