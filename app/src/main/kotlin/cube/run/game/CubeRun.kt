@@ -930,7 +930,7 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
 
         // ---- obstacle rows: move, collide, score; coins: magnet + collect; pickups
         track.scroll(mv, time, dt)
-        space.tick(dt, mv, time, track.rows, alive = !dead)
+        space.tick(dt, mv, time, alive = !dead)
         worlds.hold = space.inside
         fx.stardust = bonus == Bonus.SPACE
         debris.update(dt, mv)
@@ -1065,7 +1065,7 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
         fogColor.set(bgBottom).lerp(bgTop, space.fogMix(worlds.fogMix))
         syncFog()
         scenery.renderRoad()
-        trackArt.render(track, time, kaleido, kaleidoHue, space)
+        trackArt.render(track, time, kaleido, kaleidoHue)
         debris.render()
         zenDissolve.render()
         val wind = if (dead) 0f else ((spd - 13f) / 15f).coerceIn(0f, 1f)

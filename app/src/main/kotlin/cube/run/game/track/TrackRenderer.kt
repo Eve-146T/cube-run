@@ -69,7 +69,7 @@ class TrackRenderer(private val game: Gdx3DGame) {
         if (cueStyle.duckOnly) duckArrows.render(shapes, track, game.fogColor, opacity, matrix, cueStyle)
     }
 
-    fun render(track: Track, time: Float, kaleido: Float = 0f, kaleidoHue: Float = 0f, space: cube.run.game.space.SpaceWorld? = null) {
+    fun render(track: Track, time: Float, kaleido: Float = 0f, kaleidoHue: Float = 0f) {
         val yaw = (time * 240f) % 360f
         // coins spin in lockstep, a little out of phase down the line, so every line glints in a wave
         val coinYaw = time * 190f
@@ -78,11 +78,6 @@ class TrackRenderer(private val game: Gdx3DGame) {
             if (p <= 0.001f) continue
             val fog = Fog.at(r.z)
             if (r.portal >= 0) renderPortal(r, time, fog, p)
-            if (space != null && space.showsSpace(r)) {
-                space.look.renderRow(r, fog, time, p)
-                if (r.pickup != Pickup.NONE && r.pickup != Pickup.BUBBLE) renderPickup(r, yaw, time, p)
-                continue
-            }
             for (ob in r.obs) {
                 when {
                     ob.type == ObType.PLAT -> renderPlatform(ob, r.z, fog, p)

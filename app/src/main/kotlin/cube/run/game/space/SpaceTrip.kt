@@ -16,7 +16,7 @@ import kotlin.random.Random
 class SpaceTrip(seed: Int) {
     private val rnd = Random(seed)
 
-    /** A candy nebula: sky, road and accents. */
+    /** A trip's colours: the dark sky, the road and its accents. */
     class Nebula(
         val skyTopH: Float, val skyTopS: Float, val skyTopV: Float,
         val skyBotH: Float, val skyBotS: Float, val skyBotV: Float,
@@ -111,13 +111,13 @@ class SpaceTrip(seed: Int) {
 
         private const val DEG = (PI / 180.0).toFloat()
 
-        /** Sky top / bottom, road, neon, rock and star tints, HSV. Saturated like the other bonus worlds: candy, never black. */
+        /** Sky top / bottom, road, neon, rock and star tints, HSV. The sky is the dark of space: black up high, deep blue at the horizon. */
         private val NEBULAE = listOf(
-            Nebula(262f, 0.85f, 0.56f, 318f, 0.62f, 0.94f, 264f, 0.62f, 0.46f, 188f, 300f, 190f, 0.15f), // grape soda
-            Nebula(228f, 0.90f, 0.55f, 186f, 0.66f, 0.90f, 226f, 0.70f, 0.45f, 322f, 28f, 200f, 0.10f),  // lagoon
-            Nebula(272f, 0.80f, 0.52f, 22f, 0.66f, 0.96f, 268f, 0.60f, 0.44f, 46f, 300f, 40f, 0.20f),    // ember nebula
-            Nebula(244f, 0.85f, 0.52f, 158f, 0.56f, 0.86f, 240f, 0.66f, 0.44f, 130f, 330f, 150f, 0.12f), // aurora
-            Nebula(266f, 0.85f, 0.54f, 342f, 0.62f, 0.94f, 260f, 0.66f, 0.45f, 52f, 190f, 340f, 0.12f),  // cherry cosmos
+            Nebula(232f, 0.85f, 0.05f, 226f, 0.85f, 0.26f, 264f, 0.62f, 0.46f, 188f, 300f, 190f, 0.15f), // grape soda
+            Nebula(222f, 0.90f, 0.06f, 214f, 0.90f, 0.28f, 226f, 0.70f, 0.45f, 322f, 28f, 200f, 0.10f),  // lagoon
+            Nebula(236f, 0.80f, 0.04f, 230f, 0.80f, 0.24f, 268f, 0.60f, 0.44f, 46f, 300f, 40f, 0.20f),    // ember
+            Nebula(226f, 0.85f, 0.05f, 220f, 0.85f, 0.25f, 240f, 0.66f, 0.44f, 130f, 330f, 150f, 0.12f),  // aurora
+            Nebula(234f, 0.85f, 0.05f, 228f, 0.85f, 0.27f, 260f, 0.66f, 0.45f, 52f, 190f, 340f, 0.12f),   // cherry
         )
 
         /** Planet looks: three HSV colours each (body, band, accent). Bold candy, like the cubes. */

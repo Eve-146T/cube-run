@@ -191,13 +191,6 @@ object FacetShapes {
         return boxes(parts)
     }
 
-    /** A square frame in the XZ plane, outer half-size 1, bars [bar] wide: a chunky ring for the road. */
-    fun frame(bar: Float): FacetShape {
-        val m = 1f - bar / 2f
-        return boxes(listOf(Box(0f, 0f, m, 1f, 0.5f, bar / 2f), Box(0f, 0f, -m, 1f, 0.5f, bar / 2f),
-            Box(m, 0f, 0f, bar / 2f, 0.5f, m - bar / 2f), Box(-m, 0f, 0f, bar / 2f, 0.5f, m - bar / 2f)))
-    }
-
     /** A box: centre, half-size, palette slot. */
     class Box(val x: Float, val y: Float, val z: Float, val hx: Float, val hy: Float, val hz: Float, val slot: Int = 0)
 

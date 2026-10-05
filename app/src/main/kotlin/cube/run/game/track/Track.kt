@@ -323,7 +323,6 @@ class Track(private val rnd: Random, private val fx: ObstacleFactory) {
         val hue = (baseHue + rowsSpawned * 19f) % 360f
         val obs = ArrayList<Ob>(2)
         var platLane = -1
-        if (prevKind == Step.RF && code != Step.RF) rows.lastOrNull()?.riftEnd = true
         if (code == Step.PORTAL) { // the doorway: an open row that flips the world when crossed
             val row = Row(z, obs)
             if (portalPending == -2) { row.portalExit = true; row.portal = bonus; bonus = Bonus.NONE; rowsSincePortal = 0 }
@@ -440,7 +439,6 @@ class Track(private val rnd: Random, private val fx: ObstacleFactory) {
         }
         val row = Row(z, obs)
         row.safeLane = curSafe
-        row.spaceLook = bonus == Bonus.SPACE
         // A rift's later slices continue the chasm: one hazard, one row of the stretch, one point.
         val continued = code == Step.RF && prevKind == Step.RF
         row.scoreless = continued

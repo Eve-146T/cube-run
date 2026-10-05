@@ -4,12 +4,11 @@ import cube.run.game.track.Sect
 import cube.run.game.track.Step
 
 /**
- * The Outer Space section library. Space has its own verbs — meteors that
- * land ahead of you, rifts in the floating road you float across, gravity
- * rings that carry you over station hulls, comet wakes to weave through —
- * and borrows a few classic shapes, which the space look redraws as
- * asteroids, girders and black holes. Written for low gravity: jumps hang
- * long, so the patterns breathe more than the ordinary library.
+ * The Outer Space section library. Space has its own patterns — boulders
+ * beside the walk lane, rifts in the floating road you float across, pads
+ * that carry you over tall hulls, comet wakes to weave through — drawn with
+ * the ordinary obstacles. Written for low gravity: jumps hang long, so the
+ * patterns breathe more than the ordinary library.
  */
 object SpaceSections {
     private val dg = Step::dg; private val ft = Step::ft; private val sld = Step::sld

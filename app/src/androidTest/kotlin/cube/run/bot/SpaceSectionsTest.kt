@@ -193,8 +193,6 @@ class SpaceSectionsTest {
             val exit = seen.indexOfFirst { it.portalExit }
             assertTrue("seed $seed: no space portal", entry >= 0 && exit > entry)
             val inside = seen.subList(entry + 1, exit)
-            assertTrue("every row inside is drawn in space", inside.all { it.spaceLook })
-            assertTrue("no row outside is", seen.subList(0, entry + 1).none { it.spaceLook } )
             val counted = inside.count { !it.scoreless }
             // Sections are never cut short, so the exit waits for the current one to finish.
             assertTrue("seed $seed: $counted rows", counted in 69 until 69 + 9)

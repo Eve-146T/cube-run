@@ -44,7 +44,7 @@ object SoundFx {
             pool = p
             val dir = File(ctx.cacheDir, "sfx").apply { mkdirs() }
             val names = listOf("tap", "blip", "pop", "place", "perfect", "combo", "success", "fail", "whoosh", "boom", "coin", "rise", "slide", "fanfare", "drain", "bell",
-                "warp", "moonjump", "moonland", "flyby", "meteor", "stardust", "hum")
+                "warp", "moonjump", "moonland", "flyby", "stardust", "hum")
             fun file(name: String) = File(dir, if (name == "coin") "coin-chime-v2.wav" else "$name.wav")
             // Installed games already have these WAVs. Do not synthesize all samples again.
             if (names.any { !file(it).exists() || file(it).length() == 0L }) {
@@ -128,7 +128,6 @@ object SoundFx {
         "moonjump" to moonJump(),
         "moonland" to moonLand(),
         "flyby" to flyby(),
-        "meteor" to meteor(),
         "stardust" to synth(520, vol = 0.75) { t, p -> // a glass chime: rounder and longer than the coin, a faint inharmonic shimmer
             val f = 1046.5
             (sin(t * f * TAU) + 0.22 * sin(t * f * 2.0 * TAU) * exp(-p * 5.0) + 0.12 * sin(t * f * 2.76 * TAU) * exp(-p * 8.0)) /
@@ -279,18 +278,6 @@ object SoundFx {
             phase += (95.0 - 40.0 * p) / SR
             val env = sin(p * PI).pow(1.6)
             (acc * 1.3 + sin(phase * TAU) * 0.25) * env
-        }
-    }
-
-    /** A meteor coming down: a thin whistle falling through the scale, far off. */
-    private fun meteor(): ShortArray {
-        var phase = 0.0
-        var acc = 0.0
-        return synth(950, vol = 0.7) { t, p ->
-            phase += (1300.0 * (1.0 - 0.7 * p.pow(0.8))) / SR
-            acc += 0.12 * (noise() - acc)
-            val env = (p / 0.2).coerceAtMost(1.0) * (1.0 - p).pow(0.7)
-            (sin(phase * TAU + 0.3 * sin(t * 11.0 * TAU)) * 0.45 + acc * 0.25) * env
         }
     }
 

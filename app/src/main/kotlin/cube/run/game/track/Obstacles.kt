@@ -23,13 +23,6 @@ object ObAnim {
     const val PENDULUM = 4  // a block swinging sideways at chest height — roll under or step aside
 }
 
-/** Space-only silhouettes that collide like the plain kinds but are drawn as their own thing. */
-object ObShape {
-    const val PLAIN = 0
-    const val METEOR = 1  // a boulder that falls out of the sky and lands on the road ahead
-    const val HULL = 2    // a slab of space station: too tall for a jump
-}
-
 /** Authored action cue; height alone cannot distinguish a bar from a stomper or raised wall. */
 enum class ObCue { NONE, JUMP, DUCK }
 
@@ -69,7 +62,6 @@ class Ob(
     /** A tar pit: drawn sunk into the road as a void (the collision box stays where it is). */
     val pit: Boolean = false,
     val cue: ObCue = ObCue.NONE,
-    val shape: Int = ObShape.PLAIN,
 ) {
     /** Pads: launched the player already (once per pass). */
     var used = false
@@ -131,12 +123,6 @@ class Row(var z: Float, val obs: ArrayList<Ob>, initialLaneWidth: Float = Lanes.
     var scored = false
     /** A continuation slice of a longer hazard (a rift): crossing it scores nothing extra. */
     var scoreless = false
-    /** Spawned inside Outer Space: drawn in its look once the transformation reaches it. */
-    var spaceLook = false
-    /** Which look it is showing now (the transformation re-pops a row when this flips). */
-    var shownSpace = false
-    /** The far end of a rift (its last slice): the chasm's back lip is drawn here. */
-    var riftEnd = false
     var minClear = 99f            // tightest clearance seen while crossing (near-miss detect)
     var coins: ArrayList<Coin>? = null
     var pickup = Pickup.NONE
@@ -282,13 +268,12 @@ class ObstacleFactory(private val rnd: Random) {
     // ---- Outer Space ----
 
     /**
-     * A meteor in lane [l]: a boulder that has landed on the road by the time
-     * it matters. Low enough that a low-gravity hop clears it, so it is dodge
-     * or hop. (The fall from the sky is drawn; the collision is the boulder.)
+     * A meteor in lane [l]: a low boulder on the road. Low enough that a
+     * low-gravity hop clears it, so it is dodge or hop.
      */
     fun meteor(l: Int, hue: Float): Ob {
         val h = METEOR_H
-        return Ob(hsv(hue + 185f, 0.8f, 1f), laneX(l), h / 2f, 0.7f, ObType.SOLID, 1.4f, h, 1.2f, shape = ObShape.METEOR)
+        return Ob(hsv(hue + 185f, 0.8f, 1f), laneX(l), h / 2f, 0.7f, ObType.SOLID, 1.4f, h, 1.2f)
     }
 
     /** One slice of a rift: a gap in the floating road across every lane. Slices laid close together read as one chasm. */
@@ -300,7 +285,7 @@ class ObstacleFactory(private val rnd: Random) {
     /** A station hull across every lane: too tall for a low-gravity jump; a gravity ring carries you over. */
     fun hull(hue: Float, into: ArrayList<Ob>) {
         val w = laneW * 3f + 0.6f; val h = HULL_H
-        into.add(Ob(hsv(hue + 140f, 0.55f, 0.95f), 0f, h / 2f, laneW * 1.5f + 0.3f, ObType.SOLID, w, h, 0.9f, shape = ObShape.HULL))
+        into.add(Ob(hsv(hue + 140f, 0.55f, 0.95f), 0f, h / 2f, laneW * 1.5f + 0.3f, ObType.SOLID, w, h, 0.9f))
     }
 
     /** Segments over every lane except [open]: one wide piece, or two when the gap is the centre. */
