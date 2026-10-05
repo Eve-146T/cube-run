@@ -1076,6 +1076,7 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
 
     override fun renderWorldBackdrop(shapes: ShapeRenderer) {
         if (showcase.active && showcase.shop) showcase.renderShapes(shapes, time)
+        else if (!showcase.active && !gift.active) space.deco.render(shapes, cam, time)
     }
 
     override fun renderWorldShapes(shapes: ShapeRenderer) {

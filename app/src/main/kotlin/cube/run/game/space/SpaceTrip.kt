@@ -2,16 +2,17 @@ package cube.run.game.space
 
 import com.badlogic.gdx.graphics.Color
 import cube.run.core.hsvInto
-import kotlin.math.PI
-import kotlin.math.cos
-import kotlin.math.sin
+import kotlin.math.max
+import kotlin.math.min
 import kotlin.random.Random
 
 /**
- * One visit to Outer Space, rolled when the portal is crossed: which nebula
- * the sky is, which planets hang in it, how thick the asteroids are, and the
- * one big thing that happens on the way (a giant planet sliding past, an
- * asteroid belt, comets, a sunrise). No two trips look alike.
+ * One visit to Outer Space, rolled when the portal is crossed: the trip's
+ * colours, and the journey. Things come up out of the dark one after another
+ * and slide past (planets, a ringed giant beneath the road, a family of
+ * moons, a space station, a black hole, a sunrise), while stretches of space
+ * weather come and go (an asteroid belt, a meteor shower, comets, nebula
+ * clouds). Every visit is its own route; a visit shows a lot of space.
  */
 class SpaceTrip(seed: Int) {
     private val rnd = Random(seed)
@@ -29,87 +30,76 @@ class SpaceTrip(seed: Int) {
         val starH: Float, val starS: Float,
     )
 
-    class Planet(
-        /** Direction from the road (degrees: left/right of straight ahead, above/below the horizon) and distance. */
-        val baseAzimuth: Float, val baseElevation: Float, var distance: Float,
-        val radius: Float,
-        val colors: Array<Color>,
-        /** Band edges up the planet (-1..1), or null for a plain voxel ball. */
-        val bands: FloatArray?,
-        val tilt: Float, val spin: Float,
-        /** Ring radius relative to the planet (0 = none), tilt of the ring. */
-        val ring: Float, val ringTilt: Float, val ringColors: Array<Color>,
-        val moons: Int,
-        /** How fast it closes in, as a fraction of the run's speed (planets are far: barely). */
-        val approach: Float,
-        /** Glow 0..1: a sun shines with its own light. */
-        val glow: Float = 0f,
-        /** Over the trip it slides this far sideways and climbs this far (degrees): the fly-by and the sunrise. */
-        val slide: Float = 0f, val rise: Float = 0f,
-    ) {
-        var azimuth = baseAzimuth
-        var elevation = baseElevation
+    /** Something on the way: [kind] shows up far ahead once the trip has flown [at] units, on [side] (-1 left, 1 right). */
+    class Landmark(val kind: Int, val at: Float, val side: Float, val seed: Int)
 
-        /** Move along the set piece's path, [p] = 0..1 through the trip. */
-        fun follow(p: Float) {
-            val k = p * p * (3f - 2f * p)
-            azimuth = baseAzimuth + slide * k
-            elevation = baseElevation + rise * k
-        }
-
-        val x: Float get() = distance * sin(azimuth * DEG) * cos(elevation * DEG)
-        val y: Float get() = distance * sin(elevation * DEG)
-        val z: Float get() = -distance * cos(azimuth * DEG) * cos(elevation * DEG)
-    }
+    /** A stretch of space weather between [from] and [to] (units flown). */
+    class Weather(val kind: Int, val from: Float, val to: Float)
 
     val nebula: Nebula = NEBULAE[rnd.nextInt(NEBULAE.size)]
-    val setPiece: Int = rnd.nextInt(4)
-    val planets = ArrayList<Planet>()
-    /** Asteroids around the road (the belt set piece thickens them). */
+    val landmarks = ArrayList<Landmark>()
+    val weather = ArrayList<Weather>()
+    /** Asteroids around the road, before any belt. */
     val asteroidDensity = 0.75f + rnd.nextFloat() * 0.5f
     val starSeed = rnd.nextInt()
     val rockSeed = rnd.nextInt()
 
     init {
-        // Two planets, on opposite sides so they frame the road, at different depths.
-        val side = if (rnd.nextBoolean()) 1f else -1f
-        planets.add(planet(side * (6f + rnd.nextFloat() * 7f), 3f + rnd.nextFloat() * 9f, 230f + rnd.nextFloat() * 50f, 17f + rnd.nextFloat() * 11f))
-        planets.add(planet(-side * (8f + rnd.nextFloat() * 6f), -4f + rnd.nextFloat() * 16f, 160f + rnd.nextFloat() * 50f, 7f + rnd.nextFloat() * 7f))
-        when (setPiece) {
-            FLYBY -> planets.add(planet(side * 3f, -7f - rnd.nextFloat() * 3f, 360f, 52f, approach = 0.3f, ringChance = 1f, slide = side * 24f))
-            SUNRISE -> {
-                val sunColors = arrayOf(hsvInto(Color(), 44f + rnd.nextFloat() * 14f, 0.45f, 1f), hsvInto(Color(), 30f, 0.6f, 1f))
-                planets.add(Planet(-side * 3f, -9f, 330f, 18f, sunColors, null, 0f, 6f, 0f, 0f, sunColors, 0, 0.012f, glow = 1f, rise = 15f))
+        // Objects: a planet straight away, then every other kind once in a shuffled order, planets in between.
+        val kinds = mutableListOf(RINGED, GIANT, MOONS, STATION, BLACK_HOLE, SUN).apply { shuffle(rnd) }
+        val route = ArrayList<Int>()
+        route.add(PLANET)
+        for (k in kinds) { route.add(k); if (rnd.nextFloat() < 0.6f) route.add(PLANET) }
+        var at = 10f
+        var side = if (rnd.nextBoolean()) 1f else -1f
+        repeat(2) { // a long stay (the section tester) goes round again
+            for (k in route) {
+                landmarks.add(Landmark(k, at, side, rnd.nextInt()))
+                at += 55f + rnd.nextFloat() * 30f
+                side = if (rnd.nextFloat() < 0.75f) -side else side
             }
+        }
+        // Weather: three of the four kinds, one after another with calm between.
+        val skies = mutableListOf(BELT, SHOWER, COMETS, NEBULA_CLOUD).apply { shuffle(rnd) }
+        var from = 60f + rnd.nextFloat() * 40f
+        repeat(2) { round ->
+            for (k in skies.take(3)) {
+                val len = 110f + rnd.nextFloat() * 60f
+                weather.add(Weather(k, from + round * 900f, from + round * 900f + len))
+                from += len + 60f + rnd.nextFloat() * 50f
+            }
+            from = 60f
         }
     }
 
-    private fun planet(azimuth: Float, elevation: Float, distance: Float, radius: Float, approach: Float = 0.025f, ringChance: Float = 0.45f, slide: Float = 0f): Planet {
-        val look = PLANET_LOOKS[rnd.nextInt(PLANET_LOOKS.size)]
-        val colors = Array(3) { hsvInto(Color(), look[it * 3] + (rnd.nextFloat() - 0.5f) * 14f, look[it * 3 + 1], look[it * 3 + 2]) }
-        val bands = when (rnd.nextInt(3)) {
-            0 -> null
-            1 -> floatArrayOf(-0.55f, -0.2f, 0.15f, 0.5f)
-            else -> floatArrayOf(-0.7f, -0.35f, -0.05f, 0.3f, 0.62f)
+    /** How strong weather [kind] is [travelled] units in: 0 outside, easing up to 1 and back down over its stretch. */
+    fun weatherAt(kind: Int, travelled: Float): Float {
+        var best = 0f
+        for (w in weather) {
+            if (w.kind != kind || travelled < w.from || travelled > w.to) continue
+            val edge = min(travelled - w.from, w.to - travelled) / 35f
+            best = max(best, min(1f, edge).let { it * it * (3f - 2f * it) })
         }
-        val ringed = rnd.nextFloat() < ringChance
-        val ringColors = arrayOf(hsvInto(Color(), look[3] + 10f, 0.35f, 1f), hsvInto(Color(), look[6], 0.45f, 0.9f))
-        return Planet(azimuth, elevation, distance, radius, colors, bands,
-            tilt = (rnd.nextFloat() - 0.5f) * 40f, spin = 2f + rnd.nextFloat() * 5f,
-            ring = if (ringed) 1.7f + rnd.nextFloat() * 0.6f else 0f, ringTilt = 10f + rnd.nextFloat() * 22f,
-            ringColors = ringColors, moons = rnd.nextInt(3), approach = approach, slide = slide)
+        return best
     }
 
     fun skyTop(out: Color): Color = hsvInto(out, nebula.skyTopH, nebula.skyTopS, nebula.skyTopV)
     fun skyBottom(out: Color): Color = hsvInto(out, nebula.skyBotH, nebula.skyBotS, nebula.skyBotV)
 
     companion object {
-        const val FLYBY = 0     // a giant ringed planet slides slowly past below the road
-        const val BELT = 1      // the asteroids crowd in: you cross a belt
-        const val COMETS = 2    // comets streak across the sky now and then
-        const val SUNRISE = 3   // a sun climbs out of the haze, rays and all
-
-        private const val DEG = (PI / 180.0).toFloat()
+        // landmarks
+        const val PLANET = 0       // a planet sliding past on one side
+        const val RINGED = 1       // a big ringed planet, a little further out
+        const val GIANT = 2        // a giant ringed planet passing slowly beneath the road
+        const val MOONS = 3        // a family of moons tumbling past overhead
+        const val STATION = 4      // a space station, its ring turning
+        const val BLACK_HOLE = 5   // a black hole with a burning accretion ring
+        const val SUN = 6          // a sun climbing out of the haze, rays and all
+        // weather
+        const val BELT = 0         // the asteroids crowd in
+        const val SHOWER = 1       // shooting stars by the dozen
+        const val COMETS = 2       // comets streak across the sky
+        const val NEBULA_CLOUD = 3 // glowing clouds drift past
 
         /** Sky top / bottom, road, neon, rock and star tints, HSV. The sky is the dark of space: black up high, deep blue at the horizon. */
         private val NEBULAE = listOf(
@@ -121,7 +111,7 @@ class SpaceTrip(seed: Int) {
         )
 
         /** Planet looks: three HSV colours each (body, band, accent). Bold candy, like the cubes. */
-        private val PLANET_LOOKS = listOf(
+        val PLANET_LOOKS = listOf(
             floatArrayOf(12f, 0.75f, 1f, 36f, 0.6f, 1f, 350f, 0.8f, 0.9f),     // coral
             floatArrayOf(158f, 0.72f, 0.95f, 120f, 0.55f, 1f, 182f, 0.8f, 0.85f), // mint
             floatArrayOf(275f, 0.62f, 1f, 305f, 0.45f, 1f, 255f, 0.72f, 0.9f),  // lilac

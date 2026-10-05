@@ -36,6 +36,7 @@ class SpaceWorld(private val game: Gdx3DGame) {
         private set
 
     val sky = SpaceSky(game, this)
+    val deco = SpaceDeco(this)
     private val audio = SpaceAudio()
 
     // trip colours, refreshed on entry
@@ -61,6 +62,7 @@ class SpaceWorld(private val game: Gdx3DGame) {
         hsvInto(rockAccent, n.rockH + 28f, 0.72f, 0.95f)
         hsvInto(star, n.starH, n.starS, 1f)
         sky.begin(t)
+        deco.begin(t)
         if (instant) { blend = 1f; warp = 0f } else warp = 1f
         SoundFx.play("warp", vol = 0.9f)
     }
@@ -75,7 +77,7 @@ class SpaceWorld(private val game: Gdx3DGame) {
 
     fun reset() {
         trip = null; inside = false; blend = 0f; warp = 0f; travelled = 0f
-        sky.clear()
+        sky.clear(); deco.clear()
         audio.stop()
         game.burstGravity = 1f
     }
@@ -88,12 +90,16 @@ class SpaceWorld(private val game: Gdx3DGame) {
         val target = if (inside) 1f else 0f
         // in: eased; out: a steady 1.6 s, so nothing of space lingers in the next world's sky
         blend = if (inside) blend + (target - blend) * min(1f, dt * 1.4f) else max(0f, blend - dt / 1.6f)
-        if (!inside && blend < 0.004f) { blend = 0f; if (trip != null) { trip = null; sky.clear() } }
+        if (!inside && blend < 0.004f) { blend = 0f; if (trip != null) { trip = null; sky.clear(); deco.clear() } }
         if (inside && blend > 0.996f) blend = 1f
         warp = max(0f, warp - dt / 1.4f)
         if (inside) travelled += mv
         game.burstGravity = 1f - 0.65f * blend
-        if (trip != null) sky.tick(dt, mv, time)
+        trip?.let {
+            deco.shower = it.weatherAt(SpaceTrip.SHOWER, travelled)
+            deco.clouds = it.weatherAt(SpaceTrip.NEBULA_CLOUD, travelled)
+            sky.tick(dt, mv, time); deco.tick(dt)
+        }
         audio.tick(if (alive) blend else 0f, dt)
     }
 

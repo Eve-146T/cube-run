@@ -16,11 +16,11 @@ import kotlin.random.Random
 
 /**
  * Everything around the floating road in Outer Space, in two speeds at once,
- * built from chunky boxes like every other world. Far away it is calm: voxel
- * planets that barely move, slowly turning, ringed and mooned; a sky full of
- * little cube stars. Close by it is fast: cube asteroids tumbling past the
- * road, warp streaks that outrun the world. On top the trip's set piece: a
- * giant planet sliding past beneath you, an asteroid belt, comets, or a sunrise.
+ * built from chunky boxes like every other world. Far away it is calm: the
+ * journey's [landmarks] drifting past, a sky full of little cube stars.
+ * Close by it is fast: cube asteroids tumbling past the road, warp streaks
+ * that outrun the world. Space weather comes and goes: an asteroid belt,
+ * comets (the meteor shower and nebula clouds are painted by [SpaceDeco]).
  */
 class SpaceSky(private val game: Gdx3DGame, private val space: SpaceWorld) {
 
@@ -29,9 +29,7 @@ class SpaceSky(private val game: Gdx3DGame, private val space: SpaceWorld) {
     private class Streak(var x: Float, var y: Float, var z: Float, var len: Float)
     private class Comet(var x: Float, var y: Float, var z: Float, val vx: Float, val vy: Float, val vz: Float, var life: Float)
 
-    private val planetSmall = FacetShapes.voxelBall(6)
-    private val planetBig = FacetShapes.voxelBall(9) // the same chunkiness on screen, however big the planet
-    private val ringShape = FacetShapes.voxelRing(14, 0.62f, 3)
+    val landmarks = SpaceLandmarks(game, space)
     private val cube = FacetShapes.cube()
     private val clumps = Array(4) { FacetShapes.clump(it) }
 
@@ -51,7 +49,6 @@ class SpaceSky(private val game: Gdx3DGame, private val space: SpaceWorld) {
     private val tailPal = arrayOf(Color())
     private val streakCol = Color()
     private val tmp = Color()
-    private val sunRay = Color()
 
     fun begin(trip: SpaceTrip) {
         this.trip = trip
@@ -74,30 +71,31 @@ class SpaceSky(private val game: Gdx3DGame, private val space: SpaceWorld) {
             stars[i * 5 + 4] = sr.nextFloat() * 6.28f
         }
         nextComet = 1.5f
+        landmarks.begin(trip)
     }
 
-    fun clear() { trip = null; rocks.clear(); streaks.clear(); comets.clear() }
+    fun clear() { trip = null; rocks.clear(); streaks.clear(); comets.clear(); landmarks.clear() }
 
-    /** The belt set piece crowds the asteroids in through the middle of the trip. */
+    /** An asteroid belt crowds the asteroids in while it lasts. */
     private fun crowd(): Float {
         val t = trip ?: return 1f
-        if (t.setPiece != SpaceTrip.BELT) return 1f
-        val p = (space.travelled / TRIP_LENGTH).coerceIn(0f, 1f)
-        return 1f + 2.2f * sin(p * PI.toFloat()).let { it * it }
+        return 1f + 2.2f * t.weatherAt(SpaceTrip.BELT, space.travelled)
     }
 
     private fun seedRock(r: Rock) {
         val crowd = crowd()
-        if (rnd.nextFloat() < 0.3f) { // beneath the road: you are flying over them
+        if (rnd.nextFloat() < 0.3f) { // beneath the road: you are flying over them (and see them through the glass)
+            r.size = 0.7f + rnd.nextFloat() * rnd.nextFloat() * 2.2f
             r.x = (rnd.nextFloat() - 0.5f) * 10f
-            r.y = -4f - rnd.nextFloat() * 9f
+            r.y = -2.5f - r.size * 1.3f - rnd.nextFloat() * 8f
         } else {
+            // Beside the road, never over it: a rock must not read as an obstacle. Its clump reaches ~1.2 × its size.
             val side = if (rnd.nextBoolean()) -1f else 1f
             val near = rnd.nextFloat() < 0.25f * crowd // some skim right past the road edge
-            r.x = side * (if (near) 4.4f + rnd.nextFloat() * 2.5f else 7f + rnd.nextFloat() * 16f)
+            r.size = if (near) 0.7f + rnd.nextFloat() * 0.5f else 0.7f + rnd.nextFloat() * rnd.nextFloat() * 2.2f
+            r.x = side * (ROAD_EDGE + r.size * 1.2f + if (near) 0.6f + rnd.nextFloat() * 2f else 3f + rnd.nextFloat() * 16f)
             r.y = -7f + rnd.nextFloat() * (if (near) 9f else 17f)
         }
-        r.size = (0.7f + rnd.nextFloat() * rnd.nextFloat() * 2.2f) * (if (abs(r.x) < 7f && r.y > -4f) 0.75f else 1f)
         r.yaw = rnd.nextFloat() * 360f; r.pitch = rnd.nextFloat() * 360f
         r.spinY = (rnd.nextFloat() - 0.5f) * 70f; r.spinX = (rnd.nextFloat() - 0.5f) * 50f
         r.variant = rnd.nextInt(4)
@@ -138,15 +136,10 @@ class SpaceSky(private val game: Gdx3DGame, private val space: SpaceWorld) {
             s.z += mv * streakSpeed
             if (s.z > 10f) { s.z = -100f - rnd.nextFloat() * 20f; seedStreak(s) }
         }
-        val progress = (space.travelled / TRIP_LENGTH).coerceIn(0f, 1f)
-        for (p in trip.planets) { // the far worlds close in, very slowly; a fly-by slides past, a sun climbs
-            val min = p.radius * max(1f, p.ring) + 125f
-            if (p.distance > min) p.distance = max(min, p.distance - mv * p.approach)
-            p.follow(progress)
-        }
-        if (trip.setPiece == SpaceTrip.COMETS) {
+        landmarks.tick(mv, space.travelled)
+        if (trip.weatherAt(SpaceTrip.COMETS, space.travelled) > 0.5f) {
             nextComet -= dt
-            if (nextComet <= 0f) { nextComet = 5f + rnd.nextFloat() * 4f; launchComet() }
+            if (nextComet <= 0f) { nextComet = 2.5f + rnd.nextFloat() * 3f; launchComet() }
         }
         var c = comets.size - 1
         while (c >= 0) {
@@ -166,14 +159,14 @@ class SpaceSky(private val game: Gdx3DGame, private val space: SpaceWorld) {
 
     /** Queue the backdrop (after the road, so the batch never drops gameplay for scenery). */
     fun render(time: Float, speedK: Float) {
-        val trip = trip ?: return
+        if (trip == null) return
         val fogCol = game.fogColor
         val a = space.blend
         if (a <= 0.01f) return
         // A fade in or out is a fly-through: things fly in from the far haze rather than fading (opaque only).
         val reach = a * a
         renderStars(time, reach)
-        for (p in trip.planets) renderPlanet(p, time, fogCol, reach)
+        landmarks.render(time, reach)
         renderRocks(fogCol, reach)
         for (k in comets) renderComet(k, time, fogCol)
         renderStreaks(speedK, reach)
@@ -187,25 +180,6 @@ class SpaceSky(private val game: Gdx3DGame, private val space: SpaceWorld) {
             val s = stars[i * 5 + 3] * (0.75f + 0.25f * sin(time * 2.1f + phase * 3f))
             game.facets.add(cube, stars[i * 5], stars[i * 5 + 1], stars[i * 5 + 2], s, s, s,
                 phase * 57f + time * 25f, 35f, 0f, if (i % 3 == 2) starTint else starPal, fog, game.fogColor, glow = 1f) // every third star tinted
-        }
-    }
-
-    private fun renderPlanet(p: SpaceTrip.Planet, time: Float, fogCol: Color, reach: Float) {
-        val x = p.x; val y = p.y + 3f; val z = p.z + 6f
-        val r = p.radius
-        val haze = max(0.14f * (1f - p.glow * 0.8f), 1f - reach) // a sun shines through the haze, but still fades out with the trip
-        game.facets.add(if (r > 15f) planetBig else planetSmall, x, y, z, r, r, r, time * p.spin, p.tilt, p.tilt * 0.5f, p.colors, haze, fogCol,
-            glow = 0.08f + p.glow, bands = p.bands)
-        if (p.ring > 0f) {
-            val rr = r * p.ring
-            game.facets.add(ringShape, x, y, z, rr, rr, rr, time * 1.5f, p.ringTilt, p.tilt * 0.4f, p.ringColors, haze, fogCol, glow = 0.12f)
-        }
-        for (m in 0 until p.moons) {
-            val ang = time * (0.09f + m * 0.05f) + m * 2.4f
-            val mr = r * (2.0f + m * 0.5f)
-            val ms = r * (0.13f + m * 0.04f)
-            game.facets.add(cube, x + cos(ang) * mr, y + sin(ang) * mr * 0.35f, z + sin(ang) * mr * 0.6f, ms, ms, ms,
-                time * 12f + m * 40f, 25f, 0f, p.ringColors, haze, fogCol, glow = 0.05f)
         }
     }
 
@@ -242,21 +216,19 @@ class SpaceSky(private val game: Gdx3DGame, private val space: SpaceWorld) {
         }
     }
 
-    /** A sun's rays (the sunrise set piece), drawn as blended shapes behind the world. */
+    /** Blended extras in the sky (a sun's rays). */
     fun renderShapes(shapes: ShapeRenderer, time: Float) {
-        val trip = trip ?: return
-        val sun = trip.planets.firstOrNull { it.glow > 0f } ?: return
-        sunRay.set(sun.colors[0])
-        game.sunburst(shapes, sun.x, sun.y + 3f, sun.z + 6f - sun.radius, sun.radius * 3.2f, 14, time * 4f, sunRay, 0.22f * space.blend * space.blend)
+        if (trip == null) return
+        landmarks.renderShapes(shapes, time)
     }
 
     private companion object {
         const val DEG = (PI / 180.0).toFloat()
+        /** Half the space road (three lanes) plus its kerb and a margin: no rock above the road comes closer to the middle. */
+        const val ROAD_EDGE = 3.4f
         const val ROCKS = 20
         const val MAX_ROCKS = 40
         const val STREAKS = 24
         const val STARS = 120
-        /** About how far a visit flies (69 rows at their spacing): the slow set pieces are paced over it. */
-        const val TRIP_LENGTH = 560f
     }
 }

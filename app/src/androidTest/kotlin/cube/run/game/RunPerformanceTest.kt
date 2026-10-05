@@ -181,15 +181,14 @@ class RunPerformanceTest {
                             track.forceBonus(Bonus.WIDE)
                             field(Track::class.java, "bonusRowsLeft").setInt(track, 1_000_000)
                         }
-                        if (mode == "space") { // the densest trip: the asteroid belt at its thickest
+                        if (mode == "space") { // a busy stretch: the asteroid belt (or a meteor shower) at its thickest
                             track.forceBonus(Bonus.SPACE)
                             field(Track::class.java, "bonusRowsLeft").setInt(track, 1_000_000)
                             field(CubeRun::class.java, "bonus").setInt(game, Bonus.SPACE)
                             val space = field(CubeRun::class.java, "space").get(game) as cube.run.game.space.SpaceWorld
-                            var seed = 0
-                            while (cube.run.game.space.SpaceTrip(seed).setPiece != cube.run.game.space.SpaceTrip.BELT) seed++
-                            space.enter(seed, instant = true)
-                            field(space.javaClass, "travelled").setFloat(space, 280f)
+                            val belt = cube.run.game.space.SpaceTrip(0).weather.first { it.kind == cube.run.game.space.SpaceTrip.BELT || it.kind == cube.run.game.space.SpaceTrip.SHOWER }
+                            space.enter(0, instant = true)
+                            field(space.javaClass, "travelled").setFloat(space, (belt.from + belt.to) / 2f)
                         }
                         if (mode == "late") {
                             field(Gdx3DGame::class.java, "time").setFloat(game, 10000f)

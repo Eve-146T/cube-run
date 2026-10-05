@@ -73,6 +73,8 @@ abstract class Gdx3DGame(val session: GameSession) : ApplicationAdapter(), Touch
     private lateinit var shapes: ShapeRenderer
     private lateinit var kit: BoxMeshKit
     private lateinit var world: WorldBoxBatch
+    /** See-through floor pieces (Outer Space's glass road): blended over everything opaque, so what is below shows. */
+    private lateinit var glass: WorldBoxBatch
     private lateinit var coins: PrismBatch
     private lateinit var matrixWires: MatrixWireBatch
     private lateinit var crystals: cube.run.core.gfx.CrystalBatch
@@ -210,7 +212,10 @@ abstract class Gdx3DGame(val session: GameSession) : ApplicationAdapter(), Touch
         when (step) {
             0 -> shapes = ShapeRenderer()
             1 -> matrixWires = MatrixWireBatch(kit)
-            2 -> world = WorldBoxBatch(kit, wires = matrixWires).also { it.terrain = terrain }
+            2 -> {
+                world = WorldBoxBatch(kit, wires = matrixWires).also { it.terrain = terrain }
+                glass = WorldBoxBatch(kit, maxBoxes = 360).also { it.terrain = terrain }
+            }
             3 -> coins = PrismBatch(kit, wires = matrixWires).also { it.terrain = terrain }
             4 -> capsules = CapsuleBatch(kit).also { it.terrain = terrain }
             5 -> {
@@ -327,6 +332,7 @@ abstract class Gdx3DGame(val session: GameSession) : ApplicationAdapter(), Touch
         crystals.begin()
         facetBatch.begin()
         world.begin(cam)
+        glass.begin(cam)
         coins.begin(cam)
         renderWorldBatched()
         world.render(cam)           // opaque pass: 1 draw call for every world box
@@ -335,6 +341,7 @@ abstract class Gdx3DGame(val session: GameSession) : ApplicationAdapter(), Touch
         capsules.render(cam)
         crystals.render(cam)
         facetBatch.render(cam)
+        glass.render(cam)           // after everything it may show through
         // unlit blended shapes in the world (sunbursts): behind whatever the ModelBatch draws next
         Gdx.gl.glEnable(GL20.GL_DEPTH_TEST)
         Gdx.gl.glDepthMask(false)
@@ -465,7 +472,7 @@ abstract class Gdx3DGame(val session: GameSession) : ApplicationAdapter(), Touch
     val fogColor: Color get() = world.fogColor
 
     /** Keep the coin pass hazed like the boxes (call after setting [fogColor]). */
-    fun syncFog() { coins.fogColor.set(world.fogColor) }
+    fun syncFog() { coins.fogColor.set(world.fogColor); if (::glass.isInitialized) glass.fogColor.set(world.fogColor) }
 
     /** Opacity of subsequently queued scenery; reset before drawing showcase effects. */
     fun setWorldOpacity(amount: Float) { world.opacity = amount; coins.opacity = amount }
@@ -506,6 +513,12 @@ abstract class Gdx3DGame(val session: GameSession) : ApplicationAdapter(), Touch
     fun worldGround(x: Float, y: Float, z: Float, sx: Float, sy: Float, sz: Float, col: Color, fog: Float = 0f) =
         world.box(x, y, z, sx, sy, sz, col, fog, followTerrain = true)
 
+    /** A see-through road piece: like [worldGround], [alpha] opaque, drawn over whatever lies beneath it. */
+    fun glassGround(x: Float, y: Float, z: Float, sx: Float, sy: Float, sz: Float, col: Color, fog: Float, alpha: Float) {
+        glass.opacity = alpha * world.opacity
+        glass.box(x, y, z, sx, sy, sz, col, fog, followTerrain = true)
+    }
+
     /** Like [worldBox] but spun [yawDeg] about its vertical axis (coins, pickups). */
     fun worldBoxSpin(x: Float, y: Float, z: Float, sx: Float, sy: Float, sz: Float, yawDeg: Float, col: Color, fog: Float = 0f) =
         world.boxSpin(x, y, z, sx, sy, sz, yawDeg, col, fog)
@@ -540,6 +553,7 @@ abstract class Gdx3DGame(val session: GameSession) : ApplicationAdapter(), Touch
         if (::shapes.isInitialized) shapes.dispose()
         if (::shards.isInitialized) shards.dispose()
         if (::world.isInitialized) world.dispose()
+        if (::glass.isInitialized) glass.dispose()
         if (::coins.isInitialized) coins.dispose()
         if (::matrixWires.isInitialized) matrixWires.dispose()
         if (::capsules.isInitialized) capsules.dispose()

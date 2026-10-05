@@ -128,6 +128,8 @@ class Scenery(private val game: Gdx3DGame, private val rnd: Random) {
     companion object {
         const val PASSED_WORLD = 1
         const val PASSED_START = 2
+        /** How see-through the road gets in space (0 solid … 1 gone). */
+        const val GLASS = 0.55f
     }
 
     /** Scroll by [mv]. Returns PASSED_WORLD / PASSED_START on the frame a gate passes the player, else 0. */
@@ -176,7 +178,10 @@ class Scenery(private val game: Gdx3DGame, private val rnd: Random) {
             val c1 = if (sp > 0f) space!!.roadTile(tileA, t.col, false) else t.col
             val c2 = if (sp > 0f) space!!.roadTile(tileB, t.col2, true) else t.col2
             // the three core lanes, then the two outer ones growing out from the edges as the road unfolds
-            for (l in 0 until 3) game.worldGround((l - 1) * w, -0.14f, t.z, w, 0.26f, tileD, if ((l + 1 + t.parity) % 2 == 0) c1 else c2, fog)
+            if (sp > 0f) { // in space the road turns to glass: stars, rocks and planets show through beneath you
+                val alpha = 1f - GLASS * sp
+                for (l in 0 until 3) game.glassGround((l - 1) * w, -0.04f, t.z, w, 0.06f, tileD, if ((l + 1 + t.parity) % 2 == 0) c1 else c2, fog, alpha)
+            } else for (l in 0 until 3) game.worldGround((l - 1) * w, -0.14f, t.z, w, 0.26f, tileD, if ((l + 1 + t.parity) % 2 == 0) c1 else c2, fog)
             if (u > 0.01f) {
                 val ow = w * u
                 game.worldGround(-(1.5f * w + ow / 2f), -0.14f, t.z, ow, 0.26f, tileD, if (t.parity == 0) c1 else c2, fog)
