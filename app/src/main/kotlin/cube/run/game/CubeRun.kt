@@ -873,6 +873,7 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
             }
         }
         if (live()) {
+            track.speed = difficulty.speed() * runSkin.speedMultiplier
             track.spawn(mv, worldHue(), session.score, dt)
             prepareToxicCoins()
             prepareCoalGems()

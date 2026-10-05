@@ -13,7 +13,7 @@ class Planner(private val beam: Int = 96, private val inputEvery: Int = 1, priva
         val reward: Float, val gestures: Int, val rank: Float, val cost: Float = 0f)
 
     fun solve(t: Timeline, initial: Body = Body(lane = t.course.entry,
-        x = (t.course.entry - (t.course.lanes - 1) / 2f) * t.course.width), holdFrames: Int = 0, heldActions: IntArray = IntArray(0), initialCooldown: Int = 0): Plan {
+        x = (t.course.entry - (t.course.lanes - 1) / 2f) * t.course.width, lowG = t.course.lowG), holdFrames: Int = 0, heldActions: IntArray = IntArray(0), initialCooldown: Int = 0): Plan {
         var expanded = 0L
         val held = initial.copy()
         val hold = holdFrames.coerceIn(0, t.frames.size)
@@ -102,7 +102,7 @@ class Planner(private val beam: Int = 96, private val inputEvery: Int = 1, priva
 }
 
 fun replay(t: Timeline, actions: IntArray, initial: Body = Body(lane = t.course.entry,
-    x = (t.course.entry - (t.course.lanes - 1) / 2f) * t.course.width)): Boolean {
+    x = (t.course.entry - (t.course.lanes - 1) / 2f) * t.course.width, lowG = t.course.lowG)): Boolean {
     val b = initial.copy()
     return t.frames.indices.all { t.step(b, it, actions.getOrElse(it) { 0 }) }
 }
@@ -155,7 +155,7 @@ fun centerTiming(t: Timeline, plan: Plan, cadence: Int): Plan {
         }
     }
     check(replay(t, actions))
-    val body = Body(lane = t.course.entry, x = (t.course.entry - (t.course.lanes - 1) / 2f) * t.course.width)
+    val body = Body(lane = t.course.entry, x = (t.course.entry - (t.course.lanes - 1) / 2f) * t.course.width, lowG = t.course.lowG)
     var rewards = 0f
     for (frame in actions.indices) {
         t.step(body, frame, actions[frame])

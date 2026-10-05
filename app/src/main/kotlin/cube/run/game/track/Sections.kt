@@ -212,6 +212,11 @@ object Sections {
             code in 130..132 -> { allBut(code - 130, C_PILLAR); row[code - 130] = C_PLAT }
             code in 140..142 -> row[code - 140] = C_PLAT
             code in 150..152 -> row[code - 150] = C_PAD
+            code in 200..202 -> allBut(code - 200, C_PILLAR)
+            code == Step.RF -> all(C_TAR)
+            code in 210..212 -> row[code - 210] = C_PAD
+            code == Step.HW -> all(C_TALL)
+            code == Step.CT -> row[1] = C_COIN
         }
         row
     }

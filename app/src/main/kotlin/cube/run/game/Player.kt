@@ -274,7 +274,7 @@ class Player(private val game: Gdx3DGame, private val rnd: Random) {
         air = true; vy = (if (floaty) 6.9f else 8.4f) * (if (gigajumpEnabled) 1.4142136f else 1f) * launchScale
         slamming = false
         duckT = 0f // jumping cancels a roll
-        if (lowGravity) SoundFx.play("moonjump", rate = if (extraJump) 1.3f else 0.95f + Random.nextFloat() * 0.1f, vol = 0.8f)
+        if (lowGravity) SoundFx.play("moonjump", rate = if (extraJump) 1.3f else 0.95f + Random.nextFloat() * 0.1f, vol = 0.5f)
         else SoundFx.play("whoosh", rate = if (extraJump) 1.55f else 1.3f)
         Haptics.click()
         game.burst3d(tmp.set(px, if (extraJump) py - .35f else .1f, .3f),

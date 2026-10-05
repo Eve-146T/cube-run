@@ -21,6 +21,12 @@ object SpaceSpacing {
 
     /** A plain dodge row: a little roomier than the ground's 6.5 — space is calmer. */
     const val DODGE = 7.2f
+
+    /**
+     * Between dodge rows at [speed]: lane changes glide (rate 10 against 13 on
+     * the ground), so at speed the gap keeps the same time to react and arrive.
+     */
+    fun dodge(speed: Float) = max(DODGE, speed * 0.29f)
     /** Between the slices of one rift: they overlap into a single chasm. */
     const val RIFT_SLICE = 1.65f
 

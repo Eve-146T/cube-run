@@ -45,7 +45,9 @@ data class Goodie(val x: Float, val y: Float, val dz: Float, val value: Float)
 data class BotRow(val z: Float, val obstacles: List<Obstacle>, val goodies: List<Goodie> = emptyList())
 data class Course(val id: Int, val name: String, val tier: Int, val seed: Int,
     val mirror: Boolean, val entry: Int, val rows: List<BotRow>, val lanes: Int = 3,
-    val width: Float = 1.7f, val phase: Float = 0f)
+    val width: Float = 1.7f, val phase: Float = 0f,
+    /** Laid out for Outer Space: the player starts (and stays) on low gravity. */
+    val lowG: Boolean = false)
 
 object Action {
     const val NONE = 0; const val LEFT = 1; const val RIGHT = 2; const val JUMP = 3; const val DOWN = 4
@@ -188,11 +190,16 @@ class Timeline(val course: Course, val speed: Float, val dt: Float = 1f / 60f,
 }
 
 object CourseFile {
+    private const val V1 = 0x43524231
+    private const val V2 = 0x43524232 // + low gravity
+
     fun write(out: DataOutputStream, courses: List<Course>) {
-        out.writeInt(0x43524231); out.writeInt(courses.size)
+        val v2 = courses.any { it.lowG }
+        out.writeInt(if (v2) V2 else V1); out.writeInt(courses.size)
         for (c in courses) {
             out.writeInt(c.id); out.writeUTF(c.name); out.writeInt(c.tier); out.writeInt(c.seed)
             out.writeBoolean(c.mirror); out.writeInt(c.entry); out.writeInt(c.lanes); out.writeFloat(c.width); out.writeFloat(c.phase)
+            if (v2) out.writeBoolean(c.lowG)
             out.writeInt(c.rows.size)
             for (r in c.rows) {
                 out.writeFloat(r.z); out.writeInt(r.obstacles.size)
@@ -207,10 +214,12 @@ object CourseFile {
         }
     }
     fun read(input: DataInputStream): List<Course> {
-        require(input.readInt() == 0x43524231)
+        val version = input.readInt()
+        require(version == V1 || version == V2)
         return List(input.readInt()) {
             val id = input.readInt(); val name = input.readUTF(); val tier = input.readInt(); val seed = input.readInt()
             val mirror = input.readBoolean(); val entry = input.readInt(); val lanes = input.readInt(); val width = input.readFloat(); val phase = input.readFloat()
+            val lowG = version == V2 && input.readBoolean()
             val rows = List(input.readInt()) {
                 val z = input.readFloat()
                 val obs = List(input.readInt()) { Obstacle(input.readFloat(), input.readFloat(), input.readFloat(), input.readFloat(),
@@ -218,7 +227,7 @@ object CourseFile {
                 val goods = List(input.readInt()) { Goodie(input.readFloat(), input.readFloat(), input.readFloat(), input.readFloat()) }
                 BotRow(z, obs, goods)
             }
-            Course(id, name, tier, seed, mirror, entry, rows, lanes, width, phase)
+            Course(id, name, tier, seed, mirror, entry, rows, lanes, width, phase, lowG)
         }
     }
 }

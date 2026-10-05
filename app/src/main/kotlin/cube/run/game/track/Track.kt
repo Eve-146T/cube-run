@@ -102,7 +102,11 @@ class Track(private val rnd: Random, private val fx: ObstacleFactory) {
 
     /** Unlocked tier, supplied by the game each spawn (difficulty lives there). */
     var tier = 0
-    /** The run's speed when the last row spawned: low-gravity spacing grows with it. */
+    /**
+     * The run's cruising speed (set by the game; boosts like the jetpack's
+     * are left out, they end before the rows arrive): low-gravity spacing
+     * grows with it.
+     */
     var speed = 12.4f
     private var spaceIntro = false   // the first section through the Space portal is its intro
     private var cometStep = 0        // where a comet wake's weave has got to
@@ -145,7 +149,6 @@ class Track(private val rnd: Random, private val fx: ObstacleFactory) {
     fun spawn(mv: Float, hue: Float, score: Int, dt: Float = 0f) {
         pillWorld?.let { it.spawn(rows, mv, dt, hue); return }
         runScore = score
-        if (dt > 0f && mv > 0f) speed = mv / dt
         spawnAcc += mv
         while (true) {
             if (pendingSteps.isEmpty()) loadNextSection()
@@ -264,7 +267,7 @@ class Track(private val rnd: Random, private val fx: ObstacleFactory) {
             Step.isJump(prevKind) -> SpaceSpacing.afterJump(s)
             Step.isPlatform(code) && Step.isPlatform(prevKind) -> dodgeGap // roof segments meet end to end
             code == Step.EM -> breatherGap
-            else -> SpaceSpacing.DODGE
+            else -> SpaceSpacing.dodge(s)
         }
     }
 
