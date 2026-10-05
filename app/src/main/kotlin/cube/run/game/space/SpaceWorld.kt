@@ -106,7 +106,8 @@ class SpaceWorld(private val game: Gdx3DGame) {
      */
     fun tick(dt: Float, mv: Float, time: Float, rows: List<Row>, alive: Boolean) {
         val target = if (inside) 1f else 0f
-        blend += (target - blend) * min(1f, dt * (if (inside) 1.4f else 1.1f))
+        // in: eased; out: a steady 1.6 s, so nothing of space lingers in the next world's sky
+        blend = if (inside) blend + (target - blend) * min(1f, dt * 1.4f) else max(0f, blend - dt / 1.6f)
         if (!inside && blend < 0.004f) { blend = 0f; if (trip != null) { trip = null; sky.clear() } }
         if (inside && blend > 0.996f) blend = 1f
         warp = max(0f, warp - dt / 1.4f)

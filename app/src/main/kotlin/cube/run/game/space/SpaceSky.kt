@@ -194,7 +194,7 @@ class SpaceSky(private val game: Gdx3DGame, private val space: SpaceWorld) {
     private fun renderPlanet(p: SpaceTrip.Planet, time: Float, fogCol: Color, reach: Float) {
         val x = p.x; val y = p.y + 3f; val z = p.z + 6f
         val r = p.radius
-        val haze = (0.14f + (1f - reach) * 0.86f) * (1f - p.glow * 0.8f)
+        val haze = max(0.14f * (1f - p.glow * 0.8f), 1f - reach) // a sun shines through the haze, but still fades out with the trip
         game.facets.add(planetBody, x, y, z, r, r, r, time * p.spin, p.tilt, p.tilt * 0.5f, p.colors, haze, fogCol,
             glow = 0.08f + p.glow, bands = p.bands)
         if (p.ring > 0f) {
