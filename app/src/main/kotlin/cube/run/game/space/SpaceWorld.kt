@@ -52,7 +52,6 @@ class SpaceWorld(private val game: Gdx3DGame) {
     val neon = Color(); val neonSoft = Color()
     val rock = Color(); val rockDark = Color()
     val star = Color()
-    private val tmpCol = Color()
     private val tmp = Vector3()
 
     /** Crossed into space. [instant] skips the fade (a run that starts inside, for testing). */
@@ -90,6 +89,7 @@ class SpaceWorld(private val game: Gdx3DGame) {
         waveFront = Float.POSITIVE_INFINITY; lookBefore = false
         sky.clear()
         audio.stop()
+        game.burstGravity = 1f
     }
 
     private fun startWave(lookBefore: Boolean) {
@@ -165,6 +165,4 @@ class SpaceWorld(private val game: Gdx3DGame) {
     fun roadTile(out: Color, base: Color, alt: Boolean): Color = out.set(base).lerp(if (alt) roadAlt else road, blend)
 
     fun kerb(out: Color, base: Color): Color = out.set(base).lerp(neon, blend)
-
-    internal fun scratch(): Color = tmpCol
 }

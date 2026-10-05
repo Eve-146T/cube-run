@@ -6,6 +6,7 @@ import cube.run.data.Progress
 import cube.run.data.Settings
 import cube.run.game.Lanes
 import cube.run.game.Player
+import cube.run.game.space.SpaceCoins
 import cube.run.game.space.SpaceSections
 import cube.run.game.space.SpaceSpacing
 import kotlin.math.max
@@ -242,7 +243,7 @@ class Track(private val rnd: Random, private val fx: ObstacleFactory) {
 
     /** Distance to leave before the row that's about to spawn. */
     private fun gapFor(code: Int): Float {
-        if (bonus == Bonus.SPACE) return spaceGap(code)
+        if (bonus == Bonus.SPACE) return SpaceSpacing.gap(code, prevKind, speed, dodgeGap, breatherGap)
         val recover = when {
             prevKind == -1 -> 0f                      // very first row
             Step.isJump(prevKind) -> jumpRecoverGap   // we were airborne — give room to land
@@ -253,21 +254,6 @@ class Track(private val rnd: Random, private val fx: ObstacleFactory) {
             code == Step.EM -> max(recover, breatherGap)
             code == Step.WIDE || bonus == Bonus.HILLS -> max(recover, jumpRecoverGap)
             else -> recover
-        }
-    }
-
-    /** Low-gravity spacing: jumps hang long, so the road after one grows with the speed. */
-    private fun spaceGap(code: Int): Float {
-        val s = speed * 1.08f // the run may speed up a little while the row approaches
-        return when {
-            prevKind == -1 -> 0f
-            code == Step.RF && prevKind == Step.RF -> SpaceSpacing.RIFT_SLICE
-            code == Step.PORTAL || prevKind == Step.PORTAL -> 12f
-            Step.isTall(code) && Step.isPad(prevKind) -> SpaceSpacing.ringToHull(s)
-            Step.isJump(prevKind) -> SpaceSpacing.afterJump(s)
-            Step.isPlatform(code) && Step.isPlatform(prevKind) -> dodgeGap // roof segments meet end to end
-            code == Step.EM -> breatherGap
-            else -> SpaceSpacing.dodge(s)
         }
     }
 
@@ -523,7 +509,7 @@ class Track(private val rnd: Random, private val fx: ObstacleFactory) {
     private fun layCoins(row: Row, code: Int, platLane: Int, continued: Boolean = false) {
         val x = fx.laneX(curSafe)
         val coins = ArrayList<Coin>(5)
-        if (bonus == Bonus.SPACE && !airCoins && laySpaceCoins(row, code, x, continued, coins)) return
+        if (bonus == Bonus.SPACE && !airCoins && SpaceCoins.lay(row, code, x, continued, speed, coins) { fx.laneX(COMET_WEAVE[cometStep++ % COMET_WEAVE.size]) }) return
         val hover = if (bonus == Bonus.FLOAT) Player.HOVER_Y - 0.45f else 0f
         if (airCoins) { // jetpack: a line every row — cruising, gliding down, or already on the ground
             for (k in 0 until 3) {
@@ -570,42 +556,6 @@ class Track(private val rnd: Random, private val fx: ObstacleFactory) {
             }
         }
         row.coins = coins
-    }
-
-    /**
-     * Space's own coin shapes, traced on the low-gravity arcs: the rift's one
-     * long float, a ring's slow launch, a comet's weave. Returns false when the
-     * ordinary rules apply (they then lay a wider, higher jump arc).
-     */
-    private fun laySpaceCoins(row: Row, code: Int, x: Float, continued: Boolean, coins: ArrayList<Coin>): Boolean {
-        when {
-            code == Step.RF -> { // one arc over the whole chasm, laid by its first slice
-                if (continued) return true
-                for (k in 0 until 6) {
-                    val dz = 2.2f - k * 1.5f
-                    val u = (dz + SpaceSpacing.RIFT_SLICE) / 4.4f
-                    coins.add(Coin(x, 0.55f + 1.25f * (1f - u * u).coerceAtLeast(0f), dz))
-                }
-            }
-            Step.isPad(code) -> { // the ring's arc, timed at this speed: follow the launch and you take them all
-                for (k in 1..5) {
-                    val t = k * 0.24f
-                    coins.add(Coin(x, SpaceSpacing.ringArcY(t), -speed * t))
-                }
-            }
-            code == Step.CT -> { // a comet's wake: two coins a lane, weaving across the road
-                for (k in 0 until 4) {
-                    val lane = COMET_WEAVE[cometStep++ % COMET_WEAVE.size]
-                    coins.add(Coin(fx.laneX(lane), 0.5f, -k * 1.6f))
-                }
-            }
-            Step.isJump(code) && !Step.isTall(code) -> { // a long, high arc: low gravity carries you further
-                coins.add(Coin(x, 1.45f, 2.4f)); coins.add(Coin(x, 2.0f, 0f)); coins.add(Coin(x, 1.45f, -2.4f))
-            }
-            else -> return false
-        }
-        row.coins = coins
-        return true
     }
 
     /**

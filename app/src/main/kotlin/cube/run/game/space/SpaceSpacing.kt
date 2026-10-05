@@ -1,6 +1,7 @@
 package cube.run.game.space
 
 import cube.run.game.Player
+import cube.run.game.track.Step
 import kotlin.math.max
 
 /**
@@ -35,6 +36,25 @@ object SpaceSpacing {
 
     /** From a gravity ring to the hull it clears: the hull meets the cube at the top of its arc. */
     fun ringToHull(speed: Float) = max(7f, RING_PEAK * speed)
+
+    /**
+     * The gap to leave before a row with step [code] after one with [prevKind],
+     * at the run's cruising [speed]. [dodgeGap] keeps roof segments end to end,
+     * [breatherGap] is an open row's room.
+     */
+    fun gap(code: Int, prevKind: Int, speed: Float, dodgeGap: Float, breatherGap: Float): Float {
+        val s = speed * 1.08f // the run may speed up a little while the row approaches
+        return when {
+            prevKind == -1 -> 0f
+            code == Step.RF && prevKind == Step.RF -> RIFT_SLICE
+            code == Step.PORTAL || prevKind == Step.PORTAL -> 12f
+            Step.isTall(code) && Step.isPad(prevKind) -> ringToHull(s)
+            Step.isJump(prevKind) -> afterJump(s)
+            Step.isPlatform(code) && Step.isPlatform(prevKind) -> dodgeGap // roof segments meet end to end
+            code == Step.EM -> breatherGap
+            else -> dodge(s)
+        }
+    }
 
     /** Height of a ring launch [t] seconds after it, from the ground (cube centre). */
     fun ringArcY(t: Float) = 0.45f + RING_V * t - 0.5f * GRAVITY * t * t // 0.45: the resting cube centre
