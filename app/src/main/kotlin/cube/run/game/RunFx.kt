@@ -14,7 +14,8 @@ import kotlin.random.Random
 private val ZEN_NOTES = floatArrayOf(1f, 1.125f, 1.25f, 1.5f, 1.6875f)
 
 /** Two octaves of a major pentatonic for space coins: a coin streak climbs, wraps, climbs again. */
-private val STARDUST_NOTES = floatArrayOf(0.75f, 0.84375f, 0.9375f, 1.125f, 1.265625f, 1.5f, 1.6875f, 1.875f)
+/** Space coins climb a major pentatonic scale with the streak, then sparkle between its top two notes. */
+private val STARDUST_NOTES = floatArrayOf(1f, 1.125f, 1.25f, 1.5f, 1.6875f, 2f)
 
 /**
  * The run's feedback vocabulary: every event's sound + haptic + flash +
@@ -124,15 +125,21 @@ class RunFx(private val game: Gdx3DGame, private val rnd: Random) {
         game.burst3d(tmp.set(px, py + 0.4f, 0.2f), Color.WHITE, n = 10, speed = 4f, size = 0.1f, life = 0.5f)
     }
 
-    /** Outer Space: coins ring as stardust, climbing a pentatonic scale. */
+    /** Outer Space: coins ring as stardust, climbing a pentatonic scale with the streak. */
     var stardust = false
 
     fun coin(x: Float, y: Float, z: Float, pitch: Int, gold: Color) {
-        if (stardust) SoundFx.play("stardust", rate = STARDUST_NOTES[pitch.coerceAtLeast(0) % STARDUST_NOTES.size], vol = 0.6f)
+        if (stardust) SoundFx.play("stardust", rate = stardustNote(pitch), vol = 0.7f)
         else SoundFx.play("coin", rate = (1f + 0.04f * minOf(pitch, 12)).coerceAtMost(1.5f), vol = 0.7f)
         Haptics.tick()
         game.burst3d(tmp.set(x, y, z), gold, n = 6, speed = 3.2f, size = 0.09f, life = 0.4f)
         game.burst3d(tmp, Color.WHITE, n = 2, speed = 4f, size = 0.06f, life = 0.25f)
+    }
+
+    private fun stardustNote(pitch: Int): Float {
+        val top = STARDUST_NOTES.size - 1
+        val i = if (pitch <= top) pitch.coerceAtLeast(0) else top - (pitch - top) % 2
+        return STARDUST_NOTES[i]
     }
 
     /** Coin streak milestone: a chime + a gold flash, no text. */

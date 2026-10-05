@@ -21,7 +21,7 @@ import kotlin.random.Random
  * Available sound names (pitch-shift with `rate` 0.5..2.0 for variety):
  *  tap, blip, pop, place, perfect, combo, success, fail,
  *  whoosh, boom, coin, rise, slide, fanfare, drain, bell,
- *  and Outer Space's: warp, moonjump, moonland, flyby, meteor, stardust, hum (a loop)
+ *  and Outer Space's: warp, moonjump, moonland, flyby, stardust, hum (a loop)
  */
 object SoundFx {
     // Investigation hooks: inactive in ordinary runs and release builds.
@@ -45,7 +45,8 @@ object SoundFx {
             val dir = File(ctx.cacheDir, "sfx").apply { mkdirs() }
             val names = listOf("tap", "blip", "pop", "place", "perfect", "combo", "success", "fail", "whoosh", "boom", "coin", "rise", "slide", "fanfare", "drain", "bell",
                 "warp", "moonjump", "moonland", "flyby", "stardust", "hum")
-            fun file(name: String) = File(dir, if (name == "coin") "coin-chime-v2.wav" else "$name.wav")
+            // A redesigned sound gets a new file name, so installed games synthesize it again.
+            fun file(name: String) = File(dir, when (name) { "coin" -> "coin-chime-v2.wav"; "stardust" -> "stardust-v2.wav"; else -> "$name.wav" })
             // Installed games already have these WAVs. Do not synthesize all samples again.
             if (names.any { !file(it).exists() || file(it).length() == 0L }) {
                 for ((name, pcm) in synthAll()) if (!file(name).exists() || file(name).length() == 0L) file(name).writeBytes(wav(pcm))
@@ -128,11 +129,7 @@ object SoundFx {
         "moonjump" to moonJump(),
         "moonland" to moonLand(),
         "flyby" to flyby(),
-        "stardust" to synth(520, vol = 0.75) { t, p -> // a glass chime: rounder and longer than the coin, a faint inharmonic shimmer
-            val f = 1046.5
-            (sin(t * f * TAU) + 0.22 * sin(t * f * 2.0 * TAU) * exp(-p * 5.0) + 0.12 * sin(t * f * 2.76 * TAU) * exp(-p * 8.0)) /
-                1.34 * decay(p, 4.2)
-        },
+        "stardust" to stardust(),
         "hum" to hum(),
         "bell" to synth(1400, vol = 0.8) { t, p -> // a singing bowl: a soft strike and inharmonic partials ringing out
             val f = 392.0
@@ -278,6 +275,30 @@ object SoundFx {
             phase += (95.0 - 40.0 * p) / SR
             val env = sin(p * PI).pow(1.6)
             (acc * 1.3 + sin(phase * TAU) * 0.25) * env
+        }
+    }
+
+    /**
+     * A coin in space: a crisp glassy "ding-ding" up a fourth (FM bell: a bright
+     * strike that mellows as it rings) and a few tiny sparkles after it, high
+     * and quick, like the coin bursting into stardust. Short, so a streak of
+     * them climbs cleanly instead of smearing.
+     */
+    private fun stardust(): ShortArray {
+        val sparkles = doubleArrayOf(0.07, 3520.0, 0.115, 4186.0, 0.165, 3951.0)
+        fun bell(tn: Double, f: Double, decay: Double): Double { // FM: a bright strike that mellows as it rings
+            if (tn <= 0.0) return 0.0
+            val index = 2.2 * exp(-tn * 30.0)
+            return (sin(tn * f * TAU + index * sin(tn * f * 2.0 * TAU)) + 0.13 * sin(tn * f * 3.0 * TAU) * exp(-tn * 25.0)) *
+                exp(-tn * decay) * min(1.0, tn * 400.0)
+        }
+        return synth(380, vol = 0.6) { t, p ->
+            var sparkle = 0.0
+            for (k in sparkles.indices step 2) {
+                val ts = t - sparkles[k]
+                if (ts > 0.0) sparkle += sin(ts * sparkles[k + 1] * TAU) * exp(-ts * 55.0) * min(1.0, ts * 900.0)
+            }
+            (bell(t, 987.77, 40.0) * 0.5 + bell(t - 0.05, 1318.5, 9.0) * 0.62 + sparkle * 0.2) * min(1.0, (1.0 - p) * 12.0) // no click at the end
         }
     }
 
