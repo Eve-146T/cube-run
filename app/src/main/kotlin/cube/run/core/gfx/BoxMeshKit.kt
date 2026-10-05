@@ -96,7 +96,8 @@ class BoxMeshKit(mb: ModelBuilder) : Disposable {
             attribute vec4 a_color;
             uniform mat4 u_projViewTrans;
             varying vec4 v_color;
-            void main() { v_color = a_color; gl_Position = u_projViewTrans * vec4(a_position, 1.0); }
+            ${WorldBend.GLSL}
+            void main() { v_color = a_color; gl_Position = u_projViewTrans * vec4(a_position, 1.0) + u_projViewTrans * vec4(bendOffset(a_position), 0.0); }
             """.trimIndent(),
             """
             #ifdef GL_ES

@@ -55,11 +55,12 @@ class FacetBatch(private val kit: BoxMeshKit, private val maxVerts: Int = 40000)
      * Queue [shape] at ([x],[y],[z]), scaled by ([sx],[sy],[sz]) and turned
      * [yaw] about Y, then [pitch] about X, then [roll] about Z (degrees, applied
      * roll first). Face colour = [palette] by slot, or by [bands] (ascending
-     * heights) when given; [fog] blends toward [fogColor].
+     * heights) when given; [fog] blends toward [fogColor]. [bent] follows the
+     * [WorldBend] (things near the road); the sky stays put.
      */
     fun add(shape: FacetShape, x: Float, y: Float, z: Float, sx: Float, sy: Float, sz: Float,
             yaw: Float, pitch: Float, roll: Float, palette: Array<Color>, fog: Float, fogColor: Color,
-            glow: Float = 0f, bands: FloatArray? = null) {
+            glow: Float = 0f, bands: FloatArray? = null, bent: Boolean = false) {
         if (used + shape.faces * 12 > vertices.size) return
         rotation(yaw, pitch, roll)
         val p = shape.pos; val n = shape.nrm
@@ -67,7 +68,9 @@ class FacetBatch(private val kit: BoxMeshKit, private val maxVerts: Int = 40000)
         for (f in 0 until shape.faces) {
             // normals under a non-uniform scale: divide by the scale, then turn
             val lx = n[f * 3] / sx; val ly = n[f * 3 + 1] / sy; val lz = n[f * 3 + 2] / sz
-            if (glow < 1f) { // a glowing face is its own light: skip the rig
+            val sameAsLast = f > 0 && n[f * 3] == n[f * 3 - 3] && n[f * 3 + 1] == n[f * 3 - 2] && n[f * 3 + 2] == n[f * 3 - 1]
+            if (sameAsLast) { /* the other half of a box face: same light */ }
+            else if (glow < 1f) { // a glowing face is its own light: skip the rig
                 val wx = m[0] * lx + m[1] * ly + m[2] * lz
                 val wy = m[3] * lx + m[4] * ly + m[5] * lz
                 val wz = m[6] * lx + m[7] * ly + m[8] * lz
@@ -90,9 +93,10 @@ class FacetBatch(private val kit: BoxMeshKit, private val maxVerts: Int = 40000)
             for (v in 0 until 3) {
                 val i = f * 9 + v * 3
                 val px = p[i] * sx; val py = p[i + 1] * sy; val pz = p[i + 2] * sz
-                vertices[used++] = x + m[0] * px + m[1] * py + m[2] * pz
-                vertices[used++] = y + m[3] * px + m[4] * py + m[5] * pz
-                vertices[used++] = z + m[6] * px + m[7] * py + m[8] * pz
+                val vz = z + m[6] * px + m[7] * py + m[8] * pz
+                vertices[used++] = x + m[0] * px + m[1] * py + m[2] * pz + (if (bent) WorldBend.dx(vz) else 0f)
+                vertices[used++] = y + m[3] * px + m[4] * py + m[5] * pz + (if (bent) WorldBend.dy(vz) else 0f)
+                vertices[used++] = vz
                 vertices[used++] = bits
             }
         }
@@ -119,7 +123,7 @@ class FacetBatch(private val kit: BoxMeshKit, private val maxVerts: Int = 40000)
         mesh.setVertices(vertices, 0, used)
         Gdx.gl.glEnable(GL20.GL_DEPTH_TEST); Gdx.gl.glDepthMask(true)
         Gdx.gl.glEnable(GL20.GL_CULL_FACE); Gdx.gl.glDisable(GL20.GL_BLEND)
-        kit.shader.bind(); kit.shader.setUniformMatrix("u_projViewTrans", cam.combined)
+        kit.shader.bind(); kit.shader.setUniformMatrix("u_projViewTrans", cam.combined); WorldBend.apply(kit.shader, on = false) // bent on the CPU, if at all
         mesh.render(kit.shader, GL20.GL_TRIANGLES, 0, used / 4)
         Gdx.gl.glDisable(GL20.GL_CULL_FACE); Gdx.gl.glDisable(GL20.GL_DEPTH_TEST)
     }

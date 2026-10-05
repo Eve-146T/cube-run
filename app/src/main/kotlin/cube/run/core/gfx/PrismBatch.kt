@@ -195,6 +195,7 @@ class PrismBatch(private val kit: BoxMeshKit, private val sides: Int = 12, priva
         } else Gdx.gl.glDisable(GL20.GL_BLEND)
         kit.shader.bind()
         kit.shader.setUniformMatrix("u_projViewTrans", cam.combined)
+        WorldBend.apply(kit.shader)
         if ((wires?.amount ?: 0f) > 0f) { Gdx.gl.glEnable(GL20.GL_POLYGON_OFFSET_FILL); Gdx.gl.glPolygonOffset(1f, 1f) }
         mesh.render(kit.shader, GL20.GL_TRIANGLES, 0, n * idxPer)
         Gdx.gl.glDisable(GL20.GL_POLYGON_OFFSET_FILL)

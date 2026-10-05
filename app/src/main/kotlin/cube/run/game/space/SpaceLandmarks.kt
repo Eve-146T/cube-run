@@ -34,6 +34,7 @@ class SpaceLandmarks(private val game: Gdx3DGame, private val space: SpaceWorld)
     private val small = FacetShapes.voxelBall(6)
     private val big = FacetShapes.voxelBall(9)
     private val ringShape = FacetShapes.voxelRing(14, 0.62f, 3)
+    private val ringFar = FacetShapes.voxelRing(10, 0.62f, 3)
     private val disc = FacetShapes.voxelRing(16, 0.42f, 3)
     private val halo = FacetShapes.voxelRing(14, 0.82f, 1)
     private val cube = FacetShapes.cube()
@@ -60,7 +61,11 @@ class SpaceLandmarks(private val game: Gdx3DGame, private val space: SpaceWorld)
 
     fun tick(mv: Float, travelled: Float) {
         val trip = trip ?: return
-        while (next < trip.landmarks.size && trip.landmarks[next].at <= travelled) spawn(trip.landmarks[next++])
+        while (next < trip.landmarks.size && trip.landmarks[next].at <= travelled) {
+            val plan = trip.landmarks[next++]
+            // one that is long overdue (the trip jumped ahead) is skipped, not piled up far away
+            if (travelled - plan.at < OVERDUE && live.size < MAX_LIVE) spawn(plan)
+        }
         var i = live.size - 1
         while (i >= 0) {
             val l = live[i]
@@ -81,7 +86,7 @@ class SpaceLandmarks(private val game: Gdx3DGame, private val space: SpaceWorld)
             SpaceTrip.PLANET -> {
                 l.radius = 8f + r.nextFloat() * 8f
                 l.x = side * (l.radius + 14f + r.nextFloat() * 20f); l.y = -6f + r.nextFloat() * 24f
-                l.rate = 0.5f + r.nextFloat() * 0.15f
+                l.rate = 0.7f + r.nextFloat() * 0.15f
                 l.ring = if (r.nextFloat() < 0.3f) 1.8f + r.nextFloat() * 0.4f else 0f
                 l.moons = r.nextInt(3)
             }
@@ -89,29 +94,30 @@ class SpaceLandmarks(private val game: Gdx3DGame, private val space: SpaceWorld)
                 l.radius = 13f + r.nextFloat() * 6f
                 l.ring = 1.9f + r.nextFloat() * 0.4f
                 l.x = side * (l.radius * l.ring + 12f + r.nextFloat() * 8f); l.y = 6f + r.nextFloat() * 14f
-                l.rate = 0.42f
+                l.rate = 0.6f
                 l.moons = 1 + r.nextInt(2)
             }
             SpaceTrip.GIANT -> {
-                l.radius = 42f; l.ring = 2f
-                l.x = side * 10f; l.y = -64f
-                l.rate = 0.3f
+                l.radius = 40f; l.ring = 1.7f
+                l.ringTilt = 5f + r.nextFloat() * 5f // nearly flat: its ring stays well below the road
+                l.x = side * 34f; l.y = -110f // off to one side, so the glass road still reads above it
+                l.rate = 0.45f
             }
             SpaceTrip.MOONS -> {
                 l.radius = 3.5f + r.nextFloat() * 1.5f
                 l.x = side * (20f + r.nextFloat() * 10f); l.y = 14f + r.nextFloat() * 10f
-                l.rate = 0.6f
+                l.rate = 0.8f
                 l.moons = 4
             }
             SpaceTrip.STATION -> {
                 l.radius = 14f
                 l.x = side * (26f + r.nextFloat() * 8f); l.y = 8f + r.nextFloat() * 8f
-                l.rate = 0.55f
+                l.rate = 0.7f
             }
             SpaceTrip.BLACK_HOLE -> {
                 l.radius = 8f
                 l.x = side * (30f + r.nextFloat() * 10f); l.y = 12f + r.nextFloat() * 10f
-                l.rate = 0.4f
+                l.rate = 0.55f
             }
             SpaceTrip.SUN -> {
                 l.radius = 20f
@@ -143,7 +149,7 @@ class SpaceLandmarks(private val game: Gdx3DGame, private val space: SpaceWorld)
         val fogCol = game.fogColor
         for (l in live) {
             // out of the far dark: fully hazed at the spawn distance, clear 100 units nearer
-            val haze = max(((-l.z - 230f) / 100f).coerceIn(0f, 1f), 1f - reach)
+            val haze = max(((-l.z - 210f) / 90f).coerceIn(0f, 1f), 1f - reach)
             if (haze >= 0.995f && l.plan.kind != SpaceTrip.SUN) continue
             when (l.plan.kind) {
                 SpaceTrip.MOONS -> moons(l, time, haze, fogCol)
@@ -157,13 +163,14 @@ class SpaceLandmarks(private val game: Gdx3DGame, private val space: SpaceWorld)
 
     private fun planet(l: Live, time: Float, haze: Float, fogCol: Color) {
         val r = l.radius
-        game.facets.add(if (r > 15f) big else small, l.x, l.y, l.z, r, r, r, time * l.spin, l.tilt, l.tilt * 0.5f, l.colors, haze, fogCol,
+        val far = l.z < FAR_Z // far off, the chunks are too small to tell: fewer of them
+        game.facets.add(if (r > 15f && !far) big else small, l.x, l.y, l.z, r, r, r, time * l.spin, l.tilt, l.tilt * 0.5f, l.colors, haze, fogCol,
             glow = 0.08f, bands = l.bands)
         if (l.ring > 0f) {
             val rr = r * l.ring
-            game.facets.add(ringShape, l.x, l.y, l.z, rr, rr, rr, time * 1.5f, l.ringTilt, l.tilt * 0.4f, l.ringColors, haze, fogCol, glow = 0.12f)
+            game.facets.add(if (far) ringFar else ringShape, l.x, l.y, l.z, rr, rr, rr, time * 1.5f, l.ringTilt, l.tilt * 0.4f, l.ringColors, haze, fogCol, glow = 0.12f)
         }
-        for (m in 0 until l.moons) {
+        if (!far) for (m in 0 until l.moons) {
             val ang = time * (0.12f + m * 0.05f) + m * 2.4f
             val mr = r * (2.0f + m * 0.5f)
             val ms = r * (0.13f + m * 0.04f)
@@ -208,7 +215,7 @@ class SpaceLandmarks(private val game: Gdx3DGame, private val space: SpaceWorld)
     /** A black hole: a ball of nothing, its accretion ring burning round it, a bright ring of bent light hugging it. */
     private fun blackHole(l: Live, time: Float, haze: Float, fogCol: Color) {
         val r = l.radius
-        game.facets.add(disc, l.x, l.y, l.z, r * 3f, r * 3f, r * 3f, time * 40f, 72f, l.tilt * 0.3f, hot, haze, fogCol, glow = 1f)
+        game.facets.add(if (l.z < FAR_Z) ringFar else disc, l.x, l.y, l.z, r * 3f, r * 3f, r * 3f, time * 40f, 72f, l.tilt * 0.3f, hot, haze, fogCol, glow = 1f)
         game.facets.add(small, l.x, l.y, l.z, r, r, r, time * 5f, 0f, 0f, black, haze, fogCol)
         pal1[0].set(1f, 0.92f, 0.75f, 1f)
         game.facets.add(halo, l.x, l.y, l.z + 0.5f, r * 1.3f, r * 1.3f, r * 1.3f, time * 25f, 90f, 0f, pal1, haze, fogCol, glow = 1f)
@@ -238,7 +245,12 @@ class SpaceLandmarks(private val game: Gdx3DGame, private val space: SpaceWorld)
     }
 
     private companion object {
-        const val SPAWN_Z = -330f
+        const val SPAWN_Z = -300f
+        /** Landmarks the trip is this far past are skipped; never more than [MAX_LIVE] at once. */
+        const val OVERDUE = 40f
+        const val MAX_LIVE = 6
+        /** Beyond this, landmarks are drawn coarser. */
+        const val FAR_Z = -170f
         const val MODULES = 10
         /** How long (units flown) a sun stays up before it sinks back into the haze. */
         const val SUN_STAY = 380f

@@ -27,6 +27,7 @@ internal class InstancedPrisms(private val kit: BoxMeshKit, sides: Int, capacity
         uniform mat4 u_projViewTrans;
         uniform vec3 u_toL1, u_toL2, u_ambient, u_light1, u_light2;
         out vec4 v_color;
+        ${WorldBend.GLSL}
         void main() {
             float c = i_center.w, s = i_shape.w;
             vec3 p = a_position * vec3(i_shape.x, i_shape.x, i_shape.y);
@@ -40,7 +41,7 @@ internal class InstancedPrisms(private val kit: BoxMeshKit, sides: Int, capacity
             float floorLight = cap ? 0.8 : 0.55;
             vec3 rgb = min(vec3(1.0), i_tint.rgb * strength * max(vec3(floorLight), light)) * i_shape.z + i_fog.rgb;
             v_color = vec4(floor(rgb*255.0)/255.0, floor(floor(i_tint.a*255.0)/2.0)*2.0/255.0);
-            gl_Position = u_projViewTrans * vec4(world, 1.0);
+            gl_Position = u_projViewTrans * vec4(world, 1.0) + u_projViewTrans * vec4(bendOffset(world), 0.0);
         }
     """.trimIndent(), """
         #version 300 es
@@ -104,7 +105,7 @@ internal class InstancedPrisms(private val kit: BoxMeshKit, sides: Int, capacity
         if (translucent) {
             Gdx.gl.glEnable(GL20.GL_BLEND); Gdx.gl.glBlendFunc(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA)
         } else Gdx.gl.glDisable(GL20.GL_BLEND)
-        shader.bind(); shader.setUniformMatrix("u_projViewTrans", camera.combined)
+        shader.bind(); shader.setUniformMatrix("u_projViewTrans", camera.combined); WorldBend.apply(shader)
         kit.setLightUniforms(shader)
         mesh.render(shader, GL20.GL_TRIANGLES)
         Gdx.gl.glDisable(GL20.GL_CULL_FACE); Gdx.gl.glDisable(GL20.GL_DEPTH_TEST); Gdx.gl.glDisable(GL20.GL_BLEND)

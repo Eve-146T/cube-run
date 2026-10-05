@@ -3,9 +3,11 @@ package cube.run.game.space
 import com.badlogic.gdx.graphics.Color
 import cube.run.core.Gdx3DGame
 import cube.run.core.SoundFx
+import cube.run.core.gfx.WorldBend
 import cube.run.core.hsvInto
 import kotlin.math.max
 import kotlin.math.min
+import kotlin.math.sin
 
 /**
  * Outer Space while it lasts: the trip being flown and how far into space
@@ -77,6 +79,7 @@ class SpaceWorld(private val game: Gdx3DGame) {
 
     fun reset() {
         trip = null; inside = false; blend = 0f; warp = 0f; travelled = 0f
+        bendX = 0f; bendY = 0f; WorldBend.x = 0f; WorldBend.y = 0f
         sky.clear(); deco.clear()
         audio.stop()
         game.burstGravity = 1f
@@ -95,12 +98,33 @@ class SpaceWorld(private val game: Gdx3DGame) {
         warp = max(0f, warp - dt / 1.4f)
         if (inside) travelled += mv
         game.burstGravity = 1f - 0.65f * blend
+        bend(dt)
         trip?.let {
             deco.shower = it.weatherAt(SpaceTrip.SHOWER, travelled)
             deco.clouds = it.weatherAt(SpaceTrip.NEBULA_CLOUD, travelled)
             sky.tick(dt, mv, time); deco.tick(dt)
         }
         audio.tick(if (alive) blend else 0f, dt)
+    }
+
+    // The road's sweep (see [WorldBend]): eased toward a slow wander through the trip, gone outside space.
+    private var bendX = 0f
+    private var bendY = 0f
+
+    /**
+     * Space's road winds: it sweeps left and right in long bends and rolls
+     * over gentle rises and dips, at the pace of the trip, so the road ahead
+     * is never quite where you expect it. Gameplay stays straight.
+     */
+    private fun bend(dt: Float) {
+        val seed = trip?.starSeed ?: 0
+        val a = (seed and 0xFF) / 40f; val b = (seed ushr 8 and 0xFF) / 40f
+        val k = travelled
+        val wantX = if (inside) BEND_X * (0.65f * sin(k * 0.0105f + a) + 0.35f * sin(k * 0.0047f + b)) else 0f
+        val wantY = if (inside) BEND_Y * (0.7f * sin(k * 0.0079f + b) - 0.3f) else 0f
+        val ease = min(1f, dt * 1.2f)
+        bendX += (wantX - bendX) * ease; bendY += (wantY - bendY) * ease
+        WorldBend.x = bendX * blend; WorldBend.y = bendY * blend
     }
 
     /** Blend the sky toward the nebula. */
@@ -115,11 +139,18 @@ class SpaceWorld(private val game: Gdx3DGame) {
     /** The run was paused or the app left the foreground: silence the hum (the next frame restarts it). */
     fun pauseAudio() = audio.stop()
 
-    /** Camera lean on lane changes (degrees), only in space: a calm glide rather than a snap. */
-    fun bank(lateralVelocity: Float): Float = (-lateralVelocity * 0.55f).coerceIn(-4f, 4f) * blend
+    /** Camera lean (degrees), only in space: a calm glide on lane changes, and into the road's bends. */
+    fun bank(lateralVelocity: Float): Float = ((-lateralVelocity * 0.55f).coerceIn(-4f, 4f) - bendX * 700f) * blend
 
     /** The road tiles: blended toward this trip's road by [blend]. */
     fun roadTile(out: Color, base: Color, alt: Boolean): Color = out.set(base).lerp(if (alt) roadAlt else road, blend)
 
     fun kerb(out: Color, base: Color): Color = out.set(base).lerp(neon, blend)
+
+    private companion object {
+        /** Sideways curvature at the widest bend (units per unit² ahead): the road 60 units on swings ~12 aside. */
+        const val BEND_X = 0.0035f
+        /** Up/down curvature: mostly dipping away over a horizon, now and then rising. */
+        const val BEND_Y = 0.0016f
+    }
 }

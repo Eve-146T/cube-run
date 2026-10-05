@@ -1076,14 +1076,20 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
 
     override fun renderWorldBackdrop(shapes: ShapeRenderer) {
         if (showcase.active && showcase.shop) showcase.renderShapes(shapes, time)
-        else if (!showcase.active && !gift.active) space.deco.render(shapes, cam, time)
+        else if (!showcase.active && !gift.active) {
+            bendShapes(shapes, on = false) // the painted sky never bends
+            space.deco.render(shapes, cam, time)
+            bendShapes(shapes, on = true)
+        }
     }
 
     override fun renderWorldShapes(shapes: ShapeRenderer) {
         if (gift.active) gift.renderShapes(shapes, time)
         else if (showcase.active && !showcase.shop) showcase.renderShapes(shapes, time)
         else if (!showcase.active) {
+            bendShapes(shapes, on = false)
             space.sky.renderShapes(shapes, time)
+            bendShapes(shapes, on = true)
             trackArt.renderCues(shapes, track, opening.worldAmount, redPill.blend)
             if (jackpot.active) jackpot.renderShapes(shapes, time)
         }

@@ -12,6 +12,8 @@ import com.badlogic.gdx.graphics.g3d.Model
 import com.badlogic.gdx.graphics.g3d.ModelBatch
 import com.badlogic.gdx.graphics.g3d.attributes.ColorAttribute
 import com.badlogic.gdx.graphics.g3d.utils.ModelBuilder
+import com.badlogic.gdx.graphics.glutils.ImmediateModeRenderer20
+import com.badlogic.gdx.graphics.glutils.ShaderProgram
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer
 import com.badlogic.gdx.math.Matrix4
 import com.badlogic.gdx.math.Vector3
@@ -25,6 +27,7 @@ import cube.run.core.gfx.ShardSystem
 import cube.run.core.gfx.TouchInput
 import cube.run.core.gfx.TerrainHeight
 import cube.run.core.gfx.TouchListener
+import cube.run.core.gfx.WorldBend
 import cube.run.core.gfx.WorldBoxBatch
 import kotlin.math.max
 import kotlin.math.min
@@ -208,9 +211,32 @@ abstract class Gdx3DGame(val session: GameSession) : ApplicationAdapter(), Touch
         LaunchTrace.mark(if (hasLaunchOpening) "cube ready" else "game ready")
     }
 
+    private var shapeShader: ShaderProgram? = null
+
+    /** The shape renderer, with libGDX's own shader taught the [WorldBend] (flat screen-space drawing sits at z = 0, unbent). */
+    private fun bentShapes(): ShapeRenderer {
+        val stock = ImmediateModeRenderer20.createDefaultShader(false, true, 0)
+        val plain = stock.vertexShaderSource
+        val fragment = stock.fragmentShaderSource
+        stock.dispose()
+        val vertex = plain.replace("void main() {", WorldBend.GLSL + "\nvoid main() {")
+            .replace("gl_Position = u_projModelView * a_position;", "gl_Position = u_projModelView * a_position + u_projModelView * vec4(bendOffset(a_position.xyz), 0.0);")
+        val shader = ShaderProgram(vertex, fragment)
+        if (!shader.isCompiled || vertex == plain) { shader.dispose(); return ShapeRenderer() }
+        shapeShader = shader
+        return ShapeRenderer(5000, shader)
+    }
+
+    /** World shapes follow the bend (road cues) or not (the sky): flushes what is queued under the old setting. */
+    fun bendShapes(shapes: ShapeRenderer, on: Boolean) {
+        val shader = shapeShader ?: return
+        shapes.flush()
+        shader.bind(); WorldBend.apply(shader, on)
+    }
+
     private fun prepareRenderer(step: Int) {
         when (step) {
-            0 -> shapes = ShapeRenderer()
+            0 -> shapes = bentShapes()
             1 -> matrixWires = MatrixWireBatch(kit)
             2 -> {
                 world = WorldBoxBatch(kit, wires = matrixWires).also { it.terrain = terrain }
@@ -551,6 +577,7 @@ abstract class Gdx3DGame(val session: GameSession) : ApplicationAdapter(), Touch
         sceneCallback = null
         if (::batch.isInitialized) batch.dispose()
         if (::shapes.isInitialized) shapes.dispose()
+        shapeShader?.dispose() // a shader handed to ShapeRenderer stays ours to dispose
         if (::shards.isInitialized) shards.dispose()
         if (::world.isInitialized) world.dispose()
         if (::glass.isInitialized) glass.dispose()

@@ -174,6 +174,7 @@ class ShardSystem(private val kit: BoxMeshKit, private val maxShards: Int = 240)
         Gdx.gl.glBlendFunc(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA)
         kit.shader.bind()
         kit.shader.setUniformMatrix("u_projViewTrans", cam.combined)
+        WorldBend.apply(kit.shader)
         mesh.render(kit.shader, GL20.GL_TRIANGLES, 0, w / 16 * 6)
         // Restore the state ModelBatch's RenderContext.end() used to leave behind,
         // so the following ShapeRenderer passes (flash, HUD) aren't affected.

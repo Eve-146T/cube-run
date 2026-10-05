@@ -139,7 +139,7 @@ class CrystalBatch(private val kit: BoxMeshKit) : Disposable {
         mesh.setVertices(vertices, 0, used)
         Gdx.gl.glEnable(GL20.GL_DEPTH_TEST); Gdx.gl.glDepthMask(true)
         Gdx.gl.glEnable(GL20.GL_CULL_FACE); Gdx.gl.glDisable(GL20.GL_BLEND)
-        kit.shader.bind(); kit.shader.setUniformMatrix("u_projViewTrans", cam.combined)
+        kit.shader.bind(); kit.shader.setUniformMatrix("u_projViewTrans", cam.combined); WorldBend.apply(kit.shader)
         mesh.render(kit.shader, GL20.GL_TRIANGLES, 0, used/4)
         Gdx.gl.glDisable(GL20.GL_CULL_FACE); Gdx.gl.glDisable(GL20.GL_DEPTH_TEST)
     }

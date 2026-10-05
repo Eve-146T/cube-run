@@ -188,7 +188,7 @@ class SpaceSky(private val game: Gdx3DGame, private val space: SpaceWorld) {
         for (r in rocks) {
             val fog = max(Fog.at(r.z), 1f - reach)
             if (fog >= 0.995f) continue
-            game.facets.add(clumps[r.variant], r.x, r.y, r.z, r.size, r.size, r.size, r.yaw, r.pitch, 0f, rockPal, fog, fogCol)
+            game.facets.add(clumps[r.variant], r.x, r.y, r.z, r.size, r.size, r.size, r.yaw, r.pitch, 0f, rockPal, fog, fogCol, bent = true)
         }
     }
 
@@ -229,6 +229,6 @@ class SpaceSky(private val game: Gdx3DGame, private val space: SpaceWorld) {
         const val ROCKS = 20
         const val MAX_ROCKS = 40
         const val STREAKS = 24
-        const val STARS = 120
+        const val STARS = 80
     }
 }

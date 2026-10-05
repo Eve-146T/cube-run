@@ -28,6 +28,7 @@ internal class InstancedWorldBoxes(private val kit: BoxMeshKit, capacity: Int) :
         uniform float u_matrix;
         uniform vec3 u_toL1, u_toL2, u_ambient, u_light1, u_light2;
         out vec4 v_color;
+        ${WorldBend.GLSL}
         void main() {
             vec3 p = a_position * i_size.xyz;
             float c = i_center.w, s = i_size.w;
@@ -40,7 +41,7 @@ internal class InstancedWorldBoxes(private val kit: BoxMeshKit, capacity: Int) :
             vec3 rgb = min(vec3(1.0), i_tint.rgb * light) * (1.0-i_surface.z) * (1.0-u_matrix) + i_fog.rgb * i_surface.z;
             // Match the existing packed vertex colors, including its even alpha byte.
             v_color = vec4(floor(rgb*255.0)/255.0, floor(floor(i_tint.a*255.0)/2.0)*2.0/255.0);
-            gl_Position = u_projViewTrans * vec4(world, 1.0);
+            gl_Position = u_projViewTrans * vec4(world, 1.0) + u_projViewTrans * vec4(bendOffset(world), 0.0);
         }
     """.trimIndent(), """
         #version 300 es
@@ -82,7 +83,7 @@ internal class InstancedWorldBoxes(private val kit: BoxMeshKit, capacity: Int) :
             Gdx.gl.glEnable(GL20.GL_BLEND)
             Gdx.gl.glBlendFunc(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA)
         } else Gdx.gl.glDisable(GL20.GL_BLEND)
-        shader.bind(); shader.setUniformMatrix("u_projViewTrans", camera.combined)
+        shader.bind(); shader.setUniformMatrix("u_projViewTrans", camera.combined); WorldBend.apply(shader)
         shader.setUniformf("u_matrix", matrix)
         kit.setLightUniforms(shader)
         if (matrix > 0f) { Gdx.gl.glEnable(GL20.GL_POLYGON_OFFSET_FILL); Gdx.gl.glPolygonOffset(1f, 1f) }

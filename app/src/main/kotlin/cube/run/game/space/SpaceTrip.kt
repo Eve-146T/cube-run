@@ -55,7 +55,7 @@ class SpaceTrip(seed: Int) {
         repeat(2) { // a long stay (the section tester) goes round again
             for (k in route) {
                 landmarks.add(Landmark(k, at, side, rnd.nextInt()))
-                at += 55f + rnd.nextFloat() * 30f
+                at += 75f + rnd.nextFloat() * 30f
                 side = if (rnd.nextFloat() < 0.75f) -side else side
             }
         }
