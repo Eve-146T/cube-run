@@ -46,7 +46,7 @@ object SoundFx {
             val names = listOf("tap", "blip", "pop", "place", "perfect", "combo", "success", "fail", "whoosh", "boom", "coin", "rise", "slide", "fanfare", "drain", "bell",
                 "warp", "moonjump", "moonland", "flyby", "stardust", "hum")
             // A redesigned sound gets a new file name, so installed games synthesize it again.
-            fun file(name: String) = File(dir, when (name) { "coin" -> "coin-chime-v2.wav"; "stardust" -> "stardust-v2.wav"; else -> "$name.wav" })
+            fun file(name: String) = File(dir, when (name) { "coin" -> "coin-chime-v2.wav"; "stardust" -> "stardust-v3.wav"; else -> "$name.wav" })
             // Installed games already have these WAVs. Do not synthesize all samples again.
             if (names.any { !file(it).exists() || file(it).length() == 0L }) {
                 for ((name, pcm) in synthAll()) if (!file(name).exists() || file(name).length() == 0L) file(name).writeBytes(wav(pcm))
@@ -279,26 +279,19 @@ object SoundFx {
     }
 
     /**
-     * A coin in space: a crisp glassy "ding-ding" up a fourth (FM bell: a bright
-     * strike that mellows as it rings) and a few tiny sparkles after it, high
-     * and quick, like the coin bursting into stardust. Short, so a streak of
-     * them climbs cleanly instead of smearing.
+     * A coin in space: one soft, round note (A5) with a slow chorus shimmer
+     * from a twin a few hertz off, a breath of octave on the onset and a short
+     * tail. No bright strike and no high sparkle: a long line of coins should
+     * stay pleasant, never shrill.
      */
     private fun stardust(): ShortArray {
-        val sparkles = doubleArrayOf(0.07, 3520.0, 0.115, 4186.0, 0.165, 3951.0)
-        fun bell(tn: Double, f: Double, decay: Double): Double { // FM: a bright strike that mellows as it rings
-            if (tn <= 0.0) return 0.0
-            val index = 2.2 * exp(-tn * 30.0)
-            return (sin(tn * f * TAU + index * sin(tn * f * 2.0 * TAU)) + 0.13 * sin(tn * f * 3.0 * TAU) * exp(-tn * 25.0)) *
-                exp(-tn * decay) * min(1.0, tn * 400.0)
-        }
-        return synth(380, vol = 0.6) { t, p ->
-            var sparkle = 0.0
-            for (k in sparkles.indices step 2) {
-                val ts = t - sparkles[k]
-                if (ts > 0.0) sparkle += sin(ts * sparkles[k + 1] * TAU) * exp(-ts * 55.0) * min(1.0, ts * 900.0)
-            }
-            (bell(t, 987.77, 40.0) * 0.5 + bell(t - 0.05, 1318.5, 9.0) * 0.62 + sparkle * 0.2) * min(1.0, (1.0 - p) * 12.0) // no click at the end
+        var phase = 0.0
+        var twin = 0.0
+        return synth(260, vol = 0.55) { t, p ->
+            val f = 880.0 * (0.985 + 0.015 * (1.0 - exp(-t * 70.0)))     // settles up into the note
+            phase += f / SR; twin += (f + 4.0) / SR
+            val tone = sin(phase * TAU) + 0.35 * sin(twin * TAU) + 0.16 * sin(phase * 2.0 * TAU) * exp(-t * 40.0)
+            tone / 1.5 * exp(-t * 13.0) * min(1.0, t * 250.0) * min(1.0, (1.0 - p) * 10.0)
         }
     }
 

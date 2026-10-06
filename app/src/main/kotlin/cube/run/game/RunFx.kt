@@ -14,8 +14,8 @@ import kotlin.random.Random
 private val ZEN_NOTES = floatArrayOf(1f, 1.125f, 1.25f, 1.5f, 1.6875f)
 
 /** Two octaves of a major pentatonic for space coins: a coin streak climbs, wraps, climbs again. */
-/** Space coins climb a major pentatonic scale with the streak, then sparkle between its top two notes. */
-private val STARDUST_NOTES = floatArrayOf(1f, 1.125f, 1.25f, 1.5f, 1.6875f, 2f)
+/** Space coins climb gently with the streak (a major pentatonic, never above a fifth), then rock between the top two notes. */
+private val STARDUST_NOTES = floatArrayOf(1f, 1.125f, 1.25f, 1.5f)
 
 /**
  * The run's feedback vocabulary: every event's sound + haptic + flash +
@@ -129,7 +129,7 @@ class RunFx(private val game: Gdx3DGame, private val rnd: Random) {
     var stardust = false
 
     fun coin(x: Float, y: Float, z: Float, pitch: Int, gold: Color) {
-        if (stardust) SoundFx.play("stardust", rate = stardustNote(pitch), vol = 0.7f)
+        if (stardust) SoundFx.play("stardust", rate = stardustNote(pitch), vol = 0.6f)
         else SoundFx.play("coin", rate = (1f + 0.04f * minOf(pitch, 12)).coerceAtMost(1.5f), vol = 0.7f)
         Haptics.tick()
         game.burst3d(tmp.set(x, y, z), gold, n = 6, speed = 3.2f, size = 0.09f, life = 0.4f)

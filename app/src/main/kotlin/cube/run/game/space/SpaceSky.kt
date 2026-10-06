@@ -17,7 +17,7 @@ import kotlin.random.Random
 /**
  * Everything around the floating road in Outer Space, in two speeds at once,
  * built from chunky boxes like every other world. Far away it is calm: the
- * journey's [landmarks] drifting past, a sky full of little cube stars.
+ * journey's [landmarks] drifting past (the stars are painted by [SpaceDeco]).
  * Close by it is fast: cube asteroids tumbling past the road, warp streaks
  * that outrun the world. Space weather comes and goes: an asteroid belt,
  * comets (the meteor shower and nebula clouds are painted by [SpaceDeco]).
@@ -36,14 +36,11 @@ class SpaceSky(private val game: Gdx3DGame, private val space: SpaceWorld) {
     private val rocks = ArrayList<Rock>()
     private val streaks = ArrayList<Streak>()
     private val comets = ArrayList<Comet>()
-    private var stars = FloatArray(0)           // x, y, z, size, phase per star
     private var rnd = Random(1)
     private var trip: SpaceTrip? = null
     private var nextComet = 0f
     private var lastWhoosh = -9f
 
-    private val starPal = arrayOf(Color())
-    private val starTint = arrayOf(Color())
     private val rockPal = arrayOf(Color(), Color())
     private val cometPal = arrayOf(Color(1f, 1f, 1f, 1f))
     private val tailPal = arrayOf(Color())
@@ -57,19 +54,6 @@ class SpaceSky(private val game: Gdx3DGame, private val space: SpaceWorld) {
         val n = (ROCKS * trip.asteroidDensity).toInt()
         repeat(n) { rocks.add(Rock(0f, 0f, -rnd.nextFloat() * 120f + 10f, 0f, 0f, 0f, 0f, 0f, 0).also { seedRock(it) }) }
         repeat(STREAKS) { streaks.add(Streak(0f, 0f, -rnd.nextFloat() * 110f + 8f, 0f).also { seedStreak(it) }) }
-        val sr = Random(trip.starSeed)
-        stars = FloatArray(STARS * 5)
-        for (i in 0 until STARS) {
-            // a shell around the camera, wider than the view so a lean never shows its edge, below the road too
-            val az = (sr.nextFloat() - 0.5f) * 84f * DEG
-            val el = (-52f + sr.nextFloat() * 86f) * DEG
-            val d = 190f + sr.nextFloat() * 70f
-            stars[i * 5] = d * sin(az) * cos(el)
-            stars[i * 5 + 1] = 3f + d * sin(el)
-            stars[i * 5 + 2] = 6f - d * cos(az) * cos(el)
-            stars[i * 5 + 3] = if (sr.nextFloat() < 0.15f) 1.1f + sr.nextFloat() * 0.4f else 0.5f + sr.nextFloat() * 0.3f
-            stars[i * 5 + 4] = sr.nextFloat() * 6.28f
-        }
         nextComet = 1.5f
         landmarks.begin(trip)
     }
@@ -165,22 +149,10 @@ class SpaceSky(private val game: Gdx3DGame, private val space: SpaceWorld) {
         if (a <= 0.01f) return
         // A fade in or out is a fly-through: things fly in from the far haze rather than fading (opaque only).
         val reach = a * a
-        renderStars(time, reach)
         landmarks.render(time, reach)
         renderRocks(fogCol, reach)
         for (k in comets) renderComet(k, time, fogCol)
         renderStreaks(speedK, reach)
-    }
-
-    private fun renderStars(time: Float, reach: Float) {
-        starPal[0].set(space.star); starTint[0].set(space.neonSoft)
-        val fog = 1f - reach
-        for (i in 0 until STARS) {
-            val phase = stars[i * 5 + 4]
-            val s = stars[i * 5 + 3] * (0.75f + 0.25f * sin(time * 2.1f + phase * 3f))
-            game.facets.add(cube, stars[i * 5], stars[i * 5 + 1], stars[i * 5 + 2], s, s, s,
-                phase * 57f + time * 25f, 35f, 0f, if (i % 3 == 2) starTint else starPal, fog, game.fogColor, glow = 1f) // every third star tinted
-        }
     }
 
     private fun renderRocks(fogCol: Color, reach: Float) {
@@ -229,6 +201,5 @@ class SpaceSky(private val game: Gdx3DGame, private val space: SpaceWorld) {
         const val ROCKS = 20
         const val MAX_ROCKS = 40
         const val STREAKS = 24
-        const val STARS = 80
     }
 }

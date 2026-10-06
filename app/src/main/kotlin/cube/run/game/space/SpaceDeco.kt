@@ -15,9 +15,10 @@ import kotlin.random.Random
 /**
  * The flat backdrop of Outer Space, painted behind everything (no depth) on a
  * plane far down the camera's line of sight: the Milky Way as a soft band of
- * dust and glow, a field of little dot stars, four-pointed sparkles that
+ * glow, soft round stars (thicker along the band), four-pointed sparkles that
  * twinkle, and shooting stars streaking across now and then (a whole shower
- * of them when the trip passes through one).
+ * of them when the trip passes through one). Nothing is pixel-small: tiny
+ * specks read as dirt on a phone.
  *
  * Plane coordinates are in units of the half view height at that depth, so
  * the picture fills any phone the same way.
@@ -26,8 +27,7 @@ class SpaceDeco(private val space: SpaceWorld) {
 
     private class Shooter(var u: Float, var v: Float, var du: Float, var dv: Float, var life: Float, val span: Float, var size: Float)
 
-    private var dots = FloatArray(0)        // u, v, size, brightness, phase
-    private var dust = FloatArray(0)        // the Milky Way's dust: u, v, size, brightness
+    private var stars = FloatArray(0)       // u, v, radius, brightness, phase
     private var sparkles = FloatArray(0)    // u, v, size, phase, tinted (0/1)
     private var blobs = FloatArray(0)       // u, v, radius along, radius across, angle, alpha
     private val shooters = ArrayList<Shooter>()
@@ -51,26 +51,24 @@ class SpaceDeco(private val space: SpaceWorld) {
     fun begin(trip: SpaceTrip) {
         val r = Random(trip.starSeed xor 0x5EED)
         rnd = Random(trip.starSeed)
-        dots = FloatArray(DOTS * 5) { 0f }
-        for (i in 0 until DOTS) {
-            dots[i * 5] = (r.nextFloat() * 2f - 1f) * WIDE
-            dots[i * 5 + 1] = (r.nextFloat() * 2f - 1f) * TALL
-            dots[i * 5 + 2] = 0.0035f + r.nextFloat() * r.nextFloat() * 0.006f
-            dots[i * 5 + 3] = 0.35f + r.nextFloat() * 0.65f
-            dots[i * 5 + 4] = r.nextFloat() * 6.28f
-        }
         // The band: a tilted stripe through the sky, a little off centre.
         val angle = (if (r.nextBoolean()) 1f else -1f) * (25f + r.nextFloat() * 40f) * DEG
         val ax = cos(angle); val ay = sin(angle)
         val off = (r.nextFloat() - 0.3f) * 0.6f
-        dust = FloatArray(DUST * 4)
-        for (i in 0 until DUST) {
-            val t = (r.nextFloat() * 2f - 1f) * 2.4f
-            val across = gauss(r) * 0.16f
-            dust[i * 4] = ax * t - ay * (across + off)
-            dust[i * 4 + 1] = ay * t + ax * (across + off)
-            dust[i * 4 + 2] = 0.003f + r.nextFloat() * 0.004f
-            dust[i * 4 + 3] = 0.25f + r.nextFloat() * 0.5f
+        stars = FloatArray(STARS * 5)
+        for (i in 0 until STARS) {
+            if (i % 5 < 2) { // two in five crowd along the band
+                val t = (r.nextFloat() * 2f - 1f) * 2.2f
+                val across = gauss(r) * 0.2f
+                stars[i * 5] = ax * t - ay * (across + off)
+                stars[i * 5 + 1] = ay * t + ax * (across + off)
+            } else {
+                stars[i * 5] = (r.nextFloat() * 2f - 1f) * WIDE
+                stars[i * 5 + 1] = (r.nextFloat() * 2f - 1f) * TALL
+            }
+            stars[i * 5 + 2] = 0.011f + r.nextFloat() * r.nextFloat() * 0.014f
+            stars[i * 5 + 3] = 0.55f + r.nextFloat() * 0.45f
+            stars[i * 5 + 4] = r.nextFloat() * 6.28f
         }
         blobs = FloatArray(BLOBS * 6)
         for (i in 0 until BLOBS) {
@@ -94,7 +92,7 @@ class SpaceDeco(private val space: SpaceWorld) {
         cloudSeed = r.nextInt()
     }
 
-    fun clear() { shooters.clear(); dots = FloatArray(0); dust = FloatArray(0); sparkles = FloatArray(0); blobs = FloatArray(0) }
+    fun clear() { shooters.clear(); stars = FloatArray(0); sparkles = FloatArray(0); blobs = FloatArray(0) }
 
     fun tick(dt: Float) {
         if (clouds > 0f) cloudTime += dt
@@ -126,7 +124,7 @@ class SpaceDeco(private val space: SpaceWorld) {
     /** Paint the backdrop. Call from the backdrop pass (blended, no depth). */
     fun render(shapes: ShapeRenderer, cam: Camera, time: Float) {
         val a = space.blend * space.blend
-        if (a <= 0.01f || dots.isEmpty()) return
+        if (a <= 0.01f || stars.isEmpty()) return
         // the plane: far down the line of sight, facing the camera, in units of half its view height
         val scale = DEPTH * tan(fieldOfView(cam) * 0.5f * DEG)
         centre.set(cam.direction).scl(DEPTH).add(cam.position)
@@ -136,7 +134,7 @@ class SpaceDeco(private val space: SpaceWorld) {
         plane.set(right.scl(scale), up.scl(scale), back, centre)
         shapes.transformMatrix = plane
 
-        // the Milky Way: soft glow first, then its dust
+        // the Milky Way's glow, then the stars
         band.set(space.neonSoft).lerp(space.skyBottom, 0.4f)
         for (i in 0 until BLOBS) {
             val k = i * 6
@@ -144,16 +142,12 @@ class SpaceDeco(private val space: SpaceWorld) {
             bandEdge.set(band.r, band.g, band.b, 0f)
             ellipse(shapes, blobs[k], blobs[k + 1], blobs[k + 2], blobs[k + 3], blobs[k + 4], c0, bandEdge)
         }
-        for (i in 0 until DUST) {
-            val k = i * 4
-            c0.set(1f, 1f, 1f, dust[k + 3] * a)
-            square(shapes, dust[k], dust[k + 1], dust[k + 2], c0)
-        }
-        for (i in 0 until DOTS) {
+        for (i in 0 until STARS) { // soft round stars, a slow gentle twinkle
             val k = i * 5
-            val tw = 0.7f + 0.3f * sin(time * 1.7f + dots[k + 4] * 5f)
-            c0.set(space.star.r, space.star.g, space.star.b, dots[k + 3] * tw * a)
-            square(shapes, dots[k], dots[k + 1], dots[k + 2], c0)
+            val tw = 0.85f + 0.15f * sin(time * 1.1f + stars[k + 4] * 5f)
+            c0.set(space.star.r, space.star.g, space.star.b, stars[k + 3] * tw * a)
+            c1.set(space.star.r, space.star.g, space.star.b, 0f)
+            ellipse(shapes, stars[k], stars[k + 1], stars[k + 2], stars[k + 2], 0f, c0, c1)
         }
         for (i in 0 until SPARKLES) {
             val k = i * 5
@@ -244,8 +238,7 @@ class SpaceDeco(private val space: SpaceWorld) {
         const val DEPTH = 300f
         const val WIDE = 1.4f      // half-width of the painted area (a phone is ~0.5 wide; the camera leans)
         const val TALL = 1.25f
-        const val DOTS = 220
-        const val DUST = 260
+        const val STARS = 70
         const val BLOBS = 7
         const val SPARKLES = 22
         const val ELLIPSE = 14

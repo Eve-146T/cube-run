@@ -55,16 +55,40 @@ class SpaceLandmarks(private val game: Gdx3DGame, private val space: SpaceWorld)
         hsvInto(panel[0], 214f, 0.72f, 0.96f)
     }
 
-    fun begin(trip: SpaceTrip) { this.trip = trip; live.clear(); next = 0 }
+    fun begin(trip: SpaceTrip) { this.trip = trip; live.clear(); next = 0; shown = 0; skipped = 0; retryAt = 0f }
 
-    fun clear() { trip = null; live.clear(); next = 0 }
+    private var retryAt = 0f
+
+    /** This trip so far: landmarks that came up, and those that never found room. */
+    var shown = 0
+        private set
+    var skipped = 0
+        private set
+
+    /** Do any two landmarks overlap on screen right now? (Never, by [place]; checked by tests.) */
+    fun overlapping(): Boolean {
+        for (i in live.indices) for (j in i + 1 until live.size) {
+            if (!onScreen(live[i], 0f, a) || !onScreen(live[j], 0f, b)) continue
+            val dx = a[0] - b[0]; val dy = a[1] - b[1]
+            val gap = (a[2] + b[2]) * 1.1f + 0.03f
+            if (dx * dx + dy * dy < gap * gap) return true
+        }
+        return false
+    }
+
+    fun clear() { trip = null; live.clear(); next = 0; retryAt = 0f }
 
     fun tick(mv: Float, travelled: Float) {
         val trip = trip ?: return
+        // The next landmark comes up once the trip reaches it AND the sky has room for it; one that
+        // cannot find room before the trip is [PATIENCE] past it is skipped (so is one the trip jumped past).
         while (next < trip.landmarks.size && trip.landmarks[next].at <= travelled) {
-            val plan = trip.landmarks[next++]
-            // one that is long overdue (the trip jumped ahead) is skipped, not piled up far away
-            if (travelled - plan.at < OVERDUE && live.size < MAX_LIVE) spawn(plan)
+            val plan = trip.landmarks[next]
+            if (travelled - plan.at > PATIENCE) { next++; skipped++; continue }
+            if (travelled < retryAt) break
+            val placed = if (live.size < MAX_LIVE) place(plan) else null
+            if (placed == null) { retryAt = travelled + RETRY; break } // no room yet: look again a little later
+            live.add(placed); next++; shown++
         }
         var i = live.size - 1
         while (i >= 0) {
@@ -77,15 +101,29 @@ class SpaceLandmarks(private val game: Gdx3DGame, private val space: SpaceWorld)
         }
     }
 
-    private fun spawn(plan: SpaceTrip.Landmark) {
-        val r = Random(plan.seed)
+    /**
+     * Find [plan] a place where, all the way past, it never overlaps on screen
+     * with anything already in the sky: a few tries on its own side, then the
+     * other. Null when the sky is too busy for it right now.
+     */
+    private fun place(plan: SpaceTrip.Landmark): Live? {
         val l = Live(plan)
-        val side = plan.side
-        look(l, r)
-        when (plan.kind) {
+        look(l, Random(plan.seed))
+        val r = Random(plan.seed + 1)
+        for (attempt in 0 until TRIES) {
+            arrange(l, r, if (attempt < TRIES / 2) plan.side else -plan.side)
+            l.z = SPAWN_Z; l.travelled = 0f
+            if (roomFor(l)) return l
+        }
+        return null
+    }
+
+    /** Where a landmark of its kind goes on [side], how fast it closes in, and its ring and moons. */
+    private fun arrange(l: Live, r: Random, side: Float) {
+        when (l.plan.kind) {
             SpaceTrip.PLANET -> {
                 l.radius = 8f + r.nextFloat() * 8f
-                l.x = side * (l.radius + 14f + r.nextFloat() * 20f); l.y = -6f + r.nextFloat() * 24f
+                l.x = side * (l.radius + 14f + r.nextFloat() * 22f); l.y = -16f + r.nextFloat() * 60f
                 l.rate = 0.7f + r.nextFloat() * 0.15f
                 l.ring = if (r.nextFloat() < 0.3f) 1.8f + r.nextFloat() * 0.4f else 0f
                 l.moons = r.nextInt(3)
@@ -93,40 +131,81 @@ class SpaceLandmarks(private val game: Gdx3DGame, private val space: SpaceWorld)
             SpaceTrip.RINGED -> {
                 l.radius = 13f + r.nextFloat() * 6f
                 l.ring = 1.9f + r.nextFloat() * 0.4f
-                l.x = side * (l.radius * l.ring + 12f + r.nextFloat() * 8f); l.y = 6f + r.nextFloat() * 14f
+                l.x = side * (l.radius * l.ring + 12f + r.nextFloat() * 10f); l.y = -4f + r.nextFloat() * 44f
                 l.rate = 0.6f
                 l.moons = 1 + r.nextInt(2)
             }
             SpaceTrip.GIANT -> {
                 l.radius = 40f; l.ring = 1.7f
                 l.ringTilt = 5f + r.nextFloat() * 5f // nearly flat: its ring stays well below the road
-                l.x = side * 34f; l.y = -110f // off to one side, so the glass road still reads above it
+                l.x = side * (30f + r.nextFloat() * 10f); l.y = -110f // off to one side, so the glass road still reads above it
                 l.rate = 0.45f
             }
             SpaceTrip.MOONS -> {
                 l.radius = 3.5f + r.nextFloat() * 1.5f
-                l.x = side * (20f + r.nextFloat() * 10f); l.y = 14f + r.nextFloat() * 10f
+                l.x = side * (20f + r.nextFloat() * 14f); l.y = 8f + r.nextFloat() * 34f
                 l.rate = 0.8f
                 l.moons = 4
             }
             SpaceTrip.STATION -> {
                 l.radius = 14f
-                l.x = side * (26f + r.nextFloat() * 8f); l.y = 8f + r.nextFloat() * 8f
+                l.x = side * (26f + r.nextFloat() * 12f); l.y = 4f + r.nextFloat() * 32f
                 l.rate = 0.7f
             }
             SpaceTrip.BLACK_HOLE -> {
                 l.radius = 8f
-                l.x = side * (30f + r.nextFloat() * 10f); l.y = 12f + r.nextFloat() * 10f
+                l.x = side * (30f + r.nextFloat() * 12f); l.y = 6f + r.nextFloat() * 34f
                 l.rate = 0.55f
             }
             SpaceTrip.SUN -> {
                 l.radius = 20f
-                l.x = side * (8f + r.nextFloat() * 20f); l.y = -22f
+                l.x = side * (8f + r.nextFloat() * 24f); l.y = -22f
                 l.rate = 0.04f
-                hsvInto(l.colors[0], 44f + r.nextFloat() * 12f, 0.45f, 1f); hsvInto(l.colors[1], 30f, 0.6f, 1f)
             }
         }
-        live.add(l)
+    }
+
+    /** How far a landmark reaches from its centre, rings, moons and wings included. */
+    private fun extent(l: Live): Float = when (l.plan.kind) {
+        SpaceTrip.MOONS -> l.radius * 5f
+        SpaceTrip.STATION -> 22f
+        SpaceTrip.BLACK_HOLE -> l.radius * 3f
+        SpaceTrip.SUN -> l.radius * 2.2f // body and the bright middle of its rays
+        else -> l.radius * max(max(1f, l.ring), if (l.moons > 0) 1.6f else 1f) // little moons may brush past
+    }
+
+    private val a = FloatArray(3)
+    private val b = FloatArray(3)
+
+    /**
+     * [l]'s place on screen once the trip has flown [ahead] more: x, y and radius
+     * as view tangents. False when behind, off screen, too close or still in the
+     * haze. [slack] widens those windows, so a prediction made in steps is
+     * stricter than the moment-to-moment truth.
+     */
+    private fun onScreen(l: Live, ahead: Float, out: FloatArray, slack: Float = 0f): Boolean {
+        val depth = CAMERA_Z - (l.z + ahead * l.rate)
+        // Closer than [NEAR] it is sweeping off the edge of the screen: its rough disc would cover half the view.
+        if (depth < NEAR - slack || (l.plan.kind == SpaceTrip.SUN && l.travelled + ahead > SUN_STAY + slack)) return false
+        if (l.plan.kind != SpaceTrip.SUN && depth > CAMERA_Z + HAZED + slack) return false // still a faint shape in the haze
+        val y = if (l.plan.kind == SpaceTrip.SUN) sunY(l, l.travelled + ahead) else l.y
+        out[0] = l.x / depth; out[1] = (y - CAMERA_Y) / depth; out[2] = extent(l) / depth
+        return kotlin.math.abs(out[0]) - out[2] < VIEW_W && kotlin.math.abs(out[1]) - out[2] < VIEW_H
+    }
+
+    /** Does [c] pass by without ever overlapping anything already up, on screen? */
+    private fun roomFor(c: Live): Boolean {
+        var ahead = 0f
+        while (c.z + ahead * c.rate < 10f && ahead < 900f) {
+            if (onScreen(c, ahead, a, SLACK)) for (o in live) {
+                if (!onScreen(o, ahead, b, SLACK)) continue
+                val dx = a[0] - b[0]; val dy = a[1] - b[1]
+                val gap = (a[2] + b[2]) * 1.1f + 0.03f
+                if (dx * dx + dy * dy < gap * gap) return false
+            }
+            ahead += STEP
+        }
+        return true
     }
 
     /** Colours, bands, tilt and spin from the landmark's own seed. */
@@ -140,6 +219,7 @@ class SpaceLandmarks(private val game: Gdx3DGame, private val space: SpaceWorld)
         }
         hsvInto(l.ringColors[0], look[3] + 10f, 0.35f, 1f); hsvInto(l.ringColors[1], look[6], 0.45f, 0.9f)
         l.ringTilt = 12f + r.nextFloat() * 22f
+        if (l.plan.kind == SpaceTrip.SUN) { hsvInto(l.colors[0], 44f + r.nextFloat() * 12f, 0.45f, 1f); hsvInto(l.colors[1], 30f, 0.6f, 1f) }
         l.tilt = (r.nextFloat() - 0.5f) * 40f
         l.spin = (2f + r.nextFloat() * 5f) * (if (r.nextBoolean()) 1f else -1f)
     }
@@ -231,7 +311,7 @@ class SpaceLandmarks(private val game: Gdx3DGame, private val space: SpaceWorld)
     private fun sunFade(l: Live): Float =
         (l.travelled / 60f).coerceIn(0f, 1f) * (1f - ((l.travelled - SUN_STAY * 0.8f) / (SUN_STAY * 0.2f)).coerceIn(0f, 1f))
 
-    private fun sunY(l: Live) = l.y + 32f * (l.travelled / SUN_STAY).coerceIn(0f, 1f).let { it * (2f - it) }
+    private fun sunY(l: Live, travelled: Float = l.travelled) = l.y + 32f * (travelled / SUN_STAY).coerceIn(0f, 1f).let { it * (2f - it) }
 
     /** Blended extras: the sun's rays. Draw with the world's bend switched off (the sky does not bend). */
     fun renderShapes(shapes: ShapeRenderer, time: Float) {
@@ -246,9 +326,23 @@ class SpaceLandmarks(private val game: Gdx3DGame, private val space: SpaceWorld)
 
     private companion object {
         const val SPAWN_Z = -300f
-        /** Landmarks the trip is this far past are skipped; never more than [MAX_LIVE] at once. */
-        const val OVERDUE = 40f
+        /** A landmark waits at most this far (units flown) for room in the sky; never more than [MAX_LIVE] at once. */
+        const val PATIENCE = 90f
         const val MAX_LIVE = 6
+        const val TRIES = 16
+        /** The prediction looks every [STEP] units flown, with windows [SLACK] wider (more than a step's movement). */
+        const val STEP = 4f
+        const val SLACK = 5f
+        /** A landmark with no room looks again after this much flying (the search is not free). */
+        const val RETRY = 4f
+        /** The camera, roughly, and half the view as tangents (a little wider than a phone, for the lean). */
+        const val CAMERA_Z = 6f
+        const val CAMERA_Y = 3.5f
+        const val NEAR = 25f
+        /** Further than this (from the camera) a landmark is still fading in out of the haze. */
+        const val HAZED = 240f
+        const val VIEW_W = 0.38f
+        const val VIEW_H = 0.8f
         /** Beyond this, landmarks are drawn coarser. */
         const val FAR_Z = -170f
         const val MODULES = 10
