@@ -193,7 +193,8 @@ class Track(private val rnd: Random, private val fx: ObstacleFactory) {
                     ObAnim.PENDULUM -> ob.x = sin(time * 2.4f + ob.phase) * row.laneWidth * 1.15f
                 }
             }
-            if (row.z > 12f) rows.removeAt(i)
+            // A passed row goes, unless coins it laid far ahead (a gravity ring's long arc) are still to come.
+            if (row.z > 12f && row.coins?.any { !it.taken && row.z + it.dz <= 12f } != true) rows.removeAt(i)
             i--
         }
     }

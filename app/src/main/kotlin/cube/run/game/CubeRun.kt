@@ -1064,8 +1064,11 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
         // freshly spawned rows dissolve into the background instead of popping in
         fogColor.set(bgBottom).lerp(bgTop, space.fogMix(worlds.fogMix))
         syncFog()
+        space.rifts.update(track.rows)
+        trackArt.glassRifts = space.blend > 0f
         scenery.renderRoad()
         trackArt.render(track, time, kaleido, kaleidoHue)
+        if (space.blend > 0f) space.rifts.render()
         debris.render()
         zenDissolve.render()
         val wind = if (dead) 0f else ((spd - 13f) / 15f).coerceIn(0f, 1f)

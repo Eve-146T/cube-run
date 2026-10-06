@@ -21,7 +21,7 @@ import kotlin.random.Random
  * Available sound names (pitch-shift with `rate` 0.5..2.0 for variety):
  *  tap, blip, pop, place, perfect, combo, success, fail,
  *  whoosh, boom, coin, rise, slide, fanfare, drain, bell,
- *  and Outer Space's: warp, moonjump, moonland, flyby, stardust, hum (a loop)
+ *  and Outer Space's: moonjump, moonland, flyby, stardust, hum (a loop)
  */
 object SoundFx {
     // Investigation hooks: inactive in ordinary runs and release builds.
@@ -44,7 +44,7 @@ object SoundFx {
             pool = p
             val dir = File(ctx.cacheDir, "sfx").apply { mkdirs() }
             val names = listOf("tap", "blip", "pop", "place", "perfect", "combo", "success", "fail", "whoosh", "boom", "coin", "rise", "slide", "fanfare", "drain", "bell",
-                "warp", "moonjump", "moonland", "flyby", "stardust", "hum")
+                "moonjump", "moonland", "flyby", "stardust", "hum")
             // A redesigned sound gets a new file name, so installed games synthesize it again.
             fun file(name: String) = File(dir, when (name) { "coin" -> "coin-chime-v2.wav"; "stardust" -> "stardust-v3.wav"; else -> "$name.wav" })
             // Installed games already have these WAVs. Do not synthesize all samples again.
@@ -125,7 +125,6 @@ object SoundFx {
         "slide" to lowpassed(130, 0.22) { _, p -> noise() * sin(p * PI).pow(0.8) * 0.8 },
         "fanfare" to fanfare(),
         "drain" to drain(),
-        "warp" to warp(),
         "moonjump" to moonJump(),
         "moonland" to moonLand(),
         "flyby" to flyby(),
@@ -228,20 +227,6 @@ object SoundFx {
     }
 
     // ------------------------------------------------------------ outer space
-
-    /** Through the portal: a rising shimmer of fifths over a whoosh that opens up, swelling then gone. */
-    private fun warp(): ShortArray {
-        var phase = 0.0
-        var acc = 0.0
-        return synth(1300, vol = 0.8) { t, p ->
-            val glide = 1.0 + 0.5 * p.pow(1.6)
-            phase += glide / SR
-            val chord = sin(phase * 330.0 * TAU) + 0.6 * sin(phase * 495.0 * TAU) + 0.45 * sin(phase * 660.0 * TAU + 0.4 * sin(t * 6.0 * TAU))
-            acc += (0.04 + 0.3 * p) * (noise() - acc)  // the whoosh brightens as it passes
-            val env = (p / 0.12).coerceAtMost(1.0) * exp(-max0(p - 0.45) * 5.0)
-            (chord * 0.28 + acc * 0.9 * sin(p * PI)) * env
-        }
-    }
 
     /** A low-gravity take-off: a soft, airy sine that rises and floats away. */
     private fun moonJump(): ShortArray {

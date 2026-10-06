@@ -172,6 +172,30 @@ class SpaceSectionsTest {
 
     private fun player(game: CubeRun): Player = value(game, "player")
 
+    /** A gravity ring's coins arc far ahead of its row: they must stay until the player reaches them, not vanish with the row. */
+    @Test fun ringArcCoinsStayUntilThePlayerReachesThem() {
+        for (section in listOf(204, 211)) for (speed in listOf(12.4f, 30f)) {
+            Settings.testSection = section
+            Lanes.reset()
+            val rng = Random(section)
+            val track = Track(rng, ObstacleFactory(rng)).apply { portalPool = emptyList() }
+            track.reset(0.2f, 120f, initialBonus = Bonus.SPACE)
+            track.speed = speed
+            val owner = java.util.IdentityHashMap<Coin, Row>()
+            var arcs = 0
+            repeat(4000) {
+                track.spawn(speed / 60f, 120f, 900, dt = 1f / 60f)
+                for (r in track.rows) r.coins?.forEach { c -> if (owner.put(c, r) == null && c.dz < -8f) arcs++ }
+                track.scroll(speed / 60f, it / 60f, 1f / 60f)
+                for ((c, r) in owner) if (r !in track.rows) {
+                    assertTrue("section $section speed $speed: a coin left at ${r.z + c.dz} before the player reached it", r.z + c.dz > 1.1f)
+                }
+                owner.keys.removeAll { owner[it] !in track.rows }
+            }
+            assertTrue("section $section: ring arcs were laid", arcs > 0)
+        }
+    }
+
     @Test fun theSpaceStretchLastsHalfAgainTheLongestOtherWorld() {
         val longestOther = Bonus.all.filter { it.id != Bonus.SPACE }.maxOf { it.rows }
         assertEquals(longestOther * 3 / 2, Bonus.get(Bonus.SPACE).rows)

@@ -2,7 +2,6 @@ package cube.run.game.space
 
 import com.badlogic.gdx.graphics.Color
 import cube.run.core.Gdx3DGame
-import cube.run.core.SoundFx
 import cube.run.core.gfx.WorldBend
 import cube.run.core.hsvInto
 import kotlin.math.max
@@ -39,6 +38,7 @@ class SpaceWorld(private val game: Gdx3DGame) {
 
     val sky = SpaceSky(game, this)
     val deco = SpaceDeco(this)
+    val rifts = SpaceRifts(game)
     private val audio = SpaceAudio()
 
     // trip colours, refreshed on entry
@@ -66,7 +66,6 @@ class SpaceWorld(private val game: Gdx3DGame) {
         sky.begin(t)
         deco.begin(t)
         if (instant) { blend = 1f; warp = 0f } else warp = 1f
-        SoundFx.play("warp", vol = 0.9f)
     }
 
     /** Through the exit portal: the picture fades home. */
@@ -74,7 +73,6 @@ class SpaceWorld(private val game: Gdx3DGame) {
         if (!inside) return
         inside = false
         warp = 0.6f
-        SoundFx.play("warp", rate = 0.8f, vol = 0.8f)
     }
 
     fun reset() {
