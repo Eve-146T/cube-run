@@ -14,30 +14,42 @@ import java.util.IdentityHashMap
 /** Static voxel surfaces, with only 160 bytes uploaded per object per frame. */
 internal class InstancedFacets(private val kit: BoxMeshKit) : Disposable {
     private class Group(shape: FacetShape) {
-        val mesh = Mesh(true, shape.faces * 3, 0,
+        // A voxel face consists of two triangles with four identical surface vertices.
+        // Index those corners so the vertex shader runs four times instead of six.
+        val mesh = Mesh(true, shape.faces * 2, shape.faces * 3,
             VertexAttribute(Usage.Position, 3, "a_position"),
             VertexAttribute(Usage.Normal, 3, "a_normal"),
             VertexAttribute(Usage.Generic, 3, "a_surface"))
-        val data = FloatArray(CAPACITY * STRIDE)
-        var used = 0
+        val solid = FloatArray(CAPACITY * STRIDE)
+        val fading = FloatArray(CAPACITY * STRIDE)
+        var solidUsed = 0
+        var fadingUsed = 0
         init {
-            val vertices = FloatArray(shape.faces * 27)
+            require(shape.faces % 2 == 0 && shape.faces * 2 <= 65536)
+            val vertices = FloatArray(shape.faces * 18)
+            val indices = ShortArray(shape.faces * 3)
             var w = 0
-            for (f in 0 until shape.faces) for (v in 0 until 3) {
-                for (axis in 0..2) vertices[w++] = shape.pos[f * 9 + v * 3 + axis]
-                for (axis in 0..2) vertices[w++] = shape.nrm[f * 3 + axis]
-                vertices[w++] = shape.slot[f].toFloat()
-                vertices[w++] = shape.tone[f]
-                vertices[w++] = shape.lat[f]
+            var index = 0
+            for (f in 0 until shape.faces step 2) {
+                // c00,c10,c11 from the first triangle, c01 from the second.
+                for (corner in intArrayOf(0, 1, 2, 5)) {
+                    for (axis in 0..2) vertices[w++] = shape.pos[f * 9 + corner * 3 + axis]
+                    for (axis in 0..2) vertices[w++] = shape.nrm[f * 3 + axis]
+                    vertices[w++] = shape.slot[f].toFloat()
+                    vertices[w++] = shape.tone[f]
+                    vertices[w++] = shape.lat[f]
+                }
+                val base = f * 2
+                for (offset in intArrayOf(0, 1, 2, 0, 2, 3)) indices[index++] = (base + offset).toShort()
             }
-            mesh.setVertices(vertices)
+            mesh.setVertices(vertices); mesh.setIndices(indices)
             mesh.enableInstancedRendering(false, CAPACITY,
                 *Array(10) { VertexAttribute(Usage.Generic, 4, "i_$it") })
         }
     }
 
     private val groups = IdentityHashMap<FacetShape, Group>()
-    private val shader = ShaderProgram("""
+    private val vertexShader = """
         #version 300 es
         precision highp float;
         in vec3 a_position, a_normal, a_surface;
@@ -49,10 +61,13 @@ internal class InstancedFacets(private val kit: BoxMeshKit) : Disposable {
         void main() {
             vec3 local = a_position * i_3.xyz;
             vec3 world = vec3(dot(i_0.xyz,local)+i_0.w, dot(i_1.xyz,local)+i_1.w, dot(i_2.xyz,local)+i_2.w);
-            vec3 raw = a_normal / i_3.xyz;
-            vec3 n = normalize(vec3(dot(i_0.xyz,raw),dot(i_1.xyz,raw),dot(i_2.xyz,raw)));
-            vec3 light = u_ambient + max(0.0,dot(n,u_toL1))*u_light1 + max(0.0,dot(n,u_toL2))*u_light2;
-            light = mix(light,vec3(1.0),i_3.w);
+            vec3 light = vec3(1.0);
+            if (i_3.w < 1.0) {
+                vec3 raw = a_normal / i_3.xyz;
+                vec3 n = normalize(vec3(dot(i_0.xyz,raw),dot(i_1.xyz,raw),dot(i_2.xyz,raw)));
+                light = u_ambient + max(0.0,dot(n,u_toL1))*u_light1 + max(0.0,dot(n,u_toL2))*u_light2;
+                light = mix(light,vec3(1.0),i_3.w);
+            }
             float slot = a_surface.x;
             if (i_9.y >= 0.0) {
                 slot = 0.0;
@@ -68,7 +83,8 @@ internal class InstancedFacets(private val kit: BoxMeshKit) : Disposable {
             v_color = vec4(floor(rgb*255.0)/255.0,min(1.0,floor(floor(i_4.w*255.0)/2.0)*2.0/254.0));
             gl_Position = u_projViewTrans*vec4(world,1.0) + u_projViewTrans*vec4(bendOffset(world)*i_9.w,0.0);
         }
-    """.trimIndent(), """
+    """.trimIndent()
+    private val fadeShader = ShaderProgram(vertexShader, """
         #version 300 es
         precision highp float;
         in vec4 v_color;
@@ -81,20 +97,39 @@ internal class InstancedFacets(private val kit: BoxMeshKit) : Disposable {
         }
     """.trimIndent())
 
-    init { require(shader.isCompiled) { "instanced facet shader: ${shader.log}" } }
+    private val solidShader = ShaderProgram(vertexShader, """
+        #version 300 es
+        precision mediump float;
+        in vec4 v_color;
+        out vec4 fragColor;
+        void main() { fragColor = vec4(v_color.rgb,1.0); }
+    """.trimIndent())
 
-    fun prepare(vararg shapes: FacetShape) { for (shape in shapes) if (!groups.containsKey(shape)) groups[shape] = Group(shape) }
+    init {
+        require(fadeShader.isCompiled) { "fading facet shader: ${fadeShader.log}" }
+        require(solidShader.isCompiled) { "solid facet shader: ${solidShader.log}" }
+    }
 
-    fun begin() { for (g in groups.values) g.used = 0 }
+    fun prepare(vararg shapes: FacetShape) {
+        for (shape in shapes) {
+            val surface = shape.gpuSurface ?: shape
+            if (!groups.containsKey(surface)) groups[surface] = Group(surface)
+        }
+    }
+
+    fun begin() { for (g in groups.values) { g.solidUsed = 0; g.fadingUsed = 0 } }
 
     fun add(shape: FacetShape, x: Float, y: Float, z: Float, sx: Float, sy: Float, sz: Float,
             rotation: FloatArray, palette: Array<Color>, fog: Float, fogColor: Color,
-            glow: Float, bands: FloatArray?, bent: Boolean, opacity: Float): Boolean {
+            glow: Float, bands: FloatArray?, bent: Boolean, opacity: Float, compact: Boolean): Boolean {
         require(palette.size in 1..3 && (bands == null || bands.size <= 5))
-        val g = groups[shape] ?: Group(shape).also { groups[shape] = it }
-        if (g.used == g.data.size) return false
-        val d = g.data
-        var w = g.used
+        // Bending is quadratic: retain the original interior vertices on bent surfaces.
+        val surface = if (bent || !compact) shape else shape.gpuSurface ?: shape
+        val g = groups[surface] ?: Group(surface).also { groups[surface] = it }
+        val solid = opacity >= 1f
+        val d = if (solid) g.solid else g.fading
+        var w = if (solid) g.solidUsed else g.fadingUsed
+        if (w == d.size) return false
         for (row in 0..2) {
             for (col in 0..2) d[w++] = rotation[row * 3 + col]
             d[w++] = when (row) { 0 -> x; 1 -> y; else -> z }
@@ -108,24 +143,36 @@ internal class InstancedFacets(private val kit: BoxMeshKit) : Disposable {
         for (i in 0..4) d[w++] = bands?.getOrNull(i) ?: 0f
         d[w++] = bands?.size?.toFloat() ?: -1f
         d[w++] = palette.size.toFloat(); d[w++] = if (bent) 1f else 0f
-        g.used = w
+        if (solid) g.solidUsed = w else g.fadingUsed = w
         return true
     }
 
     fun render(cam: Camera) {
-        if (groups.values.none { it.used > 0 }) return
+        if (groups.values.none { it.solidUsed > 0 || it.fadingUsed > 0 }) return
         Gdx.gl.glEnable(GL20.GL_DEPTH_TEST); Gdx.gl.glDepthMask(true)
         Gdx.gl.glEnable(GL20.GL_CULL_FACE); Gdx.gl.glDisable(GL20.GL_BLEND)
-        shader.bind(); shader.setUniformMatrix("u_projViewTrans", cam.combined)
-        WorldBend.apply(shader); kit.setLightUniforms(shader)
-        for (g in groups.values) if (g.used > 0) {
-            g.mesh.setInstanceData(g.data, 0, g.used)
-            g.mesh.render(shader, GL20.GL_TRIANGLES)
+        // Solid surfaces need no discard, so the driver can reject hidden fragments early.
+        // Draw them first; fading scenery can then use their depth too.
+        for (pass in 0..1) {
+            val solid = pass == 0
+            if (groups.values.none { (if (solid) it.solidUsed else it.fadingUsed) > 0 }) continue
+            val shader = if (solid) solidShader else fadeShader
+            shader.bind(); shader.setUniformMatrix("u_projViewTrans", cam.combined)
+            WorldBend.apply(shader); kit.setLightUniforms(shader)
+            for (g in groups.values) {
+                val used = if (solid) g.solidUsed else g.fadingUsed
+                if (used == 0) continue
+                g.mesh.setInstanceData(if (solid) g.solid else g.fading, 0, used)
+                g.mesh.render(shader, GL20.GL_TRIANGLES)
+            }
         }
         Gdx.gl.glDisable(GL20.GL_CULL_FACE); Gdx.gl.glDisable(GL20.GL_DEPTH_TEST)
     }
 
-    override fun dispose() { for (g in groups.values) g.mesh.dispose(); groups.clear(); shader.dispose() }
+    override fun dispose() {
+        for (g in groups.values) g.mesh.dispose()
+        groups.clear(); fadeShader.dispose(); solidShader.dispose()
+    }
 
     private companion object { const val STRIDE = 40; const val CAPACITY = 128 }
 }

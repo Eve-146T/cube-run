@@ -4,6 +4,7 @@ import com.badlogic.gdx.ApplicationAdapter
 import com.badlogic.gdx.Gdx
 import com.badlogic.gdx.graphics.Color
 import com.badlogic.gdx.graphics.GL20
+import com.badlogic.gdx.graphics.GL30
 import com.badlogic.gdx.graphics.PerspectiveCamera
 import com.badlogic.gdx.graphics.VertexAttributes.Usage
 import com.badlogic.gdx.graphics.g3d.Environment
@@ -17,6 +18,7 @@ import com.badlogic.gdx.graphics.glutils.ShaderProgram
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer
 import com.badlogic.gdx.math.Matrix4
 import com.badlogic.gdx.math.Vector3
+import com.badlogic.gdx.utils.BufferUtils
 import cube.run.core.gfx.MatrixWireBatch
 import cube.run.core.gfx.CapsuleBatch
 import cube.run.core.gfx.BoxMeshKit
@@ -66,6 +68,8 @@ abstract class Gdx3DGame(val session: GameSession) : ApplicationAdapter(), Touch
     private var firstFrameReported = false
     private var startupStep = -1
     private var terrain: TerrainHeight? = null
+    // Depth is rebuilt after every swap. Let tile GPUs discard it instead of storing it to memory.
+    private val discardDepth = BufferUtils.newIntBuffer(1).apply { put(GL30.GL_DEPTH); flip() }
 
     /** The intro only needs the player; prepare scenery batches while its native animation continues. */
     protected open val hasLaunchOpening = false
@@ -407,6 +411,8 @@ abstract class Gdx3DGame(val session: GameSession) : ApplicationAdapter(), Touch
         perf.drawFps(shapes, sw.toFloat(), sh.toFloat())
         shapes.end()
         Gdx.gl.glEnable(GL20.GL_DEPTH_TEST)
+
+        Gdx.gl30?.glInvalidateFramebuffer(GL20.GL_FRAMEBUFFER, 1, discardDepth)
 
         perf.endFrame(shards.count)
         sceneFrameDrawn = true

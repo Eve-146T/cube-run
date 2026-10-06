@@ -30,6 +30,8 @@ class FacetShape(
     val slot: ByteArray,
     val tone: FloatArray,
     val lat: FloatArray,
+    /** Same surface with coplanar cells joined, retaining band heights and silhouette. */
+    internal val gpuSurface: FacetShape? = null,
 ) {
     val faces: Int get() = slot.size
     /** Conservative radius, computed once for whole-object visibility rejection. */
@@ -58,6 +60,7 @@ class FacetBatch(private val kit: BoxMeshKit, private val maxVerts: Int = 40000)
     private val gpu = if (Gdx.gl30 != null) InstancedFacets(kit) else null
     internal var gpuEnabled = true
     internal var cullingEnabled = true
+    internal var compactEnabled = true
     private val visibility = BatchVisibility()
     private val fadeShaderDelegate = lazy {
         ShaderProgram("""
@@ -115,7 +118,7 @@ class FacetBatch(private val kit: BoxMeshKit, private val maxVerts: Int = 40000)
         if (!visibility.visible(cx, cy, z, hx, hy, radius)) return
         rotation(yaw, pitch, roll)
         if (gpuEnabled && gpu != null) {
-            if (gpu.add(shape, x, y, z, sx, sy, sz, m, palette, fog, fogColor, glow, bands, bent, opacity)) gpuVerts += shape.faces * 3
+            if (gpu.add(shape, x, y, z, sx, sy, sz, m, palette, fog, fogColor, glow, bands, bent, opacity, compactEnabled)) gpuVerts += shape.faces * 3
             return
         }
         if (used + shape.faces * 12 > vertices.size) return
@@ -225,7 +228,42 @@ object FacetShapes {
             val open = BooleanArray(6) { f -> !inside(i + DX[f], j + DY[f], k + DZ[f]) }
             out.box(x, y, z, h * 2f, h * 2f, h * 2f, 0, 1f, y, open)
         }
-        return out.shape()
+        // Join exposed coplanar cells. Side faces retain their voxel row height
+        // so arbitrary planet bands still pick the same palette at every point.
+        val compact = Builder()
+        val mask = BooleanArray(res * res)
+        val open = BooleanArray(6)
+        for (face in 0..5) for (layer in 0 until res) {
+            val axis = face / 2
+            fun cell(u: Int, v: Int): IntArray = when (axis) {
+                0 -> intArrayOf(layer, v, u)
+                1 -> intArrayOf(u, layer, v)
+                else -> intArrayOf(u, v, layer)
+            }
+            for (v in 0 until res) for (u in 0 until res) {
+                val q = cell(u, v)
+                mask[v * res + u] = inside(q[0], q[1], q[2]) &&
+                    !inside(q[0] + DX[face], q[1] + DY[face], q[2] + DZ[face])
+            }
+            for (v in 0 until res) for (u in 0 until res) {
+                if (!mask[v * res + u]) continue
+                var width = 1
+                while (u + width < res && mask[v * res + u + width]) width++
+                var height = 1
+                if (axis == 1) { // horizontal faces have the same band height across the whole plane
+                    while (v + height < res && (0 until width).all { mask[(v + height) * res + u + it] }) height++
+                }
+                for (dv in 0 until height) for (du in 0 until width) mask[(v + dv) * res + u + du] = false
+                val q = cell(u, v)
+                val x = (q[0] + .5f - c + if (axis != 0) (width - 1) * .5f else 0f) / c
+                val y = (q[1] + .5f - c) / c
+                val z = (q[2] + .5f - c + when (axis) { 0 -> (width - 1) * .5f; 1 -> (height - 1) * .5f; else -> 0f }) / c
+                open.fill(false); open[face] = true
+                compact.box(x, y, z, (if (axis == 0) 1 else width) / c, 1f / c,
+                    (when (axis) { 0 -> width; 1 -> height; else -> 1 }) / c, 0, 1f, y, open)
+            }
+        }
+        return out.shape(compact.shape())
     }
 
     /**
@@ -304,6 +342,6 @@ object FacetShapes {
             }
         }
 
-        fun shape() = FacetShape(pos.toFloatArray(), nrm.toFloatArray(), slot.toByteArray(), tone.toFloatArray(), lat.toFloatArray())
+        fun shape(gpuSurface: FacetShape? = null) = FacetShape(pos.toFloatArray(), nrm.toFloatArray(), slot.toByteArray(), tone.toFloatArray(), lat.toFloatArray(), gpuSurface)
     }
 }

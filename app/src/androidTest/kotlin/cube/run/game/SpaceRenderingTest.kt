@@ -30,6 +30,55 @@ import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
 class SpaceRenderingTest {
+    /** Fixed heavy fixture, synchronized with the GPU; this is not a vsync/FPS benchmark. */
+    @Test fun comparePlanetGeometryThroughput() {
+        ActivityScenario.launch(GameActivity::class.java).use { scenario ->
+            scenario.onActivity { it.setShowWhenLocked(true); it.setTurnScreenOn(true) }
+            val done = CountDownLatch(1)
+            var failure: Throwable? = null
+            Gdx.app.postRunnable {
+                try {
+                    val kit = BoxMeshKit(ModelBuilder())
+                    val batch = FacetBatch(kit)
+                    val target = FrameBuffer(Pixmap.Format.RGBA8888, 720, 1280, true)
+                    val camera = PerspectiveCamera(67f, 720f, 1280f).apply {
+                        near = .5f; far = 400f; position.set(0f, 3f, 6f); lookAt(0f, 3f, -80f); update()
+                    }
+                    val shapes = arrayOf(FacetShapes.voxelBall(6), FacetShapes.voxelBall(9))
+                    val palette = arrayOf(Color.CORAL, Color.SKY, Color.GOLD)
+                    val bands = floatArrayOf(-.7f, -.35f, -.05f, .3f, .62f)
+                    val reference = ArrayList<Double>(); val compact = ArrayList<Double>()
+                    try {
+                        target.begin()
+                        try {
+                            for (round in 0 until 80) for (pass in 0..1) {
+                                val merged = (round + pass) % 2 == 0
+                                batch.compactEnabled = merged; batch.begin(camera)
+                                for (i in 0 until 96) {
+                                    batch.add(shapes[i % 2], (i % 8 - 3.5f) * 13f, (i / 8 - 5.5f) * 13f + 3f,
+                                        -100f, 5f, 5f, 5f, i * 17f, i * 11f, 15f,
+                                        palette, .15f, Color.NAVY, glow = .08f, bands = bands)
+                                }
+                                Gdx.gl.glFinish()
+                                val start = System.nanoTime()
+                                Gdx.gl.glDepthMask(true); Gdx.gl.glClearColor(0f, 0f, 0f, 1f)
+                                Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT or GL20.GL_DEPTH_BUFFER_BIT)
+                                batch.render(camera); Gdx.gl.glFinish()
+                                val elapsed = (System.nanoTime() - start) / 1e6
+                                if (round >= 20) (if (merged) compact else reference).add(elapsed)
+                            }
+                            assertEquals(GL20.GL_NO_ERROR, Gdx.gl.glGetError())
+                        } finally { target.end() }
+                        reference.sort(); compact.sort()
+                        android.util.Log.i("SPACE_GPU", "96 planets, 720x1280, synchronized render wall ms: " +
+                            "original p50/p95=${reference[30]}/${reference[57]}, merged p50/p95=${compact[30]}/${compact[57]}")
+                    } finally { target.dispose(); batch.dispose(); kit.dispose() }
+                } catch (t: Throwable) { failure = t } finally { done.countDown() }
+            }
+            assertTrue(done.await(60, TimeUnit.SECONDS)); failure?.let { throw it }
+        }
+    }
+
     @Test fun staticBackdropPreservesOriginalTwinklesAndSparkles() {
         ActivityScenario.launch(GameActivity::class.java).use { scenario ->
             scenario.onActivity { it.setShowWhenLocked(true); it.setTurnScreenOn(true) }
@@ -124,6 +173,7 @@ class SpaceRenderingTest {
                         position.set(0f, 3f, 6f); lookAt(0f, 0f, -25f); update()
                     }
                     val ball = FacetShapes.voxelBall(9)
+                    assertTrue("Joined planet faces must substantially reduce geometry", ball.gpuSurface!!.faces * 2 < ball.faces * 3 / 2)
                     val ring = FacetShapes.voxelRing(14, .62f, 3)
                     val rock = FacetShapes.clump(2)
                     val palette = arrayOf(Color.CORAL, Color.SKY, Color.GOLD)
@@ -135,13 +185,15 @@ class SpaceRenderingTest {
                             fun draw(gpu: Boolean, cull: Boolean, opacity: Float): Pair<ByteArray, Int> {
                                 batch.gpuEnabled = gpu; batch.cullingEnabled = cull; batch.begin(camera)
                                 batch.add(ball, -4f, 7f, -32f, 5f, 4f, 3f, phase * 31f, 24f, 17f,
-                                    palette, .23f, Color.NAVY, glow = .08f, bands = bands, opacity = opacity)
+                                    palette, .23f, Color.NAVY, glow = .08f, bands = bands, bent = phase % 2 == 1, opacity = opacity)
                                 batch.add(ring, -4f, 7f, -32f, 9f, 9f, 9f, phase * 17f, 23f, 4f,
                                     palette, .1f, Color.NAVY, glow = .12f, opacity = opacity)
                                 batch.add(rock, 2f, 1f, -22f, 2f, 3f, 1.5f, phase * 23f, phase * 19f, 12f,
                                     palette, .15f, Color.NAVY, bent = true, opacity = opacity)
                                 batch.add(ball, 1000f, 1f, -30f, 4f, 4f, 4f, 0f, 0f, 0f,
                                     palette, 0f, Color.NAVY)
+                                batch.add(ball, 3f, 6f, -38f, 4f, 4f, 4f, phase * 11f, 0f, 0f,
+                                    arrayOf(Color.GOLD), .14f, Color.NAVY, glow = 1f)
                                 val queued = batch.queued
                                 target.begin()
                                 try {

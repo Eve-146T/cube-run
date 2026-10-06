@@ -395,3 +395,51 @@ track rows. The bot required two protected collision episodes. Its planner
 allocated 1.88 GB and caused 71 collections across the measured window, so this
 is not an allocation comparison with the static-controller runs. The optimized
 debug APK remains installed on Motorola.
+
+### Second Outer Space pass, 2026-10-06
+
+Planet meshes now join coplanar voxel cells while preserving their exact stepped
+outline and per-row band heights. Indexed quads share their four corners instead
+of shading six duplicate triangle vertices. The six-cell ball decreases from
+1,152 submitted vertices to 504 (56.2%); the nine-cell ball from 2,484 to 1,176
+(52.7%). Other voxel meshes also use four vertices per quad. Bent surfaces retain
+the original interior vertices because quadratic road deformation cannot be
+represented by a larger planar quad. The original CPU geometry remains the
+framebuffer reference.
+
+Fully opaque facets now draw first with a fragment shader containing no discard;
+only arriving/departing objects use the coverage shader. Fully self-lit surfaces
+skip normal transformation and Lambert lighting. Completed frame depth is marked
+discardable on GLES3, after all drawing, so a tile GPU can avoid storing data that
+will be cleared next frame. The displayed color buffer stays intact. This follows
+[Khronos's depth-invalidation contract](https://raw.githubusercontent.com/KhronosGroup/OpenGL-Refpages/main/es3.0/glInvalidateFramebuffer.xml).
+
+Fresh deterministic 45-second Motorola static-controller runs (40 measured,
+normal clocks, resolution and MSAA retained):
+
+| Build | GL thread CPU p50 / p95 (ms) | Frame p95 / p99 / max (ms) | FPS | Frames >25 ms |
+| --- | --- | --- | --- | --- |
+| First-pass baseline (`b7f4ea7`) | 8.28 / 11.92 | 18.79 / 21.73 / 28.95 | 59.86 | 3 / 2395 |
+| Merged surfaces, indexed quads, solid shader, depth discard | 8.49 / 12.19 | 18.73 / 22.12 / 27.05 | 59.86 | 4 / 2395 |
+
+These windows establish substantially less planet vertex work, not a measurable
+whole-game CPU or FPS improvement on this 60 Hz phone. The separate indexed-only
+and depth-discard windows were also approximately neutral. A sampled baseline
+trace still attributes much of the time to driver work in `glClear`. Pixel 90 Hz
+remains unverified because Pixel is not attached.
+
+A focused fixed 96-planet fixture at 720×1280 alternates original indexed surfaces
+and merged indexed surfaces, warming up 20 pairs and measuring 60 pairs. Each
+render is synchronized with `glFinish`; queue construction occurs outside the
+timed interval. Median render wall time fell from **9.11 to 8.07 ms (11.4%)**;
+p95 from **15.34 to 13.55 ms (11.7%)**. This measures GPU completion plus driver
+submission overhead in a deliberately dense fixture, not gameplay FPS. It isolates
+the coplanar-face merge: both paths already use indexed corners and the new solid
+shader. Raw results are in ignored `.local-tmp/pass2-measurements.log`.
+
+All **14 affected device checks passed**, covering original-geometry framebuffer
+comparisons (including mixed solid/fading and bent bodies), monotonic fades,
+static stars/sparkles, placement, shared visibility, startup, shop rendering and
+terrain. Debug/test and release APKs built; lint has no errors. The final debug
+APK is installed on Motorola. No display settings, resolution, antialiasing,
+object counts or animation envelopes were reduced.
