@@ -39,6 +39,9 @@ class SpaceDeco(private val space: SpaceWorld) {
     var clouds = 0f
     private var cloudTime = 0f
     private var cloudSeed = 0
+    private val cloudRounds = IntArray(CLOUDS) { -1 }
+    private val cloudParams = FloatArray(CLOUDS * 4) // angle, cos, sin, aspect
+    private val cloudTint = BooleanArray(CLOUDS)
 
     private val plane = Matrix4()
     private val right = Vector3()
@@ -46,7 +49,7 @@ class SpaceDeco(private val space: SpaceWorld) {
     private val back = Vector3()
     private val centre = Vector3()
     private val c0 = Color(); private val c1 = Color()
-    private val band = Color(); private val bandEdge = Color()
+    private var backdrop: SpaceBackdrop? = null
 
     fun begin(trip: SpaceTrip) {
         val r = Random(trip.starSeed xor 0x5EED)
@@ -88,9 +91,13 @@ class SpaceDeco(private val space: SpaceWorld) {
             sparkles[i * 5 + 3] = r.nextFloat() * 6.28f
             sparkles[i * 5 + 4] = if (r.nextFloat() < 0.35f) 1f else 0f
         }
+        (backdrop ?: SpaceBackdrop().also { backdrop = it }).build(stars, blobs, sparkles)
         shooters.clear(); nextShooter = 1.5f; shower = 0f; clouds = 0f; cloudTime = 0f
         cloudSeed = r.nextInt()
+        cloudRounds.fill(-1)
     }
+
+    fun dispose() { backdrop?.dispose(); backdrop = null }
 
     fun clear() { shooters.clear(); stars = FloatArray(0); sparkles = FloatArray(0); blobs = FloatArray(0) }
 
@@ -134,27 +141,10 @@ class SpaceDeco(private val space: SpaceWorld) {
         plane.set(right.scl(scale), up.scl(scale), back, centre)
         shapes.transformMatrix = plane
 
-        // the Milky Way's glow, then the stars
-        band.set(space.neonSoft).lerp(space.skyBottom, 0.4f)
-        for (i in 0 until BLOBS) {
-            val k = i * 6
-            c0.set(band.r, band.g, band.b, blobs[k + 5] * a)
-            bandEdge.set(band.r, band.g, band.b, 0f)
-            ellipse(shapes, blobs[k], blobs[k + 1], blobs[k + 2], blobs[k + 3], blobs[k + 4], c0, bandEdge)
-        }
-        for (i in 0 until STARS) { // soft round stars, a slow gentle twinkle
-            val k = i * 5
-            val tw = 0.85f + 0.15f * sin(time * 1.1f + stars[k + 4] * 5f)
-            c0.set(space.star.r, space.star.g, space.star.b, stars[k + 3] * tw * a)
-            c1.set(space.star.r, space.star.g, space.star.b, 0f)
-            ellipse(shapes, stars[k], stars[k + 1], stars[k + 2], stars[k + 2], 0f, c0, c1)
-        }
-        for (i in 0 until SPARKLES) {
-            val k = i * 5
-            val tw = 0.55f + 0.45f * sin(time * 2.3f + sparkles[k + 3] * 4f)
-            val tint = if (sparkles[k + 4] > 0f) space.neonSoft else space.star
-            sparkle(shapes, sparkles[k], sparkles[k + 1], sparkles[k + 2] * (0.7f + 0.3f * tw), time * 0.3f + sparkles[k + 3], tint, tw * a)
-        }
+        // Flush the caller's earlier backdrop shapes before drawing the reusable sky mesh.
+        shapes.end()
+        backdrop?.render(cam.combined, plane, time, a, space)
+        shapes.begin(ShapeRenderer.ShapeType.Filled)
         if (clouds > 0.01f) renderClouds(shapes, a * clouds)
         for (s in shooters) shooter(shapes, s, a)
         shapes.identity()
@@ -170,16 +160,25 @@ class SpaceDeco(private val space: SpaceWorld) {
             val phase = cloudTime / CLOUD_LIFE + k / CLOUDS.toFloat()
             val round = phase.toInt()
             val p = phase - round
-            val r = Random(cloudSeed + k * 7919 + round * 104729)
-            val ang = r.nextFloat() * 6.2832f
+            val offset = k * 4
+            if (cloudRounds[k] != round) {
+                cloudRounds[k] = round
+                val r = Random(cloudSeed + k * 7919 + round * 104729)
+                val angle = r.nextFloat() * 6.2832f
+                cloudParams[offset] = angle
+                cloudParams[offset + 1] = cos(angle); cloudParams[offset + 2] = sin(angle)
+                cloudTint[k] = r.nextBoolean()
+                cloudParams[offset + 3] = 0.55f + r.nextFloat() * 0.3f
+            }
+            val ang = cloudParams[offset]
             val reach = 0.15f + p * p * 1.6f
-            val u = cos(ang) * reach * 1.1f; val v = sin(ang) * reach * 0.9f + 0.1f
+            val u = cloudParams[offset + 1] * reach * 1.1f; val v = cloudParams[offset + 2] * reach * 0.9f + 0.1f
             val size = 0.25f + p * 1.1f
             val env = (p * 5f).coerceAtMost(1f) * (1f - p)
-            val hue = if (r.nextBoolean()) space.neonSoft else space.neon
+            val hue = if (cloudTint[k]) space.neonSoft else space.neon
             c0.set(hue.r, hue.g, hue.b, 0.3f * env * alpha)
             c1.set(hue.r, hue.g, hue.b, 0f)
-            ellipse(shapes, u, v, size, size * (0.55f + r.nextFloat() * 0.3f), ang + 1.2f, c0, c1)
+            ellipse(shapes, u, v, size, size * cloudParams[offset + 3], ang + 1.2f, c0, c1)
         }
     }
 
@@ -195,26 +194,11 @@ class SpaceDeco(private val space: SpaceWorld) {
         val ca = cos(angle); val sa = sin(angle)
         var px = u + ca * ra; var py = v + sa * ra
         for (j in 1..ELLIPSE) {
-            val t = j * 2f * PI.toFloat() / ELLIPSE
-            val ex = cos(t) * ra; val ey = sin(t) * rb
+            val ex = CIRCLE_X[j] * ra; val ey = CIRCLE_Y[j] * rb
             val x = u + ca * ex - sa * ey; val y = v + sa * ex + ca * ey
             shapes.triangle(u, v, px, py, x, y, inner, outer, outer)
             px = x; py = y
         }
-    }
-
-    /** A four-pointed star: two thin crossed diamonds and a small glow. */
-    private fun sparkle(shapes: ShapeRenderer, u: Float, v: Float, r: Float, spin: Float, tint: Color, alpha: Float) {
-        c0.set(tint.r, tint.g, tint.b, alpha)
-        c1.set(tint.r, tint.g, tint.b, 0f)
-        val w = r * 0.16f
-        for (arm in 0 until 4) {
-            val ang = spin + arm * PI.toFloat() / 2f
-            val ox = cos(ang); val oy = sin(ang)
-            shapes.triangle(u - oy * w, v + ox * w, u + oy * w, v - ox * w, u + ox * r, v + oy * r, c0, c0, c1)
-        }
-        c0.set(tint.r, tint.g, tint.b, alpha * 0.35f)
-        ellipse(shapes, u, v, r * 0.45f, r * 0.45f, 0f, c0, c1)
     }
 
     /** A shooting star: a bright head and a tail thinning to nothing behind it. */
@@ -242,6 +226,8 @@ class SpaceDeco(private val space: SpaceWorld) {
         const val BLOBS = 7
         const val SPARKLES = 22
         const val ELLIPSE = 14
+        val CIRCLE_X = FloatArray(ELLIPSE + 1) { cos(it * 2f * PI.toFloat() / ELLIPSE) }
+        val CIRCLE_Y = FloatArray(ELLIPSE + 1) { sin(it * 2f * PI.toFloat() / ELLIPSE) }
         const val CLOUDS = 6
         const val CLOUD_LIFE = 7f      // seconds from the middle of the view to past its edge
     }

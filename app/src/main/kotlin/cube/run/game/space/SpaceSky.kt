@@ -10,7 +10,6 @@ import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.cos
 import kotlin.math.max
-import kotlin.math.min
 import kotlin.math.sin
 import kotlin.random.Random
 
@@ -49,6 +48,7 @@ class SpaceSky(private val game: Gdx3DGame, private val space: SpaceWorld) {
 
     fun begin(trip: SpaceTrip) {
         this.trip = trip
+        game.facets.prepare(cube, *clumps)
         rnd = Random(trip.rockSeed)
         rocks.clear(); streaks.clear(); comets.clear()
         val n = (ROCKS * trip.asteroidDensity).toInt()
@@ -147,11 +147,11 @@ class SpaceSky(private val game: Gdx3DGame, private val space: SpaceWorld) {
         val fogCol = game.fogColor
         val a = space.blend
         if (a <= 0.01f) return
-        // A fade in or out is a fly-through: things fly in from the far haze rather than fading (opaque only).
+        // Smooth coverage fades reveal the backdrop through arriving scenery.
         val reach = a * a
         landmarks.render(time, reach)
         renderRocks(fogCol, reach)
-        for (k in comets) renderComet(k, time, fogCol)
+        for (k in comets) renderComet(k, time, fogCol, reach)
         renderStreaks(speedK, reach)
     }
 
@@ -160,20 +160,20 @@ class SpaceSky(private val game: Gdx3DGame, private val space: SpaceWorld) {
         for (r in rocks) {
             val fog = max(Fog.at(r.z), 1f - reach)
             if (fog >= 0.995f) continue
-            game.facets.add(clumps[r.variant], r.x, r.y, r.z, r.size, r.size, r.size, r.yaw, r.pitch, 0f, rockPal, fog, fogCol, bent = true)
+            game.facets.add(clumps[r.variant], r.x, r.y, r.z, r.size, r.size, r.size, r.yaw, r.pitch, 0f, rockPal, fog, fogCol, bent = true, opacity = reach * SpaceLandmarks.smoothFade((r.z + 130f) / 35f))
         }
     }
 
-    private fun renderComet(k: Comet, time: Float, fogCol: Color) {
+    private fun renderComet(k: Comet, time: Float, fogCol: Color, reach: Float) {
         cometPal[0].set(1f, 1f, 1f, 1f)
         tailPal[0].set(space.neonSoft)
-        val fade = min(1f, k.life / 0.8f)
-        game.facets.add(cube, k.x, k.y, k.z, 1.5f, 1.5f, 1.5f, time * 90f, time * 60f, 0f, cometPal, 1f - fade, fogCol, glow = 0.7f)
+        val fade = reach * SpaceLandmarks.smoothFade((4.2f - k.life) / 0.6f) * SpaceLandmarks.smoothFade(k.life / 0.8f)
+        game.facets.add(cube, k.x, k.y, k.z, 1.5f, 1.5f, 1.5f, time * 90f, time * 60f, 0f, cometPal, 0f, fogCol, glow = 0.7f, opacity = fade)
         for (i in 1..8) { // the tail: a trail of cubes streaming back along the path, shrinking
             val t = i * 0.09f
             val s = 1.2f * (1f - i / 10f)
             game.facets.add(cube, k.x - k.vx * t, k.y - k.vy * t, k.z - k.vz * t, s, s, s, i * 40f + time * 120f, 30f, 0f,
-                tailPal, 1f - fade * (1f - i / 9f), fogCol, glow = 1f)
+                tailPal, i / 9f, fogCol, glow = 1f, opacity = fade)
         }
     }
 

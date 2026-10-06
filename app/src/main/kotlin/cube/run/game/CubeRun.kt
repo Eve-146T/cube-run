@@ -1122,6 +1122,6 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
         }
     }
     override fun pause() { idlePilot.stop(); space.pauseAudio(); super.pause() }
-    override fun dispose() { Progress.zenRun = false; idlePilot.close(); showcase.dispose(); super.dispose() }
+    override fun dispose() { Progress.zenRun = false; idlePilot.close(); space.deco.dispose(); showcase.dispose(); super.dispose() }
 
 }

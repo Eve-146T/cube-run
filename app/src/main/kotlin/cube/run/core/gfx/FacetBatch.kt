@@ -7,7 +7,10 @@ import com.badlogic.gdx.graphics.GL20
 import com.badlogic.gdx.graphics.Mesh
 import com.badlogic.gdx.graphics.VertexAttribute
 import com.badlogic.gdx.graphics.VertexAttributes.Usage
+import com.badlogic.gdx.graphics.glutils.ShaderProgram
 import com.badlogic.gdx.utils.Disposable
+import kotlin.math.abs
+import kotlin.math.max
 import kotlin.math.cos
 import kotlin.math.min
 import kotlin.math.sin
@@ -29,27 +32,66 @@ class FacetShape(
     val lat: FloatArray,
 ) {
     val faces: Int get() = slot.size
+    /** Conservative radius, computed once for whole-object visibility rejection. */
+    val radius: Float = run {
+        var squared = 0f
+        var i = 0
+        while (i < pos.size) {
+            squared = max(squared, pos[i] * pos[i] + pos[i + 1] * pos[i + 1] + pos[i + 2] * pos[i + 2])
+            i += 3
+        }
+        sqrt(squared)
+    }
 }
 
 /**
- * Box-built shapes in one draw call, lit like the boxes (the light rig is
- * baked into vertex colours by [BoxMeshKit.lightFace]). Shapes are turned on
+ * Box-built shapes grouped by shared surface on GLES3, or in one CPU batch on GLES2.
+ * Both paths use the same light rig as [BoxMeshKit.lightFace]. Shapes are turned on
  * all three axes, so asteroids can tumble; [glow] lets a face shine with its
- * own colour (stars, comet tails, a sun). Opaque only; anything past
- * the vertex budget is dropped, so queue the important things first.
+ * own colour (stars, comet tails, a sun). Coverage fading retains solid depth and
+ * reveals the backdrop. The CPU fallback has a fixed vertex budget.
  */
 class FacetBatch(private val kit: BoxMeshKit, private val maxVerts: Int = 40000) : Disposable {
     private val vertices = FloatArray(maxVerts * 4)
     private val mesh = Mesh(false, maxVerts, 0,
         VertexAttribute(Usage.Position, 3, "a_position"), VertexAttribute(Usage.ColorPacked, 4, "a_color"))
+    private val gpu = if (Gdx.gl30 != null) InstancedFacets(kit) else null
+    internal var gpuEnabled = true
+    internal var cullingEnabled = true
+    private val visibility = BatchVisibility()
+    private val fadeShaderDelegate = lazy {
+        ShaderProgram("""
+            attribute vec3 a_position;
+            attribute vec4 a_color;
+            uniform mat4 u_projViewTrans;
+            varying vec4 v_color;
+            void main() { v_color = vec4(a_color.rgb, min(1.0,a_color.a*255.0/254.0)); gl_Position = u_projViewTrans * vec4(a_position,1.0); }
+        """.trimIndent(), """
+            #ifdef GL_ES
+            precision highp float;
+            #endif
+            varying vec4 v_color;
+            void main() {
+                float threshold = fract(52.9829189 * fract(dot(floor(gl_FragCoord.xy),vec2(0.06711056,0.00583715))));
+                if (v_color.a <= threshold) discard;
+                gl_FragColor = vec4(v_color.rgb,1.0);
+            }
+        """.trimIndent()).also { require(it.isCompiled) { it.log } }
+    }
+    private val fadeShader by fadeShaderDelegate
     private var used = 0
+    private var gpuVerts = 0
     private val light = FloatArray(3)
+    private val axisLights = FloatArray(18)
     private val m = FloatArray(9)
 
-    fun begin() { used = 0 }
+    fun begin(camera: Camera? = null) { used = 0; gpuVerts = 0; gpu?.begin(); visibility.begin(if (cullingEnabled) camera else null) }
+
+    /** Upload reusable surfaces at trip entry, before they first become visible. */
+    fun prepare(vararg shapes: FacetShape) { gpu?.prepare(*shapes) }
 
     /** Vertices queued this frame (for budgeting and tests). */
-    val queued: Int get() = used / 4
+    val queued: Int get() = used / 4 + gpuVerts
 
     /**
      * Queue [shape] at ([x],[y],[z]), scaled by ([sx],[sy],[sz]) and turned
@@ -60,22 +102,38 @@ class FacetBatch(private val kit: BoxMeshKit, private val maxVerts: Int = 40000)
      */
     fun add(shape: FacetShape, x: Float, y: Float, z: Float, sx: Float, sy: Float, sz: Float,
             yaw: Float, pitch: Float, roll: Float, palette: Array<Color>, fog: Float, fogColor: Color,
-            glow: Float = 0f, bands: FloatArray? = null, bent: Boolean = false) {
-        if (used + shape.faces * 12 > vertices.size) return
+            glow: Float = 0f, bands: FloatArray? = null, bent: Boolean = false, opacity: Float = 1f) {
+        if (opacity <= 0f) return
+        val radius = shape.radius * max(abs(sx), max(abs(sy), abs(sz)))
+        var cx = x; var cy = y; var hx = radius; var hy = radius
+        if (bent) {
+            val farX = WorldBend.dx(z - radius); val nearX = WorldBend.dx(z + radius)
+            val farY = WorldBend.dy(z - radius); val nearY = WorldBend.dy(z + radius)
+            cx += (farX + nearX) * 0.5f; cy += (farY + nearY) * 0.5f
+            hx += abs(farX - nearX) * 0.5f; hy += abs(farY - nearY) * 0.5f
+        }
+        if (!visibility.visible(cx, cy, z, hx, hy, radius)) return
         rotation(yaw, pitch, roll)
+        if (gpuEnabled && gpu != null) {
+            if (gpu.add(shape, x, y, z, sx, sy, sz, m, palette, fog, fogColor, glow, bands, bent, opacity)) gpuVerts += shape.faces * 3
+            return
+        }
+        if (used + shape.faces * 12 > vertices.size) return
         val p = shape.pos; val n = shape.nrm
         val keep = 1f - fog
+        // All library surfaces have one of six axis normals. Light each direction once per object.
+        for (axis in 0..2) for (side in 0..1) {
+            val value = (if (side == 0) 1f else -1f) / when (axis) { 0 -> sx; 1 -> sy; else -> sz }
+            val offset = (axis * 2 + side) * 3
+            if (glow < 1f) kit.lightFace(m[axis] * value, m[3 + axis] * value, m[6 + axis] * value, axisLights, offset)
+            else for (channel in 0..2) axisLights[offset + channel] = 1f
+        }
         for (f in 0 until shape.faces) {
-            // normals under a non-uniform scale: divide by the scale, then turn
-            val lx = n[f * 3] / sx; val ly = n[f * 3 + 1] / sy; val lz = n[f * 3 + 2] / sz
-            val sameAsLast = f > 0 && n[f * 3] == n[f * 3 - 3] && n[f * 3 + 1] == n[f * 3 - 2] && n[f * 3 + 2] == n[f * 3 - 1]
-            if (sameAsLast) { /* the other half of a box face: same light */ }
-            else if (glow < 1f) { // a glowing face is its own light: skip the rig
-                val wx = m[0] * lx + m[1] * ly + m[2] * lz
-                val wy = m[3] * lx + m[4] * ly + m[5] * lz
-                val wz = m[6] * lx + m[7] * ly + m[8] * lz
-                kit.lightFace(wx, wy, wz, light, 0)
-            } else { light[0] = 1f; light[1] = 1f; light[2] = 1f }
+            val nx = n[f * 3]; val ny = n[f * 3 + 1]; val nz = n[f * 3 + 2]
+            val axis = if (nx != 0f) 0 else if (ny != 0f) 1 else 2
+            val sign = if (when (axis) { 0 -> nx; 1 -> ny; else -> nz } > 0f) 0 else 1
+            val offset = (axis * 2 + sign) * 3
+            for (channel in 0..2) light[channel] = axisLights[offset + channel]
             var slot = shape.slot[f].toInt()
             if (bands != null) {
                 slot = 0
@@ -89,7 +147,7 @@ class FacetBatch(private val kit: BoxMeshKit, private val maxVerts: Int = 40000)
             val bits = Color.toFloatBits(
                 min(1f, c.r * lr * t) * keep + fogColor.r * fog,
                 min(1f, c.g * lg * t) * keep + fogColor.g * fog,
-                min(1f, c.b * lb * t) * keep + fogColor.b * fog, 1f)
+                min(1f, c.b * lb * t) * keep + fogColor.b * fog, opacity)
             for (v in 0 until 3) {
                 val i = f * 9 + v * 3
                 val px = p[i] * sx; val py = p[i + 1] * sy; val pz = p[i + 2] * sz
@@ -119,16 +177,17 @@ class FacetBatch(private val kit: BoxMeshKit, private val maxVerts: Int = 40000)
     }
 
     fun render(cam: Camera) {
+        gpu?.render(cam)
         if (used == 0) return
         mesh.setVertices(vertices, 0, used)
         Gdx.gl.glEnable(GL20.GL_DEPTH_TEST); Gdx.gl.glDepthMask(true)
         Gdx.gl.glEnable(GL20.GL_CULL_FACE); Gdx.gl.glDisable(GL20.GL_BLEND)
-        kit.shader.bind(); kit.shader.setUniformMatrix("u_projViewTrans", cam.combined); WorldBend.apply(kit.shader, on = false) // bent on the CPU, if at all
-        mesh.render(kit.shader, GL20.GL_TRIANGLES, 0, used / 4)
+        fadeShader.bind(); fadeShader.setUniformMatrix("u_projViewTrans", cam.combined) // bent on the CPU, if at all
+        mesh.render(fadeShader, GL20.GL_TRIANGLES, 0, used / 4)
         Gdx.gl.glDisable(GL20.GL_CULL_FACE); Gdx.gl.glDisable(GL20.GL_DEPTH_TEST)
     }
 
-    override fun dispose() = mesh.dispose()
+    override fun dispose() { mesh.dispose(); gpu?.dispose(); if (fadeShaderDelegate.isInitialized()) fadeShader.dispose() }
 }
 
 /**
@@ -137,14 +196,21 @@ class FacetBatch(private val kit: BoxMeshKit, private val maxVerts: Int = 40000)
  * balls, asteroids clumps of cubes, rings pixel rings.
  */
 object FacetShapes {
+    private val balls = HashMap<Int, FacetShape>()
+    private data class RingKey(val resolution: Int, val inner: Float, val bands: Int)
+    private val rings = HashMap<RingKey, FacetShape>()
+    private val clumps = HashMap<Int, FacetShape>()
+    private val unitCube by lazy { boxes(listOf(Box(0f, 0f, 0f, 1f, 1f, 1f))) }
     /** A unit cube (half-size 1). */
-    fun cube(): FacetShape = boxes(listOf(Box(0f, 0f, 0f, 1f, 1f, 1f)))
+    fun cube(): FacetShape = unitCube
 
     /**
      * A voxel ball, radius 1, [res] cells across. Only its outer faces are
      * kept; each face knows its height ([FacetShape.lat]) for bands.
      */
-    fun voxelBall(res: Int): FacetShape {
+    fun voxelBall(res: Int): FacetShape = balls.getOrPut(res) { buildBall(res) }
+
+    private fun buildBall(res: Int): FacetShape {
         val c = res / 2f
         fun inside(i: Int, j: Int, k: Int): Boolean {
             if (i !in 0 until res || j !in 0 until res || k !in 0 until res) return false
@@ -166,7 +232,10 @@ object FacetShapes {
      * A flat pixel ring in the XZ plane between radii [inner] and 1, [res]
      * cells across and one cell thick, in [bands] concentric bands (slots 0, 1, 0…).
      */
-    fun voxelRing(res: Int, inner: Float, bands: Int): FacetShape {
+    fun voxelRing(res: Int, inner: Float, bands: Int): FacetShape =
+        rings.getOrPut(RingKey(res, inner, bands)) { buildRing(res, inner, bands) }
+
+    private fun buildRing(res: Int, inner: Float, bands: Int): FacetShape {
         val c = res / 2f
         fun radius(i: Int, k: Int): Float { val x = (i + 0.5f - c) / c; val z = (k + 0.5f - c) / c; return sqrt(x * x + z * z) }
         fun inside(i: Int, k: Int) = i in 0 until res && k in 0 until res && radius(i, k).let { it in inner..1f }
@@ -182,7 +251,9 @@ object FacetShapes {
     }
 
     /** An asteroid: a big cube with one to three smaller cubes stuck to it, about radius 1. Small ones are slot 1. */
-    fun clump(variant: Int): FacetShape {
+    fun clump(variant: Int): FacetShape = clumps.getOrPut(variant) { buildClump(variant) }
+
+    private fun buildClump(variant: Int): FacetShape {
         val rnd = kotlin.random.Random(300 + variant * 31)
         val parts = arrayListOf(Box(0f, 0f, 0f, 0.72f, 0.66f, 0.7f))
         repeat(1 + variant % 3) {

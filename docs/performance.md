@@ -336,3 +336,62 @@ cube frame at 743 ms before and 610 ms afterward. Android's cold-launch TotalTim
 was 932 ms before and 822 ms afterward. These are individual measurements, not
 repeat-run medians. Launch, background/resume, rapid closing and recreation checks
 passed, along with existing gesture and wardrobe checks.
+
+## Outer Space rendering, 2026-10-06 (`space-dark`)
+
+Voxel surfaces now stay on the GPU with GLES3 instancing. Each visible object
+uploads 160 bytes containing its transform, palette, band thresholds, fog and
+opacity; geometry and normals upload once. Shared shape caches prevent repeated
+trip/world construction from duplicating meshes. Conservative camera rejection
+includes rotation, nonuniform scaling and the full road bend. GLES2 retains CPU
+batching and computes the six voxel face lighting directions once per object.
+
+The Milky Way, stars and sparkles share a static mesh rebuilt only at trip entry.
+The vertex shader preserves their twinkle, rotation, gradients and colors. Cloud
+random parameters refresh only at the start of each cloud life, and cloud ellipse
+vertices use cached circle samples. Resolution, object counts, asteroid density
+and effect geometry are unchanged. Planets and rings now retain their finer
+geometry at every distance instead of switching meshes visibly.
+
+Celestial bodies reveal the actual backdrop using eased screen-space coverage
+fades, rather than becoming opaque fog-colored silhouettes. This avoids sorting
+and self-overlap artifacts in the voxel bodies while retaining depth occlusion
+against the road. The screen-space grain is fixed rather than randomized each
+frame. Planet arrival spans 110 depth units; orbiting moons ease in over 70 depth
+units. Suns ease in over 80 travelled units and out over their last quarter of
+life, with matching ray envelopes. Comet heads and tails ease in and out together
+and respect the space-world transition.
+
+Motorola G7 Power, normal device settings, debug APK, sound enabled, deterministic
+`RunPerformanceTest` space mode, static controller, 45 seconds per run including
+five seconds of warm-up (40 seconds measured):
+
+| Build | GL thread CPU p50 / p95 / p99 (ms) | Frame p95 / p99 / max (ms) | FPS | Frames >25 ms |
+| --- | --- | --- | --- | --- |
+| Baseline | 12.87 / 14.73 / 15.83 | 19.11 / 20.55 / 23.68 | 59.85 | 0 / 2396 |
+| GPU facets and static backdrop | 8.20 / 12.10 / 13.63 | 18.69 / 21.75 / 24.47 | 59.86 | 0 / 2395 |
+
+Median GL-thread CPU fell 36%; p95 fell 18%. Motorola remains display-limited at
+60 Hz. These results do not establish 90 FPS on Pixel: only Motorola was attached
+for this pass. A separate sampled method trace identified substantial driver
+waits in `glClear`; traced frame timings are excluded from the comparison. Local
+profile, screenshot, and build artifacts live under ignored `.local-tmp/`.
+
+`SpaceRenderingTest` compares GPU facets with the CPU reference across rotating,
+nonuniformly scaled, banded, fogged and road-bent objects, with full and partial
+coverage. CPU camera rejection preserves exact framebuffer bytes. GPU comparison
+allows one color level and sparse triangle-edge rasterization differences. Both
+paths are checked for zero silhouette at zero opacity, monotonic coverage and
+half coverage at the fade midpoint. A separate static-backdrop framebuffer test
+compares the original star/sparkle formulas at four times including 10,000 seconds.
+Both tests, the 30-trip landmark placement test, and both shared batch visibility
+tests passed on Motorola (five tests total). Debug/test and release builds passed;
+Android lint reported no errors and 21 existing warnings.
+
+The final APK also passed a 90-second playing-bot space run (85 seconds measured):
+5,088 frames at 59.85 FPS; frame p95 / p99 / maximum 18.91 / 20.01 / 24.31 ms;
+no frames above 25 ms; GL-thread CPU p50 / p95 6.54 / 9.67 ms; at most 15 resident
+track rows. The bot required two protected collision episodes. Its planner
+allocated 1.88 GB and caused 71 collections across the measured window, so this
+is not an allocation comparison with the static-controller runs. The optimized
+debug APK remains installed on Motorola.

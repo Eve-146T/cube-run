@@ -356,7 +356,7 @@ abstract class Gdx3DGame(val session: GameSession) : ApplicationAdapter(), Touch
         matrixWires.begin()
         capsules.begin()
         crystals.begin()
-        facetBatch.begin()
+        facetBatch.begin(cam)
         world.begin(cam)
         glass.begin(cam)
         coins.begin(cam)
