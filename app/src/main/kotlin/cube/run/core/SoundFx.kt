@@ -27,9 +27,10 @@ object SoundFx {
     @Volatile var testMutedName: String? = null
     @Volatile var testObserver: ((String, Long, Long, Int) -> Unit)? = null
     private const val SR = 44100
-    private var pool: SoundPool? = null
     private val ids = HashMap<String, Int>()
     @Volatile private var ready = false
+    private data class Playback(val name: String, val id: Int, val volume: Float, val rate: Float)
+    private var playback: SoundPlaybackQueue<Playback>? = null
 
     private var initializing = false
     @Synchronized fun init(ctx: Context) {
@@ -40,7 +41,14 @@ object SoundFx {
             val attrs = AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_GAME)
                 .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION).build()
             val p = SoundPool.Builder().setMaxStreams(12).setAudioAttributes(attrs).build()
-            pool = p
+            playback = SoundPlaybackQueue { effect ->
+                if (Settings.soundEnabled) {
+                    val observer = if (cube.run.BuildConfig.DEBUG) testObserver else null
+                    val before = if (observer != null) System.nanoTime() else 0L
+                    val stream = p.play(effect.id, effect.volume, effect.volume, 1, 0, effect.rate)
+                    observer?.invoke(effect.name, before, System.nanoTime(), stream)
+                }
+            }
             val dir = File(ctx.cacheDir, "sfx").apply { mkdirs() }
             val names = listOf("tap", "blip", "pop", "place", "perfect", "combo", "success", "fail", "whoosh", "boom", "coin", "rise", "slide", "fanfare", "drain", "bell")
             fun file(name: String) = File(dir, if (name == "coin") "coin-chime-v2.wav" else "$name.wav")
@@ -62,10 +70,7 @@ object SoundFx {
         if (cube.run.BuildConfig.DEBUG && name == testMutedName) return
         val id = ids[name] ?: return
         val v = vol.coerceIn(0f, 1f)
-        val observer = if (cube.run.BuildConfig.DEBUG) testObserver else null
-        val before = if (observer != null) System.nanoTime() else 0L
-        val stream = pool?.play(id, v, v, 1, 0, rate.coerceIn(0.5f, 2f)) ?: 0
-        if (observer != null) observer(name, before, System.nanoTime(), stream)
+        playback?.offer(Playback(name, id, v, rate.coerceIn(0.5f, 2f)))
     }
 
     // ------------------------------------------------------------------ synth
