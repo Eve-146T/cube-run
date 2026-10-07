@@ -443,3 +443,49 @@ static stars/sparkles, placement, shared visibility, startup, shop rendering and
 terrain. Debug/test and release APKs built; lint has no errors. The final debug
 APK is installed on Motorola. No display settings, resolution, antialiasing,
 object counts or animation envelopes were reduced.
+
+### Smooth celestial fades and shader work, 2026-10-07
+
+The coverage/dither fade from the earlier passes has been removed entirely.
+Planets, moons, suns, asteroids and comets now use ordinary alpha blending.
+A color-masked depth pass selects the nearest visible surface of the fading
+scenery; the color pass blends that surface once with the existing backdrop.
+This preserves solid voxel silhouettes without exposing or accumulating their
+internal/overlapping faces. Both GLES3 and the GLES2 CPU fallback use this method.
+Fading instance/vertex data uploads once and is reused for both draws. The eased
+arrival/exit envelopes and the merged/indexed geometry remain in place.
+
+Performance savings now come from smaller data and less arithmetic:
+
+- Axis-aligned voxel normals use one direction code instead of three float
+  components. Static vertex records shrink from 36 to 28 bytes (22.2%), while
+  the shader selects the corresponding rotation column for lighting instead
+  of inverse-scaling and transforming each normal vector.
+- Unbent celestial objects skip road-bend calculations and the second projection
+  multiplication. Asteroids retain the original bend calculation.
+- The star backdrop combines its projection and plane matrices once per frame
+  on the CPU, replacing two matrix-vector products per vertex with one.
+- CPU fallback meshes and both 640 KB vertex buffers allocate only when that
+  rendering path is used. Normal GLES3 runs allocate none of them.
+
+The fade regression now checks every central pixel of a flat face for uniform
+brightness throughout the fade, including two overlapping white voxel bodies.
+It verifies zero visibility at zero opacity, monotonic brightness, a half-bright
+midpoint and a single alpha blend. GPU/CPU pixel comparisons still cover varied
+lighting, bands, rotation, nonuniform scaling, fog and bending. The backdrop
+reference now includes a translated, rotated and scaled sky plane.
+
+On Motorola, a deterministic static-controller space run measured 2,395 frames
+in 40 seconds after warm-up: **59.85 FPS**, GL-thread CPU p50 / p95
+**8.30 / 12.72 ms**, frame p95 / p99 / max **19.64 / 22.27 / 25.29 ms**;
+one frame exceeded 25 ms. The 60-second playing-bot run (55 measured) logged
+3,293 frames at **59.85 FPS**, GL-thread CPU p50 / p95 **6.75 / 10.07 ms**,
+frame p95 / p99 / max **19.28 / 20.65 / 26.46 ms**, one frame above 25 ms,
+and three protected collision episodes. The playing bot incurred 44 collections.
+These are current-build measurements, not a claimed before/after FPS improvement;
+the attempted fresh baseline aborted without usable measurements. Pixel is still
+unattached, so its 90 Hz target remains unverified.
+
+Final validation: all 14 affected on-device regression checks passed. Debug/test
+and release builds passed; lint reports no errors and the same 21 warnings.
+The final debug APK remains installed on Motorola.

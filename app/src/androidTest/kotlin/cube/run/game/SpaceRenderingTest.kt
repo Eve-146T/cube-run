@@ -106,8 +106,10 @@ class SpaceRenderingTest {
                                     Gdx.gl.glClearColor(0f, 0f, 0f, 1f); Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT)
                                     Gdx.gl.glDisable(GL20.GL_DEPTH_TEST); Gdx.gl.glDisable(GL20.GL_CULL_FACE)
                                     Gdx.gl.glEnable(GL20.GL_BLEND); Gdx.gl.glBlendFunc(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA)
-                                    if (gpu) backdrop.render(projection, Matrix4(), time, .75f, space)
+                                    val plane = Matrix4().translate(.15f, -.1f, 0f).rotate(0f, 0f, 1f, 17f).scale(.85f, 1.1f, 1f)
+                                    if (gpu) backdrop.render(projection, plane, time, .75f, space)
                                     else {
+                                        shapes.transformMatrix = plane
                                         val inner = Color(); val outer = Color()
                                         shapes.begin(ShapeRenderer.ShapeType.Filled)
                                         fun ellipse(u: Float, v: Float, ra: Float, rb: Float, angle: Float, tint: Color, alpha: Float) {
@@ -156,7 +158,7 @@ class SpaceRenderingTest {
         }
     }
 
-    @Test fun gpuAndCpuPreserveVoxelLightingBandsBendsAndCoverage() {
+    @Test fun gpuAndCpuPreserveVoxelLightingBandsBendsAndSmoothFades() {
         ActivityScenario.launch(GameActivity::class.java).use { scenario ->
             scenario.onActivity { it.setShowWhenLocked(true); it.setTurnScreenOn(true) }
             val done = CountDownLatch(1)
@@ -220,28 +222,47 @@ class SpaceRenderingTest {
                                 it % 4 != 3 && reference.first[it].toInt() != 0
                             })
                         }
-                        fun coverage(alpha: Float): Int {
+                        WorldBend.x = 0f; WorldBend.y = 0f
+                        camera.lookAt(0f, 3f, -20f); camera.update()
+                        val cube = FacetShapes.cube()
+                        fun fadePixels(alpha: Float): ByteArray {
                             batch.begin(camera)
-                            batch.add(ball, 0f, 3f, -20f, 6f, 6f, 6f, 0f, 0f, 0f,
+                            batch.add(cube, 0f, 3f, -20f, 6f, 6f, 6f, 0f, 0f, 0f,
+                                arrayOf(Color.WHITE), 0f, Color.BLACK, glow = 1f, opacity = alpha)
+                            // A second white cube behind it must not brighten the fade through overlap.
+                            batch.add(cube, 0f, 3f, -25f, 5f, 5f, 5f, 0f, 0f, 0f,
                                 arrayOf(Color.WHITE), 0f, Color.BLACK, glow = 1f, opacity = alpha)
                             target.begin()
                             try {
                                 Gdx.gl.glDepthMask(true); Gdx.gl.glClearColor(0f, 0f, 0f, 1f)
                                 Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT or GL20.GL_DEPTH_BUFFER_BIT)
                                 batch.render(camera)
-                                val pixels = ScreenUtils.getFrameBufferPixels(0, 0, 160, 320, false)
-                                return pixels.indices.count { it % 4 == 0 && pixels[it].toInt() != 0 }
+                                assertEquals(GL20.GL_NO_ERROR, Gdx.gl.glGetError())
+                                return ScreenUtils.getFrameBufferPixels(0, 0, 160, 320, false)
                             } finally { target.end() }
+                        }
+                        fun brightness(pixels: ByteArray): Long = pixels.indices.sumOf {
+                            if (it % 4 == 0) (pixels[it].toInt() and 255).toLong() else 0L
                         }
                         for (gpu in listOf(false, true)) {
                             batch.gpuEnabled = gpu
-                            assertEquals("Zero opacity must leave no silhouette", 0, coverage(0f))
-                            val full = coverage(1f)
-                            var previous = 0
+                            assertEquals("Zero opacity must leave no silhouette", 0L, brightness(fadePixels(0f)))
+                            val full = brightness(fadePixels(1f))
+                            var previous = 0L
                             for (step in 1..10) {
-                                val visible = coverage(SpaceLandmarks.smoothFade(step / 10f))
-                                assertTrue("Coverage must grow smoothly", visible > previous)
-                                if (step == 5) assertTrue("Half fade must reveal half the sky", visible in (full * .45f).toInt()..(full * .55f).toInt())
+                                val alpha = SpaceLandmarks.smoothFade(step / 10f)
+                                val pixels = fadePixels(alpha)
+                                val visible = brightness(pixels)
+                                assertTrue("Brightness must grow smoothly", visible > previous)
+                                val expected = (alpha * 255f).toInt().and(254) / 254f
+                                assertEquals("Fade must blend once, including overlapping voxels", expected.toDouble(), visible.toDouble() / full, .012)
+                                // Check every central pixel, not a sparse sample: no Bayer/checkerboard holes.
+                                val centre = pixels[(160 * 160 + 80) * 4].toInt() and 255
+                                for (y in 144..175) for (x in 64..95) {
+                                    val red = pixels[(y * 160 + x) * 4].toInt() and 255
+                                    assertEquals("Pattern in smooth fade at $x,$y", centre, red)
+                                }
+                                if (step == 5) assertTrue("Midpoint must blend evenly with the sky", centre in 125..130)
                                 previous = visible
                             }
                         }

@@ -18,26 +18,31 @@ internal class InstancedFacets(private val kit: BoxMeshKit) : Disposable {
         // Index those corners so the vertex shader runs four times instead of six.
         val mesh = Mesh(true, shape.faces * 2, shape.faces * 3,
             VertexAttribute(Usage.Position, 3, "a_position"),
-            VertexAttribute(Usage.Normal, 3, "a_normal"),
-            VertexAttribute(Usage.Generic, 3, "a_surface"))
+            VertexAttribute(Usage.Generic, 4, "a_surface"))
         val solid = FloatArray(CAPACITY * STRIDE)
         val fading = FloatArray(CAPACITY * STRIDE)
         var solidUsed = 0
         var fadingUsed = 0
         init {
             require(shape.faces % 2 == 0 && shape.faces * 2 <= 65536)
-            val vertices = FloatArray(shape.faces * 18)
+            val vertices = FloatArray(shape.faces * 14)
             val indices = ShortArray(shape.faces * 3)
             var w = 0
             var index = 0
             for (f in 0 until shape.faces step 2) {
                 // c00,c10,c11 from the first triangle, c01 from the second.
+                val normal = f * 3
+                val direction = when {
+                    shape.nrm[normal] != 0f -> if (shape.nrm[normal] > 0f) 0f else 1f
+                    shape.nrm[normal + 1] != 0f -> if (shape.nrm[normal + 1] > 0f) 2f else 3f
+                    else -> if (shape.nrm[normal + 2] > 0f) 4f else 5f
+                }
                 for (corner in intArrayOf(0, 1, 2, 5)) {
                     for (axis in 0..2) vertices[w++] = shape.pos[f * 9 + corner * 3 + axis]
-                    for (axis in 0..2) vertices[w++] = shape.nrm[f * 3 + axis]
                     vertices[w++] = shape.slot[f].toFloat()
                     vertices[w++] = shape.tone[f]
                     vertices[w++] = shape.lat[f]
+                    vertices[w++] = direction
                 }
                 val base = f * 2
                 for (offset in intArrayOf(0, 1, 2, 0, 2, 3)) indices[index++] = (base + offset).toShort()
@@ -52,7 +57,8 @@ internal class InstancedFacets(private val kit: BoxMeshKit) : Disposable {
     private val vertexShader = """
         #version 300 es
         precision highp float;
-        in vec3 a_position, a_normal, a_surface;
+        in vec3 a_position;
+        in vec4 a_surface;
         in vec4 i_0, i_1, i_2, i_3, i_4, i_5, i_6, i_7, i_8, i_9;
         uniform mat4 u_projViewTrans;
         uniform vec3 u_toL1, u_toL2, u_ambient, u_light1, u_light2;
@@ -63,8 +69,11 @@ internal class InstancedFacets(private val kit: BoxMeshKit) : Disposable {
             vec3 world = vec3(dot(i_0.xyz,local)+i_0.w, dot(i_1.xyz,local)+i_1.w, dot(i_2.xyz,local)+i_2.w);
             vec3 light = vec3(1.0);
             if (i_3.w < 1.0) {
-                vec3 raw = a_normal / i_3.xyz;
-                vec3 n = normalize(vec3(dot(i_0.xyz,raw),dot(i_1.xyz,raw),dot(i_2.xyz,raw)));
+                // Voxel normals are axis-aligned. Nonuniform scale changes only their sign,
+                // so select the rotation column instead of dividing and rotating a vector.
+                int axis = int(a_surface.w) / 2;
+                float direction = mod(a_surface.w,2.0) < 0.5 ? 1.0 : -1.0;
+                vec3 n = normalize(vec3(i_0[axis],i_1[axis],i_2[axis])) * direction * sign(i_3[axis]);
                 light = u_ambient + max(0.0,dot(n,u_toL1))*u_light1 + max(0.0,dot(n,u_toL2))*u_light2;
                 light = mix(light,vec3(1.0),i_3.w);
             }
@@ -81,7 +90,8 @@ internal class InstancedFacets(private val kit: BoxMeshKit) : Disposable {
             vec3 tint = slot < 0.5 ? i_4.rgb : (slot < 1.5 ? i_5.rgb : i_6.rgb);
             vec3 rgb = min(vec3(1.0),tint*light*a_surface.y)*(1.0-i_7.w) + i_7.rgb*i_7.w;
             v_color = vec4(floor(rgb*255.0)/255.0,min(1.0,floor(floor(i_4.w*255.0)/2.0)*2.0/254.0));
-            gl_Position = u_projViewTrans*vec4(world,1.0) + u_projViewTrans*vec4(bendOffset(world)*i_9.w,0.0);
+            gl_Position = u_projViewTrans*vec4(world,1.0);
+            if (i_9.w > 0.0) gl_Position += u_projViewTrans*vec4(bendOffset(world),0.0);
         }
     """.trimIndent()
     private val fadeShader = ShaderProgram(vertexShader, """
@@ -89,12 +99,7 @@ internal class InstancedFacets(private val kit: BoxMeshKit) : Disposable {
         precision highp float;
         in vec4 v_color;
         out vec4 fragColor;
-        void main() {
-            // Screen-space coverage fade: no opaque haze silhouette or translucent self-overlap.
-            float threshold = fract(52.9829189 * fract(dot(floor(gl_FragCoord.xy),vec2(0.06711056,0.00583715))));
-            if (v_color.a <= threshold) discard;
-            fragColor = vec4(v_color.rgb,1.0);
-        }
+        void main() { fragColor = v_color; }
     """.trimIndent())
 
     private val solidShader = ShaderProgram(vertexShader, """
@@ -150,22 +155,32 @@ internal class InstancedFacets(private val kit: BoxMeshKit) : Disposable {
     fun render(cam: Camera) {
         if (groups.values.none { it.solidUsed > 0 || it.fadingUsed > 0 }) return
         Gdx.gl.glEnable(GL20.GL_DEPTH_TEST); Gdx.gl.glDepthMask(true)
+        Gdx.gl.glDepthFunc(GL20.GL_LESS)
         Gdx.gl.glEnable(GL20.GL_CULL_FACE); Gdx.gl.glDisable(GL20.GL_BLEND)
-        // Solid surfaces need no discard, so the driver can reject hidden fragments early.
-        // Draw them first; fading scenery can then use their depth too.
-        for (pass in 0..1) {
-            val solid = pass == 0
-            if (groups.values.none { (if (solid) it.solidUsed else it.fadingUsed) > 0 }) continue
-            val shader = if (solid) solidShader else fadeShader
-            shader.bind(); shader.setUniformMatrix("u_projViewTrans", cam.combined)
-            WorldBend.apply(shader); kit.setLightUniforms(shader)
-            for (g in groups.values) {
-                val used = if (solid) g.solidUsed else g.fadingUsed
-                if (used == 0) continue
-                g.mesh.setInstanceData(if (solid) g.solid else g.fading, 0, used)
-                g.mesh.render(shader, GL20.GL_TRIANGLES)
-            }
+        solidShader.bind(); solidShader.setUniformMatrix("u_projViewTrans", cam.combined)
+        WorldBend.apply(solidShader); kit.setLightUniforms(solidShader)
+        for (g in groups.values) if (g.solidUsed > 0) {
+            g.mesh.setInstanceData(g.solid, 0, g.solidUsed)
+            g.mesh.render(solidShader, GL20.GL_TRIANGLES)
         }
+        if (groups.values.any { it.fadingUsed > 0 }) {
+            fadeShader.bind(); fadeShader.setUniformMatrix("u_projViewTrans", cam.combined)
+            WorldBend.apply(fadeShader); kit.setLightUniforms(fadeShader)
+            // Keep the nearest surface of a fading assembly, then blend its color once.
+            // This gives solid voxel bodies a smooth fade without exposing internal faces.
+            Gdx.gl.glColorMask(false, false, false, false)
+            for (g in groups.values) if (g.fadingUsed > 0) {
+                g.mesh.setInstanceData(g.fading, 0, g.fadingUsed)
+                g.mesh.render(fadeShader, GL20.GL_TRIANGLES)
+            }
+            Gdx.gl.glColorMask(true, true, true, true)
+            Gdx.gl.glDepthMask(false); Gdx.gl.glDepthFunc(GL20.GL_EQUAL)
+            Gdx.gl.glEnable(GL20.GL_BLEND)
+            Gdx.gl.glBlendFunc(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA)
+            for (g in groups.values) if (g.fadingUsed > 0) g.mesh.render(fadeShader, GL20.GL_TRIANGLES)
+        }
+        Gdx.gl.glDepthMask(true); Gdx.gl.glDepthFunc(GL20.GL_LESS)
+        Gdx.gl.glDisable(GL20.GL_BLEND)
         Gdx.gl.glDisable(GL20.GL_CULL_FACE); Gdx.gl.glDisable(GL20.GL_DEPTH_TEST)
     }
 

@@ -50,13 +50,18 @@ class FacetShape(
  * Box-built shapes grouped by shared surface on GLES3, or in one CPU batch on GLES2.
  * Both paths use the same light rig as [BoxMeshKit.lightFace]. Shapes are turned on
  * all three axes, so asteroids can tumble; [glow] lets a face shine with its
- * own colour (stars, comet tails, a sun). Coverage fading retains solid depth and
- * reveals the backdrop. The CPU fallback has a fixed vertex budget.
+ * own colour (stars, comet tails, a sun). Depth-selected alpha blending fades
+ * the visible surface smoothly. The CPU fallback has a fixed vertex budget.
  */
 class FacetBatch(private val kit: BoxMeshKit, private val maxVerts: Int = 40000) : Disposable {
-    private val vertices = FloatArray(maxVerts * 4)
-    private val mesh = Mesh(false, maxVerts, 0,
-        VertexAttribute(Usage.Position, 3, "a_position"), VertexAttribute(Usage.ColorPacked, 4, "a_color"))
+    private val vertices by lazy { FloatArray(maxVerts * 4) }
+    private val fadingVertices by lazy { FloatArray(maxVerts * 4) }
+    private var fadingUsed = 0
+    private val meshDelegate = lazy {
+        Mesh(false, maxVerts, 0, VertexAttribute(Usage.Position, 3, "a_position"),
+            VertexAttribute(Usage.ColorPacked, 4, "a_color"))
+    }
+    private val mesh by meshDelegate
     private val gpu = if (Gdx.gl30 != null) InstancedFacets(kit) else null
     internal var gpuEnabled = true
     internal var cullingEnabled = true
@@ -74,11 +79,7 @@ class FacetBatch(private val kit: BoxMeshKit, private val maxVerts: Int = 40000)
             precision highp float;
             #endif
             varying vec4 v_color;
-            void main() {
-                float threshold = fract(52.9829189 * fract(dot(floor(gl_FragCoord.xy),vec2(0.06711056,0.00583715))));
-                if (v_color.a <= threshold) discard;
-                gl_FragColor = vec4(v_color.rgb,1.0);
-            }
+            void main() { gl_FragColor = v_color; }
         """.trimIndent()).also { require(it.isCompiled) { it.log } }
     }
     private val fadeShader by fadeShaderDelegate
@@ -88,13 +89,13 @@ class FacetBatch(private val kit: BoxMeshKit, private val maxVerts: Int = 40000)
     private val axisLights = FloatArray(18)
     private val m = FloatArray(9)
 
-    fun begin(camera: Camera? = null) { used = 0; gpuVerts = 0; gpu?.begin(); visibility.begin(if (cullingEnabled) camera else null) }
+    fun begin(camera: Camera? = null) { used = 0; fadingUsed = 0; gpuVerts = 0; gpu?.begin(); visibility.begin(if (cullingEnabled) camera else null) }
 
     /** Upload reusable surfaces at trip entry, before they first become visible. */
     fun prepare(vararg shapes: FacetShape) { gpu?.prepare(*shapes) }
 
     /** Vertices queued this frame (for budgeting and tests). */
-    val queued: Int get() = used / 4 + gpuVerts
+    val queued: Int get() = (used + fadingUsed) / 4 + gpuVerts
 
     /**
      * Queue [shape] at ([x],[y],[z]), scaled by ([sx],[sy],[sz]) and turned
@@ -121,7 +122,9 @@ class FacetBatch(private val kit: BoxMeshKit, private val maxVerts: Int = 40000)
             if (gpu.add(shape, x, y, z, sx, sy, sz, m, palette, fog, fogColor, glow, bands, bent, opacity, compactEnabled)) gpuVerts += shape.faces * 3
             return
         }
-        if (used + shape.faces * 12 > vertices.size) return
+        if (used + fadingUsed + shape.faces * 12 > vertices.size) return
+        val target = if (opacity < 1f) fadingVertices else vertices
+        var write = if (opacity < 1f) fadingUsed else used
         val p = shape.pos; val n = shape.nrm
         val keep = 1f - fog
         // All library surfaces have one of six axis normals. Light each direction once per object.
@@ -155,12 +158,13 @@ class FacetBatch(private val kit: BoxMeshKit, private val maxVerts: Int = 40000)
                 val i = f * 9 + v * 3
                 val px = p[i] * sx; val py = p[i + 1] * sy; val pz = p[i + 2] * sz
                 val vz = z + m[6] * px + m[7] * py + m[8] * pz
-                vertices[used++] = x + m[0] * px + m[1] * py + m[2] * pz + (if (bent) WorldBend.dx(vz) else 0f)
-                vertices[used++] = y + m[3] * px + m[4] * py + m[5] * pz + (if (bent) WorldBend.dy(vz) else 0f)
-                vertices[used++] = vz
-                vertices[used++] = bits
+                target[write++] = x + m[0] * px + m[1] * py + m[2] * pz + (if (bent) WorldBend.dx(vz) else 0f)
+                target[write++] = y + m[3] * px + m[4] * py + m[5] * pz + (if (bent) WorldBend.dy(vz) else 0f)
+                target[write++] = vz
+                target[write++] = bits
             }
         }
+        if (opacity < 1f) fadingUsed = write else used = write
     }
 
     /** R = Ry(yaw) · Rx(pitch) · Rz(roll), row-major into [m]. */
@@ -181,16 +185,31 @@ class FacetBatch(private val kit: BoxMeshKit, private val maxVerts: Int = 40000)
 
     fun render(cam: Camera) {
         gpu?.render(cam)
-        if (used == 0) return
-        mesh.setVertices(vertices, 0, used)
+        if (used == 0 && fadingUsed == 0) return
         Gdx.gl.glEnable(GL20.GL_DEPTH_TEST); Gdx.gl.glDepthMask(true)
+        Gdx.gl.glDepthFunc(GL20.GL_LESS)
         Gdx.gl.glEnable(GL20.GL_CULL_FACE); Gdx.gl.glDisable(GL20.GL_BLEND)
-        fadeShader.bind(); fadeShader.setUniformMatrix("u_projViewTrans", cam.combined) // bent on the CPU, if at all
-        mesh.render(fadeShader, GL20.GL_TRIANGLES, 0, used / 4)
+        fadeShader.bind(); fadeShader.setUniformMatrix("u_projViewTrans", cam.combined)
+        if (used > 0) {
+            mesh.setVertices(vertices, 0, used)
+            mesh.render(fadeShader, GL20.GL_TRIANGLES, 0, used / 4)
+        }
+        if (fadingUsed > 0) {
+            mesh.setVertices(fadingVertices, 0, fadingUsed)
+            Gdx.gl.glColorMask(false, false, false, false)
+            mesh.render(fadeShader, GL20.GL_TRIANGLES, 0, fadingUsed / 4)
+            Gdx.gl.glColorMask(true, true, true, true)
+            Gdx.gl.glDepthMask(false); Gdx.gl.glDepthFunc(GL20.GL_EQUAL)
+            Gdx.gl.glEnable(GL20.GL_BLEND)
+            Gdx.gl.glBlendFunc(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA)
+            mesh.render(fadeShader, GL20.GL_TRIANGLES, 0, fadingUsed / 4)
+        }
+        Gdx.gl.glDepthMask(true); Gdx.gl.glDepthFunc(GL20.GL_LESS)
+        Gdx.gl.glDisable(GL20.GL_BLEND)
         Gdx.gl.glDisable(GL20.GL_CULL_FACE); Gdx.gl.glDisable(GL20.GL_DEPTH_TEST)
     }
 
-    override fun dispose() { mesh.dispose(); gpu?.dispose(); if (fadeShaderDelegate.isInitialized()) fadeShader.dispose() }
+    override fun dispose() { if (meshDelegate.isInitialized()) mesh.dispose(); gpu?.dispose(); if (fadeShaderDelegate.isInitialized()) fadeShader.dispose() }
 }
 
 /**

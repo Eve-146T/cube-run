@@ -20,7 +20,7 @@ internal class SpaceBackdrop : Disposable {
         VertexAttribute(Usage.Generic, 4, "a_motion"))
     private val shader = ShaderProgram("""
         attribute vec4 a_shape, a_motion;
-        uniform mat4 u_projViewTrans, u_plane;
+        uniform mat4 u_projViewTrans;
         uniform float u_time, u_alpha;
         uniform vec3 u_star, u_neon, u_band;
         varying vec4 v_color;
@@ -38,7 +38,7 @@ internal class SpaceBackdrop : Disposable {
             vec3 rgb = type < 0.5 ? u_band : (a_motion.w > 0.5 ? u_neon : u_star);
             float alpha = a_motion.z*tw*u_alpha;
             v_color = vec4(floor(rgb*255.0)/255.0,floor(floor(alpha*255.0)/2.0)*2.0/254.0);
-            gl_Position = u_projViewTrans*u_plane*vec4(a_shape.xy+local,0.0,1.0);
+            gl_Position = u_projViewTrans*vec4(a_shape.xy+local,0.0,1.0);
         }
     """.trimIndent(), """
         #ifdef GL_ES
@@ -48,6 +48,7 @@ internal class SpaceBackdrop : Disposable {
         void main() { gl_FragColor = v_color; }
     """.trimIndent())
     private val band = Color()
+    private val projectionPlane = Matrix4()
     private var count = 0
 
     init { require(shader.isCompiled) { "space backdrop shader: ${shader.log}" } }
@@ -95,7 +96,7 @@ internal class SpaceBackdrop : Disposable {
         Gdx.gl.glDisable(GL20.GL_DEPTH_TEST); Gdx.gl.glDepthMask(false)
         Gdx.gl.glDisable(GL20.GL_CULL_FACE); Gdx.gl.glEnable(GL20.GL_BLEND)
         Gdx.gl.glBlendFunc(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA)
-        shader.bind(); shader.setUniformMatrix("u_projViewTrans", projection); shader.setUniformMatrix("u_plane", plane)
+        shader.bind(); shader.setUniformMatrix("u_projViewTrans", projectionPlane.set(projection).mul(plane))
         shader.setUniformf("u_time", time); shader.setUniformf("u_alpha", alpha)
         shader.setUniformf("u_star", space.star.r, space.star.g, space.star.b)
         shader.setUniformf("u_neon", space.neonSoft.r, space.neonSoft.g, space.neonSoft.b)
