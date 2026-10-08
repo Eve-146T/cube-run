@@ -224,14 +224,14 @@ class ZenCubeTest {
         assertEquals("Injected pickups cannot grant rewards either", 0, read<Int>(game, "boxesRun"))
     }
 
-    @Test fun zenBlocksEveryOtherAchievementIncludingMuteToggles() = fixture(Skins.ZEN_ID) { game ->
+    @Test fun zenBlocksEveryOtherAchievementIncludingHapticTaps() = fixture(Skins.ZEN_ID) { game ->
         val before = Achievements.snapshot().associate { it.definition.id to it.value }
         for (definition in Achievements.tracked) {
             Progress.addMetric(definition.id, 1000000)
             Progress.bestMetric(definition.id, 1000000)
             Progress.markMetricBit(definition.id, 2)
         }
-        repeat(1000) { Progress.recordMuteToggle() }
+        repeat(1000) { Progress.recordHapticTap() }
         Progress.recordRunProgress(10000, 100)
         Progress.recordCenteredScore(100)
         Progress.recordCoinlessScore(60)

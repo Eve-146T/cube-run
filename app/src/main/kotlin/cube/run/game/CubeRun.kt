@@ -982,7 +982,7 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
                 }
             }
             row.coins?.let { coins ->
-                if (row.z > -12f && started && !dead) {
+                if (row.z > -12f && started && !dead && Settings.roadCoins) {
                     for (c in coins) {
                         if (dead) break
                         if (c.taken) continue

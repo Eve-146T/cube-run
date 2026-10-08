@@ -8,12 +8,14 @@ import cube.run.core.SoundFx
 import cube.run.core.Stage
 import cube.run.core.hsvInto
 import cube.run.data.Progress
+import cube.run.data.Settings
 
 /**
  * The fire boost: for the first [window] seconds of a run the HUD shows a
  * BOOST button; each tap (delivered through [Stage.boostRequests])
  * front-loads your speed. Five taps reach 80% of cruise speed; the
- * Even faster starts perk unlocks up to five further steps to maximum speed. This class owns the rules and tells the HUD
+ * Even faster starts perk unlocks up to five further steps to maximum speed. The start speed
+ * setting presses some of them before the run begins. This class owns the rules and tells the HUD
  * (through the session) when the window opens and closes.
  */
 class FireBoost(private val game: Gdx3DGame, private val difficulty: Difficulty) {
@@ -29,10 +31,13 @@ class FireBoost(private val game: Gdx3DGame, private val difficulty: Difficulty)
     private val tmpCol = Color()
 
     fun reset() {
-        taps = 0; runTime = 0f
+        runTime = 0f
         shown = true
         Stage.boostRequests.set(0)
-        game.session.setBoost(true, 0, maxTaps)
+        // The chosen start speed is already pressed: the run launches into it, the rest stay to tap.
+        taps = Settings.startSpeed.coerceIn(0, maxTaps)
+        if (taps > 0) difficulty.boostTo(target(taps))
+        game.session.setBoost(available(), taps, maxTaps)
     }
 
     /** Advance the window; apply any taps the HUD queued. Returns how many taps counted this frame. */
@@ -45,14 +50,16 @@ class FireBoost(private val game: Gdx3DGame, private val difficulty: Difficulty)
         return counted
     }
 
+    private fun target(presses: Int): Float =
+        if (presses <= 5) difficulty.startDiff + (maxDiff - difficulty.startDiff) * (presses / 5f)
+        else maxDiff + (1f - maxDiff) * ((presses - 5) / 5f)
+
     private fun available(): Boolean = runTime < window && taps < maxTaps
 
     /** One tap: bump difficulty a notch with a hot orange punch. */
     private fun tap(px: Float, py: Float) {
         taps += 1
-        val target = if (taps <= 5) difficulty.startDiff + (maxDiff - difficulty.startDiff) * (taps / 5f)
-            else maxDiff + (1f - maxDiff) * ((taps - 5) / 5f)
-        difficulty.boostTo(target)
+        difficulty.boostTo(target(taps))
         SoundFx.play("rise", rate = 0.85f + taps * 0.12f)
         Haptics.click()
         game.flash(hsvInto(tmpCol, if (taps > 5) 205f else 22f, 0.85f, 1f), 0.12f)

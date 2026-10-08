@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="settings_title">הגדרות</string>
+    <string name="settings_language">שפה</string>
+    <string name="settings_volume">עוצמת קול</string>
+    <string name="settings_start_speed">מהירות התחלה</string>
+    <string name="settings_coins">מטבעות על הכביש</string>
+</resources>

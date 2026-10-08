@@ -1,0 +1,6 @@
+<!-- Settings: start speed. Two stacked chevrons, white; tinted at runtime. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp" android:height="24dp" android:viewportWidth="24" android:viewportHeight="24">
+    <path android:fillColor="#FFFFFFFF"
+        android:pathData="M12,3.2l7.3,7.3 -2.3,2.3 -5,-5 -5,5 -2.3,-2.3zM12,11.2l7.3,7.3 -2.3,2.3 -5,-5 -5,5 -2.3,-2.3z" />
+</vector>

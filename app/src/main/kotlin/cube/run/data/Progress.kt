@@ -189,7 +189,7 @@ object Progress {
         private set
     @Volatile var maxRunMissedBoxes = 0
         private set
-    @Volatile var totalMuteToggles = 0
+    @Volatile var totalHapticTaps = 0
         private set
     @Volatile var voidPurchases = 0
         private set
@@ -325,11 +325,11 @@ object Progress {
         prefs.edit().putInt("max_run_missed_boxes", progress).apply()
         Achievements.evaluate()
     }
-    /** Call only for a user changing the mute toggle, never settings initialization. */
-    @Synchronized fun recordMuteToggle() {
-        if (zenRun || totalMuteToggles == Int.MAX_VALUE) return
-        totalMuteToggles++
-        prefs.edit().putInt("total_mute_toggles", totalMuteToggles).apply()
+    /** Call only for an explicit haptics toggle tap, never settings initialization. */
+    @Synchronized fun recordHapticTap() {
+        if (zenRun || totalHapticTaps == Int.MAX_VALUE) return
+        totalHapticTaps++
+        prefs.edit().putInt("total_haptic_taps", totalHapticTaps).apply()
         Achievements.evaluate()
     }
     private fun recordBubbles() {
@@ -375,7 +375,8 @@ object Progress {
         bestCenteredScore = prefs.getInt("best_centered_score", 0).coerceIn(0, 100)
         bestCoinlessScore = prefs.getInt("best_coinless_score", 0).coerceIn(0, 60)
         maxRunMissedBoxes = prefs.getInt("max_run_missed_boxes", 0).coerceIn(0, 10)
-        totalMuteToggles = prefs.getInt("total_mute_toggles", 0).coerceAtLeast(0)
+        // Retain old progress and rewards when replacing Cookie Clicker.
+        totalHapticTaps = prefs.getInt("total_haptic_taps", prefs.getInt("total_mute_toggles", 0)).coerceAtLeast(0)
         voidPurchases = prefs.getInt("void_purchases", 0).coerceAtLeast(0)
         achievementMetrics.clear()
         for (definition in Achievements.tracked) achievementMetrics[definition.id] = prefs.getInt("metric_${definition.id}", 0).coerceAtLeast(0)

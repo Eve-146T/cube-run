@@ -75,7 +75,7 @@ object SoundFx {
         if (!ready || !Settings.soundEnabled) return
         if (cube.run.BuildConfig.DEBUG && name == testMutedName) return
         val id = ids[name] ?: return
-        val v = vol.coerceIn(0f, 1f)
+        val v = vol.coerceIn(0f, 1f) * Settings.soundGain
         playback?.offer(Playback(name, id, v, rate.coerceIn(0.5f, 2f)))
     }
 
@@ -83,13 +83,13 @@ object SoundFx {
     fun loop(name: String, vol: Float): Int {
         if (!ready || !Settings.soundEnabled) return 0
         val id = ids[name] ?: return 0
-        val v = vol.coerceIn(0f, 1f)
+        val v = vol.coerceIn(0f, 1f) * Settings.soundGain
         return pool?.play(id, v, v, 2, -1, 1f) ?: 0
     }
 
     fun setVolume(stream: Int, vol: Float) {
         if (stream == 0) return
-        val v = vol.coerceIn(0f, 1f)
+        val v = vol.coerceIn(0f, 1f) * Settings.soundGain
         pool?.setVolume(stream, v, v)
     }
 

@@ -15,6 +15,7 @@ object Theme {
     const val PAGE_TOP = 0xFFFFE4F3.toInt()      // cotton candy…
     const val PAGE_BOTTOM = 0xFFD9F2FF.toInt()   // …down to baby blue
     const val CARD = 0xFFFFFFFF.toInt()
+    const val SETTINGS_BLUE = 0xFFD9F2FF.toInt()
     const val CARD_ALT = 0xFFF4F0FF.toInt()
     const val SCRIM = 0x99140B3A.toInt()         // the pause / sheets: the run stays visible, dimmed
 

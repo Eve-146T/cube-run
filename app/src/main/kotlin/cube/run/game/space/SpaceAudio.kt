@@ -21,14 +21,18 @@ class SpaceAudio {
             stream = SoundFx.loop("hum", volume)
             if (stream == 0) { retry = 0.5f; return }
         }
-        if (abs(volume - applied) > 0.003f) { SoundFx.setVolume(stream, volume); applied = volume }
+        val gain = Settings.soundGain
+        if (abs(volume - applied) > 0.003f || gain != appliedGain) {
+            SoundFx.setVolume(stream, volume); applied = volume; appliedGain = gain
+        }
     }
 
     private var applied = -1f
+    private var appliedGain = -1f
 
     fun stop() {
         SoundFx.stop(stream)
-        stream = 0; applied = -1f; volume = 0f; retry = 0f
+        stream = 0; applied = -1f; appliedGain = -1f; volume = 0f; retry = 0f
     }
 
     private companion object { const val HUM_VOLUME = 0.32f }

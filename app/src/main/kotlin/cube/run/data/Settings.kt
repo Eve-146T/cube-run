@@ -35,6 +35,22 @@ object Settings {
     @Volatile var audioHapticRevision: Int = 0
         private set
 
+    /** Sound volume in steps, 1..[VOLUME_STEPS] (muting stays a separate switch). */
+    @Volatile var volume: Int = VOLUME_STEPS
+        private set
+    const val VOLUME_STEPS = 10
+
+    /** What every effect is scaled by: the steps follow loudness, not amplitude, so each one sounds like a step. */
+    val soundGain: Float get() = (volume.toFloat() / VOLUME_STEPS).let { it * it }
+
+    /** Boost presses already applied when a run starts (0 = the usual standing start). Capped by the presses you own. */
+    @Volatile var startSpeed: Int = 0
+        private set
+
+    /** Coins appear on the road (and can be collected). Off: the road is clear, and none are earned on it. */
+    @Volatile var roadCoins: Boolean = true
+        private set
+
     /**
      * Dev mode: the section director cycles the sections under review and the
      * bank is filled. A test tool, so it is process-scoped on purpose: it
@@ -95,6 +111,9 @@ object Settings {
         smoothSensitivity = prefs.getFloat("smooth_sensitivity", 0.5f)
         soundEnabled = prefs.getBoolean("sound_enabled", true)
         hapticsEnabled = prefs.getBoolean("haptics_enabled", true)
+        volume = prefs.getInt("volume", VOLUME_STEPS).coerceIn(1, VOLUME_STEPS)
+        startSpeed = prefs.getInt("start_speed", 0).coerceIn(0, 10)
+        roadCoins = prefs.getBoolean("road_coins", true)
         if (prefs.contains("dev_mode")) prefs.edit().remove("dev_mode").apply() // was persisted once; never again
     }
 
@@ -109,15 +128,37 @@ object Settings {
     }
 
     fun setSoundEnabled(v: Boolean) {
-        if (soundEnabled != v) audioHapticRevision++
+        if (soundEnabled == v) return
+        audioHapticRevision++
         soundEnabled = v
         prefs.edit().putBoolean("sound_enabled", v).apply()
     }
 
     fun setHapticsEnabled(v: Boolean) {
-        if (hapticsEnabled != v) audioHapticRevision++
+        if (hapticsEnabled == v) return
+        audioHapticRevision++
         hapticsEnabled = v
         prefs.edit().putBoolean("haptics_enabled", v).apply()
+    }
+
+    fun setVolume(v: Int) {
+        val next = v.coerceIn(1, VOLUME_STEPS)
+        if (volume == next) return
+        volume = next
+        prefs.edit().putInt("volume", volume).apply()
+    }
+
+    fun setStartSpeed(v: Int) {
+        val next = v.coerceIn(0, 10)
+        if (startSpeed == next) return
+        startSpeed = next
+        prefs.edit().putInt("start_speed", startSpeed).apply()
+    }
+
+    fun setRoadCoins(v: Boolean) {
+        if (roadCoins == v) return
+        roadCoins = v
+        prefs.edit().putBoolean("road_coins", v).apply()
     }
 
     fun setDevMode(v: Boolean) {

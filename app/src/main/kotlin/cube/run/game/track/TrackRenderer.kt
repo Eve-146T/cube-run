@@ -1,5 +1,6 @@
 package cube.run.game.track
 
+import cube.run.data.Settings
 import com.badlogic.gdx.graphics.Color
 import cube.run.core.Gdx3DGame
 import cube.run.core.hsvInto
@@ -103,7 +104,7 @@ class TrackRenderer(private val game: Gdx3DGame) {
             for (ob in r.obs) cues.render(ob, r.z, fog, r.pop)
         }
         // Coins and coal share pickup positions, magnet motion, fog and stream-in animation.
-        for (r in track.rows) {
+        if (Settings.roadCoins) for (r in track.rows) {
             val coins = r.coins ?: continue
             val p = r.pop
             if (p <= 0.001f) continue

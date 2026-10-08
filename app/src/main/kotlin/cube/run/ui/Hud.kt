@@ -100,8 +100,8 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false, retu
         override fun run() {
             if (!isAttachedToWindow || page != null || languageSheet != null || (runStarted && runOver == null)) return
             if (width == 0 || height == 0) { postOnAnimation(this); return }
-            val key = pageCacheKey()
-            for (name in listOf("achievements", "wardrobe", "sections")) {
+            for (name in listOf("settings", "sections", "achievements", "wardrobe")) {
+                val key = pageCacheKey(name)
                 val old = cachedPages[name]
                 if (old != null && old.view === page) continue
                 if (old == null || old.key != key) {
@@ -111,12 +111,16 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false, retu
                     addView(fresh, 0, LayoutParams(-1, -1))
                     rootWindowInsets?.let { fresh.dispatchApplyWindowInsets(it) }
                     postOnAnimation(this)
-                    return // One page per frame; never construct all three in a tap handler.
+                    return // One page per frame; never construct them all in a tap handler.
                 }
                 if (!old.painted && !old.view.isLayoutRequested && old.view.width > 0 && old.view.height > 0 &&
                     (old.view !is AchievementsView || old.view.contentReady)) {
-                    old.view.setLayerType(View.LAYER_TYPE_HARDWARE, null)
-                    old.view.buildLayer()
+                    // Interactive settings redraw small controls, not a full-screen texture.
+                    if (old.view is SettingsView) old.view.warmControls()
+                    else {
+                        old.view.setLayerType(View.LAYER_TYPE_HARDWARE, null)
+                        old.view.buildLayer()
+                    }
                     old.painted = true
                     postOnAnimation(this)
                     return
@@ -144,6 +148,14 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false, retu
         }
     }
     private var languageSheet: LanguageSheet? = null
+    private var preparedLanguages: LanguageSheet? = null
+    private val prepareSettingsMenus = Runnable {
+        if (isAttachedToWindow && !runStarted && preparedLanguages == null) {
+            preparedLanguages = newLanguageSheet().apply { prepareNavigation() }
+            addView(preparedLanguages, 0, LayoutParams(-1, -1))
+            preparedLanguages?.requestApplyInsets()
+        }
+    }
     private var pauseSheet: PauseSheet? = null
     private var runOver: RunOverFlow? = null
     private val hardwareNavigation = HardwareNavigation()
@@ -165,8 +177,8 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false, retu
             postDelayed(this, 500)
         }
     }
-    private val menu: MainMenu = MainMenu(activity, kit, { openShop() }, { openWardrobe() }, { openSections() }, { menu.pulseBank() },
-        openAchievements = { openAchievements() }, openLanguages = { openLanguages() }, openingEntrance = openingEntrance,
+    private val menu: MainMenu = MainMenu(activity, kit, { openShop() }, { openWardrobe() }, { openSettings() },
+        openAchievements = { openAchievements() }, openingEntrance = openingEntrance,
         returningToMenu = returningToMenu)
 
     /** One launch clock owns the fade. Controls are laid out at their final positions from frame one. */
@@ -233,7 +245,9 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false, retu
         languageSheet?.settleEntrance()
     }
 
+    /** A language change rebuilds the HUD: it comes back on the settings page, the language sheet still open. */
     fun showLanguagesAfterChange() {
+        openSettings()
         openLanguages()
         settleLanguageTransition()
     }
@@ -244,6 +258,7 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false, retu
         clearHardwareFocus()
         removeCallbacks(prepareShop)
         removeCallbacks(preparePages)
+        removeCallbacks(prepareSettingsMenus)
         cachePreferences.forEach { it.unregisterOnSharedPreferenceChangeListener(cacheChanges) }
         cachedPages.values.forEach { it.painted = false }
         removeCallbacks(pollAchievements)
@@ -274,32 +289,44 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false, retu
 
     private fun scheduleShopPreparation() {
         removeCallbacks(prepareShop)
-        postOnAnimation(prepareShop)
+        // Let the navigation response paint before warming a large shop tree.
+        postDelayed(prepareShop, 180)
         schedulePagePreparation()
     }
 
     private fun schedulePagePreparation() {
         removeCallbacks(preparePages)
-        if (isAttachedToWindow) postOnAnimation(preparePages)
+        if (isAttachedToWindow) postDelayed(preparePages, 160)
+        removeCallbacks(prepareSettingsMenus)
+        if (isAttachedToWindow) postOnAnimation(prepareSettingsMenus)
     }
 
-    private fun pageCacheKey(): List<Any> = listOf(
-        Progress.coalAlchemyRevealed, Progress.coins, Progress.bubbles, Progress.skin, Progress.bubbleSkin, Progress.trail,
-        Progress.ownedSkins, Progress.ownedBubbleSkins, Progress.ownedTrails, Progress.achievementsUnlocked,
-        (0..2).map(Progress::shards), Progress.voidPurchases, Achievements.snapshot(),
-        Settings.devMode, Settings.testSection, Settings.testPillWorld, Settings.testSpaceWorld, Settings.performanceCourse,
-    )
+    private fun pageCacheKey(name: String): List<Any> = when (name) {
+        // Settings refreshes its live values on show. Gameplay and slider changes
+        // must never discard its controls or the already-laid-out language menu.
+        "settings" -> emptyList()
+        "sections" -> listOf(Settings.testSection, Settings.testPillWorld, Settings.testSpaceWorld, Settings.performanceCourse)
+        "wardrobe" -> listOf(Progress.coalAlchemyRevealed, Progress.coins, Progress.skin, Progress.bubbleSkin, Progress.trail,
+            Progress.ownedSkins, Progress.ownedBubbleSkins, Progress.ownedTrails, (0..2).map(Progress::shards), Progress.voidPurchases)
+        else -> listOf(
+            Progress.coalAlchemyRevealed, Progress.coins, Progress.bubbles, Progress.skin, Progress.bubbleSkin, Progress.trail,
+            Progress.ownedSkins, Progress.ownedBubbleSkins, Progress.ownedTrails, Progress.achievementsUnlocked,
+            (0..2).map(Progress::shards), Progress.voidPurchases, Achievements.snapshot(), Settings.devMode,
+        )
+    }
 
     private fun newCachedPage(name: String): Page = when (name) {
         "achievements" -> AchievementsView(activity, kit, preparing = true) { closed() }
         "wardrobe" -> WardrobeView(activity, kit) { closed() }
+        "settings" -> SettingsView(activity, kit, openLanguages = { openLanguages() }, openSections = { openSectionsFromSettings() },
+            devChanged = { menu.pulseBank() }) { closed() }
         else -> SectionsView(activity, kit, reloadMenu = { relaunch(autoStart = false) }) { closed() }
     }
 
     private fun openCached(name: String) {
         if (pageOpen()) return
         clearHardwareFocus()
-        val key = pageCacheKey()
+        val key = pageCacheKey(name)
         var cached = cachedPages[name]
         if (cached == null || cached.key != key) {
             cached?.let { removeView(it.view) }
@@ -316,13 +343,13 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false, retu
         schedulePagePreparation()
     }
 
-    /** System Back only navigates out of the two stores. */
+    /** System Back navigates out of the stores and the settings page. */
     fun navigateBack() {
         languageSheet?.let { it.dismiss(); return }
         if (runStarted || pauseSheet != null || runOver != null) return
         if (shopBox != null || voidPurchase != null) return // keep purchased presentations intact
         val current = page
-        if (current is ShopView || current is WardrobeView || current is AchievementsView) current.navigateBack()
+        if (current is ShopView || current is WardrobeView || current is AchievementsView || current is SettingsView) current.navigateBack()
     }
 
     private fun pageOpen() = page != null || languageSheet != null || runStarted
@@ -411,23 +438,29 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false, retu
         Anim.repaint(this)
     }
 
+    /** The language sheet opens over the settings page. */
     private fun openLanguages() {
-        if (pageOpen()) return
+        if (languageSheet != null || runStarted || page !is SettingsView) return
         clearHardwareFocus()
         Stage.homeScreen = false
         removeCallbacks(prepareShop)
-        val sheet = LanguageSheet(activity, kit, { code ->
-            (activity as GameActivity).changeLanguage(code)
-        }, {
-            languageSheet = null
-            Stage.homeScreen = true
-            scheduleShopPreparation()
-        })
+        val sheet = preparedLanguages ?: newLanguageSheet().apply {
+            prepareNavigation()
+            this@Hud.addView(this, LayoutParams(-1, -1))
+            preparedLanguages = this
+        }
         languageSheet = sheet
-        addView(sheet, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
-        // Apply cutout clearance on the first opening, just as after a locale rebuild.
-        sheet.requestApplyInsets()
+        sheet.bringToFront()
+        sheet.showPrepared()
     }
+
+    private fun newLanguageSheet() = LanguageSheet(activity, kit, { code ->
+        (activity as GameActivity).changeLanguage(code)
+    }, {
+        languageSheet = null
+        Stage.homeScreen = page == null
+        scheduleShopPreparation()
+    })
 
     private fun openShop() {
         if (pageOpen()) return
@@ -446,7 +479,13 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false, retu
         menu.bringToFront() // corner controls return above the sheet instead of flashing out from beneath it
     }
     private fun openWardrobe() = openCached("wardrobe")
-    private fun openSections() = openCached("sections")
+    private fun openSettings() = openCached("settings")
+
+    /** Debug: the section explorer replaces the settings page (its Back returns to the menu). */
+    private fun openSectionsFromSettings() {
+        (page as? SettingsView)?.close()
+        openCached("sections")
+    }
     private fun openAchievements() {
         if (Progress.achievementsUnlocked) openCached("achievements")
     }

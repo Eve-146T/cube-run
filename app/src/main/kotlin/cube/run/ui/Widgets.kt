@@ -77,7 +77,7 @@ class CandyPainter(private val radius: Float, private val lip: Float) {
 
 /** Press feedback shared by the candy controls: squash to the lip, spring back (the click still fires). */
 @SuppressLint("ClickableViewAccessibility")
-private fun View.candyTouch(painter: CandyPainter, sound: Boolean = true): () -> Unit {
+private fun View.candyTouch(painter: CandyPainter, sound: Boolean = true, bindTap: (() -> Unit) -> Unit): () -> Unit {
     // Press feedback belongs to the drawing, so touching a rising button cannot
     // cancel its entrance, arrow nudge, purchase pulse, or exit.
     var pressAnim: android.animation.ValueAnimator? = null
@@ -89,6 +89,11 @@ private fun View.candyTouch(painter: CandyPainter, sound: Boolean = true): () ->
             addUpdateListener { painter.press = it.animatedValue as Float; Anim.repaint(this@candyTouch) }
             start()
         }
+    }
+    bindTap {
+        // Quick taps and keyboard/accessibility clicks get a visible release too.
+        painter.press = maxOf(painter.press, .65f)
+        press(0f, 160)
     }
     addOnAttachStateChangeListener(object : View.OnAttachStateChangeListener {
         override fun onViewAttachedToWindow(v: View) = Unit
@@ -120,6 +125,7 @@ private fun View.candyTouch(painter: CandyPainter, sound: Boolean = true): () ->
 class CandyButton(ctx: Context, color: Int, label: CharSequence, textSize: Float, private val lipPx: Float, radiusPx: Float) : TextView(ctx) {
     private val painter = CandyPainter(radiusPx, lipPx).also { it.color = color }
     private var resetPress: () -> Unit = {}
+    private var tapPress: () -> Unit = {}
     var color: Int
         get() = painter.color
         set(v) { painter.color = v; setTextColor(Theme.onColor(v)); invalidate() }
@@ -134,10 +140,12 @@ class CandyButton(ctx: Context, color: Int, label: CharSequence, textSize: Float
         setTextColor(Theme.onColor(color))
         isClickable = true
         isFocusable = true
-        resetPress = candyTouch(painter)
+        resetPress = candyTouch(painter) { tapPress = it }
     }
 
     fun setLabel(t: CharSequence) { text = t }
+
+    override fun performClick(): Boolean { tapPress(); return super.performClick() }
 
     fun setProgress(amount: Float = -1f, color: Int = Theme.MINT) {
         painter.progress = amount; painter.progressColor = color; invalidate()
@@ -168,6 +176,7 @@ class CandyButton(ctx: Context, color: Int, label: CharSequence, textSize: Float
 class CandyChip(ctx: Context, color: Int, private val lipPx: Float, radiusPx: Float) : ImageView(ctx) {
     private val painter = CandyPainter(radiusPx, lipPx).also { it.color = color }
     private var resetPress: () -> Unit = {}
+    private var tapPress: () -> Unit = {}
     var color: Int
         get() = painter.color
         set(v) { painter.color = v; invalidate() }
@@ -176,10 +185,12 @@ class CandyChip(ctx: Context, color: Int, private val lipPx: Float, radiusPx: Fl
         scaleType = ScaleType.FIT_CENTER
         isClickable = true
         isFocusable = true
-        resetPress = candyTouch(painter)
+        resetPress = candyTouch(painter) { tapPress = it }
     }
 
     fun ring(px: Float, color: Int) { painter.ring = px; painter.ringColor = color; invalidate() }
+
+    override fun performClick(): Boolean { tapPress(); return super.performClick() }
 
     override fun onWindowFocusChanged(hasWindowFocus: Boolean) {
         super.onWindowFocusChanged(hasWindowFocus)
@@ -394,13 +405,13 @@ class UiKit(val ctx: Context) {
     fun coins(amount: Int, sizeSp: Float): CharSequence = coins(amount.toString(), sizeSp)
 
     /** An icon beside a value: "(coin) 120". [stage] = outlined white text for the 3D stage. */
-    fun iconText(icon: Drawable, t: CharSequence, size: Float, color: Int, stage: Boolean = false, iconDp: Float = size * 1.1f): LinearLayout =
+    fun iconText(icon: Drawable, t: CharSequence, size: Float, color: Int, stage: Boolean = false, iconDp: Float = size * 1.1f, stroke: Float = size / 8f): LinearLayout =
         LinearLayout(ctx).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
             clipChildren = false; clipToPadding = false
             addView(ImageView(ctx).apply { setImageDrawable(icon) }, LinearLayout.LayoutParams(dp(iconDp), dp(iconDp)))
-            val tv = if (stage) stageText(t, size, color, stroke = size / 8f) else text(t, size, color, 700)
+            val tv = if (stage) stageText(t, size, color, stroke = stroke) else text(t, size, color, 700)
             addView(tv, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { marginStart = dp(6f) })
         }
 
