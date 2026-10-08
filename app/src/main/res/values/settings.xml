@@ -4,6 +4,7 @@
     <string name="settings_language">Language</string>
     <string name="settings_volume">Volume</string>
     <string name="settings_start_speed">Start speed</string>
+    <string name="settings_disable_start_speed">Disable start speed</string>
     <string name="settings_coins">Coins on the road</string>
     <string name="settings_version" translatable="false">Cube Run %1$s</string>
 </resources>

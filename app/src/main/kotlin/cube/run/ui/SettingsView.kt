@@ -41,7 +41,6 @@ class SettingsView(
     private val soundTile = tile(R.drawable.ic_sound_on, Theme.SKY, decorative = false).apply {
         setOnClickListener {
             Settings.setSoundEnabled(!Settings.soundEnabled)
-            Anim.tap(this)
             Haptics.click(); SoundFx.play("tap")
             sync(animate = true)
         }
@@ -62,9 +61,19 @@ class SettingsView(
     private var stackedVolume = false
     private val hapticsTile = tile(R.drawable.ic_haptic_on, Theme.SKY)
     private val hapticsSwitch = CandySwitch(activity, ::dpf)
+    private val speedTile = tile(R.drawable.ic_speed, Theme.ORANGE, decorative = false).apply {
+        contentDescription = activity.getString(R.string.settings_disable_start_speed)
+        setOnClickListener {
+            Settings.setStartSpeed(0)
+            speedBar.show(0)
+            syncStartSpeed()
+            Haptics.click(); SoundFx.play("tap")
+        }
+    }
     private val speedBar = StartSpeedBar(activity, ::dpf) { activity.getString(R.string.settings_start_speed) }.apply {
         onPicked = { presses ->
             Settings.setStartSpeed(presses)
+            syncStartSpeed()
             SoundFx.play("tap", rate = 0.8f + presses * 0.09f)
         }
     }
@@ -85,6 +94,7 @@ class SettingsView(
     private var shownCoins: Boolean? = null
     private var shownDev: Boolean? = null
     private var shownLanguage: String? = null
+    private var shownStartSpeed: Int? = null
 
     init {
         setBackgroundColor(Theme.SETTINGS_BLUE)
@@ -106,7 +116,7 @@ class SettingsView(
                 orientation = LinearLayout.VERTICAL
                 clipChildren = false; clipToPadding = false
                 setPadding(0, dp(8f), 0, dp(12f))
-                addView(row(tile(R.drawable.ic_speed, Theme.ORANGE), activity.getString(R.string.settings_start_speed)).apply { minimumHeight = dp(52f); setPadding(0, 0, 0, 0) })
+                addView(row(speedTile, activity.getString(R.string.settings_start_speed)).apply { minimumHeight = dp(52f); setPadding(0, 0, 0, 0) })
                 addView(speedBar, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(46f)).apply { topMargin = dp(8f) })
             },
             switchRow(coinsTile, activity.getString(R.string.settings_coins), coinsSwitch, { Settings.roadCoins }) { Settings.setRoadCoins(it) },
@@ -182,6 +192,7 @@ class SettingsView(
             hapticsTile.setImageResource(if (Settings.hapticsEnabled) R.drawable.ic_haptic_on else R.drawable.ic_haptic_off)
         }
         speedBar.configure(Progress.maxStartPresses, Settings.startSpeed)
+        syncStartSpeed()
         coinsSwitch.set(Settings.roadCoins, animate)
         if (shownCoins != Settings.roadCoins) {
             shownCoins = Settings.roadCoins
@@ -208,6 +219,12 @@ class SettingsView(
         tile.color = if (on) color else OFF_TILE
         // the coin glyph paints its own two colours; every other icon is a white silhouette
         tile.imageTintList = if (tile.drawable is CoinGlyph) null else ColorStateList.valueOf(if (on) Theme.WHITE else Theme.MUTED)
+    }
+
+    private fun syncStartSpeed() {
+        if (shownStartSpeed == Settings.startSpeed) return
+        shownStartSpeed = Settings.startSpeed
+        paintTile(speedTile, Settings.startSpeed > 0, Theme.ORANGE)
     }
 
     /** A small candy cube holding an icon. Decorative tiles pass touches to their row. */
@@ -258,15 +275,30 @@ class SettingsView(
                     info.isChecked = isOn()
                 }
             }
-            link { set(!isOn()); sync(animate = true) }
+            link(switch) { set(!isOn()); sync(animate = true) }
         }
 
-    private fun View.link(action: () -> Unit) {
+    @SuppressLint("ClickableViewAccessibility")
+    private fun View.link(switch: CandySwitch? = null, action: () -> Unit) {
         isClickable = true; isFocusable = true
-        background = android.graphics.drawable.RippleDrawable(ColorStateList.valueOf(Theme.alpha(Theme.GRAPE, 22)), null,
-            GradientDrawable().apply { cornerRadius = dpf(16f); setColor(Theme.WHITE) })
-        Anim.pressFeedback(this)
-        setOnClickListener { Anim.tap(this); SoundFx.play("tap"); Haptics.click(); action() }
+        if (switch == null) {
+            background = android.graphics.drawable.RippleDrawable(ColorStateList.valueOf(Theme.alpha(Theme.SKY, 22)), null,
+                GradientDrawable().apply { cornerRadius = dpf(16f); setColor(Theme.WHITE) })
+            Anim.pressFeedback(this)
+        } else {
+            // Keep text and icons still. Feedback belongs to the thumb, inside its track.
+            setOnTouchListener { _, event ->
+                when (event.actionMasked) {
+                    android.view.MotionEvent.ACTION_DOWN -> switch.press(true)
+                    android.view.MotionEvent.ACTION_UP, android.view.MotionEvent.ACTION_CANCEL -> switch.press(false)
+                }
+                false
+            }
+        }
+        setOnClickListener {
+            if (switch == null) Anim.tap(this) else switch.tap()
+            SoundFx.play("tap"); Haptics.click(); action()
+        }
     }
 
     /** A white card of rows with hairlines between them (a dashed outline for debug-only rows). */

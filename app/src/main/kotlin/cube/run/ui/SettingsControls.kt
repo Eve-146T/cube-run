@@ -47,6 +47,8 @@ class CandySwitch(ctx: Context, private val dpf: (Float) -> Float) : View(ctx) {
     private val rect = RectF()
     private var pos = 0f
     private var anim: ValueAnimator? = null
+    private var pressure = 0f
+    private var pressAnim: ValueAnimator? = null
     var on = false
         private set
 
@@ -59,13 +61,31 @@ class CandySwitch(ctx: Context, private val dpf: (Float) -> Float) : View(ctx) {
         val to = if (value) 1f else 0f
         if (!animate || !isAttachedToWindow) { pos = to; invalidate(); return }
         anim = ValueAnimator.ofFloat(pos, to).apply {
-            duration = 170; interpolator = Anim.springSoft
+            duration = 150; interpolator = Anim.ease
             addUpdateListener { pos = it.animatedValue as Float; Anim.repaint(this@CandySwitch) }
             start()
         }
     }
 
-    override fun onDetachedFromWindow() { anim?.cancel(); super.onDetachedFromWindow() }
+    internal fun press(down: Boolean) {
+        pressAnim?.cancel()
+        pressAnim = ValueAnimator.ofFloat(pressure, if (down) 1f else 0f).apply {
+            duration = if (down) 45 else 120
+            interpolator = Anim.ease
+            addUpdateListener { pressure = it.animatedValue as Float; Anim.repaint(this@CandySwitch) }
+            start()
+        }
+    }
+
+    internal fun tap() {
+        pressure = maxOf(pressure, .65f)
+        press(false)
+    }
+
+    override fun onDetachedFromWindow() {
+        anim?.cancel(); pressAnim?.cancel(); pressure = 0f
+        super.onDetachedFromWindow()
+    }
 
     override fun onDraw(canvas: Canvas) {
         val w = width.toFloat(); val h = height.toFloat()
@@ -82,13 +102,14 @@ class CandySwitch(ctx: Context, private val dpf: (Float) -> Float) : View(ctx) {
         val cube = face - 2 * pad
         val travel = w - 2 * pad - cube
         val rtl = layoutDirection == LAYOUT_DIRECTION_RTL
-        val x = (pad + travel * (if (rtl) 1f - pos else pos)).coerceIn(dpf(1f), w - cube - dpf(1f))
+        val x = pad + travel * (if (rtl) 1f - k else k)
+        val depression = lip * pressure.coerceIn(0f, 1f)
         paint.color = Theme.lerp(SLOT_LIP, Theme.darken(Theme.SKY, 0.38f), k)
         rect.set(x, pad + lip, x + cube, pad + cube + lip); canvas.drawRoundRect(rect, dpf(8f), dpf(8f), paint)
         paint.color = Theme.WHITE
-        rect.set(x, pad, x + cube, pad + cube); canvas.drawRoundRect(rect, dpf(8f), dpf(8f), paint)
+        rect.set(x, pad + depression, x + cube, pad + cube + depression); canvas.drawRoundRect(rect, dpf(8f), dpf(8f), paint)
         paint.color = Theme.lerp(SLOT_LIP, Theme.darken(Theme.SKY, .25f), k)
-        canvas.drawCircle(x + cube / 2f, face / 2f, dpf(2f), paint)
+        canvas.drawCircle(x + cube / 2f, face / 2f + depression, dpf(2f), paint)
     }
 }
 
@@ -99,6 +120,7 @@ class CandySwitch(ctx: Context, private val dpf: (Float) -> Float) : View(ctx) {
  */
 @SuppressLint("ClickableViewAccessibility", "ViewConstructor")
 abstract class LevelPicker(ctx: Context, private val label: () -> String) : View(ctx) {
+    protected open val animatePress = true
     abstract val min: Int
     abstract val max: Int
     var level = 0
@@ -137,8 +159,10 @@ abstract class LevelPicker(ctx: Context, private val label: () -> String) : View
     override fun onTouchEvent(event: MotionEvent): Boolean {
         when (event.actionMasked) {
             MotionEvent.ACTION_DOWN -> {
-                animate().cancel()
-                animate().scaleY(.9f).setDuration(45).start()
+                if (animatePress) {
+                    animate().cancel()
+                    animate().scaleY(.9f).setDuration(45).start()
+                }
                 parent?.requestDisallowInterceptTouchEvent(true)
                 downLevel = levelAt(event.x); dragged = false
                 if (downLevel != level) { dragged = true; pick(downLevel) }
@@ -161,6 +185,7 @@ abstract class LevelPicker(ctx: Context, private val label: () -> String) : View
 
     private fun releasePress() {
         parent?.requestDisallowInterceptTouchEvent(false)
+        if (!animatePress) return
         animate().cancel()
         animate().scaleY(1f).setDuration(150).setInterpolator(Anim.springSoft).start()
     }
@@ -180,8 +205,8 @@ abstract class LevelPicker(ctx: Context, private val label: () -> String) : View
     }
 
     override fun performAccessibilityAction(action: Int, arguments: Bundle?): Boolean = when (action) {
-        AccessibilityNodeInfo.ACTION_SCROLL_FORWARD -> { Anim.tap(this); pick(level + 1); true }
-        AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD -> { Anim.tap(this); pick(level - 1); true }
+        AccessibilityNodeInfo.ACTION_SCROLL_FORWARD -> { if (animatePress) Anim.tap(this); pick(level + 1); true }
+        AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD -> { if (animatePress) Anim.tap(this); pick(level - 1); true }
         else -> super.performAccessibilityAction(action, arguments)
     }
 }
@@ -189,6 +214,7 @@ abstract class LevelPicker(ctx: Context, private val label: () -> String) : View
 /** Volume as a staircase of chunky steps that grow toward the loud end; greyed while muted. */
 @SuppressLint("ViewConstructor")
 class VolumeSteps(ctx: Context, private val dpf: (Float) -> Float, label: () -> String) : LevelPicker(ctx, label) {
+    override val animatePress = false
     override val min = 1
     override val max = cube.run.data.Settings.VOLUME_STEPS
     var muted = false
