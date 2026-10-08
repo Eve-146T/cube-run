@@ -13,6 +13,10 @@ import kotlin.random.Random
 /** Pentatonic steps for the bowl, so consecutive rings always sound kind. */
 private val ZEN_NOTES = floatArrayOf(1f, 1.125f, 1.25f, 1.5f, 1.6875f)
 
+/** Two octaves of a major pentatonic for space coins: a coin streak climbs, wraps, climbs again. */
+/** Space coins climb gently with the streak (a major pentatonic, never above a fifth), then rock between the top two notes. */
+private val STARDUST_NOTES = floatArrayOf(1f, 1.125f, 1.25f, 1.5f)
+
 /**
  * The run's feedback vocabulary: every event's sound + haptic + flash +
  * shards in one place, so the conductor reads as rules and the feel is
@@ -121,11 +125,21 @@ class RunFx(private val game: Gdx3DGame, private val rnd: Random) {
         game.burst3d(tmp.set(px, py + 0.4f, 0.2f), Color.WHITE, n = 10, speed = 4f, size = 0.1f, life = 0.5f)
     }
 
+    /** Outer Space: coins ring as stardust, climbing a pentatonic scale with the streak. */
+    var stardust = false
+
     fun coin(x: Float, y: Float, z: Float, pitch: Int, gold: Color) {
-        SoundFx.play("coin", rate = (1f + 0.04f * minOf(pitch, 12)).coerceAtMost(1.5f), vol = 0.7f)
+        if (stardust) SoundFx.play("stardust", rate = stardustNote(pitch), vol = 0.6f)
+        else SoundFx.play("coin", rate = (1f + 0.04f * minOf(pitch, 12)).coerceAtMost(1.5f), vol = 0.7f)
         Haptics.tick()
         game.burst3d(tmp.set(x, y, z), gold, n = 6, speed = 3.2f, size = 0.09f, life = 0.4f)
         game.burst3d(tmp, Color.WHITE, n = 2, speed = 4f, size = 0.06f, life = 0.25f)
+    }
+
+    private fun stardustNote(pitch: Int): Float {
+        val top = STARDUST_NOTES.size - 1
+        val i = if (pitch <= top) pitch.coerceAtLeast(0) else top - (pitch - top) % 2
+        return STARDUST_NOTES[i]
     }
 
     /** Coin streak milestone: a chime + a gold flash, no text. */
@@ -166,6 +180,14 @@ class RunFx(private val game: Gdx3DGame, private val rnd: Random) {
         SoundFx.play("rise", rate = 1.1f + tier * 0.1f)
         Haptics.success()
         game.flash(hsvInto(tmpCol, baseHue + 180f, 0.4f, 1f), 0.16f)
+    }
+
+    /** Through a portal into Outer Space (or out of it): a hyperspace whoosh, a soft flash, sparks streaming past. */
+    fun warp(col: Color) {
+        Haptics.success()
+        game.flash(col, 0.22f)
+        game.burst3d(tmp.set(0f, 2.5f, -2f), col, n = 24, speed = 6f, size = 0.1f, life = 1.1f, gravity = 0f, biasZ = 14f)
+        game.burst3d(tmp, Color.WHITE, n = 14, speed = 8f, size = 0.07f, life = 0.8f, gravity = 0f, biasZ = 18f)
     }
 
     /** Through the gate into a new world. */

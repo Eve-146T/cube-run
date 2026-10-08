@@ -336,3 +336,156 @@ cube frame at 743 ms before and 610 ms afterward. Android's cold-launch TotalTim
 was 932 ms before and 822 ms afterward. These are individual measurements, not
 repeat-run medians. Launch, background/resume, rapid closing and recreation checks
 passed, along with existing gesture and wardrobe checks.
+
+## Outer Space rendering, 2026-10-06 (`space-dark`)
+
+Voxel surfaces now stay on the GPU with GLES3 instancing. Each visible object
+uploads 160 bytes containing its transform, palette, band thresholds, fog and
+opacity; geometry and normals upload once. Shared shape caches prevent repeated
+trip/world construction from duplicating meshes. Conservative camera rejection
+includes rotation, nonuniform scaling and the full road bend. GLES2 retains CPU
+batching and computes the six voxel face lighting directions once per object.
+
+The Milky Way, stars and sparkles share a static mesh rebuilt only at trip entry.
+The vertex shader preserves their twinkle, rotation, gradients and colors. Cloud
+random parameters refresh only at the start of each cloud life, and cloud ellipse
+vertices use cached circle samples. Resolution, object counts, asteroid density
+and effect geometry are unchanged. Planets and rings now retain their finer
+geometry at every distance instead of switching meshes visibly.
+
+Celestial bodies reveal the actual backdrop using eased screen-space coverage
+fades, rather than becoming opaque fog-colored silhouettes. This avoids sorting
+and self-overlap artifacts in the voxel bodies while retaining depth occlusion
+against the road. The screen-space grain is fixed rather than randomized each
+frame. Planet arrival spans 110 depth units; orbiting moons ease in over 70 depth
+units. Suns ease in over 80 travelled units and out over their last quarter of
+life, with matching ray envelopes. Comet heads and tails ease in and out together
+and respect the space-world transition.
+
+Motorola G7 Power, normal device settings, debug APK, sound enabled, deterministic
+`RunPerformanceTest` space mode, static controller, 45 seconds per run including
+five seconds of warm-up (40 seconds measured):
+
+| Build | GL thread CPU p50 / p95 / p99 (ms) | Frame p95 / p99 / max (ms) | FPS | Frames >25 ms |
+| --- | --- | --- | --- | --- |
+| Baseline | 12.87 / 14.73 / 15.83 | 19.11 / 20.55 / 23.68 | 59.85 | 0 / 2396 |
+| GPU facets and static backdrop | 8.20 / 12.10 / 13.63 | 18.69 / 21.75 / 24.47 | 59.86 | 0 / 2395 |
+
+Median GL-thread CPU fell 36%; p95 fell 18%. Motorola remains display-limited at
+60 Hz. These results do not establish 90 FPS on Pixel: only Motorola was attached
+for this pass. A separate sampled method trace identified substantial driver
+waits in `glClear`; traced frame timings are excluded from the comparison. Local
+profile, screenshot, and build artifacts live under ignored `.local-tmp/`.
+
+`SpaceRenderingTest` compares GPU facets with the CPU reference across rotating,
+nonuniformly scaled, banded, fogged and road-bent objects, with full and partial
+coverage. CPU camera rejection preserves exact framebuffer bytes. GPU comparison
+allows one color level and sparse triangle-edge rasterization differences. Both
+paths are checked for zero silhouette at zero opacity, monotonic coverage and
+half coverage at the fade midpoint. A separate static-backdrop framebuffer test
+compares the original star/sparkle formulas at four times including 10,000 seconds.
+Both tests, the 30-trip landmark placement test, and both shared batch visibility
+tests passed on Motorola (five tests total). Debug/test and release builds passed;
+Android lint reported no errors and 21 existing warnings.
+
+The final APK also passed a 90-second playing-bot space run (85 seconds measured):
+5,088 frames at 59.85 FPS; frame p95 / p99 / maximum 18.91 / 20.01 / 24.31 ms;
+no frames above 25 ms; GL-thread CPU p50 / p95 6.54 / 9.67 ms; at most 15 resident
+track rows. The bot required two protected collision episodes. Its planner
+allocated 1.88 GB and caused 71 collections across the measured window, so this
+is not an allocation comparison with the static-controller runs. The optimized
+debug APK remains installed on Motorola.
+
+### Second Outer Space pass, 2026-10-06
+
+Planet meshes now join coplanar voxel cells while preserving their exact stepped
+outline and per-row band heights. Indexed quads share their four corners instead
+of shading six duplicate triangle vertices. The six-cell ball decreases from
+1,152 submitted vertices to 504 (56.2%); the nine-cell ball from 2,484 to 1,176
+(52.7%). Other voxel meshes also use four vertices per quad. Bent surfaces retain
+the original interior vertices because quadratic road deformation cannot be
+represented by a larger planar quad. The original CPU geometry remains the
+framebuffer reference.
+
+Fully opaque facets now draw first with a fragment shader containing no discard;
+only arriving/departing objects use the coverage shader. Fully self-lit surfaces
+skip normal transformation and Lambert lighting. Completed frame depth is marked
+discardable on GLES3, after all drawing, so a tile GPU can avoid storing data that
+will be cleared next frame. The displayed color buffer stays intact. This follows
+[Khronos's depth-invalidation contract](https://raw.githubusercontent.com/KhronosGroup/OpenGL-Refpages/main/es3.0/glInvalidateFramebuffer.xml).
+
+Fresh deterministic 45-second Motorola static-controller runs (40 measured,
+normal clocks, resolution and MSAA retained):
+
+| Build | GL thread CPU p50 / p95 (ms) | Frame p95 / p99 / max (ms) | FPS | Frames >25 ms |
+| --- | --- | --- | --- | --- |
+| First-pass baseline (`b7f4ea7`) | 8.28 / 11.92 | 18.79 / 21.73 / 28.95 | 59.86 | 3 / 2395 |
+| Merged surfaces, indexed quads, solid shader, depth discard | 8.49 / 12.19 | 18.73 / 22.12 / 27.05 | 59.86 | 4 / 2395 |
+
+These windows establish substantially less planet vertex work, not a measurable
+whole-game CPU or FPS improvement on this 60 Hz phone. The separate indexed-only
+and depth-discard windows were also approximately neutral. A sampled baseline
+trace still attributes much of the time to driver work in `glClear`. Pixel 90 Hz
+remains unverified because Pixel is not attached.
+
+A focused fixed 96-planet fixture at 720×1280 alternates original indexed surfaces
+and merged indexed surfaces, warming up 20 pairs and measuring 60 pairs. Each
+render is synchronized with `glFinish`; queue construction occurs outside the
+timed interval. Median render wall time fell from **9.11 to 8.07 ms (11.4%)**;
+p95 from **15.34 to 13.55 ms (11.7%)**. This measures GPU completion plus driver
+submission overhead in a deliberately dense fixture, not gameplay FPS. It isolates
+the coplanar-face merge: both paths already use indexed corners and the new solid
+shader. Raw results are in ignored `.local-tmp/pass2-measurements.log`.
+
+All **14 affected device checks passed**, covering original-geometry framebuffer
+comparisons (including mixed solid/fading and bent bodies), monotonic fades,
+static stars/sparkles, placement, shared visibility, startup, shop rendering and
+terrain. Debug/test and release APKs built; lint has no errors. The final debug
+APK is installed on Motorola. No display settings, resolution, antialiasing,
+object counts or animation envelopes were reduced.
+
+### Smooth celestial fades and shader work, 2026-10-07
+
+The coverage/dither fade from the earlier passes has been removed entirely.
+Planets, moons, suns, asteroids and comets now use ordinary alpha blending.
+A color-masked depth pass selects the nearest visible surface of the fading
+scenery; the color pass blends that surface once with the existing backdrop.
+This preserves solid voxel silhouettes without exposing or accumulating their
+internal/overlapping faces. Both GLES3 and the GLES2 CPU fallback use this method.
+Fading instance/vertex data uploads once and is reused for both draws. The eased
+arrival/exit envelopes and the merged/indexed geometry remain in place.
+
+Performance savings now come from smaller data and less arithmetic:
+
+- Axis-aligned voxel normals use one direction code instead of three float
+  components. Static vertex records shrink from 36 to 28 bytes (22.2%), while
+  the shader selects the corresponding rotation column for lighting instead
+  of inverse-scaling and transforming each normal vector.
+- Unbent celestial objects skip road-bend calculations and the second projection
+  multiplication. Asteroids retain the original bend calculation.
+- The star backdrop combines its projection and plane matrices once per frame
+  on the CPU, replacing two matrix-vector products per vertex with one.
+- CPU fallback meshes and both 640 KB vertex buffers allocate only when that
+  rendering path is used. Normal GLES3 runs allocate none of them.
+
+The fade regression now checks every central pixel of a flat face for uniform
+brightness throughout the fade, including two overlapping white voxel bodies.
+It verifies zero visibility at zero opacity, monotonic brightness, a half-bright
+midpoint and a single alpha blend. GPU/CPU pixel comparisons still cover varied
+lighting, bands, rotation, nonuniform scaling, fog and bending. The backdrop
+reference now includes a translated, rotated and scaled sky plane.
+
+On Motorola, a deterministic static-controller space run measured 2,395 frames
+in 40 seconds after warm-up: **59.85 FPS**, GL-thread CPU p50 / p95
+**8.30 / 12.72 ms**, frame p95 / p99 / max **19.64 / 22.27 / 25.29 ms**;
+one frame exceeded 25 ms. The 60-second playing-bot run (55 measured) logged
+3,293 frames at **59.85 FPS**, GL-thread CPU p50 / p95 **6.75 / 10.07 ms**,
+frame p95 / p99 / max **19.28 / 20.65 / 26.46 ms**, one frame above 25 ms,
+and three protected collision episodes. The playing bot incurred 44 collections.
+These are current-build measurements, not a claimed before/after FPS improvement;
+the attempted fresh baseline aborted without usable measurements. Pixel is still
+unattached, so its 90 Hz target remains unverified.
+
+Final validation: all 14 affected on-device regression checks passed. Debug/test
+and release builds passed; lint reports no errors and the same 21 warnings.
+The final debug APK remains installed on Motorola.

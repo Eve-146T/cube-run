@@ -21,6 +21,8 @@ import cube.run.core.gfx.WorldBoxBatch
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import kotlin.math.sin
+import kotlin.math.abs
+import kotlin.random.Random
 import org.junit.Assert.*
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -36,6 +38,8 @@ class BatchVisibilityTest {
                 try {
                     val kit = BoxMeshKit(ModelBuilder())
                     val shards = ShardSystem(kit)
+                    ShardSystem::class.java.getDeclaredField("rnd").apply { isAccessible = true }
+                        .set(shards, Random(731))
                     val target = FrameBuffer(Pixmap.Format.RGBA8888, 160, 320, true)
                     val camera = PerspectiveCamera(67f, 160f, 320f).apply { near = .5f; far = 65f }
                     try {
@@ -74,7 +78,13 @@ class BatchVisibilityTest {
                                 it % 4 != 3 && reference[it].toInt() != 0
                             })
                             assertArrayEquals("Particle CPU culling changed", reference, draw(true, false))
-                            assertArrayEquals("Particle pixels changed at phase $phase", reference, draw(true))
+                            val gpu = draw(true)
+                            // CPU/GPU normal arithmetic can fall on opposite sides
+                            // of an 8-bit color boundary. CPU culling remains exact.
+                            for (i in reference.indices) {
+                                val delta = abs((reference[i].toInt() and 255) - (gpu[i].toInt() and 255))
+                                assertTrue("Particle pixels changed at phase $phase, byte $i: delta=$delta", delta <= 1)
+                            }
                         }
                     } finally { target.dispose(); shards.dispose(); kit.dispose() }
                 } catch (t: Throwable) { failure = t } finally { done.countDown() }

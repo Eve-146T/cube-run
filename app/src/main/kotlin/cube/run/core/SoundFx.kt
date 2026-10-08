@@ -20,13 +20,16 @@ import kotlin.random.Random
  *
  * Available sound names (pitch-shift with `rate` 0.5..2.0 for variety):
  *  tap, blip, pop, place, perfect, combo, success, fail,
- *  whoosh, boom, coin, rise, slide, fanfare, drain
+ *  whoosh, boom, coin, rise, slide, fanfare, drain, bell,
+ *  and Outer Space's: moonjump, moonland, flyby, stardust, hum (a loop)
  */
 object SoundFx {
     // Investigation hooks: inactive in ordinary runs and release builds.
     @Volatile var testMutedName: String? = null
     @Volatile var testObserver: ((String, Long, Long, Int) -> Unit)? = null
     private const val SR = 44100
+    // Loop controls need the pool as well as the queued one-shot playback worker.
+    private var pool: SoundPool? = null
     private val ids = HashMap<String, Int>()
     @Volatile private var ready = false
     private data class Playback(val name: String, val id: Int, val volume: Float, val rate: Float)
@@ -41,6 +44,7 @@ object SoundFx {
             val attrs = AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_GAME)
                 .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION).build()
             val p = SoundPool.Builder().setMaxStreams(12).setAudioAttributes(attrs).build()
+            pool = p
             playback = SoundPlaybackQueue { effect ->
                 if (Settings.soundEnabled) {
                     val observer = if (cube.run.BuildConfig.DEBUG) testObserver else null
@@ -50,8 +54,10 @@ object SoundFx {
                 }
             }
             val dir = File(ctx.cacheDir, "sfx").apply { mkdirs() }
-            val names = listOf("tap", "blip", "pop", "place", "perfect", "combo", "success", "fail", "whoosh", "boom", "coin", "rise", "slide", "fanfare", "drain", "bell")
-            fun file(name: String) = File(dir, if (name == "coin") "coin-chime-v2.wav" else "$name.wav")
+            val names = listOf("tap", "blip", "pop", "place", "perfect", "combo", "success", "fail", "whoosh", "boom", "coin", "rise", "slide", "fanfare", "drain", "bell",
+                "moonjump", "moonland", "flyby", "stardust", "hum")
+            // A redesigned sound gets a new file name, so installed games synthesize it again.
+            fun file(name: String) = File(dir, when (name) { "coin" -> "coin-chime-v2.wav"; "stardust" -> "stardust-v3.wav"; else -> "$name.wav" })
             // Installed games already have these WAVs. Do not synthesize all samples again.
             if (names.any { !file(it).exists() || file(it).length() == 0L }) {
                 for ((name, pcm) in synthAll()) if (!file(name).exists() || file(name).length() == 0L) file(name).writeBytes(wav(pcm))
@@ -72,6 +78,22 @@ object SoundFx {
         val v = vol.coerceIn(0f, 1f)
         playback?.offer(Playback(name, id, v, rate.coerceIn(0.5f, 2f)))
     }
+
+    /** Start [name] looping at [vol]; returns its stream (0 if sound is off or not loaded yet — try again later). */
+    fun loop(name: String, vol: Float): Int {
+        if (!ready || !Settings.soundEnabled) return 0
+        val id = ids[name] ?: return 0
+        val v = vol.coerceIn(0f, 1f)
+        return pool?.play(id, v, v, 2, -1, 1f) ?: 0
+    }
+
+    fun setVolume(stream: Int, vol: Float) {
+        if (stream == 0) return
+        val v = vol.coerceIn(0f, 1f)
+        pool?.setVolume(stream, v, v)
+    }
+
+    fun stop(stream: Int) { if (stream != 0) pool?.stop(stream) }
 
     // ------------------------------------------------------------------ synth
 
@@ -111,6 +133,11 @@ object SoundFx {
         "slide" to lowpassed(130, 0.22) { _, p -> noise() * sin(p * PI).pow(0.8) * 0.8 },
         "fanfare" to fanfare(),
         "drain" to drain(),
+        "moonjump" to moonJump(),
+        "moonland" to moonLand(),
+        "flyby" to flyby(),
+        "stardust" to stardust(),
+        "hum" to hum(),
         "bell" to synth(1400, vol = 0.8) { t, p -> // a singing bowl: a soft strike and inharmonic partials ringing out
             val f = 392.0
             (sin(t * f * TAU) + 0.5 * sin(t * f * 2.76 * TAU) * exp(-p * 3.0) + 0.25 * sin(t * f * 5.4 * TAU) * exp(-p * 6.0)) /
@@ -206,6 +233,90 @@ object SoundFx {
             (sin(phase * TAU) * 0.75 * (0.65 + 0.35 * sin(swirl * TAU)) + noise() * 0.3 * p) * env
         }
     }
+
+    // ------------------------------------------------------------ outer space
+
+    /** A low-gravity take-off: a soft, airy sine that rises and floats away. */
+    private fun moonJump(): ShortArray {
+        var phase = 0.0
+        var acc = 0.0
+        return synth(340) { t, p ->
+            phase += (240.0 + 320.0 * p.pow(0.6)) / SR
+            acc += 0.06 * (noise() - acc)
+            val env = (p / 0.06).coerceAtMost(1.0) * (1.0 - p).pow(1.4)
+            (sin(phase * TAU + 0.15 * sin(t * 9.0 * TAU)) * 0.55 + acc * 0.5) * env
+        }
+    }
+
+    /** A low-gravity landing: a cushioned thump, no crack. */
+    private fun moonLand(): ShortArray {
+        var phase = 0.0
+        var acc = 0.0
+        return synth(260) { _, p ->
+            phase += (130.0 - 60.0 * p) / SR
+            acc += 0.05 * (noise() - acc)
+            (sin(phase * TAU) * 0.8 + acc * 0.7) * decay(p, 5.5)
+        }
+    }
+
+    /** An asteroid tumbling past: a swell of filtered air that drops in pitch as it goes by. */
+    private fun flyby(): ShortArray {
+        var phase = 0.0
+        var acc = 0.0
+        return synth(760) { _, p ->
+            acc += (0.2 - 0.16 * p) * (noise() - acc)
+            phase += (95.0 - 40.0 * p) / SR
+            val env = sin(p * PI).pow(1.6)
+            (acc * 1.3 + sin(phase * TAU) * 0.25) * env
+        }
+    }
+
+    /**
+     * A coin in space: one soft, round note (A5) with a slow chorus shimmer
+     * from a twin a few hertz off, a breath of octave on the onset and a short
+     * tail. No bright strike and no high sparkle: a long line of coins should
+     * stay pleasant, never shrill.
+     */
+    private fun stardust(): ShortArray {
+        var phase = 0.0
+        var twin = 0.0
+        return synth(260, vol = 0.55) { t, p ->
+            val f = 880.0 * (0.985 + 0.015 * (1.0 - exp(-t * 70.0)))     // settles up into the note
+            phase += f / SR; twin += (f + 4.0) / SR
+            val tone = sin(phase * TAU) + 0.35 * sin(twin * TAU) + 0.16 * sin(phase * 2.0 * TAU) * exp(-t * 40.0)
+            tone / 1.5 * exp(-t * 13.0) * min(1.0, t * 250.0) * min(1.0, (1.0 - p) * 10.0)
+        }
+    }
+
+    /**
+     * Space's hum: a calm pad (A, C#, E, with a slowly beating twin and a high
+     * shimmer) and a breath of solar wind. Every partial and wobble completes
+     * whole cycles in its 4 seconds, and the wind is cross-faded over its own
+     * seam, so it loops without a click.
+     */
+    private fun hum(): ShortArray {
+        val seconds = 4.0
+        val n = (SR * seconds).toInt()
+        val fade = SR / 2
+        val wind = DoubleArray(n + fade)
+        var acc = 0.0; var acc2 = 0.0
+        for (i in wind.indices) { acc += 0.02 * (noise() - acc); acc2 += 0.02 * (acc - acc2); wind[i] = acc2 }
+        val out = ShortArray(n)
+        for (i in 0 until n) {
+            val t = i.toDouble() / SR
+            val swell = 0.8 + 0.2 * sin(t * 0.25 * TAU)
+            val pad = sin(t * 220.0 * TAU) + sin(t * 220.5 * TAU) * 0.8 + sin(t * 277.25 * TAU) * 0.55 +
+                sin(t * 329.75 * TAU) * 0.6 + sin(t * 440.0 * TAU) * 0.25 * (0.5 + 0.5 * sin(t * 0.5 * TAU)) +
+                sin(t * 659.25 * TAU) * 0.08 * (0.5 + 0.5 * sin(t * 0.75 * TAU + 1.0))
+            // the wind's tail is blended into its head, so the loop point is seamless
+            val w = if (i < fade) wind[i] * i / fade + wind[n + i] * (1.0 - i.toDouble() / fade) else wind[i]
+            val v = pad * 0.16 * swell + w * 3.2
+            out[i] = (v.coerceIn(-1.0, 1.0) * 30000).toInt().toShort()
+        }
+        return out
+    }
+
+    private fun max0(v: Double) = if (v > 0.0) v else 0.0
 
     // ------------------------------------------------------------------- wav
 

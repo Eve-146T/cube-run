@@ -51,6 +51,20 @@ fun selfTest() {
     }
     DataOutputStream(bytes).use { CourseFile.write(it, listOf(impossible, coins)) }
     check(CourseFile.read(DataInputStream(ByteArrayInputStream(bytes.toByteArray()))) == listOf(impossible, coins))
+    val spaced = ByteArrayOutputStream()
+    DataOutputStream(spaced).use { CourseFile.write(it, listOf(coins.copy(lowG = true), impossible)) }
+    check(CourseFile.read(DataInputStream(ByteArrayInputStream(spaced.toByteArray()))) == listOf(coins.copy(lowG = true), impossible))
+    // Outer Space: the same jump hangs about half as long again, and peaks higher.
+    for (lowG in listOf(false, true)) {
+        val air = Timeline(coins, 12f, seconds = 2f)
+        val b = Body(lowG = lowG)
+        var frames = 0; var peak = 0f
+        Action.apply(b, Action.JUMP, 3)
+        while (b.air || frames == 0) { check(air.step(b, frames, Action.NONE)); frames++; peak = maxOf(peak, b.y) }
+        val expected = if (lowG) 58..60 else 38..40
+        check(frames in expected) { "lowG=$lowG jump lasted $frames frames" }
+        check(if (lowG) peak in 1.95f..2.1f else peak in 1.7f..1.8f) { "lowG=$lowG jump peaked at $peak" }
+    }
     val flight = Body(y = 1f, flying = true, flightLeft = .02f)
     val empty = Timeline(coins, 12f)
     check(empty.step(flight, 0, 0) && flight.flying)
@@ -66,5 +80,5 @@ fun selfTest() {
         }
         check(!body.flying && body.hover && kotlin.math.abs(body.y - 1.4f) < .2f)
     }
-    println("Bot self-tests passed: unreachable states, committed input handoff, springboard interior, stride reconstruction, safe/fatal loot, timing centering, flight expiry, Zero-G jet priority/glide, fixture codec")
+    println("Bot self-tests passed: low-gravity jumps and course files, unreachable states, committed input handoff, springboard interior, stride reconstruction, safe/fatal loot, timing centering, flight expiry, Zero-G jet priority/glide, fixture codec")
 }

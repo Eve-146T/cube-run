@@ -56,7 +56,7 @@ class MatrixWireBatch(private val kit: BoxMeshKit) : Disposable {
         Gdx.gl.glEnable(GL20.GL_BLEND)
         Gdx.gl.glBlendFunc(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA)
         Gdx.gl.glLineWidth(1.5f)
-        kit.shader.bind(); kit.shader.setUniformMatrix("u_projViewTrans", camera.combined)
+        kit.shader.bind(); kit.shader.setUniformMatrix("u_projViewTrans", camera.combined); WorldBend.apply(kit.shader)
         mesh.render(kit.shader, GL20.GL_LINES, 0, used / 4)
         Gdx.gl.glLineWidth(1f)
         Gdx.gl.glDepthMask(true)

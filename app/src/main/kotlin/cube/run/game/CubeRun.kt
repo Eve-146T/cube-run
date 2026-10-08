@@ -20,6 +20,7 @@ import cube.run.data.Scores
 import cube.run.data.Settings
 import cube.run.game.stage.GiftStage
 import cube.run.game.stage.Showcase
+import cube.run.game.space.SpaceWorld
 import cube.run.game.track.Coin
 import cube.run.game.track.ZenDissolve
 import cube.run.game.track.Debris
@@ -98,6 +99,8 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
     private val fire = FireBoost(this, difficulty)
     private val scenery = Scenery(this, rnd)
     private val worlds = WorldRunner(this, scenery, rnd)
+    private val space = SpaceWorld(this)
+    private var lastPx = 0f          // the cube's x last frame (the space camera banks with its glide)
     private val gift = GiftStage(this)
     private val showcase = Showcase(this, player, bubble)
     private val fx = RunFx(this, rnd)
@@ -189,6 +192,7 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
         zen = false; zenStreak = 0; Progress.zenRun = false
         worlds.reset(firstWorld)
         scenery.init(worlds.world)
+        scenery.space = space
         bgTop.set(worlds.skyTop); bgBottom.set(worlds.skyBottom)
         player.init(worldHue(), time)
         bubble.init()
@@ -229,6 +233,7 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
         coinsRun = 0; coinsRunF = 0.0; boxesRun = 0; coinStreak = 0; coinPitch = 0; lastCoinT = -9f
         powerUps.reset(); redPill.reset(); bubble.reset(); shownBubbleCooldown = 0
         track.rows.clear(); debris.clear(); zenDissolve.clear()
+        space.reset(); worlds.hold = false
         rnd.reset()
         worlds.reset()
         scenery.init(worlds.world)
@@ -246,7 +251,7 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
     private fun live() = started && !dead && !session.isOver
 
     override fun paused(): Boolean {
-        if (Stage.paused) { player.clearJumpInput(); idlePilot.stop() }
+        if (Stage.paused) { player.clearJumpInput(); idlePilot.stop(); space.pauseAudio() }
         return Stage.paused
     }
 
@@ -282,11 +287,12 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
         if (Settings.devMode && Settings.testBoxes > 0) { boxesRun = Settings.testBoxes; session.setBoxes(boxesRun) } // dev: boxes to open
         track.portalPool = when {
             Settings.performanceCourse -> emptyList()
+            Settings.testSpaceWorld -> listOf(Bonus.SPACE)
             Settings.testBonus >= 0 -> listOf(Settings.testBonus)
             Settings.devMode -> Bonus.all.map { it.id }
             else -> Bonus.unlocked(Scores.best("cuberun")).map { it.id }
         }
-        track.portalEvery = if (Settings.devMode) 28 else 110 - 14 * Progress.level(Progress.PORTALS) // dev: portals galore too
+        track.portalEvery = if (Settings.devMode || Settings.testSpaceWorld) 28 else 110 - 14 * Progress.level(Progress.PORTALS) // dev: portals galore too
         powerUps.reset(); redPill.reset(); jetGrace = 0f
         if (BuildConfig.DEBUG && BuildConfig.JACKPOT_TEST_WORLD && !Settings.performanceCourse) {
             track.portalPool = emptyList()
@@ -300,17 +306,24 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
         curTier = difficulty.tier()
         track.tier = curTier
         val oldCount = Lanes.count
-        track.reset(coinTrailChance = 0.2f, hue = worldHue(), initialBonus = if (Settings.devMode) Settings.testBonusNow else Bonus.NONE)
+        val startBonus = when {
+            Settings.testSpaceWorld -> Bonus.SPACE // section explorer: Outer Space from the first row
+            Settings.devMode -> Settings.testBonusNow
+            else -> Bonus.NONE
+        }
+        track.reset(coinTrailChance = 0.2f, hue = worldHue(), initialBonus = startBonus)
         prepareToxicCoins()
-        if (!track.isPillTest && Settings.devMode && Settings.testBonusNow >= 0) { // debug: begin inside a bonus world
-            bonus = Settings.testBonusNow
+        space.reset()
+        if (!track.isPillTest && startBonus >= 0) { // debug: begin inside a bonus world
+            bonus = startBonus
             player.remapLane(oldCount, Lanes.count)
             Terrain.set(bonus == Bonus.HILLS)
+            if (bonus == Bonus.SPACE) space.enter(Random.nextInt(), instant = true)
             session.setBonus(bonus)
         }
         session.runStarted()
         if (Settings.devMode) session.setScore(950)
-        if (bonus in 0..3) session.setBonus(bonus)
+        if (bonus >= 0) session.setBonus(bonus)
         session.laneChanged(player.lane, Lanes.count)
         refreshJumpAbility()
         fx.runStart(worldHue())
@@ -826,10 +839,12 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
         Terrain.scroll(mv, dt)
         // the Kaleidoscope: the sky and the road never hold a colour; the camera sways
         kaleido += ((if (bonus == Bonus.KALEIDO) 1f else 0f) - kaleido) * min(1f, dt * 1.5f)
+        val glide = if (dt > 0f) (player.px - lastPx) / dt else 0f
+        lastPx = player.px
         if (kaleido > 0.001f) {
             kaleidoHue += dt * 70f
             rig.roll = 7f * kaleido * sin(time * 1.1f)
-        } else rig.roll = 0f
+        } else rig.roll += (space.bank(glide) - rig.roll) * min(1f, dt * 4f)
         rig.wide += ((if (Lanes.count > 3) 1f else 0f) - rig.wide) * min(1f, dt * 2f)
         if (started && !dead && !Settings.devMode) {
             val t = difficulty.tier()
@@ -849,6 +864,7 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
             bgTop.lerp(hsvInto(tmpCol, kaleidoHue, 0.85f, 1f), kaleido * 0.85f)
             bgBottom.lerp(hsvInto(tmpCol, kaleidoHue + 120f, 0.9f, 0.55f), kaleido * 0.85f)
         }
+        space.tintSky(bgTop, bgBottom)
         when (scenery.scroll(mv)) {
             Scenery.PASSED_WORLD -> worlds.gatePassed()?.let { fx.worldGate(worlds.gateColor()); rig.punch(0.7f); session.setWorld(it.name) }
             Scenery.PASSED_START -> {
@@ -863,6 +879,7 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
             }
         }
         if (live()) {
+            track.speed = difficulty.speed() * runSkin.speedMultiplier
             track.spawn(mv, worldHue(), session.score, dt)
             prepareToxicCoins()
             prepareCoalGems()
@@ -896,6 +913,7 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
         if (!dead) {
             refreshJumpAbility()
             player.hover = bonus == Bonus.FLOAT
+            player.lowGravity = bonus == Bonus.SPACE
             val gh = if (player.flying) 0f else groundAt(player.px)
             when (val event = player.update(dt, mv, time, worldHue(), trail = started, groundH = gh, stream = spd * 0.55f)) {
                 Player.EV_LANDED, Player.EV_GROUND_POUND -> {
@@ -912,6 +930,9 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
 
         // ---- obstacle rows: move, collide, score; coins: magnet + collect; pickups
         track.scroll(mv, time, dt)
+        space.tick(dt, mv, time, alive = !dead)
+        worlds.hold = space.inside
+        fx.stardust = bonus == Bonus.SPACE
         debris.update(dt, mv)
         zenDissolve.update(dt, mv)
         collide(dt)
@@ -985,7 +1006,7 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
             }
             if (!row.scored && row.z > 1.2f) {
                 row.scored = true
-                if (started && !dead && !row.idle) scoreRow(row)
+                if (started && !dead && !row.idle && !row.scoreless) scoreRow(row)
             }
         }
     }
@@ -993,17 +1014,24 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
     /** Through a portal: the world changes shape (or back). */
     private fun crossPortal(row: Row) {
         val oldCount = Lanes.count
+        val wasSpace = bonus == Bonus.SPACE
         val id = track.crossPortal(row)
         bonus = id
         player.remapLane(oldCount, Lanes.count)
         if (id == Bonus.NONE) player.hover = false
+        Terrain.set(id == Bonus.HILLS)
+        session.setBonus(id)
+        if (id == Bonus.SPACE || wasSpace) { // into space and out: a warp, not a bang
+            if (id == Bonus.SPACE) space.enter(Random.nextInt()) else space.exit()
+            fx.warp(if (id == Bonus.SPACE) space.neon else hsvInto(tmpCol, 200f, 0.5f, 1f))
+            rig.punch(0.6f)
+            return
+        }
         val col = hsvInto(tmpCol, if (id == Bonus.NONE) 200f else Bonus.get(id).hue, 0.5f, 1f)
         fx.worldGate(col)
         flash(Color.WHITE, 0.7f)
         slowMo(0.35f, 0.4f)
         rig.punch(1f)
-        Terrain.set(id == Bonus.HILLS)
-        session.setBonus(id)
     }
 
     // ------------------------------------------------------------- rendering
@@ -1019,7 +1047,7 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
         if (showcase.active) {
             if (showcase.shop && showcase.menuVisibility > 0f) {
                 setWorldOpacity(showcase.menuVisibility)
-                renderTrackScene()
+                renderTrackScene(backdrop = false)
                 setWorldOpacity(1f)
             }
             fogColor.set(bgBottom); syncFog(); showcase.render(time)
@@ -1030,28 +1058,41 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
         setWorldOpacity(1f)
     }
 
-    private fun renderTrackScene() {
+    /** The road scene. [backdrop] false leaves out Space's opaque sky (the shop fades the road in and out). */
+    private fun renderTrackScene(backdrop: Boolean = true) {
         // haze target ≈ the sky gradient at the horizon, so the far track end and
         // freshly spawned rows dissolve into the background instead of popping in
-        fogColor.set(bgBottom).lerp(bgTop, worlds.fogMix)
+        fogColor.set(bgBottom).lerp(bgTop, space.fogMix(worlds.fogMix))
         syncFog()
+        space.rifts.update(track.rows)
+        trackArt.glassRifts = space.blend > 0f
         scenery.renderRoad()
         trackArt.render(track, time, kaleido, kaleidoHue)
+        if (space.blend > 0f) space.rifts.render()
         debris.render()
         zenDissolve.render()
         val wind = if (dead) 0f else ((spd - 13f) / 15f).coerceIn(0f, 1f)
         scenery.render(if (player.flying) 1f else wind, time)
+        if (backdrop) space.sky.render(time, if (dead) 0f else ((spd - 8f) / 20f).coerceIn(0f, 1f))
         if (jackpot.active) jackpot.render()
     }
 
     override fun renderWorldBackdrop(shapes: ShapeRenderer) {
         if (showcase.active && showcase.shop) showcase.renderShapes(shapes, time)
+        else if (!showcase.active && !gift.active) {
+            bendShapes(shapes, on = false) // the painted sky never bends
+            space.deco.render(shapes, cam, time)
+            bendShapes(shapes, on = true)
+        }
     }
 
     override fun renderWorldShapes(shapes: ShapeRenderer) {
         if (gift.active) gift.renderShapes(shapes, time)
         else if (showcase.active && !showcase.shop) showcase.renderShapes(shapes, time)
         else if (!showcase.active) {
+            bendShapes(shapes, on = false)
+            space.sky.renderShapes(shapes, time)
+            bendShapes(shapes, on = true)
             trackArt.renderCues(shapes, track, opening.worldAmount, redPill.blend)
             if (jackpot.active) jackpot.renderShapes(shapes, time)
         }
@@ -1080,7 +1121,7 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
             bubbles.draw(cam, r.pickupX, 0.95f + 0.12f * sin(time * 3f + r.visualPhase), cz, s, s, s, time * 50f, time, 170f, 270f, 0.6f, 2.4f, 0.12f, 1f - Fog.at(cz), BubbleSkins.IRIS)
         }
     }
-    override fun pause() { idlePilot.stop(); super.pause() }
-    override fun dispose() { Progress.zenRun = false; idlePilot.close(); showcase.dispose(); super.dispose() }
+    override fun pause() { idlePilot.stop(); space.pauseAudio(); super.pause() }
+    override fun dispose() { Progress.zenRun = false; idlePilot.close(); space.deco.dispose(); showcase.dispose(); super.dispose() }
 
 }

@@ -208,7 +208,7 @@ class GameHostSession(
     }
 
     override fun setBonus(id: Int) {
-        if (runHasStarted && !over.get() && id in 0..3) {
+        if (runHasStarted && !over.get() && id in cube.run.data.Bonus.all.indices) {
             bonusMask = bonusMask or (1 shl id)
             Progress.bestMetric("scenic_route", bonusMask)
             Progress.markMetricBit("globetrotter", id)

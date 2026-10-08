@@ -39,11 +39,12 @@ class BubbleRenderer(mb: ModelBuilder) : Disposable {
             uniform vec3 u_camPos;
             varying vec3 v_normal;
             varying vec3 v_view;
+            ${WorldBend.GLSL}
             void main() {
                 vec4 wp = u_worldTrans * vec4(a_position, 1.0);
                 v_normal = normalize((u_worldTrans * vec4(a_normal, 0.0)).xyz);
                 v_view = normalize(u_camPos - wp.xyz);
-                gl_Position = u_projViewTrans * wp;
+                gl_Position = u_projViewTrans * wp + u_projViewTrans * vec4(bendOffset(wp.xyz), 0.0);
             }
             """.trimIndent(),
             """
@@ -122,6 +123,7 @@ class BubbleRenderer(mb: ModelBuilder) : Disposable {
         Gdx.gl.glBlendFunc(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA)
         shader.bind()
         shader.setUniformMatrix("u_projViewTrans", cam.combined)
+        WorldBend.apply(shader)
         shader.setUniformMatrix("u_worldTrans", world)
         shader.setUniformf("u_camPos", cam.position.x, cam.position.y, cam.position.z)
         shader.setUniformf("u_time", time)

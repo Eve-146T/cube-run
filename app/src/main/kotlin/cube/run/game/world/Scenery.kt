@@ -6,6 +6,7 @@ import cube.run.core.hsvInto
 import cube.run.data.Worlds
 import cube.run.game.Lanes
 import kotlin.math.max
+import kotlin.math.min
 import kotlin.math.sin
 import kotlin.random.Random
 
@@ -49,6 +50,10 @@ class Scenery(private val game: Gdx3DGame, private val rnd: Random) {
     private val edgeCol = Color()
     private val dark = Color(0.10f, 0.08f, 0.18f, 1f)
     private var world: Worlds.World = Worlds.get(0)
+    /** Outer Space (null outside a run's reach): the land falls away under it, the road takes its colours. */
+    var space: cube.run.game.space.SpaceWorld? = null
+    private val tileA = Color(); private val tileB = Color()
+    private var dropY = 0f          // how far the land (and everything on it) has fallen away
 
     private val laneW: Float get() = Lanes.NORMAL_W
 
@@ -124,6 +129,8 @@ class Scenery(private val game: Gdx3DGame, private val rnd: Random) {
     companion object {
         const val PASSED_WORLD = 1
         const val PASSED_START = 2
+        /** How see-through the road gets in space (0 solid … 1 gone). */
+        const val GLASS = 0.55f
     }
 
     /** Scroll by [mv]. Returns PASSED_WORLD / PASSED_START on the frame a gate passes the player, else 0. */
@@ -159,6 +166,9 @@ class Scenery(private val game: Gdx3DGame, private val rnd: Random) {
      */
     fun renderRoad() {
         hsvInto(edgeCol, world.floorH + 30f, world.floorS * 0.6f, 1f)
+        val sp = space?.blend ?: 0f
+        space?.let { if (sp > 0f) it.kerb(edgeCol, edgeCol) }
+        dropY = sp * sp * 70f // the ground falls away beneath the road
         val w = Lanes.w
         val u = Lanes.unfold
         val kerb = Lanes.halfRoadDrawn + 0.12f
@@ -166,25 +176,49 @@ class Scenery(private val game: Gdx3DGame, private val rnd: Random) {
         val landX = kerb + 0.12f + landW / 2f
         for (t in tiles) {
             val fog = Fog.at(t.z)
+            val c1 = if (sp > 0f) space!!.roadTile(tileA, t.col, false) else t.col
+            val c2 = if (sp > 0f) space!!.roadTile(tileB, t.col2, true) else t.col2
             // the three core lanes, then the two outer ones growing out from the edges as the road unfolds
-            for (l in 0 until 3) game.worldGround((l - 1) * w, -0.14f, t.z, w, 0.26f, tileD, if ((l + 1 + t.parity) % 2 == 0) t.col else t.col2, fog)
+            if (sp > 0f) { // in space the road turns to glass: stars, rocks and planets show through beneath you
+                val alpha = 1f - GLASS * sp
+                // the tile, minus any rift crossing it: the gap stays open to space
+                val rifts = space!!.rifts
+                var top = t.z + tileD / 2f
+                val bottom = t.z - tileD / 2f
+                for (i in 0 until rifts.count) {
+                    val hn = rifts.near(i); val hf = rifts.far(i)
+                    if (hf >= top || hn <= bottom) continue
+                    if (hn < top) glassPiece(hn, top, w, t.parity, c1, c2, fog, alpha)
+                    top = min(top, hf)
+                }
+                if (top > bottom) glassPiece(bottom, top, w, t.parity, c1, c2, fog, alpha)
+            } else for (l in 0 until 3) game.worldGround((l - 1) * w, -0.14f, t.z, w, 0.26f, tileD, if ((l + 1 + t.parity) % 2 == 0) c1 else c2, fog)
             if (u > 0.01f) {
                 val ow = w * u
-                game.worldGround(-(1.5f * w + ow / 2f), -0.14f, t.z, ow, 0.26f, tileD, if (t.parity == 0) t.col else t.col2, fog)
-                game.worldGround(1.5f * w + ow / 2f, -0.14f, t.z, ow, 0.26f, tileD, if (t.parity == 0) t.col else t.col2, fog)
+                game.worldGround(-(1.5f * w + ow / 2f), -0.14f, t.z, ow, 0.26f, tileD, if (t.parity == 0) c1 else c2, fog)
+                game.worldGround(1.5f * w + ow / 2f, -0.14f, t.z, ow, 0.26f, tileD, if (t.parity == 0) c1 else c2, fog)
             }
             game.worldGround(-kerb, -0.1f, t.z, 0.24f, 0.34f, tileD, edgeCol, fog)
             game.worldGround(kerb, -0.1f, t.z, 0.24f, 0.34f, tileD, edgeCol, fog)
-            game.worldGround(-landX, -0.16f, t.z, landW, 0.3f, tileD, t.ground, fog)
-            game.worldGround(landX, -0.16f, t.z, landW, 0.3f, tileD, t.ground, fog)
+            if (dropY < 60f) {
+                game.worldGround(-landX, -0.16f - dropY, t.z, landW, 0.3f, tileD, t.ground, fog)
+                game.worldGround(landX, -0.16f - dropY, t.z, landW, 0.3f, tileD, t.ground, fog)
+            }
         }
+    }
+
+    /** One stretch of glass road, from [far] to [near], three lanes wide. */
+    private fun glassPiece(far: Float, near: Float, w: Float, parity: Int, c1: Color, c2: Color, fog: Float, alpha: Float) {
+        val len = near - far
+        if (len < 0.02f) return
+        for (l in 0 until 3) game.glassGround((l - 1) * w, -0.04f, (near + far) / 2f, w, 0.06f, len, if ((l + 1 + parity) % 2 == 0) c1 else c2, fog, alpha)
     }
 
     /** Everything beside and above the road: the roadside, the gates, the wind. [wind] 0..1 = how vivid the speed streaks are. */
     fun render(wind: Float, time: Float) {
-        for (p in posts) renderPost(p, time)
+        if (dropY < 60f) for (p in posts) renderPost(p, time)
         for (g in gates) renderGate(g, time)
-        if (wind > 0f) { // faint at cruising speed, vivid near the ceiling (fog doubles as fade)
+        if (wind > 0f && dropY < 1f) { // faint at cruising speed, vivid near the ceiling (fog doubles as fade)
             for (s in streaks) {
                 val fade = max(Fog.at(s.z), 1f - wind * 0.75f)
                 game.worldBox(s.x, s.y, s.z, 0.05f, 0.05f, s.len * (0.6f + wind * 0.8f), streakCol, fade)
@@ -192,38 +226,45 @@ class Scenery(private val game: Gdx3DGame, private val rnd: Random) {
         }
     }
 
+    /** Roadside pieces stand on the land: when it falls away (Outer Space) they fall with it. */
+    private fun postBox(x: Float, y: Float, z: Float, sx: Float, sy: Float, sz: Float, col: Color, fog: Float = 0f) =
+        game.worldBox(x, y - dropY, z, sx, sy, sz, col, fog)
+
+    private fun postSpin(x: Float, y: Float, z: Float, sx: Float, sy: Float, sz: Float, yaw: Float, col: Color, fog: Float = 0f) =
+        game.worldBoxSpin(x, y - dropY, z, sx, sy, sz, yaw, col, fog)
+
     private fun renderPost(p: Post, time: Float) {
         val fog = Fog.at(p.z)
         val x = p.x; val z = p.z
         when (p.style) {
             Worlds.LOLLIPOPS -> when (p.kind) { // candy: gumdrops, candy canes, cupcakes — clean stacked shapes
                 0 -> { // gumdrop: a fat base with a smaller dome on top
-                    game.worldBoxSpin(x, p.h * 0.35f, z, 1.1f, p.h * 0.7f, 1.1f, 45f, p.col)
-                    game.worldBoxSpin(x, p.h * 0.7f + p.h * 0.18f, z, 0.7f, p.h * 0.36f, 0.7f, 45f, p.col2, fog)
+                    postSpin(x, p.h * 0.35f, z, 1.1f, p.h * 0.7f, 1.1f, 45f, p.col)
+                    postSpin(x, p.h * 0.7f + p.h * 0.18f, z, 0.7f, p.h * 0.36f, 0.7f, 45f, p.col2, fog)
                 }
                 1 -> { // candy cane: striped stack
                     val n = 5; val seg = (p.h + 1.2f) / n
-                    for (i in 0 until n) game.worldBox(x, seg * (i + 0.5f), z, 0.34f, seg, 0.34f, if (i % 2 == 0) white else p.col, fog)
-                    game.worldBox(x - 0.3f, seg * n + 0.1f, z, 0.9f, 0.34f, 0.34f, p.col, fog)
+                    for (i in 0 until n) postBox(x, seg * (i + 0.5f), z, 0.34f, seg, 0.34f, if (i % 2 == 0) white else p.col, fog)
+                    postBox(x - 0.3f, seg * n + 0.1f, z, 0.9f, 0.34f, 0.34f, p.col, fog)
                 }
                 else -> { // cupcake: wrapper, frosting, cherry
-                    game.worldBox(x, 0.35f, z, 1.0f, 0.7f, 1.0f, p.col3, fog)
-                    game.worldBoxSpin(x, 0.7f + 0.3f, z, 1.15f, 0.6f, 1.15f, 45f, p.col2, fog)
-                    game.worldBoxSpin(x, 1.3f + 0.22f, z, 0.6f, 0.44f, 0.6f, 45f, white, fog)
-                    game.worldBox(x, 1.74f + 0.15f, z, 0.3f, 0.3f, 0.3f, p.col, fog)
+                    postBox(x, 0.35f, z, 1.0f, 0.7f, 1.0f, p.col3, fog)
+                    postSpin(x, 0.7f + 0.3f, z, 1.15f, 0.6f, 1.15f, 45f, p.col2, fog)
+                    postSpin(x, 1.3f + 0.22f, z, 0.6f, 0.44f, 0.6f, 45f, white, fog)
+                    postBox(x, 1.74f + 0.15f, z, 0.3f, 0.3f, 0.3f, p.col, fog)
                 }
             }
             Worlds.TOWERS -> { // a dark block with lit windows on its face
-                game.worldBox(x, p.h / 2f, z, 1.3f, p.h, 1.3f, dark, fog)
+                postBox(x, p.h / 2f, z, 1.3f, p.h, 1.3f, dark, fog)
                 var y = 0.6f
                 var k = 0
                 val face = if (x < 0f) x + 0.66f else x - 0.66f
                 while (y < p.h - 0.4f && k < 7) {
                     val lit = sin(p.seed * 20f + k * 3.1f) > -0.2f
-                    if (lit) game.worldBox(face, y, z, 0.06f, 0.28f, 0.6f, if (k % 2 == 0) p.col else p.col2, fog)
+                    if (lit) postBox(face, y, z, 0.06f, 0.28f, 0.6f, if (k % 2 == 0) p.col else p.col2, fog)
                     y += 0.7f; k++
                 }
-                game.worldBox(x, p.h + 0.15f, z, 0.5f, 0.3f, 0.5f, p.col, fog) // a lit cap
+                postBox(x, p.h + 0.15f, z, 0.5f, 0.3f, 0.5f, p.col, fog) // a lit cap
             }
             Worlds.CRYSTALS -> { // a shard cluster: three tapering stacks side by side
                 spike(x, z, p.h, 0.7f, 45f + p.seed * 30f, p.col, fog)
@@ -232,24 +273,24 @@ class Scenery(private val game: Gdx3DGame, private val rnd: Random) {
             }
             Worlds.SPIKES -> spike(x, z, p.h, 1.2f, 0f, p.col, fog, cap = white)
             Worlds.CACTI -> { // a trunk with two arms and a flower
-                game.worldBox(x, p.h / 2f, z, 0.5f, p.h, 0.5f, p.col3, fog)
-                game.worldBox(x - 0.55f, p.h * 0.55f, z, 0.6f, 0.34f, 0.34f, p.col3, fog)
-                game.worldBox(x - 0.68f, p.h * 0.55f + 0.55f, z, 0.34f, 0.8f, 0.34f, p.col3, fog)
-                game.worldBox(x + 0.55f, p.h * 0.4f, z, 0.6f, 0.34f, 0.34f, p.col3, fog)
-                game.worldBox(x + 0.68f, p.h * 0.4f + 0.5f, z, 0.34f, 0.7f, 0.34f, p.col3, fog)
-                game.worldBoxSpin(x, p.h + 0.2f, z, 0.36f, 0.36f, 0.36f, time * 30f, p.col, fog)
+                postBox(x, p.h / 2f, z, 0.5f, p.h, 0.5f, p.col3, fog)
+                postBox(x - 0.55f, p.h * 0.55f, z, 0.6f, 0.34f, 0.34f, p.col3, fog)
+                postBox(x - 0.68f, p.h * 0.55f + 0.55f, z, 0.34f, 0.8f, 0.34f, p.col3, fog)
+                postBox(x + 0.55f, p.h * 0.4f, z, 0.6f, 0.34f, 0.34f, p.col3, fog)
+                postBox(x + 0.68f, p.h * 0.4f + 0.5f, z, 0.34f, 0.7f, 0.34f, p.col3, fog)
+                postSpin(x, p.h + 0.2f, z, 0.36f, 0.36f, 0.36f, time * 30f, p.col, fog)
             }
             Worlds.RINGS -> { // a floating square frame, slowly turning, over a rock
                 val yaw = time * 25f + p.seed * 360f
                 val y = p.h + 0.3f * sin(time * 1.3f + p.seed * 6f)
                 val r = 1.1f
-                game.worldBoxSpin(x, y + r, z, 2 * r + 0.14f, 0.14f, 0.14f, yaw, p.col, fog)
-                game.worldBoxSpin(x, y - r, z, 2 * r + 0.14f, 0.14f, 0.14f, yaw, p.col, fog)
+                postSpin(x, y + r, z, 2 * r + 0.14f, 0.14f, 0.14f, yaw, p.col, fog)
+                postSpin(x, y - r, z, 2 * r + 0.14f, 0.14f, 0.14f, yaw, p.col, fog)
                 val rad = Math.toRadians(yaw.toDouble())
                 val dx = (r * Math.cos(rad)).toFloat(); val dz = (-r * Math.sin(rad)).toFloat()
-                game.worldBoxSpin(x + dx, y, z + dz, 0.14f, 2 * r - 0.14f, 0.14f, yaw, p.col, fog)
-                game.worldBoxSpin(x - dx, y, z - dz, 0.14f, 2 * r - 0.14f, 0.14f, yaw, p.col, fog)
-                game.worldBoxSpin(x, 0.35f, z, 0.7f, 0.7f, 0.7f, yaw * 0.5f, dark, fog)
+                postSpin(x + dx, y, z + dz, 0.14f, 2 * r - 0.14f, 0.14f, yaw, p.col, fog)
+                postSpin(x - dx, y, z - dz, 0.14f, 2 * r - 0.14f, 0.14f, yaw, p.col, fog)
+                postSpin(x, 0.35f, z, 0.7f, 0.7f, 0.7f, yaw * 0.5f, dark, fog)
             }
         }
     }
@@ -260,7 +301,7 @@ class Scenery(private val game: Gdx3DGame, private val rnd: Random) {
         for (i in 0 until n) {
             val s = base * (1f - i * 0.3f)
             val seg = h / n
-            game.worldBoxSpin(x, seg * (i + 0.5f), z, s, seg, s, yaw, if (i == n - 1) cap else col, fog)
+            postSpin(x, seg * (i + 0.5f), z, s, seg, s, yaw, if (i == n - 1) cap else col, fog)
         }
     }
 

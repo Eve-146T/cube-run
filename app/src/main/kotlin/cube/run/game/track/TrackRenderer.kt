@@ -46,6 +46,8 @@ class TrackRenderer(private val game: Gdx3DGame) {
     private val flameCol = Color()
     private val padTop = Color()
     private val rod = Color(0.32f, 0.28f, 0.4f, 1f)
+    /** On the glass road, a full-width pit is an open gap (see SpaceRifts), not a black slab. */
+    var glassRifts = false
     private val portalA = Color()
     private val portalB = Color()
     private val tmpCol = Color()
@@ -83,7 +85,7 @@ class TrackRenderer(private val game: Gdx3DGame) {
                     ob.type == ObType.PLAT -> renderPlatform(ob, r.z, fog, p)
                     ob.type == ObType.PAD -> renderPad(ob, r.z, fog, time, p)
                     ob.anim == ObAnim.PISTON && ob.sy < 0.03f -> {} // sunk into the floor
-                    ob.pit -> renderPit(ob, r.z, fog, time, p, r.visualPhase)
+                    ob.pit -> if (!glassRifts || ob.sx < cube.run.game.space.SpaceRifts.WIDE) renderPit(ob, r.z, fog, time, p, r.visualPhase)
                     ob.anim == ObAnim.PENDULUM -> {
                         box(ob.x, ob.cy, r.z, ob.sx, ob.sy, ob.sz, cues.body(ob, ob.col), fog, p, false)
                         game.worldBox(ob.x * 0.5f, ob.top + 1.1f, r.z, abs(ob.x) + 0.16f, 0.16f, 0.16f, rod, fog) // the rod up to the beam
@@ -144,6 +146,14 @@ class TrackRenderer(private val game: Gdx3DGame) {
             val rr = radius * 0.62f
             val s = 0.2f
             game.worldBoxSpin(cx + cos(a) * rr, cy + sin(a) * rr, r.z + 0.3f, s, s, s, -time * 300f + i * 40f, Color.WHITE, fog)
+        }
+        if (r.portal == cube.run.data.Bonus.SPACE && !r.portalExit) { // the doorway to space: a swirl of little cube stars inside the ring
+            for (i in 0 until 14) {
+                val a = time * (0.6f + i / 14f * 0.8f) + i * 2.4f
+                val rr = radius * (0.15f + 0.75f * ((i * 0.618f) % 1f))
+                val s = 0.14f + 0.1f * ((i * 0.37f) % 1f)
+                game.worldBoxSpin(cx + cos(a) * rr, cy + sin(a) * rr, r.z - 0.2f, s, s, s, time * 200f + i * 30f, Color.WHITE, fog)
+            }
         }
         // the frame's feet
         game.worldBox(-radius - 0.3f, 0.5f, r.z, 0.5f, 1f, 0.5f, portalB, fog)

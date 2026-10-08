@@ -42,6 +42,8 @@
     <string name="text_choose_a_section">Choose a section</string>
     <string name="text_test_worlds">TEST WORLDS</string>
     <string name="text_red_pill">RED PILL</string>
+    <string name="text_outer_space">OUTER SPACE</string>
+    <string name="text_space_on_loop">Starts in space. Every portal leads back.</string>
     <string name="text_wardrobe">WARDROBE</string>
     <string name="text_equipped">EQUIPPED</string>
     <string name="text_equip">EQUIP</string>
@@ -145,10 +147,12 @@
     <string name="game_rollercoaster">Rollercoaster</string>
     <string name="game_zero_g">Zero-G</string>
     <string name="game_kaleidoscope">Kaleidoscope</string>
+    <string name="game_outer_space">Outer Space</string>
     <string name="game_five_lanes_room_to_breathe_room_to_lose_yourself">Five lanes. Room to breathe, room to lose yourself.</string>
     <string name="game_the_road_rises_and_falls_hold_on">The road rises and falls. Hold on.</string>
     <string name="game_the_lanes_drift_apart_and_you_float_between_them">The lanes drift apart and you float between them.</string>
     <string name="game_nothing_holds_its_colour_nothing_holds_still">Nothing holds its colour. Nothing holds still.</string>
+    <string name="game_the_ground_falls_away">The ground falls away. Stars rush by; planets take their time.</string>
     <string name="section_first_steps">FIRST STEPS</string>
     <string name="section_weave">WEAVE</string>
     <string name="section_hop">HOP</string>

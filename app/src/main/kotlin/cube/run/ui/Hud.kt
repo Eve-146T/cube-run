@@ -287,7 +287,7 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false, retu
         Progress.coalAlchemyRevealed, Progress.coins, Progress.bubbles, Progress.skin, Progress.bubbleSkin, Progress.trail,
         Progress.ownedSkins, Progress.ownedBubbleSkins, Progress.ownedTrails, Progress.achievementsUnlocked,
         (0..2).map(Progress::shards), Progress.voidPurchases, Achievements.snapshot(),
-        Settings.devMode, Settings.testSection, Settings.testPillWorld, Settings.performanceCourse,
+        Settings.devMode, Settings.testSection, Settings.testPillWorld, Settings.testSpaceWorld, Settings.performanceCourse,
     )
 
     private fun newCachedPage(name: String): Page = when (name) {

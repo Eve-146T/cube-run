@@ -121,6 +121,8 @@ class Row(var z: Float, val obs: ArrayList<Ob>, initialLaneWidth: Float = Lanes.
         laneWidth = target
     }
     var scored = false
+    /** A continuation slice of a longer hazard (a rift): crossing it scores nothing extra. */
+    var scoreless = false
     var minClear = 99f            // tightest clearance seen while crossing (near-miss detect)
     var coins: ArrayList<Coin>? = null
     var pickup = Pickup.NONE
@@ -165,6 +167,10 @@ class ObstacleFactory(private val rnd: Random) {
         const val PILLAR_H = 2.0f
         /** A tall wall: only a bounce pad (or a platform) gets you over. */
         const val TALL_H = 1.35f
+        /** A landed meteor: a low-gravity jump (peak ~1.6) clears it, a normal one barely would. */
+        const val METEOR_H = 1.05f
+        /** A station hull: above any low-gravity jump, below a gravity ring's arc (peak ~3.5). */
+        const val HULL_H = 2.3f
     }
 
     /** Lane x in the three-lane language sections are written in (the road may be wider or stretched right now). */
@@ -258,6 +264,29 @@ class ObstacleFactory(private val rnd: Random) {
      */
     fun platform(l: Int, hue: Float, len: Float, ramp: Float): Ob =
         Ob(hsv(hue + 95f, 0.55f, 0.95f), laneX(l), PLAT_TOP / 2f, 0.78f, ObType.PLAT, 1.56f, PLAT_TOP, len, ramp = ramp)
+
+    // ---- Outer Space ----
+
+    /**
+     * A meteor in lane [l]: a low boulder on the road. Low enough that a
+     * low-gravity hop clears it, so it is dodge or hop.
+     */
+    fun meteor(l: Int, hue: Float): Ob {
+        val h = METEOR_H
+        return Ob(hsv(hue + 185f, 0.8f, 1f), laneX(l), h / 2f, 0.7f, ObType.SOLID, 1.4f, h, 1.2f)
+    }
+
+    /** One slice of a rift: a gap in the floating road across every lane. Slices laid close together read as one chasm. */
+    fun addRift(hue: Float, into: ArrayList<Ob>) = addTar(0, 2, hue, into)
+
+    /** A gravity ring in lane [l]: collides like a pad, launches a little gentler (low gravity scales it). */
+    fun ring(l: Int, hue: Float): Ob = pad(l, hue)
+
+    /** A station hull across every lane: too tall for a low-gravity jump; a gravity ring carries you over. */
+    fun hull(hue: Float, into: ArrayList<Ob>) {
+        val w = laneW * 3f + 0.6f; val h = HULL_H
+        into.add(Ob(hsv(hue + 140f, 0.55f, 0.95f), 0f, h / 2f, laneW * 1.5f + 0.3f, ObType.SOLID, w, h, 0.9f))
+    }
 
     /** Segments over every lane except [open]: one wide piece, or two when the gap is the centre. */
     fun addSegsExcept(open: Int, hue: Float, into: ArrayList<Ob>, over: Boolean) {

@@ -33,6 +33,7 @@ internal class IdlePilot : AutoCloseable {
     private var lanes = 0
     private var flying = false
     private var hovering = false
+    private var lowG = false
 
     fun ready(dt: Float, home: Boolean): Boolean {
         val touched = Stage.interactions.get()
@@ -53,9 +54,9 @@ internal class IdlePilot : AutoCloseable {
 
     fun drive(now: Float, speed: Float, scale: Float, track: Track, body: Body, motion: JetMotion? = null, swipe: (Int) -> Unit) {
         if (!active || input != Stage.interactions.get()) { stop(); return }
-        if (lanes != Lanes.count || flying != body.flying || hovering != body.hover) {
+        if (lanes != Lanes.count || flying != body.flying || hovering != body.hover || lowG != body.lowG) {
             replan()
-            lanes = Lanes.count; flying = body.flying; hovering = body.hover
+            lanes = Lanes.count; flying = body.flying; hovering = body.hover; lowG = body.lowG
         }
         if (boosts < 5 && now >= nextBoost) {
             Stage.boostRequests.incrementAndGet()

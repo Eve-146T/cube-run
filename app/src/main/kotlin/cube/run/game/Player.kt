@@ -42,6 +42,12 @@ class Player(private val game: Gdx3DGame, private val rnd: Random) {
         const val FLY_Y = 5.2f
         /** Zero-G hover height (cube centre). */
         const val HOVER_Y = 1.4f
+        /** Outer Space: gravity pulls this fraction as hard, so a jump hangs half as long again. */
+        const val LOW_G = 0.52f
+        /** Outer Space: take-offs and launches leave at this fraction of their speed (a jump peaks ~20% higher). */
+        const val LOW_G_LAUNCH = 0.786f
+        /** Outer Space: lane changes glide a little (13 on the ground). */
+        const val LOW_G_LANE_RATE = 10f
         const val EV_NONE = 0
         const val EV_LANDED = 1
         const val EV_SIDE_HIT = 2   // ran into the side of a platform
@@ -56,6 +62,9 @@ class Player(private val game: Gdx3DGame, private val rnd: Random) {
     var flyY = FLY_Y
     /** Zero-G: hover at [HOVER_Y], drift between lanes slowly, no jumping or rolling. */
     var hover = false
+    /** Outer Space: weaker gravity, slower take-offs, softer lane changes. */
+    var lowGravity = false
+    private val launchScale: Float get() = if (lowGravity) LOW_G_LAUNCH else 1f
     /** Equipped Eclipse ability, fixed for this run; wardrobe previews cannot grant it. */
     var zappyEnabled = false
         set(value) {
@@ -123,7 +132,7 @@ class Player(private val game: Gdx3DGame, private val rnd: Random) {
     private val tmpCol = Color()
 
     internal fun pilotBody(flightLeft: Float) = cube.run.bot.Body(lane, px, py, vy, air, duck,
-        duckT, slamming, flying, flyY, hover, flightLeft = flightLeft,
+        duckT, slamming, flying, flyY, hover, flightLeft = flightLeft, lowG = lowGravity,
         coyoteLeft = coyoteLeft, jumpBuffer = jumpBuffer)
 
     fun laneX(l: Int) = Lanes.x(l)
@@ -142,7 +151,7 @@ class Player(private val game: Gdx3DGame, private val rnd: Random) {
 
     /** Reset simulation and pose while retaining the cube's mesh and material resources. */
     fun resetToMenu(baseHue: Float, time: Float) {
-        flying = false; flyY = FLY_Y; hover = false
+        flying = false; flyY = FLY_Y; hover = false; lowGravity = false
         zappyEnabled = false; floaty = false; doubleJumpEnabled = false; tripleJumpEnabled = false
         gigajumpEnabled = false
         airJumpAvailable = false; airJumpsUsed = 0
@@ -262,10 +271,11 @@ class Player(private val game: Gdx3DGame, private val rnd: Random) {
         clearJumpInput()
         if (!extraJump) { airJumpAvailable = true; airJumpsUsed = 0 }
         // Jump height scales with velocity squared, so sqrt(2) gives twice the height.
-        air = true; vy = (if (floaty) 6.9f else 8.4f) * (if (gigajumpEnabled) 1.4142136f else 1f)
+        air = true; vy = (if (floaty) 6.9f else 8.4f) * (if (gigajumpEnabled) 1.4142136f else 1f) * launchScale
         slamming = false
         duckT = 0f // jumping cancels a roll
-        SoundFx.play("whoosh", rate = if (extraJump) 1.55f else 1.3f)
+        if (lowGravity) SoundFx.play("moonjump", rate = if (extraJump) 1.3f else 0.95f + Random.nextFloat() * 0.1f, vol = 0.5f)
+        else SoundFx.play("whoosh", rate = if (extraJump) 1.55f else 1.3f)
         Haptics.click()
         game.burst3d(tmp.set(px, if (extraJump) py - .35f else .1f, .3f),
             if (extraJump) Color(.5f, 1f, .8f, 1f) else trailCol(),
@@ -292,7 +302,7 @@ class Player(private val game: Gdx3DGame, private val rnd: Random) {
         clearJumpInput()
         airJumpsUsed = 0
         airJumpAvailable = true
-        air = true; vy = v; duckT = 0f; slamming = false
+        air = true; vy = v * launchScale; duckT = 0f; slamming = false
         stretch = 1f
     }
 
@@ -332,7 +342,7 @@ class Player(private val game: Gdx3DGame, private val rnd: Random) {
         val gy = ground + groundH
         // Teleports stay centred while a portal animates lane spacing; ordinary skins ease.
         if (zappyEnabled) px = laneX(lane)
-        else px += (laneX(lane) - px) * min(1f, dt * (if (hover) 4.5f else 13f))
+        else px += (laneX(lane) - px) * min(1f, dt * (if (hover) 4.5f else if (lowGravity) LOW_G_LANE_RATE else 13f))
         nudge *= max(0f, 1f - 10f * dt)
         // A portal changes the underlying world, not an active jetpack's altitude.
         // Keep hover set so flight expiry naturally returns to the floating road.
@@ -344,12 +354,16 @@ class Player(private val game: Gdx3DGame, private val rnd: Random) {
             py += (HOVER_Y + 0.15f * sin(time * 2.2f) - py) * min(1f, dt * 3f)
             air = false; vy = 0f
         } else if (air) {
-            vy -= (if (floaty && !slamming) 16f else 26f) * dt
+            vy -= (if (floaty && !slamming) 16f else 26f) * (if (lowGravity) LOW_G else 1f) * dt
             py += vy * dt
             if (py <= gy && vy <= 0f) {
                 py = gy; air = false; vy = 0f
                 airJumpAvailable = false
-                if (!quietLanding) { SoundFx.play("pop", rate = 0.95f + rnd.nextFloat() * 0.12f); Haptics.click() }
+                if (!quietLanding) {
+                    if (lowGravity) SoundFx.play("moonland", rate = 0.95f + Random.nextFloat() * 0.1f)
+                    else SoundFx.play("pop", rate = 0.95f + rnd.nextFloat() * 0.12f)
+                    Haptics.click()
+                }
                 quietLanding = false
                 game.burst3d(tmp.set(px, gy - 0.39f, 0.4f), trailCol(), n = 8, speed = 3.2f, size = 0.09f, life = 0.4f)
                 squash = 1f
@@ -374,7 +388,7 @@ class Player(private val game: Gdx3DGame, private val rnd: Random) {
         duck += (duckTarget - duck) * min(1f, dt * 18f)
         val idle = mv == 0f && !flying && !hover
         idleMix += ((if (idle) 1f else 0f) - idleMix) * min(1f, dt * 4f)
-        roll += mv * 42f + (if (air && !idle) 160f * dt else 0f) + duck * 260f * dt // tumble; flip in air, fast roll while ducking
+        roll += mv * 42f + (if (air && !idle) (if (lowGravity) 105f else 160f) * dt else 0f) + duck * 260f * dt // tumble; flip in air (a lazy one in space), fast roll while ducking
         if (roll > 360f) roll -= 360f
         // a rolling cube rides up over its corners: lift it so it never sinks into the floor (no jitter, a real roll)
         val ra = Math.toRadians((roll % 90f).toDouble())

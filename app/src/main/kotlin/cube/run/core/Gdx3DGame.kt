@@ -4,6 +4,7 @@ import com.badlogic.gdx.ApplicationAdapter
 import com.badlogic.gdx.Gdx
 import com.badlogic.gdx.graphics.Color
 import com.badlogic.gdx.graphics.GL20
+import com.badlogic.gdx.graphics.GL30
 import com.badlogic.gdx.graphics.PerspectiveCamera
 import com.badlogic.gdx.graphics.VertexAttributes.Usage
 import com.badlogic.gdx.graphics.g3d.Environment
@@ -12,9 +13,12 @@ import com.badlogic.gdx.graphics.g3d.Model
 import com.badlogic.gdx.graphics.g3d.ModelBatch
 import com.badlogic.gdx.graphics.g3d.attributes.ColorAttribute
 import com.badlogic.gdx.graphics.g3d.utils.ModelBuilder
+import com.badlogic.gdx.graphics.glutils.ImmediateModeRenderer20
+import com.badlogic.gdx.graphics.glutils.ShaderProgram
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer
 import com.badlogic.gdx.math.Matrix4
 import com.badlogic.gdx.math.Vector3
+import com.badlogic.gdx.utils.BufferUtils
 import cube.run.core.gfx.MatrixWireBatch
 import cube.run.core.gfx.CapsuleBatch
 import cube.run.core.gfx.BoxMeshKit
@@ -25,6 +29,7 @@ import cube.run.core.gfx.ShardSystem
 import cube.run.core.gfx.TouchInput
 import cube.run.core.gfx.TerrainHeight
 import cube.run.core.gfx.TouchListener
+import cube.run.core.gfx.WorldBend
 import cube.run.core.gfx.WorldBoxBatch
 import kotlin.math.max
 import kotlin.math.min
@@ -63,6 +68,8 @@ abstract class Gdx3DGame(val session: GameSession) : ApplicationAdapter(), Touch
     private var firstFrameReported = false
     private var startupStep = -1
     private var terrain: TerrainHeight? = null
+    // Depth is rebuilt after every swap. Let tile GPUs discard it instead of storing it to memory.
+    private val discardDepth = BufferUtils.newIntBuffer(1).apply { put(GL30.GL_DEPTH); flip() }
 
     /** The intro only needs the player; prepare scenery batches while its native animation continues. */
     protected open val hasLaunchOpening = false
@@ -73,9 +80,14 @@ abstract class Gdx3DGame(val session: GameSession) : ApplicationAdapter(), Touch
     private lateinit var shapes: ShapeRenderer
     private lateinit var kit: BoxMeshKit
     private lateinit var world: WorldBoxBatch
+    /** See-through floor pieces (Outer Space's glass road): blended over everything opaque, so what is below shows. */
+    private lateinit var glass: WorldBoxBatch
     private lateinit var coins: PrismBatch
     private lateinit var matrixWires: MatrixWireBatch
     private lateinit var crystals: cube.run.core.gfx.CrystalBatch
+    private lateinit var facetBatch: cube.run.core.gfx.FacetBatch
+    /** Faceted shapes (planets, asteroids, stars), drawn in one pass with the world. */
+    val facets: cube.run.core.gfx.FacetBatch get() = facetBatch
     private lateinit var capsules: CapsuleBatch
     /** The soap-bubble shader (blended pass; use from [renderBlended]). */
     private var bubbleRenderer: BubbleRenderer? = null
@@ -203,14 +215,43 @@ abstract class Gdx3DGame(val session: GameSession) : ApplicationAdapter(), Touch
         LaunchTrace.mark(if (hasLaunchOpening) "cube ready" else "game ready")
     }
 
+    private var shapeShader: ShaderProgram? = null
+
+    /** The shape renderer, with libGDX's own shader taught the [WorldBend] (flat screen-space drawing sits at z = 0, unbent). */
+    private fun bentShapes(): ShapeRenderer {
+        val stock = ImmediateModeRenderer20.createDefaultShader(false, true, 0)
+        val plain = stock.vertexShaderSource
+        val fragment = stock.fragmentShaderSource
+        stock.dispose()
+        val vertex = plain.replace("void main() {", WorldBend.GLSL + "\nvoid main() {")
+            .replace("gl_Position = u_projModelView * a_position;", "gl_Position = u_projModelView * a_position + u_projModelView * vec4(bendOffset(a_position.xyz), 0.0);")
+        val shader = ShaderProgram(vertex, fragment)
+        if (!shader.isCompiled || vertex == plain) { shader.dispose(); return ShapeRenderer() }
+        shapeShader = shader
+        return ShapeRenderer(5000, shader)
+    }
+
+    /** World shapes follow the bend (road cues) or not (the sky): flushes what is queued under the old setting. */
+    fun bendShapes(shapes: ShapeRenderer, on: Boolean) {
+        val shader = shapeShader ?: return
+        shapes.flush()
+        shader.bind(); WorldBend.apply(shader, on)
+    }
+
     private fun prepareRenderer(step: Int) {
         when (step) {
-            0 -> shapes = ShapeRenderer()
+            0 -> shapes = bentShapes()
             1 -> matrixWires = MatrixWireBatch(kit)
-            2 -> world = WorldBoxBatch(kit, wires = matrixWires).also { it.terrain = terrain }
+            2 -> {
+                world = WorldBoxBatch(kit, wires = matrixWires).also { it.terrain = terrain }
+                glass = WorldBoxBatch(kit, maxBoxes = 360).also { it.terrain = terrain }
+            }
             3 -> coins = PrismBatch(kit, wires = matrixWires).also { it.terrain = terrain }
             4 -> capsules = CapsuleBatch(kit).also { it.terrain = terrain }
-            5 -> crystals = cube.run.core.gfx.CrystalBatch(kit).also { it.terrain = terrain }
+            5 -> {
+                crystals = cube.run.core.gfx.CrystalBatch(kit).also { it.terrain = terrain }
+                facetBatch = cube.run.core.gfx.FacetBatch(kit)
+            }
             6 -> shards = ShardSystem(kit)
             7 -> { bubbles; LaunchTrace.mark("batches ready") }
         }
@@ -319,7 +360,9 @@ abstract class Gdx3DGame(val session: GameSession) : ApplicationAdapter(), Touch
         matrixWires.begin()
         capsules.begin()
         crystals.begin()
+        facetBatch.begin(cam)
         world.begin(cam)
+        glass.begin(cam)
         coins.begin(cam)
         renderWorldBatched()
         world.render(cam)           // opaque pass: 1 draw call for every world box
@@ -327,6 +370,8 @@ abstract class Gdx3DGame(val session: GameSession) : ApplicationAdapter(), Touch
         matrixWires.render(cam)
         capsules.render(cam)
         crystals.render(cam)
+        facetBatch.render(cam)
+        glass.render(cam)           // after everything it may show through
         // unlit blended shapes in the world (sunbursts): behind whatever the ModelBatch draws next
         Gdx.gl.glEnable(GL20.GL_DEPTH_TEST)
         Gdx.gl.glDepthMask(false)
@@ -367,6 +412,8 @@ abstract class Gdx3DGame(val session: GameSession) : ApplicationAdapter(), Touch
         shapes.end()
         Gdx.gl.glEnable(GL20.GL_DEPTH_TEST)
 
+        Gdx.gl30?.glInvalidateFramebuffer(GL20.GL_FRAMEBUFFER, 1, discardDepth)
+
         perf.endFrame(shards.count)
         sceneFrameDrawn = true
         sceneFramesDrawn++
@@ -404,7 +451,10 @@ abstract class Gdx3DGame(val session: GameSession) : ApplicationAdapter(), Touch
 
     /** Cube-shard explosion at a world position. Allocation-free in steady state (pooled). */
     fun burst3d(at: Vector3, color: Color, n: Int = 14, speed: Float = 6f, size: Float = 0.16f, life: Float = 0.8f, gravity: Float = 14f, biasZ: Float = 0f) =
-        shards.burst(at, color, n, speed, size, life, gravity, biasZ)
+        shards.burst(at, color, n, speed, size, life, gravity * burstGravity, biasZ)
+
+    /** Scales the pull on new bursts: in low gravity, sparks drift instead of falling. */
+    var burstGravity = 1f
 
     private val rayM = Matrix4()
     private val rayC0 = Color()
@@ -454,7 +504,7 @@ abstract class Gdx3DGame(val session: GameSession) : ApplicationAdapter(), Touch
     val fogColor: Color get() = world.fogColor
 
     /** Keep the coin pass hazed like the boxes (call after setting [fogColor]). */
-    fun syncFog() { coins.fogColor.set(world.fogColor) }
+    fun syncFog() { coins.fogColor.set(world.fogColor); if (::glass.isInitialized) glass.fogColor.set(world.fogColor) }
 
     /** Opacity of subsequently queued scenery; reset before drawing showcase effects. */
     fun setWorldOpacity(amount: Float) { world.opacity = amount; coins.opacity = amount }
@@ -495,6 +545,12 @@ abstract class Gdx3DGame(val session: GameSession) : ApplicationAdapter(), Touch
     fun worldGround(x: Float, y: Float, z: Float, sx: Float, sy: Float, sz: Float, col: Color, fog: Float = 0f) =
         world.box(x, y, z, sx, sy, sz, col, fog, followTerrain = true)
 
+    /** A see-through road piece: like [worldGround], [alpha] opaque, drawn over whatever lies beneath it. */
+    fun glassGround(x: Float, y: Float, z: Float, sx: Float, sy: Float, sz: Float, col: Color, fog: Float, alpha: Float) {
+        glass.opacity = alpha * world.opacity
+        glass.box(x, y, z, sx, sy, sz, col, fog, followTerrain = true)
+    }
+
     /** Like [worldBox] but spun [yawDeg] about its vertical axis (coins, pickups). */
     fun worldBoxSpin(x: Float, y: Float, z: Float, sx: Float, sy: Float, sz: Float, yawDeg: Float, col: Color, fog: Float = 0f) =
         world.boxSpin(x, y, z, sx, sy, sz, yawDeg, col, fog)
@@ -527,12 +583,15 @@ abstract class Gdx3DGame(val session: GameSession) : ApplicationAdapter(), Touch
         sceneCallback = null
         if (::batch.isInitialized) batch.dispose()
         if (::shapes.isInitialized) shapes.dispose()
+        shapeShader?.dispose() // a shader handed to ShapeRenderer stays ours to dispose
         if (::shards.isInitialized) shards.dispose()
         if (::world.isInitialized) world.dispose()
+        if (::glass.isInitialized) glass.dispose()
         if (::coins.isInitialized) coins.dispose()
         if (::matrixWires.isInitialized) matrixWires.dispose()
         if (::capsules.isInitialized) capsules.dispose()
         if (::crystals.isInitialized) crystals.dispose()
+        if (::facetBatch.isInitialized) facetBatch.dispose()
         bubbleRenderer?.dispose()
         if (::kit.isInitialized) kit.dispose()
         owned.forEach { it.dispose() }

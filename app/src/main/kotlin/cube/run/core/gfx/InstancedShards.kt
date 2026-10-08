@@ -24,13 +24,14 @@ internal class InstancedShards(private val kit: BoxMeshKit, capacity: Int) : Dis
         uniform mat4 u_projViewTrans;
         uniform vec3 u_toL1, u_toL2, u_ambient, u_light1, u_light2;
         out vec4 v_color;
+        ${WorldBend.GLSL}
         void main() {
             mat4 m = mat4(i_col0, i_col1, i_col2, i_col3);
             vec3 n = normalize(mat3(m) * a_normal);
             vec3 light = u_ambient + max(0.0, dot(n, u_toL1))*u_light1 + max(0.0, dot(n, u_toL2))*u_light2;
             vec3 rgb = min(vec3(1.0), i_tint.rgb * light);
             v_color = vec4(floor(rgb*255.0)/255.0, floor(floor(i_tint.a*255.0)/2.0)*2.0/255.0);
-            gl_Position = u_projViewTrans * (m * vec4(a_position, 1.0));
+            gl_Position = u_projViewTrans * (m * vec4(a_position, 1.0)) + u_projViewTrans * vec4(bendOffset((m * vec4(a_position, 1.0)).xyz), 0.0);
         }
     """.trimIndent(), """
         #version 300 es
@@ -62,7 +63,7 @@ internal class InstancedShards(private val kit: BoxMeshKit, capacity: Int) : Dis
         Gdx.gl.glEnable(GL20.GL_DEPTH_TEST); Gdx.gl.glDepthMask(false)
         Gdx.gl.glEnable(GL20.GL_CULL_FACE); Gdx.gl.glEnable(GL20.GL_BLEND)
         Gdx.gl.glBlendFunc(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA)
-        shader.bind(); shader.setUniformMatrix("u_projViewTrans", camera.combined)
+        shader.bind(); shader.setUniformMatrix("u_projViewTrans", camera.combined); WorldBend.apply(shader)
         kit.setLightUniforms(shader)
         mesh.render(shader, GL20.GL_TRIANGLES)
         Gdx.gl.glDepthMask(true)
