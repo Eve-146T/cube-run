@@ -500,13 +500,13 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
             (if (bubble.active && Skins.Ability.GOLD_BUBBLE in runBubble.abilities) 1.6f else 1f)
         if (Skins.Ability.COAL in runSkin.abilities && !coin.gem) {
             session.coalCollected()
-            SoundFx.play("tap", rate = .75f, vol = .35f)
+            if (Settings.roadCoins) SoundFx.play("tap", rate = .75f, vol = .35f)
             burst3d(phasePosition.set(coin.x, coin.y, cz), trackArt.coal, n = 6, speed = 2.5f, size = .12f, life = .35f)
             return
         }
         if (Skins.Ability.LOTTERY in runSkin.abilities) {
             awardJackpot(lottery.collectCoin(value))
-            SoundFx.play("tap", rate = 1.25f, vol = .25f)
+            if (Settings.roadCoins) SoundFx.play("tap", rate = 1.25f, vol = .25f)
             burst3d(phasePosition.set(coin.x, coin.y, cz), Color.RED, n = 3, speed = 2f, size = .07f, life = .2f)
             return
         }
@@ -526,8 +526,8 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
         if (time - lastCoinT > 0.4f) coinPitch = 0 // the pitch climbs coin after coin and falls back as soon as the line breaks
         lastCoinT = time
         coinPitch++
-        fx.coin(coin.x, coin.y, cz, coinPitch, if (coin.gem) trackArt.gem else trackArt.gold)
-        if (coinStreak == 20 || coinStreak == 50 || coinStreak % 100 == 0) fx.coinMilestone(trackArt.gold)
+        fx.coin(coin.x, coin.y, cz, coinPitch, if (coin.gem) trackArt.gem else trackArt.gold, quiet = !Settings.roadCoins)
+        if (coinStreak == 20 || coinStreak == 50 || coinStreak % 100 == 0) fx.coinMilestone(trackArt.gold, quiet = !Settings.roadCoins)
     }
 
     private fun collectPickup(row: Row, cz: Float) {
@@ -982,7 +982,7 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
                 }
             }
             row.coins?.let { coins ->
-                if (row.z > -12f && started && !dead && Settings.roadCoins) {
+                if (row.z > -12f && started && !dead) {
                     for (c in coins) {
                         if (dead) break
                         if (c.taken) continue

@@ -47,8 +47,6 @@ class CandySwitch(ctx: Context, private val dpf: (Float) -> Float) : View(ctx) {
     private val rect = RectF()
     private var pos = 0f
     private var anim: ValueAnimator? = null
-    private var pressure = 0f
-    private var pressAnim: ValueAnimator? = null
     var on = false
         private set
 
@@ -67,23 +65,8 @@ class CandySwitch(ctx: Context, private val dpf: (Float) -> Float) : View(ctx) {
         }
     }
 
-    internal fun press(down: Boolean) {
-        pressAnim?.cancel()
-        pressAnim = ValueAnimator.ofFloat(pressure, if (down) 1f else 0f).apply {
-            duration = if (down) 45 else 120
-            interpolator = Anim.ease
-            addUpdateListener { pressure = it.animatedValue as Float; Anim.repaint(this@CandySwitch) }
-            start()
-        }
-    }
-
-    internal fun tap() {
-        pressure = maxOf(pressure, .65f)
-        press(false)
-    }
-
     override fun onDetachedFromWindow() {
-        anim?.cancel(); pressAnim?.cancel(); pressure = 0f
+        anim?.cancel()
         super.onDetachedFromWindow()
     }
 
@@ -103,13 +86,12 @@ class CandySwitch(ctx: Context, private val dpf: (Float) -> Float) : View(ctx) {
         val travel = w - 2 * pad - cube
         val rtl = layoutDirection == LAYOUT_DIRECTION_RTL
         val x = pad + travel * (if (rtl) 1f - k else k)
-        val depression = lip * pressure.coerceIn(0f, 1f)
         paint.color = Theme.lerp(SLOT_LIP, Theme.darken(Theme.SKY, 0.38f), k)
         rect.set(x, pad + lip, x + cube, pad + cube + lip); canvas.drawRoundRect(rect, dpf(8f), dpf(8f), paint)
         paint.color = Theme.WHITE
-        rect.set(x, pad + depression, x + cube, pad + cube + depression); canvas.drawRoundRect(rect, dpf(8f), dpf(8f), paint)
+        rect.set(x, pad, x + cube, pad + cube); canvas.drawRoundRect(rect, dpf(8f), dpf(8f), paint)
         paint.color = Theme.lerp(SLOT_LIP, Theme.darken(Theme.SKY, .25f), k)
-        canvas.drawCircle(x + cube / 2f, face / 2f + depression, dpf(2f), paint)
+        canvas.drawCircle(x + cube / 2f, face / 2f, dpf(2f), paint)
     }
 }
 
@@ -252,6 +234,8 @@ class VolumeSteps(ctx: Context, private val dpf: (Float) -> Float, label: () -> 
  */
 @SuppressLint("ViewConstructor")
 class StartSpeedBar(ctx: Context, private val dpf: (Float) -> Float, label: () -> String) : LevelPicker(ctx, label) {
+    var muted = false
+        set(value) { if (field != value) { field = value; invalidate() } }
     override val min = 0
     override var max = 5
         private set
@@ -304,9 +288,10 @@ class StartSpeedBar(ctx: Context, private val dpf: (Float) -> Float, label: () -
             canvas.save()
             canvas.scale(k, k, (x0 + x1) / 2f, face / 2f)
             arrow(x0, x1, 0f, face, notch, first = i == 0)
-            paint.color = if (lit) Theme.darken(colorOf(i), 0.3f) else SLOT_LIP
+            val color = if (muted) 0xFFD0DDE8.toInt() else colorOf(i)
+            paint.color = if (lit) Theme.darken(color, if (muted) .12f else .3f) else SLOT_LIP
             canvas.save(); canvas.translate(0f, lip); canvas.drawPath(path, paint); canvas.restore()
-            paint.color = if (lit) colorOf(i) else SLOT
+            paint.color = if (lit) color else SLOT
             canvas.drawPath(path, paint)
             if (lit) { // gloss along the top
                 paint.color = Theme.alpha(Theme.WHITE, 90)

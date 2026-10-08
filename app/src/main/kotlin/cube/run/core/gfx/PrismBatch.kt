@@ -88,14 +88,15 @@ class PrismBatch(private val kit: BoxMeshKit, private val sides: Int = 12, priva
     }
 
     private fun packed(col: Color, k: Float, fog: Float, face: Int, floor: Float): Float {
-        if (opacity < 1f) translucent = true
+        val alpha = opacity * col.a
+        if (alpha < 1f) translucent = true
         val off = face * 3
         val keep = (1f - fog) * (1f - (wires?.amount ?: 0f))
         return Color.toFloatBits(
             min(1f, col.r * k * max(floor, light[off])) * keep + fogColor.r * fog,
             min(1f, col.g * k * max(floor, light[off + 1])) * keep + fogColor.g * fog,
             min(1f, col.b * k * max(floor, light[off + 2])) * keep + fogColor.b * fog,
-            opacity,
+            alpha,
         )
     }
 
@@ -132,8 +133,9 @@ class PrismBatch(private val kit: BoxMeshKit, private val sides: Int = 12, priva
         if (!visibility.visible(x, y, z, abs(c * r) + abs(s * hz), abs(r),
                 abs(s * r) + abs(c * hz))) return
         if (useInstances) {
-            if (opacity < 1f) translucent = true
-            instances!!.add(x, y, z, r, t, c, s, col, fog, fogColor, opacity)
+            val alpha = opacity * col.a
+            if (alpha < 1f) translucent = true
+            instances!!.add(x, y, z, r, t, c, s, col, fog, fogColor, alpha)
             count++
             return
         }
@@ -162,7 +164,7 @@ class PrismBatch(private val kit: BoxMeshKit, private val sides: Int = 12, priva
             verts[w++] = x + ax * c - hz * s; verts[w++] = y + ay; verts[w++] = z - ax * s - hz * c; verts[w++] = backCol
         }
         if (wires != null && wires.amount > 0f) {
-            val color = wires.color(fog, opacity)
+            val color = wires.color(fog, opacity * col.a)
             val base = count * vertsPer * 4
             for (k in 0 until sides) {
                 val a = base + k * 16

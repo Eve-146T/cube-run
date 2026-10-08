@@ -126,6 +126,7 @@ class TimingAndBalanceTest {
             Gdx.app.postRunnable {
                 val oldDev = Settings.devMode
                 val oldStart = Settings.startSpeed
+                val oldStartEnabled = Settings.startSpeedEnabled
                 try {
                     val game = Gdx.app.applicationListener as CubeRun
                     Stage.paused = false; game.onTap(360f, 760f)
@@ -154,6 +155,13 @@ class TimingAndBalanceTest {
                             Stage.boostRequests.set(50)
                             assertEquals(Progress.maxStartPresses - used, fire.tick(1f, 0f, .45f))
                         }
+                        Settings.setStartSpeed(3); Settings.setStartSpeedEnabled(false)
+                        difficulty.reset(); fire.reset(); Stage.boostRequests.set(50)
+                        assertEquals("Disabled preset leaves every boost press available", Progress.maxStartPresses, fire.tick(1f, 0f, .45f))
+                        assertEquals("Disabling remembers the configured tempo", 3, Settings.startSpeed)
+                        Settings.setStartSpeedEnabled(true); difficulty.reset(); fire.reset()
+                        Stage.boostRequests.set(50)
+                        assertEquals("Re-enabling applies the remembered tempo", Progress.maxStartPresses - 3, fire.tick(1f, 0f, .45f))
                         Settings.setStartSpeed(0); difficulty.reset(); fire.reset()
                         Stage.boostRequests.set(50)
                         assertEquals(Progress.maxStartPresses, fire.tick(1f, 0f, .45f))
@@ -164,7 +172,7 @@ class TimingAndBalanceTest {
                         assertEquals(0, fire.tick(16f, 0f, .45f))
                     }
                 } catch (t: Throwable) { failure = t }
-                finally { Settings.setDevMode(oldDev); Settings.setStartSpeed(oldStart); Stage.boostRequests.set(0); done.countDown() }
+                finally { Settings.setDevMode(oldDev); Settings.setStartSpeed(oldStart); Settings.setStartSpeedEnabled(oldStartEnabled); Stage.boostRequests.set(0); done.countDown() }
             }
             assertTrue(done.await(25, TimeUnit.SECONDS)); failure?.let { throw it }
         }

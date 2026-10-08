@@ -46,10 +46,15 @@ object Settings {
     /** Boost presses already applied when a run starts (0 = the usual standing start). Capped by the presses you own. */
     @Volatile var startSpeed: Int = 0
         private set
+    /** Muting the preset keeps the selected steps for the next toggle. */
+    @Volatile var startSpeedEnabled: Boolean = true
+        private set
+    val effectiveStartSpeed: Int get() = if (startSpeedEnabled) startSpeed else 0
 
-    /** Coins appear on the road (and can be collected). Off: the road is clear, and none are earned on it. */
+    /** Off: coins remain collectible, but look faint and have no pickup sound or haptics. */
     @Volatile var roadCoins: Boolean = true
         private set
+    val roadCoinOpacity: Float get() = if (roadCoins) 1f else .12f
 
     /**
      * Dev mode: the section director cycles the sections under review and the
@@ -113,6 +118,7 @@ object Settings {
         hapticsEnabled = prefs.getBoolean("haptics_enabled", true)
         volume = prefs.getInt("volume", VOLUME_STEPS).coerceIn(1, VOLUME_STEPS)
         startSpeed = prefs.getInt("start_speed", 0).coerceIn(0, 10)
+        startSpeedEnabled = prefs.getBoolean("start_speed_enabled", true)
         roadCoins = prefs.getBoolean("road_coins", true)
         if (prefs.contains("dev_mode")) prefs.edit().remove("dev_mode").apply() // was persisted once; never again
     }
@@ -150,9 +156,16 @@ object Settings {
 
     fun setStartSpeed(v: Int) {
         val next = v.coerceIn(0, 10)
-        if (startSpeed == next) return
+        if (startSpeed == next && startSpeedEnabled) return
         startSpeed = next
-        prefs.edit().putInt("start_speed", startSpeed).apply()
+        startSpeedEnabled = true
+        prefs.edit().putInt("start_speed", startSpeed).putBoolean("start_speed_enabled", true).apply()
+    }
+
+    fun setStartSpeedEnabled(v: Boolean) {
+        if (startSpeedEnabled == v) return
+        startSpeedEnabled = v
+        prefs.edit().putBoolean("start_speed_enabled", v).apply()
     }
 
     fun setRoadCoins(v: Boolean) {

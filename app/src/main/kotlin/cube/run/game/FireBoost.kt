@@ -35,7 +35,7 @@ class FireBoost(private val game: Gdx3DGame, private val difficulty: Difficulty)
         shown = true
         Stage.boostRequests.set(0)
         // The chosen start speed is already pressed: the run launches into it, the rest stay to tap.
-        taps = Settings.startSpeed.coerceIn(0, maxTaps)
+        taps = Settings.effectiveStartSpeed.coerceIn(0, maxTaps)
         if (taps > 0) difficulty.boostTo(target(taps))
         game.session.setBoost(available(), taps, maxTaps)
     }

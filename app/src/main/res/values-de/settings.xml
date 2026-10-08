@@ -4,6 +4,5 @@
     <string name="settings_language">Sprache</string>
     <string name="settings_volume">Lautstärke</string>
     <string name="settings_start_speed">Starttempo</string>
-    <string name="settings_disable_start_speed">Starttempo ausschalten</string>
     <string name="settings_coins">Münzen auf der Straße</string>
 </resources>

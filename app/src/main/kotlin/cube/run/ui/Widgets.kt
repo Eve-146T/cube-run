@@ -77,7 +77,8 @@ class CandyPainter(private val radius: Float, private val lip: Float) {
 
 /** Press feedback shared by the candy controls: squash to the lip, spring back (the click still fires). */
 @SuppressLint("ClickableViewAccessibility")
-private fun View.candyTouch(painter: CandyPainter, sound: Boolean = true, bindTap: (() -> Unit) -> Unit): () -> Unit {
+private fun View.candyTouch(painter: CandyPainter, sound: Boolean = true, bindTap: (() -> Unit) -> Unit,
+                           bindPress: ((Boolean) -> Unit) -> Unit = {}): () -> Unit {
     // Press feedback belongs to the drawing, so touching a rising button cannot
     // cancel its entrance, arrow nudge, purchase pulse, or exit.
     var pressAnim: android.animation.ValueAnimator? = null
@@ -95,6 +96,7 @@ private fun View.candyTouch(painter: CandyPainter, sound: Boolean = true, bindTa
         painter.press = maxOf(painter.press, .65f)
         press(0f, 160)
     }
+    bindPress { down -> press(if (down) 1f else 0f, if (down) 70 else 220) }
     addOnAttachStateChangeListener(object : View.OnAttachStateChangeListener {
         override fun onViewAttachedToWindow(v: View) = Unit
         override fun onViewDetachedFromWindow(v: View) {
@@ -140,7 +142,7 @@ class CandyButton(ctx: Context, color: Int, label: CharSequence, textSize: Float
         setTextColor(Theme.onColor(color))
         isClickable = true
         isFocusable = true
-        resetPress = candyTouch(painter) { tapPress = it }
+        resetPress = candyTouch(painter, bindTap = { tapPress = it })
     }
 
     fun setLabel(t: CharSequence) { text = t }
@@ -177,6 +179,7 @@ class CandyChip(ctx: Context, color: Int, private val lipPx: Float, radiusPx: Fl
     private val painter = CandyPainter(radiusPx, lipPx).also { it.color = color }
     private var resetPress: () -> Unit = {}
     private var tapPress: () -> Unit = {}
+    private var externalPress: (Boolean) -> Unit = {}
     var color: Int
         get() = painter.color
         set(v) { painter.color = v; invalidate() }
@@ -185,10 +188,14 @@ class CandyChip(ctx: Context, color: Int, private val lipPx: Float, radiusPx: Fl
         scaleType = ScaleType.FIT_CENTER
         isClickable = true
         isFocusable = true
-        resetPress = candyTouch(painter) { tapPress = it }
+        resetPress = candyTouch(painter, bindTap = { tapPress = it }, bindPress = { externalPress = it })
     }
 
     fun ring(px: Float, color: Int) { painter.ring = px; painter.ringColor = color; invalidate() }
+
+    /** A containing settings row can press this decorative tile without stealing its click. */
+    internal fun pressFromRow(down: Boolean) = externalPress(down)
+    internal fun tapFromRow() = tapPress()
 
     override fun performClick(): Boolean { tapPress(); return super.performClick() }
 

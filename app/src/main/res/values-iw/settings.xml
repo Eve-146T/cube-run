@@ -4,6 +4,5 @@
     <string name="settings_language">שפה</string>
     <string name="settings_volume">עוצמת קול</string>
     <string name="settings_start_speed">מהירות התחלה</string>
-    <string name="settings_disable_start_speed">כיבוי מהירות התחלה</string>
     <string name="settings_coins">מטבעות על הכביש</string>
 </resources>

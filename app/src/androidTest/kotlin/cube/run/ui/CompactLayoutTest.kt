@@ -42,6 +42,11 @@ class CompactLayoutTest {
                     page.layoutDirection = direction
                     for ((w, h) in sizes) {
                         measure(page, kit, w, h)
+                        if (w >= 320 && h >= 720 && scale == 1f) {
+                            val scroller = all(page).filterIsInstance<ScrollView>().single()
+                            assertTrue("Full-screen settings must not have a tiny scroll range",
+                                scroller.getChildAt(0).height <= scroller.height - scroller.paddingTop - scroller.paddingBottom)
+                        }
                         for (control in all(page).filter { it is CandySwitch || it is LevelPicker }) {
                             inside(control.parent as ViewGroup, control)
                             assertTrue("Control has a usable width at $w x $h / $scale", control.width >= kit.dp(48f))
@@ -65,6 +70,7 @@ class CompactLayoutTest {
         ActivityScenario.launch(GameActivity::class.java).use { scenario -> scenario.onActivity { activity ->
             val settings = cube.run.data.Settings
             val savedVolume = settings.volume; val savedSpeed = settings.startSpeed; val savedSound = settings.soundEnabled
+            val savedStartEnabled = settings.startSpeedEnabled
             val taps = Progress.totalHapticTaps
             try {
                 for (direction in listOf(View.LAYOUT_DIRECTION_LTR, View.LAYOUT_DIRECTION_RTL)) {
@@ -90,10 +96,18 @@ class CompactLayoutTest {
                     gesture(volume, .45f); assertEquals(4, settings.volume)
                     gesture(speed, .98f); assertEquals(Progress.maxStartPresses, settings.startSpeed)
                     (field(page, "speedTile") as View).performClick()
-                    assertEquals("The start-speed icon disables the preset", 0, settings.startSpeed)
-                    assertEquals("Disabling the preset clears the selected steps", 0, speed.level)
+                    assertFalse("The start-speed icon disables the preset", settings.startSpeedEnabled)
+                    assertEquals("Disabling keeps the selected steps", Progress.maxStartPresses, speed.level)
+                    assertEquals("A disabled preset starts normally", 0, settings.effectiveStartSpeed)
                     settings.init(activity)
-                    assertEquals("The disabled preset persists", 0, settings.startSpeed)
+                    assertFalse("The disabled state persists", settings.startSpeedEnabled)
+                    assertEquals("The selected level persists while disabled", Progress.maxStartPresses, settings.startSpeed)
+                    (field(page, "speedTile") as View).performClick()
+                    assertTrue(settings.startSpeedEnabled)
+                    assertEquals("Toggling back restores the preset", Progress.maxStartPresses, settings.effectiveStartSpeed)
+                    (field(page, "speedTile") as View).performClick()
+                    gesture(speed, .02f)
+                    assertTrue("Selecting steps re-enables the preset", settings.startSpeedEnabled)
                     gesture(speed, .98f)
                     gesture(speed, .02f); gesture(speed, .02f)
                     assertEquals("The zero-speed start stays reachable", 0, settings.startSpeed)
@@ -106,6 +120,7 @@ class CompactLayoutTest {
                 }
             } finally {
                 settings.setVolume(savedVolume); settings.setStartSpeed(savedSpeed); settings.setSoundEnabled(savedSound)
+                settings.setStartSpeedEnabled(savedStartEnabled)
             }
         } }
     }

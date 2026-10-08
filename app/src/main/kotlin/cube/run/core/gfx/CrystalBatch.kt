@@ -24,6 +24,7 @@ class CrystalBatch(private val kit: BoxMeshKit) : Disposable {
         VertexAttribute(Usage.Position, 3, "a_position"), VertexAttribute(Usage.ColorPacked, 4, "a_color"))
     private val light = FloatArray(3)
     private var used = 0
+    private var translucent = false
 
     init {
         val raw = ArrayList<Float>()
@@ -45,7 +46,7 @@ class CrystalBatch(private val kit: BoxMeshKit) : Disposable {
         template = raw.toFloatArray()
     }
 
-    fun begin() { used = 0 }
+    fun begin() { used = 0; translucent = false }
     fun crystal(x: Float, y: Float, z: Float, scale: Float, yaw: Float, color: Color, fog: Float, sky: Color) =
         queue(template, 6, x, y, z, scale, yaw, color, fog, sky)
 
@@ -57,6 +58,7 @@ class CrystalBatch(private val kit: BoxMeshKit) : Disposable {
 
     private fun queue(shape: FloatArray, stride: Int, x: Float, y0: Float, z: Float, scale: Float, yaw: Float, color: Color, fog: Float, sky: Color) {
         if (used + shape.size / stride * 4 > vertices.size) return
+        if (color.a < 1f) translucent = true
         val y = y0 + (terrain?.invoke(z) ?: 0f)
         val a = yaw * Math.PI.toFloat() / 180f; val c = cos(a); val s = sin(a)
         for (i in shape.indices step stride) {
@@ -70,7 +72,7 @@ class CrystalBatch(private val kit: BoxMeshKit) : Disposable {
             vertices[used++] = Color.toFloatBits(
                 (color.r*light[0]*tone).coerceAtMost(1f)*(1f-fog)+sky.r*fog,
                 (color.g*light[1]*tone).coerceAtMost(1f)*(1f-fog)+sky.g*fog,
-                (color.b*light[2]*tone).coerceAtMost(1f)*(1f-fog)+sky.b*fog, 1f)
+                (color.b*light[2]*tone).coerceAtMost(1f)*(1f-fog)+sky.b*fog, color.a)
         }
     }
 
@@ -138,10 +140,15 @@ class CrystalBatch(private val kit: BoxMeshKit) : Disposable {
         if (used == 0) return
         mesh.setVertices(vertices, 0, used)
         Gdx.gl.glEnable(GL20.GL_DEPTH_TEST); Gdx.gl.glDepthMask(true)
-        Gdx.gl.glEnable(GL20.GL_CULL_FACE); Gdx.gl.glDisable(GL20.GL_BLEND)
+        Gdx.gl.glEnable(GL20.GL_CULL_FACE)
+        if (translucent) {
+            Gdx.gl.glEnable(GL20.GL_BLEND)
+            Gdx.gl.glBlendFunc(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA)
+        } else Gdx.gl.glDisable(GL20.GL_BLEND)
         kit.shader.bind(); kit.shader.setUniformMatrix("u_projViewTrans", cam.combined); WorldBend.apply(kit.shader)
         mesh.render(kit.shader, GL20.GL_TRIANGLES, 0, used/4)
         Gdx.gl.glDisable(GL20.GL_CULL_FACE); Gdx.gl.glDisable(GL20.GL_DEPTH_TEST)
+        Gdx.gl.glDisable(GL20.GL_BLEND)
     }
     override fun dispose() = mesh.dispose()
 }

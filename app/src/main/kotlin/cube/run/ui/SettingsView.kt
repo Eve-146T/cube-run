@@ -38,6 +38,12 @@ class SettingsView(
     onClosed: () -> Unit,
 ) : Page(activity, kit, activity.getString(R.string.settings_title), dark = false, onClosed = onClosed) {
 
+    private val rows = ArrayList<LinearLayout>()
+    private val column = LinearLayout(activity).apply {
+        orientation = LinearLayout.VERTICAL
+        clipChildren = false; clipToPadding = false
+        setPaddingRelative(dp(14f), dp(6f), dp(14f), dp(8f))
+    }
     private val soundTile = tile(R.drawable.ic_sound_on, Theme.SKY, decorative = false).apply {
         setOnClickListener {
             Settings.setSoundEnabled(!Settings.soundEnabled)
@@ -62,10 +68,8 @@ class SettingsView(
     private val hapticsTile = tile(R.drawable.ic_haptic_on, Theme.SKY)
     private val hapticsSwitch = CandySwitch(activity, ::dpf)
     private val speedTile = tile(R.drawable.ic_speed, Theme.ORANGE, decorative = false).apply {
-        contentDescription = activity.getString(R.string.settings_disable_start_speed)
         setOnClickListener {
-            Settings.setStartSpeed(0)
-            speedBar.show(0)
+            Settings.setStartSpeedEnabled(!Settings.startSpeedEnabled)
             syncStartSpeed()
             Haptics.click(); SoundFx.play("tap")
         }
@@ -95,16 +99,13 @@ class SettingsView(
     private var shownDev: Boolean? = null
     private var shownLanguage: String? = null
     private var shownStartSpeed: Int? = null
+    private var shownStartEnabled: Boolean? = null
+    private var tightSpacing = false
 
     init {
         setBackgroundColor(Theme.SETTINGS_BLUE)
         soundRow.addView(volume, LinearLayout.LayoutParams(dp(166f), dp(40f)))
         soundGroup.addView(soundRow)
-        val column = LinearLayout(activity).apply {
-            orientation = LinearLayout.VERTICAL
-            clipChildren = false; clipToPadding = false
-            setPaddingRelative(dp(14f), dp(6f), dp(14f), dp(24f))
-        }
         column.addView(card(
             soundGroup,
             switchRow(hapticsTile, activity.getString(R.string.cd_haptics), hapticsSwitch, { Settings.hapticsEnabled }) {
@@ -145,7 +146,24 @@ class SettingsView(
         ))
         column.addView(kit.text(activity.getString(R.string.settings_version, BuildConfig.VERSION_NAME), 13.5f, Theme.MUTED, 600),
             LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(4f) })
-        content.addView(ScrollView(activity).apply {
+        content.addView(object : ScrollView(activity) {
+            private var lastWidth = 0
+            private var lastHeight = 0
+            override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
+                if (lastWidth != widthMeasureSpec || lastHeight != heightMeasureSpec) {
+                    lastWidth = widthMeasureSpec; lastHeight = heightMeasureSpec
+                    setTightSpacing(false)
+                }
+                super.onMeasure(widthMeasureSpec, heightMeasureSpec)
+                val overflow = column.measuredHeight - (measuredHeight - paddingTop - paddingBottom)
+                // Trim decorative space for small overflows instead of allowing a useless tiny scroll.
+                // Very short panes and large accessibility fonts retain scrolling for usable controls.
+                if (!tightSpacing && overflow in 1..dp(80f)) {
+                    setTightSpacing(true)
+                    super.onMeasure(widthMeasureSpec, heightMeasureSpec)
+                }
+            }
+        }.apply {
             isVerticalScrollBarEnabled = false
             overScrollMode = OVER_SCROLL_NEVER
             clipChildren = false; clipToPadding = false
@@ -155,6 +173,18 @@ class SettingsView(
     }
 
     override fun onNavigationShown() = sync(animate = false)
+
+    private fun setTightSpacing(tight: Boolean) {
+        if (tightSpacing == tight) return
+        tightSpacing = tight
+        for (row in rows) {
+            if (speedTile.parent === row) continue
+            row.minimumHeight = dp(if (tight) 58f else 66f)
+            row.setPadding(0, dp(if (tight) 4f else 8f), 0, dp(if (tight) 4f else 8f))
+        }
+        for (card in cards) (card.layoutParams as LinearLayout.LayoutParams).bottomMargin = dp(if (tight) 6f else 14f)
+        column.requestLayout()
+    }
 
     /** Prepaint text once; a moving switch only dirties its small card texture. */
     internal fun warmControls() {
@@ -222,9 +252,14 @@ class SettingsView(
     }
 
     private fun syncStartSpeed() {
-        if (shownStartSpeed == Settings.startSpeed) return
+        if (shownStartSpeed == Settings.startSpeed && shownStartEnabled == Settings.startSpeedEnabled) return
         shownStartSpeed = Settings.startSpeed
-        paintTile(speedTile, Settings.startSpeed > 0, Theme.ORANGE)
+        shownStartEnabled = Settings.startSpeedEnabled
+        paintTile(speedTile, Settings.startSpeedEnabled, Theme.ORANGE)
+        speedBar.muted = !Settings.startSpeedEnabled
+        speedTile.contentDescription = context.getString(
+            if (Settings.startSpeedEnabled) R.string.text_toggle_on else R.string.text_toggle_off,
+            context.getString(R.string.settings_start_speed))
     }
 
     /** A small candy cube holding an icon. Decorative tiles pass touches to their row. */
@@ -261,10 +296,10 @@ class SettingsView(
             if (end != null) addView(end, LinearLayout.LayoutParams(
                 if (endWidth > 0) endWidth else LinearLayout.LayoutParams.WRAP_CONTENT,
                 if (endHeight > 0) endHeight else LinearLayout.LayoutParams.WRAP_CONTENT))
-        }
+        }.also { rows.add(it) }
 
     /** A row that toggles as a whole; the switch at its end shows the state. */
-    private fun switchRow(tile: View, name: String, switch: CandySwitch, isOn: () -> Boolean, set: (Boolean) -> Unit): LinearLayout =
+    private fun switchRow(tile: CandyChip, name: String, switch: CandySwitch, isOn: () -> Boolean, set: (Boolean) -> Unit): LinearLayout =
         row(tile, name, switch, dp(58f), dp(34f)).apply {
             toggles.add(Triple(this, isOn, name))
             accessibilityDelegate = object : View.AccessibilityDelegate() {
@@ -275,28 +310,28 @@ class SettingsView(
                     info.isChecked = isOn()
                 }
             }
-            link(switch) { set(!isOn()); sync(animate = true) }
+            link(tile) { set(!isOn()); sync(animate = true) }
         }
 
     @SuppressLint("ClickableViewAccessibility")
-    private fun View.link(switch: CandySwitch? = null, action: () -> Unit) {
+    private fun View.link(tile: CandyChip? = null, action: () -> Unit) {
         isClickable = true; isFocusable = true
-        if (switch == null) {
+        if (tile == null) {
             background = android.graphics.drawable.RippleDrawable(ColorStateList.valueOf(Theme.alpha(Theme.SKY, 22)), null,
                 GradientDrawable().apply { cornerRadius = dpf(16f); setColor(Theme.WHITE) })
             Anim.pressFeedback(this)
         } else {
-            // Keep text and icons still. Feedback belongs to the thumb, inside its track.
+            // Any tap on the row presses its left tile exactly like the sound button.
             setOnTouchListener { _, event ->
                 when (event.actionMasked) {
-                    android.view.MotionEvent.ACTION_DOWN -> switch.press(true)
-                    android.view.MotionEvent.ACTION_UP, android.view.MotionEvent.ACTION_CANCEL -> switch.press(false)
+                    android.view.MotionEvent.ACTION_DOWN -> tile.pressFromRow(true)
+                    android.view.MotionEvent.ACTION_UP, android.view.MotionEvent.ACTION_CANCEL -> tile.pressFromRow(false)
                 }
                 false
             }
         }
         setOnClickListener {
-            if (switch == null) Anim.tap(this) else switch.tap()
+            if (tile == null) Anim.tap(this) else tile.tapFromRow()
             SoundFx.play("tap"); Haptics.click(); action()
         }
     }
