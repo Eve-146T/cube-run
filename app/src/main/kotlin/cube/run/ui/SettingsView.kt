@@ -42,7 +42,7 @@ class SettingsView(
     private val column = LinearLayout(activity).apply {
         orientation = LinearLayout.VERTICAL
         clipChildren = false; clipToPadding = false
-        setPaddingRelative(dp(14f), dp(6f), dp(14f), dp(8f))
+        setPaddingRelative(dp(14f), dp(6f), dp(14f), dp(4f))
     }
     private val soundTile = tile(R.drawable.ic_sound_on, Theme.SKY, decorative = false).apply {
         setOnClickListener {
@@ -101,6 +101,7 @@ class SettingsView(
     private var shownStartSpeed: Int? = null
     private var shownStartEnabled: Boolean? = null
     private var tightSpacing = false
+    private var codeDialog: CodeDialog? = null
 
     init {
         setBackgroundColor(Theme.SETTINGS_BLUE)
@@ -116,9 +117,9 @@ class SettingsView(
             LinearLayout(activity).apply {
                 orientation = LinearLayout.VERTICAL
                 clipChildren = false; clipToPadding = false
-                setPadding(0, dp(8f), 0, dp(12f))
+                setPadding(0, dp(4f), 0, dp(8f))
                 addView(row(speedTile, activity.getString(R.string.settings_start_speed)).apply { minimumHeight = dp(52f); setPadding(0, 0, 0, 0) })
-                addView(speedBar, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(46f)).apply { topMargin = dp(8f) })
+                addView(speedBar, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(46f)).apply { topMargin = dp(6f) })
             },
             switchRow(coinsTile, activity.getString(R.string.settings_coins), coinsSwitch, { Settings.roadCoins }) { Settings.setRoadCoins(it) },
         ))
@@ -132,6 +133,13 @@ class SettingsView(
             }).apply {
                 contentDescription = activity.getString(R.string.cd_languages)
                 link { openLanguages() }
+            },
+            row(tile(R.drawable.ic_codes, Theme.SKY), activity.getString(R.string.settings_codes), chevron(), dp(22f), dp(22f)).apply {
+                tag = "settings_codes"
+                contentDescription = activity.getString(R.string.settings_codes)
+                link {
+                    if (codeDialog?.isShowing != true) codeDialog = CodeDialog(activity, kit, devChanged).apply { show() }
+                }
             },
         ))
         if (BuildConfig.DEBUG) column.addView(card(
@@ -158,7 +166,7 @@ class SettingsView(
                 val overflow = column.measuredHeight - (measuredHeight - paddingTop - paddingBottom)
                 // Trim decorative space for small overflows instead of allowing a useless tiny scroll.
                 // Very short panes and large accessibility fonts retain scrolling for usable controls.
-                if (!tightSpacing && overflow in 1..dp(80f)) {
+                if (!tightSpacing && overflow in 1..dp(140f)) {
                     setTightSpacing(true)
                     super.onMeasure(widthMeasureSpec, heightMeasureSpec)
                 }
@@ -173,6 +181,11 @@ class SettingsView(
     }
 
     override fun onNavigationShown() = sync(animate = false)
+
+    override fun onDetachedFromWindow() {
+        codeDialog?.dismiss(); codeDialog = null
+        super.onDetachedFromWindow()
+    }
 
     private fun setTightSpacing(tight: Boolean) {
         if (tightSpacing == tight) return

@@ -467,6 +467,47 @@ object Progress {
         Achievements.evaluate()
     }
 
+    /** Code rewards and their used marker commit together, under the bank's purchase lock.
+     * Bonus coins do not count as earned gameplay coins. Call from a worker: commit writes to disk.
+     */
+    @Synchronized internal fun redeemCode(code: RedeemCodes.Definition): RedeemCodes.Result {
+        if (!::prefs.isInitialized) return RedeemCodes.Result.Unavailable
+        val marker = "code_redeemed_${code.id}"
+        if (prefs.getBoolean(marker, false)) return RedeemCodes.Result.AlreadyUsed
+        val edit = prefs.edit().putBoolean(marker, true)
+        val rollback = prefs.edit().remove(marker)
+        var balance = coins
+        when (val effect = code.effect) {
+            is RedeemCodes.Effect.Coins -> {
+                val realBank = if (prefs.contains(DEV_BANK)) prefs.getInt(DEV_BANK, 0) else null
+                if (effect.amount <= 0 || coins.toLong() + effect.amount > Int.MAX_VALUE ||
+                    (realBank != null && realBank.toLong() + effect.amount > Int.MAX_VALUE)) return RedeemCodes.Result.Unavailable
+                balance += effect.amount
+                edit.putInt("coins", balance)
+                rollback.putInt("coins", coins)
+                if (realBank != null) {
+                    edit.putInt(DEV_BANK, realBank + effect.amount)
+                    rollback.putInt(DEV_BANK, realBank)
+                }
+            }
+            is RedeemCodes.Effect.Unlock -> {
+                val key = "code_unlock_${effect.key}"
+                edit.putBoolean(key, true)
+                if (prefs.contains(key)) rollback.putBoolean(key, prefs.getBoolean(key, false)) else rollback.remove(key)
+            }
+        }
+        if (!edit.commit()) {
+            rollback.commit() // commit can change memory even if its disk write fails.
+            return RedeemCodes.Result.Unavailable
+        }
+        coins = balance
+        return RedeemCodes.Result.Granted(code.effect)
+    }
+
+    /** Future secret settings can reveal themselves using a code's persistent unlock flag. */
+    @Synchronized fun isCodeUnlocked(key: String): Boolean =
+        ::prefs.isInitialized && prefs.getBoolean("code_unlock_$key", false)
+
     /** One more run finished (for the stats). */
     @Synchronized fun countRun() {
         if (zenRun) return

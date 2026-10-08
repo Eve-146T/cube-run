@@ -2,6 +2,14 @@
 <resources>
     <string name="settings_title">הגדרות</string>
     <string name="settings_language">שפה</string>
+    <string name="settings_codes">קודים</string>
+    <string name="codes_enter">הזנת קוד</string>
+    <string name="codes_redeem">מימוש</string>
+    <string name="codes_coins">+%1$d מטבעות</string>
+    <string name="codes_unlocked">נפתח!</string>
+    <string name="codes_invalid">הקוד לא נמצא.</string>
+    <string name="codes_used">הקוד כבר מומש.</string>
+    <string name="codes_retry">המימוש נכשל. נסו שוב.</string>
     <string name="settings_volume">עוצמת קול</string>
     <string name="settings_start_speed">מהירות התחלה</string>
     <string name="settings_coins">מטבעות על הכביש</string>

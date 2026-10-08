@@ -2,6 +2,14 @@
 <resources>
     <string name="settings_title">Settings</string>
     <string name="settings_language">Language</string>
+    <string name="settings_codes">Codes</string>
+    <string name="codes_enter">Enter code</string>
+    <string name="codes_redeem">Redeem</string>
+    <string name="codes_coins">+%1$d coins</string>
+    <string name="codes_unlocked">Unlocked!</string>
+    <string name="codes_invalid">Code not found.</string>
+    <string name="codes_used">Code already used.</string>
+    <string name="codes_retry">Could not redeem. Try again.</string>
     <string name="settings_volume">Volume</string>
     <string name="settings_start_speed">Start speed</string>
     <string name="settings_coins">Coins on the road</string>

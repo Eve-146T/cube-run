@@ -2,6 +2,14 @@
 <resources>
     <string name="settings_title">Einstellungen</string>
     <string name="settings_language">Sprache</string>
+    <string name="settings_codes">Codes</string>
+    <string name="codes_enter">Code eingeben</string>
+    <string name="codes_redeem">Einlösen</string>
+    <string name="codes_coins">+%1$d Münzen</string>
+    <string name="codes_unlocked">Freigeschaltet!</string>
+    <string name="codes_invalid">Code nicht gefunden.</string>
+    <string name="codes_used">Code bereits eingelöst.</string>
+    <string name="codes_retry">Einlösen fehlgeschlagen. Erneut versuchen.</string>
     <string name="settings_volume">Lautstärke</string>
     <string name="settings_start_speed">Starttempo</string>
     <string name="settings_coins">Münzen auf der Straße</string>
