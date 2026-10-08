@@ -114,6 +114,7 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
     private var started = false
     private var dead = false
     private var spd = 4.5f
+    private var launchSpeed = 4.5f
     private var dist = 0f
     private var rowsPassed = 0
     private var curTier = 0          // last tier reached (a chime marks each unlock)
@@ -282,7 +283,7 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
         scenery.release() // the start gate comes at you
         fx.launch(player.px, player.py, player.trailCol())
         player.squashForLaunch()
-        fire.reset(); styleCombo = 0
+        styleCombo = 0
         coinsRun = 0; coinsRunF = 0.0; boxesRun = 0; coinStreak = 0
         if (Settings.devMode && Settings.testBoxes > 0) { boxesRun = Settings.testBoxes; session.setBoxes(boxesRun) } // dev: boxes to open
         track.portalPool = when {
@@ -303,6 +304,11 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
         bubble.duration = bubbleDuration()
         difficulty.ceiling = if (zen) zenCeiling else 1f
         difficulty.reset()
+        // Reset first: resetting after the preset erased its boost before the first frame.
+        fire.reset()
+        launchSpeed = if (Settings.effectiveStartSpeed > 0) difficulty.speed() * runSkin.speedMultiplier else 4.5f
+        spd = launchSpeed
+        track.speed = difficulty.speed() * runSkin.speedMultiplier
         curTier = difficulty.tier()
         track.tier = curTier
         val oldCount = Lanes.count
@@ -817,7 +823,7 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
             session.runSeconds(runT.toInt())
             val ease = min(1f, runT / 1.5f).let { it * it * it * (it * (it * 6f - 15f) + 10f) } // the start: the road winds up, the camera drops in
             rig.intro = introAtStart + (1f - introAtStart) * ease
-            spd = 4.5f + (difficulty.speed() * runSkin.speedMultiplier * (1f + jetSpeedUp * jetBoost) - 4.5f) * ease
+            spd = launchSpeed + (difficulty.speed() * runSkin.speedMultiplier * (1f + jetSpeedUp * jetBoost) - launchSpeed) * ease
             if (fire.tick(dt, player.px, player.py) > 0) rig.punch(0.45f)
             difficulty.ramp(dt)
         } else if (!started) {

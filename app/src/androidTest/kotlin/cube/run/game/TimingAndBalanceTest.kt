@@ -26,6 +26,58 @@ import org.junit.runner.RunWith
 class TimingAndBalanceTest {
     private fun field(owner: Any, name: String) = owner.javaClass.getDeclaredField(name).apply { isAccessible = true }
 
+    @Test fun realRunLaunchUsesThePresetFromItsFirstFrameAndAfterRestart() {
+        ActivityScenario.launch(GameActivity::class.java).use {
+            val done = CountDownLatch(1)
+            var failure: Throwable? = null
+            Gdx.app.postRunnable {
+                val game = Gdx.app.applicationListener as CubeRun
+                val oldStart = Settings.startSpeed; val oldEnabled = Settings.startSpeedEnabled
+                val oldSkin = Progress.skin
+                @Suppress("UNCHECKED_CAST")
+                val perks = field(Progress, "perkLevels").get(null) as MutableMap<String, Int>
+                val oldPerk = perks[Progress.FASTERSTART.key]
+                try {
+                    field(Progress, "skin").setInt(null, 0)
+                    for (owned in listOf(0, 5)) {
+                        perks[Progress.FASTERSTART.key] = owned
+                        for ((preset, enabled) in listOf(0 to true, 3 to true, 10 to true, 10 to false)) {
+                            Settings.setStartSpeed(preset); Settings.setStartSpeedEnabled(enabled)
+                            repeat(2) { restart ->
+                                (game.session as cube.run.core.GameHostSession).resetToMenu()
+                                game.resetToMenu()
+                                game.onTap(0f, 0f)
+                                assertTrue("Start input begins the run", field(game, "started").getBoolean(game))
+                                val used = if (enabled) preset.coerceAtMost(5 + owned) else 0
+                                val expected = when (used) { 0 -> 12.4f; 3 -> 17.92f; 5 -> 21.6f; 10 -> 30f; else -> error("Unexpected fixture") }
+                                val difficulty = field(game, "difficulty").get(game) as Difficulty
+                                assertEquals("Run initialization keeps preset $preset ($enabled)", expected, difficulty.speed(), .001f)
+                                val launch = if (used == 0) 4.5f else expected
+                                assertEquals("Preset applies before the first simulation frame", launch, field(game, "spd").getFloat(game), .001f)
+                                val track = field(game, "track").get(game) as Track
+                                assertEquals("Initial track spacing uses the launch difficulty", expected, track.speed, .001f)
+                                track.rows.clear()
+                                val row = Row(-10f, arrayListOf()); track.rows.add(row)
+                                game.tick(1f / 60f)
+                                assertEquals("The road actually moves at the selected tempo", -10f + launch / 60f, row.z, .001f)
+                                android.util.Log.i("StartSpeed", "preset=$preset enabled=$enabled owned=$owned restart=$restart firstFrameSpeed=${field(game, "spd").getFloat(game)}")
+                                repeat(100) { game.tick(1f / 60f) }
+                                assertEquals("The selected speed survives the launch animation", expected, difficulty.speed(), .05f)
+                            }
+                        }
+                    }
+                } catch (t: Throwable) { failure = t } finally {
+                    Settings.setStartSpeed(oldStart); Settings.setStartSpeedEnabled(oldEnabled)
+                    field(Progress, "skin").setInt(null, oldSkin)
+                    if (oldPerk == null) perks.remove(Progress.FASTERSTART.key) else perks[Progress.FASTERSTART.key] = oldPerk
+                    (game.session as cube.run.core.GameHostSession).resetToMenu(); game.resetToMenu()
+                    done.countDown()
+                }
+            }
+            assertTrue(done.await(30, TimeUnit.SECONDS)); failure?.let { throw it }
+        }
+    }
+
     @Test fun elapsedTimeIsPreservedAt90HzAndDuringHitches() {
         for (fps in listOf(90, 60, 30, 20, 8)) {
             val clock = FrameStepper(); var elapsed = 0.0
