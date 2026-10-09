@@ -52,29 +52,45 @@ class RunCamera(private val cam: PerspectiveCamera) {
     private val look = Vector3()
 
     /**
-     * After [chase]: the cube has lost the road. The camera carries on [coast]
-     * further than the cube did and eases sideways after it, still looking
-     * down the road; it only tips down (and turns) as far as it must to keep
-     * the falling cube at ([x], [y]) in the lower part of the frame — never
+     * After [chase]: the cube has lost the road. The camera leans a little
+     * sideways after it, still looking down the road; it only tips down (and
+     * turns) as far as it must to keep the falling cube at ([x], [y], [z]) in
+     * the lower part of the frame — never
      * steeper than [maxDip] radians below level — after which the cube drops
      * away out of the bottom. [amount] 0..1 eases this in.
      */
-    fun watchFall(x: Float, y: Float, coast: Float, amount: Float, maxDip: Float) {
-        cam.position.z -= coast
-        cam.position.x += (x * 0.75f - cam.position.x) * amount
+    fun watchFall(x: Float, y: Float, z: Float, amount: Float, maxDip: Float) {
+        cam.position.x += (x * 0.35f - cam.position.x) * amount
         cam.position.y += 0.4f * amount
-        look.z -= coast
         val p = cam.position
         val roadPitch = pitchTo(look.x - p.x, look.y - p.y, look.z - p.z)
         val roadYaw = kotlin.math.atan2(look.x - p.x, p.z - look.z)
-        val cubePitch = pitchTo(x - p.x, y - p.y, -p.z)
-        val cubeYaw = kotlin.math.atan2(x - p.x, p.z)
+        val cubePitch = pitchTo(x - p.x, y - p.y, z - p.z)
+        val cubeYaw = kotlin.math.atan2(x - p.x, p.z - z)
         val halfV = Math.toRadians(cam.fieldOfView / 2.0).toFloat()
         val halfH = kotlin.math.atan(kotlin.math.tan(halfV) * cam.viewportWidth / cam.viewportHeight.coerceAtLeast(1f))
-        val pitch = roadPitch + (min(roadPitch, cubePitch + 0.55f * halfV).coerceAtLeast(-maxDip) - roadPitch) * amount
-        val yaw = roadYaw + (cubeYaw.coerceIn(roadYaw - 0.25f * halfH, roadYaw + 0.25f * halfH) - roadYaw) * amount
+        val pitch = roadPitch + (min(roadPitch, cubePitch + 0.4f * halfV).coerceAtLeast(-maxDip) - roadPitch) * amount
+        val yaw = roadYaw + (cubeYaw.coerceIn(roadYaw - 0.7f * halfH, roadYaw + 0.7f * halfH) - roadYaw) * amount
         val c = kotlin.math.cos(pitch)
         cam.direction.set(c * kotlin.math.sin(yaw), kotlin.math.sin(pitch), -c * kotlin.math.cos(yaw))
+    }
+
+    private val peekAt = Vector3()
+    private val peekDir = Vector3()
+    private val peekUp = Vector3()
+
+    /**
+     * After [watchFall], down a tar pit: the camera glides on over the hole at
+     * ([holeX], [holeZ]) and peers down it at the cube ([x], [y], [z]), so the
+     * fall reads as a drop down a bottomless well. [amount] 0..1 eases it in.
+     */
+    fun peekDown(holeX: Float, holeZ: Float, x: Float, y: Float, z: Float, amount: Float) {
+        if (amount <= 0f) return
+        cam.position.lerp(peekAt.set(holeX * 0.9f, 5.4f, holeZ + 0.9f), amount)
+        peekDir.set(x, max(y, -12f), z).sub(cam.position).nor()
+        cam.direction.lerp(peekDir, amount).nor()
+        // Looking nearly straight down, "up" on screen becomes the road ahead.
+        cam.up.lerp(peekUp.set(0f, 0f, -1f), amount * 0.9f).nor()
     }
 
     private fun pitchTo(dx: Float, dy: Float, dz: Float) = kotlin.math.atan2(dy, kotlin.math.sqrt(dx * dx + dz * dz))

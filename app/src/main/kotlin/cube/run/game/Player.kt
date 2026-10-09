@@ -52,10 +52,13 @@ class Player(private val game: Gdx3DGame, private val rnd: Random) {
         const val LOW_G_LANE_RATE = 10f
         /** A falling cube's forward tumble settles to this (degrees per second). */
         const val FALL_TUMBLE = 260f
+        /** Half the cube's size, for a falling cube against a hole's ends. */
+        private const val HALF = 0.45f
         const val EV_NONE = 0
         const val EV_LANDED = 1
         const val EV_SIDE_HIT = 2   // ran into the side of a platform
         const val EV_GROUND_POUND = 3 // completed slam landing
+        const val EV_STRUCK = 4     // a falling cube struck a hole's far (or near) wall; see [struckSpeed]
     }
 
     val ground = 0.45f      // resting cube center (cube = 0.9 across)
@@ -121,8 +124,22 @@ class Player(private val game: Gdx3DGame, private val rnd: Random) {
     private var fallTilt = 0f       // sideways tumble gathered since
     private var fallTiltRate = 0f
     private var fallGravity = 26f
-    private var fallMinX = -1e9f    // a pit's walls (the cube stays inside the hole it fell into)
+    private var fallMinX = -1e9f    // a pit's side walls (the cube stays inside the hole it fell into)
     private var fallMaxX = 1e9f
+    /** Where the falling cube is along the road, ahead of (−) or behind (+) the camera's usual mark. */
+    var pz = 0f
+        private set
+    /** A falling cube's speed over the world, forward: the run's speed it carries off the road. */
+    var forward = 0f
+        private set
+    // The hole's ends this frame (see [fallWalls]): the cube can strike them while it is level with the road.
+    private var wallNear = 1e9f
+    private var wallFar = -1e9f
+    private var wallTop = 0f
+    private var wallBottom = 0f
+    /** How hard the last [EV_STRUCK] hit was (forward speed, units/s). */
+    var struckSpeed = 0f
+        private set
     /** 0..1: how far the cube has sunk into darkness (a tar pit's depths). */
     var dim = 0f
 
@@ -180,7 +197,7 @@ class Player(private val game: Gdx3DGame, private val rnd: Random) {
         duck = 0f; nudge = 0f; vy = 0f; roll = 0f; squash = 0f; duckT = 0f
         slamming = false; coyoteLeft = 0f; jumpBuffer = 0f; trailT = 0f; trailK = 0; stretch = 0f
         falling = false; steppedOff = false; vx = 0f; rollRate = 0f; fallTilt = 0f; fallTiltRate = 0f; dim = 0f
-        fallMinX = -1e9f; fallMaxX = 1e9f
+        fallMinX = -1e9f; fallMaxX = 1e9f; pz = 0f; forward = 0f; noWalls()
         idleT = 0f; idleYaw = 0f; idleMix = 0f; quietLanding = false
         menuX = 0f; menuY = ground; menuYaw = 0f; menuSpin = 0f
         voidEmissiveSaved = false
@@ -282,6 +299,9 @@ class Player(private val game: Gdx3DGame, private val rnd: Random) {
         if (!air) { air = true; vy = 0f }
         slamming = false; duckT = 0f
         this.vx = vx
+        forward = speed
+        pz = 0f
+        noWalls()
         fallMinX = minX; fallMaxX = maxX
         rollRate = speed * 42f + (if (lowGravity) 105f else 160f)
         tiltAtFall = ((laneX(lane) - px) * -22f).coerceIn(-32f, 32f)
@@ -290,6 +310,17 @@ class Player(private val game: Gdx3DGame, private val rnd: Random) {
         // still wobbles a little sideways, so the tumble reads in 3D.
         fallTiltRate = if (kotlin.math.abs(vx) > 1f) (-vx * 55f).coerceIn(-320f, 320f) else 70f * (if (rnd.nextBoolean()) 1f else -1f)
     }
+
+    /**
+     * This frame's hole under the falling cube: its ends at [near] and [far]
+     * along the road, its rim from [bottom] up to [top] (a shaft's walls run
+     * down for ever). A cube still level with the rim strikes the end it meets.
+     */
+    fun fallWalls(near: Float, far: Float, top: Float, bottom: Float) {
+        wallNear = near; wallFar = far; wallTop = top; wallBottom = bottom
+    }
+
+    fun noWalls() { wallNear = 1e9f; wallFar = -1e9f }
 
     fun bonk(dir: Int) {
         nudge = dir * 0.4f
@@ -419,6 +450,19 @@ class Player(private val game: Gdx3DGame, private val rnd: Random) {
         if (falling) {
             vy -= fallGravity * dt
             py += vy * dt
+            // It flies on over the world at its own speed; the world scrolls by the camera's ([mv]).
+            pz += mv - forward * dt
+            forward *= max(0f, 1f - 0.12f * dt)
+            if (py - HALF < wallTop && py + HALF > wallBottom) {
+                if (forward > 0f && pz - HALF < wallFar) { // the far end: it bounces back off it, its spin knocked back
+                    struckSpeed = forward
+                    pz = wallFar + HALF; forward *= -0.22f; rollRate *= -0.3f; vy = min(vy, 0f) - 0.6f
+                    event = EV_STRUCK
+                } else if (forward < 0f && pz + HALF > wallNear) {
+                    struckSpeed = -forward
+                    pz = wallNear - HALF; forward *= -0.3f
+                }
+            }
         } else if (flying) {
             clearJumpInput()
             py += (flyY - py) * min(1f, dt * (if (flyY < FLY_Y) 7f else 4f)) // quick to climb, tight on the glide down
@@ -479,7 +523,7 @@ class Player(private val game: Gdx3DGame, private val rnd: Random) {
         if (dim > 0f) { col.lerp(DARK, dim); shellCol.lerp(DARK, dim) }
         openingMaterial(skin.opacity + (1f - skin.opacity) * spentMix, (if (skin.id == 13) 1f + 0.6f * spentMix else 0f))
         val breathe = 1f + 0.03f * idleMix * sin(time * 2.4f)
-        inst.transform.setToTranslation(px + nudge, py - squash * 0.08f - duY, 0f)
+        inst.transform.setToTranslation(px + nudge, py - squash * 0.08f - duY, pz)
             .rotate(Vector3.Y, idleYaw * idleMix)
             .rotate(Vector3.Z, tilt)
             .rotate(Vector3.X, -roll)
@@ -487,11 +531,11 @@ class Player(private val game: Gdx3DGame, private val rnd: Random) {
             .scale(0.9f * (1f + sq + duck * 0.35f - st * 0.5f), 0.9f * (1f - sq + st) * (1f - duck * 0.5f), 0.9f * (1f + sq + duck * 0.1f - st * 0.5f))
         val pulse = glowScale(time)
         shellBlend.opacity = shellOpacity(time) * (1f - spentMix) * (1f - dim)
-        shellInst.transform.setToTranslation(px + nudge, py - duY, 0f)
+        shellInst.transform.setToTranslation(px + nudge, py - duY, pz)
             .rotate(Vector3.Y, idleYaw * idleMix).rotate(Vector3.Z, tilt).rotate(Vector3.X, -roll)
             .scale(pulse, pulse, pulse)
 
-        if (trail) emitTrail(dt, time, px, py, 0.5f, if (flying) 2.5f else 1f, stream = stream)
+        if (trail) emitTrail(dt, time, px, py, pz + 0.5f, if (flying) 2.5f else 1f, stream = stream)
         return event
     }
 

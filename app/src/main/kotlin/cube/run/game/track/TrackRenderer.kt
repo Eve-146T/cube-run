@@ -48,6 +48,8 @@ class TrackRenderer(private val game: Gdx3DGame) {
     private val rod = Color(0.32f, 0.28f, 0.4f, 1f)
     /** On the glass road, a full-width pit is an open gap (see SpaceRifts), not a black slab. */
     var glassRifts = false
+    /** 0..1: coins near the camera shrink away (a cube falling through a rift must not be hidden behind them). */
+    var coinFade = 0f
     private val portalA = Color()
     private val portalB = Color()
     private val tmpCol = Color()
@@ -110,6 +112,8 @@ class TrackRenderer(private val game: Gdx3DGame) {
             for (c in coins) {
                 if (c.taken) continue
                 val cz = r.z + c.dz
+                val p = if (coinFade > 0f) p * (1f - coinFade * ((cz + 12f) / 6f).coerceIn(0f, 1f)) else p
+                if (p <= 0.01f) continue
                 val y = c.y + 0.06f * sin(time * 4f + c.dz * 0.9f)
                 val fog = Fog.at(cz)
                 val yaw = coinYaw + (r.visualPhase + c.dz) * 14f
@@ -294,6 +298,6 @@ class TrackRenderer(private val game: Gdx3DGame) {
         /** An open pit: its lip frame's width, its walls' thickness, how deep it goes. */
         private const val LIP = 0.17f
         private const val WALL = 0.04f
-        private const val SHAFT = 7f
+        private const val SHAFT = 26f
     }
 }
