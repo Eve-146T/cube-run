@@ -50,6 +50,8 @@ class TrackRenderer(private val game: Gdx3DGame) {
     var glassRifts = false
     /** 0..1: coins near the camera shrink away (a cube falling through a rift must not be hidden behind them). */
     var coinFade = 0f
+    /** Coins the cube has passed shrink away (space's camera dips into a rift, and they would fly into the lens). */
+    var passedCoinsFade = false
     private val portalA = Color()
     private val portalB = Color()
     private val tmpCol = Color()
@@ -112,7 +114,8 @@ class TrackRenderer(private val game: Gdx3DGame) {
             for (c in coins) {
                 if (c.taken) continue
                 val cz = r.z + c.dz
-                val p = if (coinFade > 0f) p * (1f - coinFade * ((cz + 12f) / 6f).coerceIn(0f, 1f)) else p
+                var p = if (coinFade > 0f) p * (1f - coinFade * ((cz + 12f) / 6f).coerceIn(0f, 1f)) else p
+                if (passedCoinsFade) p *= 1f - ((cz - 1.5f) / 2f).coerceIn(0f, 1f)
                 if (p <= 0.01f) continue
                 val y = c.y + 0.06f * sin(time * 4f + c.dz * 0.9f)
                 val fog = Fog.at(cz)

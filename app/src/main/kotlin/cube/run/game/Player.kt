@@ -102,6 +102,7 @@ class Player(private val game: Gdx3DGame, private val rnd: Random) {
     /** Edge-bonk offset (visual only). */
     var nudge = 0f
     private var vy = 0f
+    val verticalVelocity: Float get() = vy
     private var roll = 0f           // forward tumble angle
     private var squash = 0f         // landing squash timer
     private var duckT = 0f          // remaining roll/duck window (seconds)
@@ -124,6 +125,7 @@ class Player(private val game: Gdx3DGame, private val rnd: Random) {
     private var fallTilt = 0f       // sideways tumble gathered since
     private var fallTiltRate = 0f
     private var fallGravity = 26f
+    private var fallDrag = 0f       // air drag on the fall's vertical speed (a slow drift in space)
     private var fallMinX = -1e9f    // a pit's side walls (the cube stays inside the hole it fell into)
     private var fallMaxX = 1e9f
     /** Where the falling cube is along the road, ahead of (−) or behind (+) the camera's usual mark. */
@@ -171,7 +173,7 @@ class Player(private val game: Gdx3DGame, private val rnd: Random) {
 
     internal fun pilotBody(flightLeft: Float) = cube.run.bot.Body(lane, px, py, vy, air, duck,
         duckT, slamming, flying, flyY, hover, flightLeft = flightLeft, lowG = lowGravity,
-        coyoteLeft = coyoteLeft, jumpBuffer = jumpBuffer)
+        coyoteLeft = coyoteLeft, jumpBuffer = jumpBuffer, airJump = lowGravity && canAirJump)
 
     fun laneX(l: Int) = Lanes.x(l)
 
@@ -290,10 +292,11 @@ class Player(private val game: Gdx3DGame, private val rnd: Random) {
      * under [gravity].
      * [minX]..[maxX] are a pit's walls, which keep it inside the hole.
      */
-    fun fall(speed: Float, vx: Float, gravity: Float, minX: Float = -1e9f, maxX: Float = 1e9f) {
+    fun fall(speed: Float, vx: Float, gravity: Float, minX: Float = -1e9f, maxX: Float = 1e9f, drag: Float = 0f) {
         if (falling) return
         falling = true
         fallGravity = gravity
+        fallDrag = drag
         clearJumpInput()
         airJumpAvailable = false
         if (!air) { air = true; vy = 0f }
@@ -360,6 +363,21 @@ class Player(private val game: Gdx3DGame, private val rnd: Random) {
     }
 
     fun clearJumpInput() { coyoteLeft = 0f; jumpBuffer = 0f }
+
+    /** Airborne with a double jump still to spend. */
+    val canAirJump: Boolean
+        get() = air && airJumpAvailable && airJumpsUsed < (if (tripleJumpEnabled) 2 else if (doubleJumpEnabled) 1 else 0)
+
+    /**
+     * Came up out of a void just short of the far lip, the road at [groundY]
+     * (cube centre) just above: the cube scrambles up onto it instead of
+     * snapping there.
+     */
+    fun catchLedge(groundY: Float) {
+        if (!air || py >= groundY) return
+        val g = 26f * (if (lowGravity) LOW_G else 1f)
+        vy = max(vy, kotlin.math.sqrt(2f * g * (groundY - py + 0.12f)))
+    }
 
     private fun takeOff(extraJump: Boolean = false) {
         clearJumpInput()
@@ -449,6 +467,7 @@ class Player(private val game: Gdx3DGame, private val rnd: Random) {
         // Keep hover set so flight expiry naturally returns to the floating road.
         if (falling) {
             vy -= fallGravity * dt
+            vy *= max(0f, 1f - fallDrag * dt)
             py += vy * dt
             // It flies on over the world at its own speed; the world scrolls by the camera's ([mv]).
             pz += mv - forward * dt

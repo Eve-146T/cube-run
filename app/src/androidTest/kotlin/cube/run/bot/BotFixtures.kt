@@ -66,5 +66,8 @@ internal object BotFixtures {
             "air" to b.air, "duck" to b.duck, "duckT" to b.duckT, "slamming" to b.slam,
             "flying" to b.flying, "flyY" to b.flyY, "hover" to b.hover,
             "coyoteLeft" to b.coyoteLeft, "jumpBuffer" to b.jumpBuffer)) field(Player::class.java, name).set(p, v)
+        // Outer Space's double jump: one still to spend this airtime, or none.
+        field(Player::class.java, "airJumpAvailable").set(p, b.airJump)
+        field(Player::class.java, "airJumpsUsed").set(p, 0)
     }
 }

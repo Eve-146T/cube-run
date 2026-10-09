@@ -131,6 +131,7 @@ class SpaceSectionsTest {
                         track.rows.clear(); track.rows.addAll(BotFixtures.materialize(course))
                         val model = Body(lowG = true); BotFixtures.restore(player, model)
                         player.lowGravity = true
+                        player.doubleJumpEnabled = true // Outer Space always has the double jump
                         field(CubeRun::class.java, "dead").setBoolean(game, false)
                         val random = Random(section.id)
                         for (frame in timeline.frames.indices) {
@@ -160,6 +161,7 @@ class SpaceSectionsTest {
                     Log.i("SPACE", "low-gravity parity: $checked frames")
                 } catch (t: Throwable) { failure = t } finally {
                     player(Gdx.app.applicationListener as CubeRun).lowGravity = false
+                    player(Gdx.app.applicationListener as CubeRun).doubleJumpEnabled = false
                     Settings.setSoundEnabled(oldSound); Settings.setHapticsEnabled(oldHaptics)
                     field(Progress::class.java, "revives").setInt(Progress, oldRevives)
                     Stage.paused = false; done.countDown()

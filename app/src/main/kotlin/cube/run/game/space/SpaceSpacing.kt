@@ -30,6 +30,23 @@ object SpaceSpacing {
     fun dodge(speed: Float) = max(DODGE, speed * 0.29f)
     /** Between the slices of one rift: they overlap into a single chasm. */
     const val RIFT_SLICE = 1.65f
+    /** One slice's length along the road (a pit 1.7 deep). */
+    private const val SLICE_DEPTH = 1.7f
+    /** A rift's length against one jump's reach: a jump from its lip only just clears it. */
+    private const val RIFT_REACH = 0.9f
+
+    /**
+     * Slices in a rift at [speed]: long enough that a single jump taken right
+     * at the lip only just clears it — rolling in and jumping straight away
+     * barely makes it, and the double jump is how you get out of the void.
+     */
+    fun riftSlices(speed: Float): Int {
+        val length = RIFT_REACH * AIR_TIME * speed
+        return max(3, kotlin.math.ceil((length - SLICE_DEPTH) / RIFT_SLICE).toInt() + 1)
+    }
+
+    /** A rift of [slices] from its first slice's centre to its last's far end. */
+    fun riftSpan(slices: Int) = (slices - 1) * RIFT_SLICE + SLICE_DEPTH / 2f
 
     /** After a row you jump: land (the second half of the arc) and get a beat to read the next row. */
     fun afterJump(speed: Float) = max(9.5f, 0.55f * AIR_TIME * speed + 2.5f)

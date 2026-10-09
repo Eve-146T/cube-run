@@ -14,8 +14,8 @@ import kotlin.math.min
  * Nothing brakes for the fall. The cube keeps its own speed over the world
  * (see [Player.fall]) until it strikes something, and the camera keeps its
  * momentum too: its speed ([speed], which the world scrolls by) trails the
- * cube's and then lets go, so it glides to rest and watches the cube fall
- * away ([look]).
+ * cube's and then lets go, so it glides to rest while the cube falls away.
+ * The shot never turns.
  */
 class VoidFall {
     enum class Kind { TAR, RIFT, EDGE }
@@ -41,14 +41,14 @@ class VoidFall {
     /** The run-over pages take over once the cube has been out of sight a moment (or at the latest after [LONGEST]). */
     val done: Boolean get() = t >= LONGEST || t >= SHORTEST && unseen >= GONE
 
-    /** 0..1: how far the camera has turned from the road to the falling cube. */
-    val look: Float get() = (t / 0.5f).coerceIn(0f, 1f).let { it * it * (3f - 2f * it) }
+    /** Where the cube was when it was lost: the camera's shot stays framed on it. */
+    var startX = 0f
+        private set
+    var startY = 0f
+        private set
 
-    /** 0..1: down a tar pit, how far the camera has moved over the hole to peer down it. */
-    val peek: Float get() = if (kind != Kind.TAR) 0f else ((t - 0.04f) / 0.6f).coerceIn(0f, 1f).let { it * it * (3f - 2f * it) }
-
-    /** How steeply the camera may tip after the cube (radians below level); down a tar pit [peek] takes over. */
-    val maxDip: Float get() = 0.8f
+    /** 0..1: how far the camera has drifted sideways after the cube. */
+    val drift: Float get() = (t / 0.4f).coerceIn(0f, 1f).let { it * it * (3f - 2f * it) }
 
     fun reset() {
         kind = null; pit = null; row = null
@@ -59,9 +59,10 @@ class VoidFall {
     fun seen(visible: Boolean, dt: Float) { unseen = if (visible) 0f else unseen + dt }
 
     /** The cube lost the road at [speed]; [pit] is a tar pit, which opens up into a shaft. */
-    fun start(kind: Kind, speed: Float, row: Row? = null, pit: Ob? = null) {
+    fun start(kind: Kind, speed: Float, x: Float, y: Float, row: Row? = null, pit: Ob? = null) {
         reset()
         this.kind = kind
+        startX = x; startY = y
         this.pit = pit; this.row = row
         if (pit != null) row?.obs?.forEach { if (it.pit && abs(it.x - pit.x) < 0.01f) it.open = true } // the slab and its lip
         this.speed = speed
@@ -74,7 +75,8 @@ class VoidFall {
         // The camera follows the cube's pace a moment, then lets it go and glides to rest.
         val letGo = ((t - HOLD) / LET_GO).coerceIn(0f, 1f).let { it * it * (3f - 2f * it) }
         val target = max(0f, cubeForward) * (1f - letGo)
-        speed += (target - speed) * min(1f, dt / CAMERA_LAG)
+        // Over a tar pit the camera settles sooner, so the drop stays in the middle of the shot.
+        speed += (target - speed) * min(1f, dt / (if (kind == Kind.TAR) CAMERA_LAG / 2f else CAMERA_LAG))
     }
 
     private companion object {
@@ -83,9 +85,9 @@ class VoidFall {
         /** Seconds the cube stays out of sight before the run is over. */
         const val GONE = 0.35f
         /** Seconds the camera keeps the cube's pace before it starts to let go. */
-        const val HOLD = 0.15f
+        const val HOLD = 0.05f
         /** Seconds over which it lets go. */
-        const val LET_GO = 1.1f
+        const val LET_GO = 0.8f
         /** Seconds the camera's speed trails its target: a cube stopped dead is overshot by speed × lag. */
         const val CAMERA_LAG = 0.2f
     }

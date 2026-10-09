@@ -138,6 +138,7 @@ class Track(private val rnd: Random, private val fx: ObstacleFactory) {
         var zLast = z
         while (z > spawnZ) {
             if (pendingSteps.isEmpty()) loadNextSection()
+            if (bonus == Bonus.SPACE && pendingSteps.first() == Step.RF && prevKind != Step.RF) lengthenRift()
             spawnStep(pendingSteps.removeFirst(), z, hue)
             zLast = z
             if (pendingSteps.isEmpty()) loadNextSection()
@@ -157,10 +158,18 @@ class Track(private val rnd: Random, private val fx: ObstacleFactory) {
             val gap = gapFor(code)
             if (spawnAcc >= gap) {
                 spawnAcc -= gap
+                if (bonus == Bonus.SPACE && code == Step.RF && prevKind != Step.RF) lengthenRift()
                 spawnStep(code, spawnZ, hue)
                 pendingSteps.removeFirst()
             } else break
         }
+    }
+
+    /** A rift is beginning: give it as many slices as its length at this speed needs (see SpaceSpacing.riftSlices). */
+    private fun lengthenRift() {
+        var run = 0
+        for (c in pendingSteps) if (c == Step.RF) run++ else break
+        repeat(SpaceSpacing.riftSlices(speed) - run) { pendingSteps.addFirst(Step.RF) }
     }
 
     /** Move every row toward the player, stream it in, advance the animated obstacles, drop rows that passed. */
