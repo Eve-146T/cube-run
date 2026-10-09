@@ -23,7 +23,7 @@ import cube.run.data.Settings
  * Settings, the one place for options: a bright page of white cards, each row
  * a small candy tile, a name and its control. Sound (tap the tile to mute,
  * drag the steps for volume) and vibration; the start speed (boost presses
- * made before the run), coins on the road and multiswipe; the language (opens the
+ * made before the run), quiet coins and multiswipe; the language (opens the
  * language sheet); in debug builds, dev mode and the section explorer.
  * Everything re-reads [Settings] whenever the page is shown, so the pause
  * card's switches never leave it stale.
@@ -124,7 +124,7 @@ class SettingsView(
                 addView(row(speedTile, activity.getString(R.string.settings_start_speed)).apply { minimumHeight = dp(52f); setPadding(0, 0, 0, 0) })
                 addView(speedBar, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(46f)).apply { topMargin = dp(6f) })
             },
-            switchRow(coinsTile, activity.getString(R.string.settings_coins), coinsSwitch, { Settings.roadCoins }) { Settings.setRoadCoins(it) },
+            switchRow(coinsTile, activity.getString(R.string.settings_coins), coinsSwitch, { Settings.quietCoins }) { Settings.setQuietCoins(it) }.apply { tag = "settings_quiet_coins" },
             switchRow(multiSwipeTile, activity.getString(R.string.settings_multiswipe), multiSwipeSwitch, { Settings.multiSwipe }) {
                 Settings.setMultiSwipe(it)
             }.apply { tag = "settings_multiswipe" },
@@ -242,10 +242,10 @@ class SettingsView(
         }
         speedBar.configure(Progress.maxStartPresses, Settings.startSpeed)
         syncStartSpeed()
-        coinsSwitch.set(Settings.roadCoins, animate)
-        if (shownCoins != Settings.roadCoins) {
-            shownCoins = Settings.roadCoins
-            paintTile(coinsTile, Settings.roadCoins, Theme.GOLD)
+        coinsSwitch.set(Settings.quietCoins, animate)
+        if (shownCoins != Settings.quietCoins) {
+            shownCoins = Settings.quietCoins
+            paintTile(coinsTile, Settings.quietCoins, Theme.GOLD)
             coinGlyph.off = !Settings.roadCoins; coinsTile.invalidate()
         }
         multiSwipeSwitch.set(Settings.multiSwipe, animate)

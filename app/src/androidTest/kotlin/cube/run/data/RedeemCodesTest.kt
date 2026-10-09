@@ -85,7 +85,7 @@ class RedeemCodesTest {
     }
 
     @Test fun futureUnlockRewardsShareThePersistentOneTimeLedger() {
-        val code = RedeemCodes.Definition("secret-example", RedeemCodes.Effect.Unlock("example-setting"))
+        val code = RedeemCodes.Definition("secret-example", RedeemCodes.Effect.Unlock("example-setting", "Example setting"))
         assertFalse(Progress.isCodeUnlocked("example-setting"))
         assertTrue(Progress.redeemCode(code) is RedeemCodes.Result.Granted)
         Progress.init(context)

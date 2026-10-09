@@ -49,6 +49,7 @@ class MultiSwipeSettingsTest {
                     }
                     instrumentation.waitForIdleSync()
                     if (launch == 0 && InstrumentationRegistry.getArguments().getString("captureMultiswipe") == "true") {
+                        android.os.SystemClock.sleep(350)
                         val bitmap = instrumentation.uiAutomation.takeScreenshot()
                         java.io.File(context.getExternalFilesDir(null), "multiswipe-settings.png").outputStream().use {
                             bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it)

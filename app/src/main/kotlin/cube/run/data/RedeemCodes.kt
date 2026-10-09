@@ -6,7 +6,7 @@ import java.util.Locale
 object RedeemCodes {
     sealed interface Effect {
         data class Coins(val amount: Int) : Effect
-        data class Unlock(val key: String) : Effect
+        data class Unlock(val key: String, val name: String) : Effect
     }
     internal data class Definition(val id: String, val effect: Effect)
     sealed interface Result {

@@ -55,9 +55,10 @@ object Settings {
         private set
     val effectiveStartSpeed: Int get() = if (startSpeedEnabled) startSpeed else 0
 
-    /** Off: coins remain collectible, but look faint and have no pickup sound or haptics. */
-    @Volatile var roadCoins: Boolean = true
+    /** Quiet coins look faint and have no pickup sound or haptics. */
+    @Volatile var quietCoins: Boolean = false
         private set
+    val roadCoins: Boolean get() = !quietCoins
     val roadCoinOpacity: Float get() = if (roadCoins) 1f else .12f
 
     /**
@@ -124,7 +125,7 @@ object Settings {
         volume = prefs.getInt("volume", VOLUME_STEPS).coerceIn(1, VOLUME_STEPS)
         startSpeed = prefs.getInt("start_speed", 0).coerceIn(0, 10)
         startSpeedEnabled = prefs.getBoolean("start_speed_enabled", true)
-        roadCoins = prefs.getBoolean("road_coins", true)
+        quietCoins = prefs.getBoolean("quiet_coins", !prefs.getBoolean("road_coins", true))
         if (prefs.contains("dev_mode")) prefs.edit().remove("dev_mode").apply() // was persisted once; never again
     }
 
@@ -178,11 +179,13 @@ object Settings {
         prefs.edit().putBoolean("start_speed_enabled", v).apply()
     }
 
-    fun setRoadCoins(v: Boolean) {
-        if (roadCoins == v) return
-        roadCoins = v
-        prefs.edit().putBoolean("road_coins", v).apply()
+    fun setQuietCoins(v: Boolean) {
+        if (quietCoins == v) return
+        quietCoins = v
+        prefs.edit().putBoolean("quiet_coins", v).apply()
     }
+
+    fun setRoadCoins(v: Boolean) = setQuietCoins(!v)
 
     fun setDevMode(v: Boolean) {
         devMode = v

@@ -40,11 +40,28 @@ class CodesInteractionTest {
                 var title = ""; var entry = ""; var redeem = ""; var success = ""; var duplicate = ""
                 scenario.onActivity { activity ->
                     title = activity.getString(R.string.settings_title); entry = activity.getString(R.string.codes_enter)
-                    redeem = activity.getString(R.string.codes_redeem); success = activity.getString(R.string.codes_coins, 500)
+                    redeem = activity.getString(R.string.codes_redeem); success = activity.getString(R.string.codes_coins, 500, 500)
                     duplicate = activity.getString(R.string.codes_used)
                     val root = activity.findViewById<View>(android.R.id.content)
                     all(root).single { it is CandyChip && it.isShown && it.contentDescription == title }.performClick()
                     all(root).single { it.tag == "settings_codes" && it.isShown }.performClick()
+                }
+                awaitNode(entry)
+                instrumentation.waitForIdleSync()
+                scenario.onActivity { activity ->
+                    val root = activity.findViewById<View>(android.R.id.content)
+                    val settings = all(root).filterIsInstance<SettingsView>().single { it.isShown }
+                    val dialog = SettingsView::class.java.getDeclaredField("codeDialog").apply { isAccessible = true }
+                        .get(settings) as CodeDialog
+                    assertEquals("No dialog entrance animation", 0, dialog.window!!.attributes.windowAnimations)
+                    val views = all(dialog.window!!.decorView)
+                    val back = views.single { it.tag == "codes_back" }
+                    val heading = views.single { it.tag == "codes_title" }
+                    assertEquals(heading.parent, back.parent)
+                    if (back.layoutDirection == View.LAYOUT_DIRECTION_RTL) assertTrue(back.left > heading.left)
+                    else assertTrue("Back leads the header", back.left < heading.left)
+                    val card = back.parent.parent as View
+                    assertEquals(1f, card.alpha, 0f); assertEquals(1f, card.scaleX, 0f)
                 }
                 val input = awaitNode(entry)
                 assertTrue(input.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, Bundle().apply {
@@ -53,15 +70,36 @@ class CodesInteractionTest {
                 assertTrue(awaitNode(redeem).performAction(AccessibilityNodeInfo.ACTION_CLICK))
                 awaitNode(success)
                 assertEquals(500, Progress.coins)
+                if (InstrumentationRegistry.getArguments().getString("captureCodes") == "true") {
+                    SystemClock.sleep(350)
+                    val bitmap = instrumentation.uiAutomation.takeScreenshot()
+                    java.io.File(context.getExternalFilesDir(null), "codes-success.png").outputStream().use {
+                        bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it)
+                    }
+                    bitmap.recycle()
+                }
                 assertTrue(awaitNode(redeem).performAction(AccessibilityNodeInfo.ACTION_CLICK))
                 awaitNode(duplicate)
                 assertEquals("The visible form cannot pay twice", 500, Progress.coins)
                 if (InstrumentationRegistry.getArguments().getString("captureCodes") == "true") {
+                    SystemClock.sleep(350)
                     val bitmap = instrumentation.uiAutomation.takeScreenshot()
                     java.io.File(context.getExternalFilesDir(null), "codes-dialog.png").outputStream().use {
                         bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it)
                     }
                     bitmap.recycle()
+                }
+                scenario.onActivity { activity ->
+                    val settings = all(activity.findViewById<View>(android.R.id.content)).filterIsInstance<SettingsView>().single { it.isShown }
+                    val dialog = SettingsView::class.java.getDeclaredField("codeDialog").apply { isAccessible = true }
+                        .get(settings) as CodeDialog
+                    val views = all(dialog.window!!.decorView)
+                    val edit = views.single { it.tag == "code_entry" } as android.widget.EditText
+                    edit.setText("unknown")
+                    assertEquals("Changing code clears the previous result", "", (views.single { it.tag == "code_feedback" } as android.widget.TextView).text.toString())
+                    views.single { it.tag == "codes_back" }.performClick()
+                    assertFalse(dialog.isShowing)
+                    assertTrue(settings.isShown)
                 }
             }
         } finally {
