@@ -179,7 +179,7 @@ class ShopView(
         Progress.MULT -> Stage.DEMO_MULT
         Progress.JET -> Stage.DEMO_JET
         Progress.FASTERSTART -> 0
-        Progress.SAFESTART -> Stage.DEMO_SAFESTART
+        Progress.FASTBUBBLES -> Stage.DEMO_FASTBUBBLES
         Progress.COINVALUE -> Stage.DEMO_COINS
         Progress.PORTALS -> Stage.DEMO_PORTAL
         else -> Stage.DEMO_BOX
@@ -453,7 +453,7 @@ class ShopView(
 
     private fun perkColor(u: Progress.Upgrade): Int = when (u) {
         Progress.FASTERSTART -> Theme.ORANGE
-        Progress.SAFESTART -> Theme.ORANGE
+        Progress.FASTBUBBLES -> Theme.ORANGE
         Progress.COINVALUE -> Theme.GOLD
         Progress.PORTALS -> Theme.MINT
         else -> Theme.GRAPE
@@ -461,7 +461,7 @@ class ShopView(
 
     private fun perkIcon(u: Progress.Upgrade): Drawable = when (u) {
         Progress.FASTERSTART -> JetIcon(Theme.WHITE)
-        Progress.SAFESTART -> BubbleIcon(Theme.WHITE)
+        Progress.FASTBUBBLES -> BubbleIcon(Theme.WHITE)
         Progress.COINVALUE -> CoinIcon()
         Progress.PORTALS -> PortalIcon(Theme.WHITE)
         else -> BoxIcon(Theme.WHITE)
@@ -469,7 +469,7 @@ class ShopView(
 
     private fun perkBlurb(u: Progress.Upgrade): String = when (u) {
         Progress.FASTERSTART -> kit.ctx.getString(R.string.text_more_boost_presses_at_the_start_of_every_run)
-        Progress.SAFESTART -> kit.ctx.getString(R.string.text_every_run_begins_under_a_bubble)
+        Progress.FASTBUBBLES -> kit.ctx.getString(R.string.text_bubble_cooldown_reduces)
         Progress.COINVALUE -> kit.ctx.getString(R.string.text_every_coin_is_worth_more)
         Progress.PORTALS -> kit.ctx.getString(R.string.text_portals_to_bonus_worlds_open_sooner)
         else -> kit.ctx.getString(R.string.text_mystery_boxes_turn_up_more_often)
@@ -477,7 +477,7 @@ class ShopView(
 
     private fun perkValue(u: Progress.Upgrade, lvl: Int): String = when (u) {
         Progress.FASTERSTART -> kit.ctx.resources.getQuantityString(R.plurals.count_taps, 5 + lvl, 5 + lvl)
-        Progress.SAFESTART -> if (lvl == 0) kit.ctx.getString(R.string.text_none) else kit.ctx.getString(R.string.text_seconds, fmt(3f + 1.5f * lvl))
+        Progress.FASTBUBBLES -> kit.ctx.getString(R.string.text_seconds, fmt(u.duration(lvl)))
         Progress.COINVALUE -> "×${fmt(u.duration(lvl))}"
         Progress.PORTALS -> kit.ctx.resources.getQuantityString(R.plurals.count_rows, 110 - 14 * lvl, 110 - 14 * lvl)
         else -> "×${fmt(1f + 0.5f * lvl)}"

@@ -6,6 +6,7 @@ import com.badlogic.gdx.math.Vector3
 import cube.run.core.Gdx3DGame
 import cube.run.core.Haptics
 import cube.run.core.SoundFx
+import cube.run.data.Progress
 import cube.run.core.Stage
 import cube.run.core.hsvInto
 import cube.run.game.Bubble
@@ -96,7 +97,7 @@ class Demos(private val game: Gdx3DGame, private val player: Player, private val
             }
             Stage.DEMO_JET -> { SoundFx.play("rise", rate = 1.2f); Haptics.click() }
             Stage.DEMO_MULT -> SoundFx.play("blip", rate = 1.2f)
-            Stage.DEMO_SAFESTART -> { bubble.duration = 3f; bubble.activate(px, py) }
+            Stage.DEMO_FASTBUBBLES -> { bubble.reset(); bubble.duration = 0.7f; bubble.cooldownDuration = Progress.bubbleCooldownSeconds; bubble.activate(px, py) }
             Stage.DEMO_PORTAL -> { SoundFx.play("rise", rate = 1.4f); game.flash(portal, 0.3f) }
             Stage.DEMO_BOX -> { boxY = 6f; boxVy = 0f; boxGone = false }
         }
@@ -162,7 +163,9 @@ class Demos(private val game: Gdx3DGame, private val player: Player, private val
                 game.burst3d(tmp, Color.WHITE, n = 10, speed = 9f, size = 0.08f, life = 0.4f)
                 SoundFx.play("perfect", rate = 1.1f); Haptics.success()
             }
-            Stage.DEMO_SAFESTART -> if (!bubble.active) kind = 0
+            Stage.DEMO_FASTBUBBLES -> if (bubble.ready) {
+                if (t < 8f) bubble.activate(px, py) else kind = 0
+            }
             Stage.DEMO_PORTAL -> if (t > 2.2f) kind = 0
             Stage.DEMO_BOX -> {
                 if (!boxGone) {

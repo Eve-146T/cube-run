@@ -20,7 +20,7 @@ import kotlin.random.Random
  *
  * Available sound names (pitch-shift with `rate` 0.5..2.0 for variety):
  *  tap, blip, pop, place, perfect, combo, success, fail,
- *  whoosh, boom, coin, rise, slide, fanfare, drain, bell,
+ *  whoosh, boom, coin, rise, slide, bubble_ready, fanfare, drain, bell,
  *  and Outer Space's: moonjump, moonland, flyby, stardust, hum (a loop)
  */
 object SoundFx {
@@ -55,7 +55,7 @@ object SoundFx {
             }
             val dir = File(ctx.cacheDir, "sfx").apply { mkdirs() }
             val names = listOf("tap", "blip", "pop", "place", "perfect", "combo", "success", "fail", "whoosh", "boom", "coin", "rise", "slide", "fanfare", "drain", "bell",
-                "moonjump", "moonland", "flyby", "stardust", "hum")
+                "moonjump", "moonland", "flyby", "stardust", "hum", "bubble_ready")
             // A redesigned sound gets a new file name, so installed games synthesize it again.
             fun file(name: String) = File(dir, when (name) { "coin" -> "coin-chime-v2.wav"; "stardust" -> "stardust-v3.wav"; else -> "$name.wav" })
             // Installed games already have these WAVs. Do not synthesize all samples again.
@@ -130,6 +130,7 @@ object SoundFx {
             sin(t * (280.0 + 1000.0 * p.pow(1.5)) * TAU) * (0.6 + 0.4 * sin(t * 30.0 * TAU)) *
                 sin(p * PI).pow(0.5)
         },
+        "bubble_ready" to arpeggio(doubleArrayOf(659.25, 987.77), 90, 270),
         "slide" to lowpassed(130, 0.22) { _, p -> noise() * sin(p * PI).pow(0.8) * 0.8 },
         "fanfare" to fanfare(),
         "drain" to drain(),

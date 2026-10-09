@@ -172,7 +172,7 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
 
     /**
      * Count the same edge contact that plays the visible bonk. Classic input
-     * already emits once per touch; smooth input calls this only on wall entry.
+     * emits once per swipe segment; smooth input calls this only on wall entry.
      * Do not debounce using simulation time: Android can queue several separate
      * flicks before one GL frame, and slow motion must not discard real touches.
      */
@@ -300,7 +300,7 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
             powerUps.magnet.start(3600f)
         }
         bubble.reset(); shownBubbleCooldown = 0; session.setBubbleCooldown(0)
-        bubble.cooldownDuration = 5f * runSkin.bubbleCooldownMultiplier
+        bubble.cooldownDuration = Progress.bubbleCooldownSeconds * runSkin.bubbleCooldownMultiplier
         bubble.duration = bubbleDuration()
         difficulty.ceiling = if (zen) zenCeiling else 1f
         difficulty.reset()
@@ -877,11 +877,7 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
                 startGateRunT = runT
                 fx.startGate(player.trailCol())
                 rig.punch(0.9f)
-                if (Progress.safeStartSeconds > 0f) { // the Safe start perk: a bubble is already up
-                    bubble.duration = Progress.safeStartSeconds * bubbleDurationMultiplier()
-                    bubble.activate(player.px, player.py, quiet = true)
-                    bubble.duration = bubbleDuration()
-                }
+
             }
         }
         if (live()) {

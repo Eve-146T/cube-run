@@ -27,7 +27,7 @@ class Bubble(private val game: Gdx3DGame) {
     val timer = PowerUps.Timer(0.35f, 0.88f, 1f)
     /** Full duration (upgrade-dependent). */
     var duration = 10f
-    /** Bubblegum shortens both the natural-expiry and crash cooldown. */
+    /** Faster bubbles and Bubblegum shorten both the natural-expiry and crash cooldown. */
     var cooldownDuration = 5f
     val active: Boolean get() = timer.active
     val timeLeft: Float get() = timer.left
@@ -61,7 +61,7 @@ class Bubble(private val game: Gdx3DGame) {
         age = 0f
         shock = 1f; shockHue = skin.hue
         x = px; y = py
-        if (quiet) { SoundFx.play("rise", rate = 1.3f, vol = 0.5f); return } // the Safe start perk: no hitch, no flash
+        if (quiet) { SoundFx.play("rise", rate = 1.3f, vol = 0.5f); return } // quiet activation: no hitch, no flash
         SoundFx.play("rise", rate = 1.3f)
         SoundFx.play("perfect", rate = 0.9f)
         Haptics.success()
@@ -86,7 +86,9 @@ class Bubble(private val game: Gdx3DGame) {
 
     /** Tick the timer; keeps the sphere around the player. Returns true on the frame it runs out. */
     fun update(dt: Float, time: Float, px: Float, py: Float): Boolean {
+        val wasCoolingDown = cooldownLeft > 0f
         cooldownLeft = max(0f, cooldownLeft - dt)
+        if (wasCoolingDown && ready) SoundFx.play("bubble_ready", vol = 0.7f)
         shock = max(0f, shock - dt * 2.2f)
         x = px; y = py + 0.1f
         yaw = time * 40f

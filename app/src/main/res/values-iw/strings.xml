@@ -41,7 +41,7 @@
     <string name="text_bubble_shield">בועת מגן</string>
     <string name="text_double_tap_to_block_a_hit">הקשה כפולה להגנה מפגיעה</string>
     <string name="text_more_boost_presses_at_the_start_of_every_run">יותר הקשות האצה בתחילת כל ריצה</string>
-    <string name="text_every_run_begins_under_a_bubble">כל ריצה מתחילה בתוך בועה</string>
+    <string name="text_bubble_cooldown_reduces">מקצר את זמן ההמתנה בין שימושים בבועה</string>
     <string name="text_every_coin_is_worth_more">כל מטבע שווה יותר</string>
     <string name="text_portals_to_bonus_worlds_open_sooner">שערים לעולמות בונוס נפתחים מוקדם יותר</string>
     <string name="text_mystery_boxes_turn_up_more_often">תיבות הפתעה מופיעות בתדירות גבוהה יותר</string>
@@ -113,7 +113,7 @@
     <string name="game_magnet">מגנט</string>
     <string name="game_2_score">ניקוד כפול</string>
     <string name="game_jetpack">תרמיל סילון</string>
-    <string name="game_safe_start">התחלה בטוחה</string>
+    <string name="game_faster_bubbles">בועות מהירות יותר</string>
     <string name="game_rich_coins">מטבעות משודרגים</string>
     <string name="game_portal_luck">מזל בשערים</string>
     <string name="game_lucky_boxes">מזל בתיבות</string>

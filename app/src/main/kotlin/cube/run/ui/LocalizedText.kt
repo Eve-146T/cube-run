@@ -104,7 +104,7 @@ fun Context.gameText(stableLabel: String): String = when (stableLabel) {
     "Magnet" -> getString(R.string.game_magnet)
     "2× score" -> getString(R.string.game_2_score)
     "Jetpack" -> getString(R.string.game_jetpack)
-    "Safe start" -> getString(R.string.game_safe_start)
+    "Faster bubbles" -> getString(R.string.game_faster_bubbles)
     "Rich coins" -> getString(R.string.game_rich_coins)
     "Portal luck" -> getString(R.string.game_portal_luck)
     "Lucky boxes" -> getString(R.string.game_lucky_boxes)

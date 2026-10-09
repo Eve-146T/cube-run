@@ -12,12 +12,7 @@ interface TouchListener {
     /** [dir] is one of [TouchInput.LEFT] / [RIGHT] / [UP] / [DOWN]. */
     fun onSwipe(dir: Int)
 
-    /**
-     * When true, swipes fire continuously within a single touch: every time the
-     * finger travels far enough from the last fired point, another [onSwipe] is
-     * emitted (so you can steer left/right/left without lifting). When false, a
-     * touch yields at most one swipe (the classic flick).
-     */
+    /** When true, the game interprets drags positionally instead of receiving flicks. */
     fun smoothSwipeEnabled(): Boolean = false
 }
 
@@ -41,6 +36,8 @@ class TouchInput(
 
     private var downX = 0f
     private var downY = 0f
+    private var swipeX = 0f
+    private var swipeY = 0f
     private var lastX = 0f
     private var lastY = 0f
     private var downAt = 0L
@@ -58,6 +55,7 @@ class TouchInput(
         active = true
         downX = x.toFloat(); downY = y.toFloat()
         lastX = downX; lastY = downY
+        swipeX = downX; swipeY = downY
         downAt = System.nanoTime()
         swiped = false; moved = false
         listener.onDown(downX, downY)
@@ -77,12 +75,13 @@ class TouchInput(
     private fun recognizeSwipe(fx: Float, fy: Float) {
         if (abs(fx - downX) >= tapSlop || abs(fy - downY) >= tapSlop) moved = true
         // smooth mode: the game interprets the drag positionally (in onDrag).
-        // classic mode: a single flick per touch.
-        if (!listener.smoothSwipeEnabled() && !swiped) {
-            val dx = fx - downX
-            val dy = fy - downY
+        // classic mode: each threshold crossing starts a new swipe segment.
+        if (!listener.smoothSwipeEnabled()) {
+            val dx = fx - swipeX
+            val dy = fy - swipeY
             if (abs(dx) > swipeDist || abs(dy) > swipeDist) {
                 swiped = true
+                swipeX = fx; swipeY = fy
                 listener.onSwipe(
                     if (abs(dx) > abs(dy)) { if (dx > 0) RIGHT else LEFT }
                     else { if (dy > 0) DOWN else UP },

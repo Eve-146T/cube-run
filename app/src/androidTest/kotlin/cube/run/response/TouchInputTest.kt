@@ -24,10 +24,21 @@ class TouchInputTest {
         for ((dx, dy) in listOf(-40 to 0, 40 to 0, 0 to -40, 0 to 40)) {
             input.touchDown(360, 760, 0, 0)
             input.touchDragged(360 + dx, 760 + dy, 0)
-            input.touchDragged(360 - dx * 3, 760 - dy * 3, 0)
             input.touchUp(360 + dx, 760 + dy, 0, 0)
         }
         assertEquals(listOf(TouchInput.LEFT, TouchInput.RIGHT, TouchInput.UP, TouchInput.DOWN), l.swipes)
+        assertEquals(0, l.taps)
+    }
+
+    @Test fun continuousTouchRecognizesTurnsReversalsAndRepeatedSegments() {
+        val l = Listener(); val input = TouchInput(l, { 720 }, { false })
+        input.touchDown(360, 760, 0, 0)
+        input.touchDragged(310, 760, 0)
+        input.touchDragged(260, 760, 0)
+        input.touchDragged(260, 710, 0)
+        input.touchDragged(310, 710, 0)
+        input.touchUp(310, 760, 0, 0)
+        assertEquals(listOf(TouchInput.LEFT, TouchInput.LEFT, TouchInput.UP, TouchInput.RIGHT, TouchInput.DOWN), l.swipes)
         assertEquals(0, l.taps)
     }
 
