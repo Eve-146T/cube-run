@@ -12,6 +12,7 @@ import androidx.test.platform.app.InstrumentationRegistry
 import cube.run.GameActivity
 import cube.run.R
 import cube.run.data.Progress
+import cube.run.data.Settings
 import org.junit.Assert.*
 import org.junit.Test
 
@@ -29,7 +30,21 @@ class CodesInteractionTest {
         error("Visible code control not found: $text")
     }
 
+    @Test fun codesEntryIsHiddenFromSettings() {
+        org.junit.Assume.assumeFalse(Settings.CODES_UI)
+        val context = instrumentation.targetContext
+        ActivityScenario.launch<GameActivity>(Intent(context, GameActivity::class.java).putExtra(Hud.EXTRA_AUTOSTART, false)).use { scenario ->
+            scenario.onActivity { activity ->
+                val root = activity.findViewById<View>(android.R.id.content)
+                val title = activity.getString(R.string.settings_title)
+                all(root).single { it is CandyChip && it.isShown && it.contentDescription == title }.performClick()
+                assertFalse(all(root).any { it.tag == "settings_codes" && it.isShown })
+            }
+        }
+    }
+
     @Test fun settingsCodeEntryAwardsOnceAndShowsTheDuplicateResult() {
+        org.junit.Assume.assumeTrue(Settings.CODES_UI)
         val context = instrumentation.targetContext
         val prefs = context.getSharedPreferences("progress", Context.MODE_PRIVATE)
         val saved = prefs.all

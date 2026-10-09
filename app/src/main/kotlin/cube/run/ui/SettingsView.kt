@@ -140,13 +140,13 @@ class SettingsView(
                 contentDescription = activity.getString(R.string.cd_languages)
                 link { openLanguages() }
             },
-            row(tile(R.drawable.ic_codes, Theme.SKY), activity.getString(R.string.settings_codes), chevron(), dp(22f), dp(22f)).apply {
+            *(if (Settings.CODES_UI) arrayOf(row(tile(R.drawable.ic_codes, Theme.SKY), activity.getString(R.string.settings_codes), chevron(), dp(22f), dp(22f)).apply {
                 tag = "settings_codes"
                 contentDescription = activity.getString(R.string.settings_codes)
                 link {
                     if (codeDialog?.isShowing != true) codeDialog = CodeDialog(activity, kit, devChanged).apply { show() }
                 }
-            },
+            }) else emptyArray()),
         ))
         if (BuildConfig.DEBUG) column.addView(card(
             switchRow(devTile, activity.getString(R.string.cd_dev), devSwitch, { Settings.devMode }) {
@@ -245,7 +245,7 @@ class SettingsView(
         coinsSwitch.set(Settings.quietCoins, animate)
         if (shownCoins != Settings.quietCoins) {
             shownCoins = Settings.quietCoins
-            paintTile(coinsTile, Settings.quietCoins, Theme.GOLD)
+            paintTile(coinsTile, Settings.roadCoins, Theme.GOLD)
             coinGlyph.off = !Settings.roadCoins; coinsTile.invalidate()
         }
         multiSwipeSwitch.set(Settings.multiSwipe, animate)

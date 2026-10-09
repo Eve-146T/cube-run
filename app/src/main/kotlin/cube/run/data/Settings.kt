@@ -15,6 +15,9 @@ object Settings {
      */
     const val SMOOTH_CONTROL_UI = false
 
+    /** Keep code redemption hidden until the feature returns. */
+    const val CODES_UI = false
+
     /** "Smooth control": steer continuously without lifting your finger between moves. */
     @Volatile private var smoothControlPref: Boolean = false
 
