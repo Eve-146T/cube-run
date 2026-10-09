@@ -16,7 +16,7 @@ object Worlds {
     const val CRYSTALS = 2    // caves: shard clusters
     const val SPIKES = 3      // frost: tapering white-capped stacks
     const val CACTI = 4       // dunes: blocks with arms
-    const val RINGS = 5       // space: floating spun frames
+    const val RINGS = 5       // deep space: moon-base light pylons
 
     class World(
         val id: Int,

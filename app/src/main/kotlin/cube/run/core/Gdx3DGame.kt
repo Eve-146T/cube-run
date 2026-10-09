@@ -509,6 +509,9 @@ abstract class Gdx3DGame(val session: GameSession) : ApplicationAdapter(), Touch
     /** Opacity of subsequently queued scenery; reset before drawing showcase effects. */
     fun setWorldOpacity(amount: Float) { world.opacity = amount; coins.opacity = amount }
 
+    /** The opacity [setWorldOpacity] last set (faceted scenery fades with the boxes). */
+    val worldOpacity: Float get() = world.opacity
+
     /** Ground height by z added to everything in the batched passes (null = flat). */
     fun setTerrain(f: TerrainHeight?) {
         terrain = f

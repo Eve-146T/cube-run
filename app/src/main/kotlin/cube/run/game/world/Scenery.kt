@@ -1,10 +1,14 @@
 package cube.run.game.world
 
+import com.badlogic.gdx.graphics.Camera
 import com.badlogic.gdx.graphics.Color
+import com.badlogic.gdx.graphics.glutils.ShapeRenderer
 import cube.run.core.Gdx3DGame
 import cube.run.core.hsvInto
 import cube.run.data.Worlds
 import cube.run.game.Lanes
+import cube.run.game.world.biome.BiomeLook
+import cube.run.game.world.biome.BiomeScene
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.sin
@@ -20,9 +24,11 @@ object Fog {
 }
 
 /**
- * The scrolling backdrop: a seamless two-tone floor, roadside decoration in
- * the current world's style, wind streaks that fly past faster than the
- * world at speed, and the occasional world gate. All plain data drawn
+ * The scrolling backdrop: a seamless two-tone floor with the biome's kerb and
+ * land, roadside decoration in the current world's style, wind streaks that
+ * fly past faster than the world at speed, and the occasional world gate.
+ * Everything further out (the land's toys, the horizon, landmarks, weather
+ * and sky) is the [biome]'s. All plain data drawn
  * through the batched world-box pass. Pieces are recoloured/restyled for
  * the *current* world when they wrap, so a new world grows in from the
  * horizon behind its gate instead of snapping. Every decoration is built
@@ -30,7 +36,11 @@ object Fog {
  */
 class Scenery(private val game: Gdx3DGame, private val rnd: Random) {
 
-    private class Tile(@JvmField val col: Color, @JvmField val col2: Color, @JvmField val ground: Color, @JvmField var z: Float, @JvmField val parity: Int)
+    private class Tile(@JvmField val col: Color, @JvmField val col2: Color, @JvmField val ground: Color, @JvmField var z: Float, @JvmField val parity: Int) {
+        @JvmField val kerb = Color()
+        @JvmField val light = Color()
+        @JvmField var kerbStyle = BiomeLook.KERB_PLAIN
+    }
     private class Post(@JvmField val col: Color, @JvmField val col2: Color, @JvmField val col3: Color, @JvmField var z: Float, @JvmField var x: Float, @JvmField var style: Int, @JvmField var h: Float, @JvmField var seed: Float, @JvmField var kind: Int)
     private class Streak(@JvmField var x: Float, @JvmField var y: Float, @JvmField var z: Float, @JvmField var len: Float)
     private class Gate(@JvmField var z: Float, @JvmField val col: Color, @JvmField var passed: Boolean = false, @JvmField var held: Boolean = false, @JvmField val start: Boolean = false)
@@ -53,6 +63,9 @@ class Scenery(private val game: Gdx3DGame, private val rnd: Random) {
     /** Outer Space (null outside a run's reach): the land falls away under it, the road takes its colours. */
     var space: cube.run.game.space.SpaceWorld? = null
     private val tileA = Color(); private val tileB = Color()
+    private val kerbB = Color()
+    /** The biome around the road, beyond the roadside. */
+    val biome = BiomeScene(game)
     private var dropY = 0f          // how far the land (and everything on it) has fallen away
 
     private val laneW: Float get() = Lanes.NORMAL_W
@@ -62,7 +75,13 @@ class Scenery(private val game: Gdx3DGame, private val rnd: Random) {
         hsvInto(t.col, world.floorH, world.floorS, world.floorAltV)
         hsvInto(t.col2, world.floorH + 14f, world.floorS, world.floorV)
         // the land the road runs through: the same family, quieter, striped with the tiles
-        hsvInto(t.ground, world.floorH - 22f, world.floorS * 0.6f, world.floorAltV * (if (t.parity == 0) 0.8f else 0.74f))
+        val look = biome.lookOf(world)
+        look.ground(t.ground, t.parity)
+        // the road's edge, in the biome's style
+        t.kerbStyle = look.kerb
+        look.kerbColors(t.kerb, kerbB)
+        if (t.kerbStyle == BiomeLook.KERB_LIGHTS) t.light.set(kerbB)
+        else if (t.parity == 1) t.kerb.set(kerbB)
     }
 
     private fun seedPost(p: Post) {
@@ -74,14 +93,14 @@ class Scenery(private val game: Gdx3DGame, private val rnd: Random) {
             Worlds.CRYSTALS -> 1.8f + rnd.nextFloat() * 2.4f
             Worlds.SPIKES -> 1.6f + rnd.nextFloat() * 1.2f
             Worlds.CACTI -> 1.8f + rnd.nextFloat() * 1f
-            Worlds.RINGS -> 2f + rnd.nextFloat() * 2.5f
+            Worlds.RINGS -> 1.6f + rnd.nextFloat() * 1.2f
             else -> 0.9f + rnd.nextFloat() * 0.8f
         }
         hsvInto(p.col, world.postH, world.postS, world.postV)
-        hsvInto(p.col2, world.postH + 50f + p.seed * 60f, world.postS, world.postV)
+        hsvInto(p.col2, world.postH + (if (world.deco == Worlds.CRYSTALS) 18f + p.seed * 18f else 50f + p.seed * 60f), world.postS, world.postV) // lava stays hot
         hsvInto(p.col3, world.postH + 130f + p.seed * 40f, world.postS * 0.9f, world.postV)
         val side = if (p.x < 0f) -1f else 1f
-        p.x = side * (laneW * 2.5f + 1.1f + (if (world.deco == Worlds.TOWERS || world.deco == Worlds.RINGS) rnd.nextFloat() * 2.5f else rnd.nextFloat() * 0.6f))
+        p.x = side * (laneW * 2.5f + 1.1f + (if (world.deco == Worlds.TOWERS) rnd.nextFloat() * 2.5f else rnd.nextFloat() * 0.6f))
     }
 
     private fun seedStreak(s: Streak) {
@@ -91,9 +110,10 @@ class Scenery(private val game: Gdx3DGame, private val rnd: Random) {
         s.len = 3f + rnd.nextFloat() * 5f
     }
 
-    fun init(world: Worlds.World) {
+    fun init(world: Worlds.World, seed: Int = Random.nextInt()) { // never the course's random numbers
         tiles.clear(); posts.clear(); streaks.clear(); gates.clear()
         this.world = world
+        biome.init(world, seed)
         for (r in 0 until tileRows) {
             val t = Tile(Color(), Color(), Color(), 8f - r * tileD, r % 2)
             paintTile(t)
@@ -112,7 +132,19 @@ class Scenery(private val game: Gdx3DGame, private val rnd: Random) {
     }
 
     /** Pieces born from now on take this world's colours and style. */
-    fun setWorld(world: Worlds.World) { this.world = world }
+    fun setWorld(world: Worlds.World) { this.world = world; biome.setWorld(world) }
+
+    /** The player passed the gate into [world]: its horizon, weather and sky take over. */
+    fun enter(world: Worlds.World) = biome.enter(world)
+
+    /** Drift the biome's weather and ease its sky ([mv]: this frame's road movement). */
+    fun tick(dt: Float, mv: Float) = biome.tick(dt, mv)
+
+    /** The biome's sunbursts (world shapes pass, unbent). [amount]: how much of the world is showing. */
+    fun renderShapes(shapes: ShapeRenderer, time: Float, amount: Float) = biome.renderShapes(shapes, time, dropY, amount)
+
+    /** The biome's painted sky, behind everything. */
+    fun renderBackdrop(shapes: ShapeRenderer, cam: Camera, time: Float, amount: Float) = biome.renderBackdrop(shapes, cam, time, dropY, amount)
 
     /** Drop a gate at the horizon in [col]: the doorway to the next world. */
     fun spawnGate(col: Color) { gates.add(Gate(-102f, Color(col))) }
@@ -143,6 +175,7 @@ class Scenery(private val game: Gdx3DGame, private val rnd: Random) {
             p.z += mv
             if (p.z > 8f) { p.z -= postPairs * postGap; seedPost(p) }
         }
+        biome.scroll(mv)
         for (s in streaks) { // wind streaks fly past faster than the world (parallax sells the speed)
             s.z += mv * 1.6f
             if (s.z > 10f) { s.z = -90f - rnd.nextFloat() * 30f; seedStreak(s) }
@@ -165,9 +198,7 @@ class Scenery(private val game: Gdx3DGame, private val rnd: Random) {
      * out to the haze on both sides (what the roadside stands on).
      */
     fun renderRoad() {
-        hsvInto(edgeCol, world.floorH + 30f, world.floorS * 0.6f, 1f)
         val sp = space?.blend ?: 0f
-        space?.let { if (sp > 0f) it.kerb(edgeCol, edgeCol) }
         dropY = sp * sp * 70f // the ground falls away beneath the road
         val w = Lanes.w
         val u = Lanes.unfold
@@ -198,11 +229,33 @@ class Scenery(private val game: Gdx3DGame, private val rnd: Random) {
                 game.worldGround(-(1.5f * w + ow / 2f), -0.14f, t.z, ow, 0.26f, tileD, if (t.parity == 0) c1 else c2, fog)
                 game.worldGround(1.5f * w + ow / 2f, -0.14f, t.z, ow, 0.26f, tileD, if (t.parity == 0) c1 else c2, fog)
             }
-            game.worldGround(-kerb, -0.1f, t.z, 0.24f, 0.34f, tileD, edgeCol, fog)
-            game.worldGround(kerb, -0.1f, t.z, 0.24f, 0.34f, tileD, edgeCol, fog)
+            renderKerb(t, kerb, fog, sp)
             if (dropY < 60f) {
                 game.worldGround(-landX, -0.16f - dropY, t.z, landW, 0.3f, tileD, t.ground, fog)
                 game.worldGround(landX, -0.16f - dropY, t.z, landW, 0.3f, tileD, t.ground, fog)
+            }
+        }
+    }
+
+    /** The road's edge on one tile row, both sides, in the style of the biome the row was born in. */
+    private fun renderKerb(t: Tile, x: Float, fog: Float, sp: Float) {
+        edgeCol.set(t.kerb)
+        if (sp > 0f) space!!.kerb(edgeCol, edgeCol)
+        when (t.kerbStyle) {
+            BiomeLook.KERB_BANK -> { // a lumpy bank, its inner edge where the kerb's is
+                val w = if (t.parity == 0) 0.5f else 0.42f
+                val h = if (t.parity == 0) 0.52f else 0.42f
+                val bx = x - 0.12f + w / 2f
+                game.worldGround(-bx, -0.1f + (h - 0.34f) / 2f, t.z, w, h, tileD, edgeCol, fog)
+                game.worldGround(bx, -0.1f + (h - 0.34f) / 2f, t.z, w, h, tileD, edgeCol, fog)
+            }
+            else -> {
+                game.worldGround(-x, -0.1f, t.z, 0.24f, 0.34f, tileD, edgeCol, fog)
+                game.worldGround(x, -0.1f, t.z, 0.24f, 0.34f, tileD, edgeCol, fog)
+                if (t.kerbStyle == BiomeLook.KERB_LIGHTS && t.parity == 0 && sp < 0.5f) { // a runway light on every other tile
+                    game.worldBox(-x, 0.19f, t.z, 0.2f, 0.12f, 0.5f, t.light, fog)
+                    game.worldBox(x, 0.19f, t.z, 0.2f, 0.12f, 0.5f, t.light, fog)
+                }
             }
         }
     }
@@ -217,6 +270,7 @@ class Scenery(private val game: Gdx3DGame, private val rnd: Random) {
     /** Everything beside and above the road: the roadside, the gates, the wind. [wind] 0..1 = how vivid the speed streaks are. */
     fun render(wind: Float, time: Float) {
         if (dropY < 60f) for (p in posts) renderPost(p, time)
+        biome.render(time, dropY)
         for (g in gates) renderGate(g, time)
         if (wind > 0f && dropY < 1f) { // faint at cruising speed, vivid near the ceiling (fog doubles as fade)
             for (s in streaks) {
@@ -280,17 +334,12 @@ class Scenery(private val game: Gdx3DGame, private val rnd: Random) {
                 postBox(x + 0.68f, p.h * 0.4f + 0.5f, z, 0.34f, 0.7f, 0.34f, p.col3, fog)
                 postSpin(x, p.h + 0.2f, z, 0.36f, 0.36f, 0.36f, time * 30f, p.col, fog)
             }
-            Worlds.RINGS -> { // a floating square frame, slowly turning, over a rock
-                val yaw = time * 25f + p.seed * 360f
-                val y = p.h + 0.3f * sin(time * 1.3f + p.seed * 6f)
-                val r = 1.1f
-                postSpin(x, y + r, z, 2 * r + 0.14f, 0.14f, 0.14f, yaw, p.col, fog)
-                postSpin(x, y - r, z, 2 * r + 0.14f, 0.14f, 0.14f, yaw, p.col, fog)
-                val rad = Math.toRadians(yaw.toDouble())
-                val dx = (r * Math.cos(rad)).toFloat(); val dz = (-r * Math.sin(rad)).toFloat()
-                postSpin(x + dx, y, z + dz, 0.14f, 2 * r - 0.14f, 0.14f, yaw, p.col, fog)
-                postSpin(x - dx, y, z - dz, 0.14f, 2 * r - 0.14f, 0.14f, yaw, p.col, fog)
-                postSpin(x, 0.35f, z, 0.7f, 0.7f, 0.7f, yaw * 0.5f, dark, fog)
+            Worlds.RINGS -> { // a moon-base light pylon: a white mast on a foot, its lamp blinking in turn
+                postBox(x, 0.15f, z, 0.8f, 0.3f, 0.8f, white, fog)
+                postBox(x, 0.3f + p.h / 2f, z, 0.24f, p.h, 0.24f, white, fog)
+                postBox(x, 0.3f + p.h + 0.04f, z, 0.6f, 0.08f, 0.6f, p.col2, fog)
+                val on = sin(time * 3f - z * 0.25f) > 0f // the lamps chase along the road
+                postSpin(x, 0.3f + p.h + 0.38f, z, 0.6f, 0.6f, 0.6f, time * 40f, if (on) p.col else white, fog)
             }
         }
     }

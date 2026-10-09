@@ -866,7 +866,7 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
         }
         space.tintSky(bgTop, bgBottom)
         when (scenery.scroll(mv)) {
-            Scenery.PASSED_WORLD -> worlds.gatePassed()?.let { fx.worldGate(worlds.gateColor()); rig.punch(0.7f); session.setWorld(it.name) }
+            Scenery.PASSED_WORLD -> worlds.gatePassed()?.let { scenery.enter(it); fx.worldGate(worlds.gateColor()); rig.punch(0.7f); session.setWorld(it.name) }
             Scenery.PASSED_START -> {
                 startGateRunT = runT
                 fx.startGate(player.trailCol())
@@ -878,6 +878,7 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
                 }
             }
         }
+        scenery.tick(dt, mv)
         if (live()) {
             track.speed = difficulty.speed() * runSkin.speedMultiplier
             track.spawn(mv, worldHue(), session.score, dt)
@@ -1081,6 +1082,7 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
         if (showcase.active && showcase.shop) showcase.renderShapes(shapes, time)
         else if (!showcase.active && !gift.active) {
             bendShapes(shapes, on = false) // the painted sky never bends
+            scenery.renderBackdrop(shapes, cam, time, opening.worldAmount)
             space.deco.render(shapes, cam, time)
             bendShapes(shapes, on = true)
         }
@@ -1091,6 +1093,7 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
         else if (showcase.active && !showcase.shop) showcase.renderShapes(shapes, time)
         else if (!showcase.active) {
             bendShapes(shapes, on = false)
+            scenery.renderShapes(shapes, time, opening.worldAmount)
             space.sky.renderShapes(shapes, time)
             bendShapes(shapes, on = true)
             trackArt.renderCues(shapes, track, opening.worldAmount, redPill.blend)

@@ -326,6 +326,9 @@ object FacetShapes {
     /** A box: centre, half-size, palette slot. */
     class Box(val x: Float, val y: Float, val z: Float, val hx: Float, val hy: Float, val hz: Float, val slot: Int = 0)
 
+    /** A toy built from [parts] (touching, never intersecting), drawn as one object: the roadside of the biomes. */
+    fun model(parts: List<Box>): FacetShape = boxes(parts)
+
     private fun boxes(parts: List<Box>): FacetShape {
         val out = Builder()
         val all = BooleanArray(6) { true }
