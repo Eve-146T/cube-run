@@ -27,6 +27,8 @@ import kotlin.math.sin
 import kotlin.random.Random
 
 private val ZEN_INK = Color(.05f, .05f, .06f, 1f)
+/** What a cube fades to as it drops into a void. */
+private val DARK = Color(.02f, .015f, .035f, 1f)
 
 /**
  * The player: lane, jump/roll physics, the tumbling pose, and its look (the
@@ -48,6 +50,8 @@ class Player(private val game: Gdx3DGame, private val rnd: Random) {
         const val LOW_G_LAUNCH = 0.786f
         /** Outer Space: lane changes glide a little (13 on the ground). */
         const val LOW_G_LANE_RATE = 10f
+        /** A falling cube's forward tumble settles to this (degrees per second). */
+        const val FALL_TUMBLE = 260f
         const val EV_NONE = 0
         const val EV_LANDED = 1
         const val EV_SIDE_HIT = 2   // ran into the side of a platform
@@ -105,6 +109,23 @@ class Player(private val game: Gdx3DGame, private val rnd: Random) {
     private var trailK = 0          // emission counter (trail colour rules)
     private var stretch = 0f        // vertical stretch after a bounce launch
 
+    /** Lost the road: no ground, sideways momentum, the tumble carried on (see [fall]). */
+    var falling = false
+        private set
+    /** Outer Space: swiped off the road's edge. The cube glides on past the kerb and drops. */
+    var steppedOff = false
+        private set
+    private var vx = 0f             // sideways speed while falling
+    private var rollRate = 0f       // forward tumble (degrees/s) carried into the fall
+    private var tiltAtFall = 0f     // the lean the fall started from
+    private var fallTilt = 0f       // sideways tumble gathered since
+    private var fallTiltRate = 0f
+    private var fallGravity = 26f
+    private var fallMinX = -1e9f    // a pit's walls (the cube stays inside the hole it fell into)
+    private var fallMaxX = 1e9f
+    /** 0..1: how far the cube has sunk into darkness (a tar pit's depths). */
+    var dim = 0f
+
     /** Collision extents. Rolling tucks the head below the bars. */
     val cubeBottom: Float get() = py - 0.45f
     val headY: Float get() = py + 0.45f - duck * 0.72f
@@ -158,6 +179,8 @@ class Player(private val game: Gdx3DGame, private val rnd: Random) {
         lane = 1; px = 0f; py = ground; air = false
         duck = 0f; nudge = 0f; vy = 0f; roll = 0f; squash = 0f; duckT = 0f
         slamming = false; coyoteLeft = 0f; jumpBuffer = 0f; trailT = 0f; trailK = 0; stretch = 0f
+        falling = false; steppedOff = false; vx = 0f; rollRate = 0f; fallTilt = 0f; fallTiltRate = 0f; dim = 0f
+        fallMinX = -1e9f; fallMaxX = 1e9f
         idleT = 0f; idleYaw = 0f; idleMix = 0f; quietLanding = false
         menuX = 0f; menuY = ground; menuYaw = 0f; menuSpin = 0f
         voidEmissiveSaved = false
@@ -226,6 +249,46 @@ class Player(private val game: Gdx3DGame, private val rnd: Random) {
         } else SoundFx.play("whoosh", rate = 0.95f + rnd.nextFloat() * 0.15f)
         Haptics.tick()
         return true
+    }
+
+    /**
+     * Outer Space has no walls: a swipe past the last lane carries the cube on
+     * toward where a lane would be, over the kerb and off the road.
+     */
+    fun stepOff(dir: Int) {
+        steppedOff = true
+        lane = if (dir < 0) -1 else Lanes.count
+        SoundFx.play("whoosh", rate = 0.95f + rnd.nextFloat() * 0.15f)
+        Haptics.tick()
+    }
+
+    /** Sideways speed right now: the lane glide, or the fall's drift. */
+    val lateralVelocity: Float
+        get() = if (falling) vx else if (zappyEnabled) 0f else (laneX(lane) - px) * (if (hover) 4.5f else if (lowGravity) LOW_G_LANE_RATE else 13f)
+
+    /**
+     * The ground is gone. Everything the cube was doing carries on: its
+     * height and vertical speed, its lean, its sideways glide ([vx]) and the
+     * forward tumble of a cube rolling at [speed]. From here it only falls,
+     * under [gravity].
+     * [minX]..[maxX] are a pit's walls, which keep it inside the hole.
+     */
+    fun fall(speed: Float, vx: Float, gravity: Float, minX: Float = -1e9f, maxX: Float = 1e9f) {
+        if (falling) return
+        falling = true
+        fallGravity = gravity
+        clearJumpInput()
+        airJumpAvailable = false
+        if (!air) { air = true; vy = 0f }
+        slamming = false; duckT = 0f
+        this.vx = vx
+        fallMinX = minX; fallMaxX = maxX
+        rollRate = speed * 42f + (if (lowGravity) 105f else 160f)
+        tiltAtFall = ((laneX(lane) - px) * -22f).coerceIn(-32f, 32f)
+        fallTilt = 0f
+        // Tipping over a side edge turns the cube about that edge as well; straight down, it
+        // still wobbles a little sideways, so the tumble reads in 3D.
+        fallTiltRate = if (kotlin.math.abs(vx) > 1f) (-vx * 55f).coerceIn(-320f, 320f) else 70f * (if (rnd.nextBoolean()) 1f else -1f)
     }
 
     fun bonk(dir: Int) {
@@ -341,12 +404,22 @@ class Player(private val game: Gdx3DGame, private val rnd: Random) {
         jumpBuffer = max(0f, jumpBuffer - dt)
         val gy = ground + groundH
         // Teleports stay centred while a portal animates lane spacing; ordinary skins ease.
-        if (zappyEnabled) px = laneX(lane)
+        if (falling) {
+            px += vx * dt
+            vx *= max(0f, 1f - 2.4f * dt)
+            if (px < fallMinX) { px += (fallMinX - px) * min(1f, dt * 14f); vx = max(vx, 0f) }
+            if (px > fallMaxX) { px += (fallMaxX - px) * min(1f, dt * 14f); vx = min(vx, 0f) }
+            fallTilt += fallTiltRate * dt
+            rollRate += (FALL_TUMBLE - rollRate) * min(1f, dt * 2.5f) // a blur at speed settles to a tumble you can follow
+        } else if (zappyEnabled) px = laneX(lane)
         else px += (laneX(lane) - px) * min(1f, dt * (if (hover) 4.5f else if (lowGravity) LOW_G_LANE_RATE else 13f))
         nudge *= max(0f, 1f - 10f * dt)
         // A portal changes the underlying world, not an active jetpack's altitude.
         // Keep hover set so flight expiry naturally returns to the floating road.
-        if (flying) {
+        if (falling) {
+            vy -= fallGravity * dt
+            py += vy * dt
+        } else if (flying) {
             clearJumpInput()
             py += (flyY - py) * min(1f, dt * (if (flyY < FLY_Y) 7f else 4f)) // quick to climb, tight on the glide down
         } else if (hover) {
@@ -386,14 +459,15 @@ class Player(private val game: Gdx3DGame, private val rnd: Random) {
         if (duckT > 0f) duckT = max(0f, duckT - dt)
         val duckTarget = if (duckT > 0f && !air) 1f else 0f
         duck += (duckTarget - duck) * min(1f, dt * 18f)
-        val idle = mv == 0f && !flying && !hover
+        val idle = mv == 0f && !flying && !hover && !falling
         idleMix += ((if (idle) 1f else 0f) - idleMix) * min(1f, dt * 4f)
-        roll += mv * 42f + (if (air && !idle) (if (lowGravity) 105f else 160f) * dt else 0f) + duck * 260f * dt // tumble; flip in air (a lazy one in space), fast roll while ducking
+        roll += if (falling) rollRate * dt // the tumble carries on: the road stopping does not stop the cube
+            else mv * 42f + (if (air && !idle) (if (lowGravity) 105f else 160f) * dt else 0f) + duck * 260f * dt // tumble; flip in air (a lazy one in space), fast roll while ducking
         if (roll > 360f) roll -= 360f
         // a rolling cube rides up over its corners: lift it so it never sinks into the floor (no jitter, a real roll)
         val ra = Math.toRadians((roll % 90f).toDouble())
         val lift = if (air || flying) 0f else (0.45f * (kotlin.math.abs(kotlin.math.cos(ra)) + kotlin.math.abs(kotlin.math.sin(ra))).toFloat() - 0.45f) * (1f - duck)
-        val tilt = ((laneX(lane) - px) * -22f).coerceIn(-32f, 32f)
+        val tilt = if (falling) tiltAtFall + fallTilt else ((laneX(lane) - px) * -22f).coerceIn(-32f, 32f)
         val sq = squash * 0.3f
         val st = stretch * stretch * 0.35f
         val duY = duck * 0.20f - lift // hug the ground while rolling
@@ -402,6 +476,7 @@ class Player(private val game: Gdx3DGame, private val rnd: Random) {
         hsvInto(col, skin.hueAt(time, baseHue), skin.sat, skin.valueAt(time))
         visualTime = time
         hsvInto(shellCol, skin.hueAt(time, baseHue), skin.sat * 0.9f, 1f)
+        if (dim > 0f) { col.lerp(DARK, dim); shellCol.lerp(DARK, dim) }
         openingMaterial(skin.opacity + (1f - skin.opacity) * spentMix, (if (skin.id == 13) 1f + 0.6f * spentMix else 0f))
         val breathe = 1f + 0.03f * idleMix * sin(time * 2.4f)
         inst.transform.setToTranslation(px + nudge, py - squash * 0.08f - duY, 0f)
@@ -411,7 +486,7 @@ class Player(private val game: Gdx3DGame, private val rnd: Random) {
             .scale(breathe, 1f / breathe, breathe)
             .scale(0.9f * (1f + sq + duck * 0.35f - st * 0.5f), 0.9f * (1f - sq + st) * (1f - duck * 0.5f), 0.9f * (1f + sq + duck * 0.1f - st * 0.5f))
         val pulse = glowScale(time)
-        shellBlend.opacity = shellOpacity(time) * (1f - spentMix)
+        shellBlend.opacity = shellOpacity(time) * (1f - spentMix) * (1f - dim)
         shellInst.transform.setToTranslation(px + nudge, py - duY, 0f)
             .rotate(Vector3.Y, idleYaw * idleMix).rotate(Vector3.Z, tilt).rotate(Vector3.X, -roll)
             .scale(pulse, pulse, pulse)

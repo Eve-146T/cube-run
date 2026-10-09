@@ -1,6 +1,7 @@
 package cube.run.game
 
 import com.badlogic.gdx.graphics.PerspectiveCamera
+import com.badlogic.gdx.math.Vector3
 import cube.run.intro.OpeningPose
 import kotlin.math.max
 import kotlin.math.min
@@ -40,12 +41,43 @@ class RunCamera(private val cam: PerspectiveCamera) {
         val g = Terrain.y(0f)
         val cy = OpeningPose.MENU_CAMERA_Y + lift * 0.3f * (1f - f) + f * 9.5f + deathT * 1.6f - intro * 1.9f + wide * 1.4f + g * 0.8f
         cam.position.set(px * (0.45f - 0.15f * f), cy, OpeningPose.MENU_CAMERA_Z + f * 1.2f + deathT * 2.2f + dolly - intro * 2.6f + wide * 2.2f)
-        cam.lookAt(px * (0.55f - 0.15f * f), OpeningPose.MENU_TARGET_Y + lift * 0.5f * (1f - f) + f * 1.6f + intro * 0.4f + g * 0.5f + Terrain.y(-8f) * 0.4f, OpeningPose.MENU_TARGET_Z - f * 6f + intro * 6f)
+        look.set(px * (0.55f - 0.15f * f), OpeningPose.MENU_TARGET_Y + lift * 0.5f * (1f - f) + f * 1.6f + intro * 0.4f + g * 0.5f + Terrain.y(-8f) * 0.4f, OpeningPose.MENU_TARGET_Z - f * 6f + intro * 6f)
+        cam.lookAt(look)
         val rr = Math.toRadians(roll.toDouble())
         cam.up.set(kotlin.math.sin(rr).toFloat(), kotlin.math.cos(rr).toFloat(), 0f)
         kick = max(0f, kick - dt * 2.2f)
         cam.fieldOfView = 60f + max(0f, spd - 10f) * 0.42f + kick * kick * 9f
     }
+
+    private val look = Vector3()
+
+    /**
+     * After [chase]: the cube has lost the road. The camera carries on [coast]
+     * further than the cube did and eases sideways after it, still looking
+     * down the road; it only tips down (and turns) as far as it must to keep
+     * the falling cube at ([x], [y]) in the lower part of the frame — never
+     * steeper than [maxDip] radians below level — after which the cube drops
+     * away out of the bottom. [amount] 0..1 eases this in.
+     */
+    fun watchFall(x: Float, y: Float, coast: Float, amount: Float, maxDip: Float) {
+        cam.position.z -= coast
+        cam.position.x += (x * 0.75f - cam.position.x) * amount
+        cam.position.y += 0.4f * amount
+        look.z -= coast
+        val p = cam.position
+        val roadPitch = pitchTo(look.x - p.x, look.y - p.y, look.z - p.z)
+        val roadYaw = kotlin.math.atan2(look.x - p.x, p.z - look.z)
+        val cubePitch = pitchTo(x - p.x, y - p.y, -p.z)
+        val cubeYaw = kotlin.math.atan2(x - p.x, p.z)
+        val halfV = Math.toRadians(cam.fieldOfView / 2.0).toFloat()
+        val halfH = kotlin.math.atan(kotlin.math.tan(halfV) * cam.viewportWidth / cam.viewportHeight.coerceAtLeast(1f))
+        val pitch = roadPitch + (min(roadPitch, cubePitch + 0.55f * halfV).coerceAtLeast(-maxDip) - roadPitch) * amount
+        val yaw = roadYaw + (cubeYaw.coerceIn(roadYaw - 0.25f * halfH, roadYaw + 0.25f * halfH) - roadYaw) * amount
+        val c = kotlin.math.cos(pitch)
+        cam.direction.set(c * kotlin.math.sin(yaw), kotlin.math.sin(pitch), -c * kotlin.math.cos(yaw))
+    }
+
+    private fun pitchTo(dx: Float, dy: Float, dz: Float) = kotlin.math.atan2(dy, kotlin.math.sqrt(dx * dx + dz * dz))
 
     /** The wardrobe: the cube at [fraction] of the screen (centred by default), a little above eye level. [wide] pulls back for the trail demo. */
     fun wardrobe(wide: Float, fraction: Float = 0.5f) =

@@ -62,6 +62,17 @@ class RunFx(private val game: Gdx3DGame, private val rnd: Random) {
         game.flash(Color.RED, 0.45f)
     }
 
+    /**
+     * The cube lost the road: no bang, no flash — a low rush of air as it
+     * tips over, and a few flecks of the pit's [lip] (none off a road's edge).
+     */
+    fun loseRoad(px: Float, py: Float, lip: Color?) {
+        SoundFx.play("whoosh", rate = 0.55f, vol = 0.45f)
+        SoundFx.play("fall", vol = 0.5f)
+        Haptics.heavy()
+        if (lip != null) game.burst3d(tmp.set(px, 0.05f, -0.3f), lip, n = 8, speed = 2.4f, size = 0.07f, life = 0.45f)
+    }
+
     /** The bubble hoisted you onto a platform you ran into. */
     fun hoist() {
         SoundFx.play("perfect", rate = 1.2f)

@@ -136,6 +136,7 @@ object SoundFx {
         "moonjump" to moonJump(),
         "moonland" to moonLand(),
         "flyby" to flyby(),
+        "fall" to fall(),
         "stardust" to stardust(),
         "hum" to hum(),
         "bell" to synth(1400, vol = 0.8) { t, p -> // a singing bowl: a soft strike and inharmonic partials ringing out
@@ -256,6 +257,22 @@ object SoundFx {
             phase += (130.0 - 60.0 * p) / SR
             acc += 0.05 * (noise() - acc)
             (sin(phase * TAU) * 0.8 + acc * 0.7) * decay(p, 5.5)
+        }
+    }
+
+    /**
+     * Losing the road: one round note gliding down and away as the cube
+     * drops, over a breath of air. Soft (no harmonics, no strike), so it
+     * reads as distance, not as a crash.
+     */
+    private fun fall(): ShortArray {
+        var phase = 0.0
+        var acc = 0.0
+        return synth(1150) { _, p ->
+            phase += (460.0 * exp(-p * 1.5)) / SR
+            acc += 0.06 * (noise() - acc)
+            val env = min(1.0, p * 14.0) * (1.0 - p).pow(1.8)
+            (sin(phase * TAU) * 0.55 + acc * 0.5) * env
         }
     }
 
