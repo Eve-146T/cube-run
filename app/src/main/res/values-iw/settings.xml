@@ -13,4 +13,5 @@
     <string name="settings_volume">עוצמת קול</string>
     <string name="settings_start_speed">מהירות התחלה</string>
     <string name="settings_coins">מטבעות על הכביש</string>
+    <string name="settings_multiswipe">החלקות מרובות</string>
 </resources>

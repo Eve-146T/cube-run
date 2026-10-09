@@ -21,6 +21,10 @@ object Settings {
     /** Effective smooth-control state — always false while [SMOOTH_CONTROL_UI] is off. */
     val smoothControl: Boolean get() = SMOOTH_CONTROL_UI && smoothControlPref
 
+    /** Allow successive swipe actions without lifting the finger. */
+    @Volatile var multiSwipe: Boolean = false
+        private set
+
     /** Smooth-control sensitivity, 0..1 (higher = smaller finger movement per move). */
     @Volatile var smoothSensitivity: Float = 0.5f
         private set
@@ -112,6 +116,7 @@ object Settings {
 
     fun init(ctx: Context) {
         prefs = ctx.applicationContext.getSharedPreferences("settings", Context.MODE_PRIVATE)
+        multiSwipe = prefs.getBoolean("multi_swipe", false)
         smoothControlPref = prefs.getBoolean("smooth_control", false)
         smoothSensitivity = prefs.getFloat("smooth_sensitivity", 0.5f)
         soundEnabled = prefs.getBoolean("sound_enabled", true)
@@ -121,6 +126,11 @@ object Settings {
         startSpeedEnabled = prefs.getBoolean("start_speed_enabled", true)
         roadCoins = prefs.getBoolean("road_coins", true)
         if (prefs.contains("dev_mode")) prefs.edit().remove("dev_mode").apply() // was persisted once; never again
+    }
+
+    fun setMultiSwipe(v: Boolean) {
+        multiSwipe = v
+        prefs.edit().putBoolean("multi_swipe", v).apply()
     }
 
     fun setSmoothControl(v: Boolean) {

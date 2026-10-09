@@ -14,4 +14,5 @@
     <string name="settings_start_speed">Start speed</string>
     <string name="settings_coins">Coins on the road</string>
     <string name="settings_version" translatable="false">Cube Run %1$s</string>
+    <string name="settings_multiswipe">Multiswipe</string>
 </resources>

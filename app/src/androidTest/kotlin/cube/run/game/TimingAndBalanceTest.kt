@@ -189,13 +189,15 @@ class TimingAndBalanceTest {
                     assertEquals(count, sounds.size)
                 }
                 try {
+                    val game = Gdx.app.applicationListener as CubeRun
+                    Stage.paused = false; game.onTap(360f, 760f)
                     Stage.paused = true
                     Settings.setSoundEnabled(true)
                     cube.run.core.SoundFx.testObserver = { name, _, _, stream ->
                         if (name == "bubble_ready") { assertTrue(stream != 0); sounds.add(name) }
                     }
                     assertEquals("perk_safestart", Progress.FASTBUBBLES.key)
-                    val bubble = Bubble(Gdx.app.applicationListener as CubeRun)
+                    val bubble = Bubble(game)
                     for (level in 0..5) {
                         bubble.reset()
                         assertTrue(bubble.ready)

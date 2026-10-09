@@ -14,6 +14,9 @@ interface TouchListener {
 
     /** When true, the game interprets drags positionally instead of receiving flicks. */
     fun smoothSwipeEnabled(): Boolean = false
+
+    /** Allow multiple swipe segments during one touch. */
+    fun multiSwipeEnabled(): Boolean = false
 }
 
 /**
@@ -75,8 +78,8 @@ class TouchInput(
     private fun recognizeSwipe(fx: Float, fy: Float) {
         if (abs(fx - downX) >= tapSlop || abs(fy - downY) >= tapSlop) moved = true
         // smooth mode: the game interprets the drag positionally (in onDrag).
-        // classic mode: each threshold crossing starts a new swipe segment.
-        if (!listener.smoothSwipeEnabled()) {
+        // Multiswipe starts a new segment after every threshold crossing.
+        if (!listener.smoothSwipeEnabled() && (!swiped || listener.multiSwipeEnabled())) {
             val dx = fx - swipeX
             val dy = fy - swipeY
             if (abs(dx) > swipeDist || abs(dy) > swipeDist) {

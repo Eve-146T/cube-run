@@ -23,7 +23,7 @@ import cube.run.data.Settings
  * Settings, the one place for options: a bright page of white cards, each row
  * a small candy tile, a name and its control. Sound (tap the tile to mute,
  * drag the steps for volume) and vibration; the start speed (boost presses
- * made before the run) and coins on the road; the language (opens the
+ * made before the run), coins on the road and multiswipe; the language (opens the
  * language sheet); in debug builds, dev mode and the section explorer.
  * Everything re-reads [Settings] whenever the page is shown, so the pause
  * card's switches never leave it stale.
@@ -84,6 +84,8 @@ class SettingsView(
     private val coinGlyph = CoinGlyph()
     private val coinsTile = tile(coinGlyph, Theme.GOLD)
     private val coinsSwitch = CandySwitch(activity, ::dpf)
+    private val multiSwipeTile = tile(R.drawable.ic_multiswipe, Theme.CYAN)
+    private val multiSwipeSwitch = CandySwitch(activity, ::dpf)
     private val devTile = tile(R.drawable.ic_dev_on, Theme.ORANGE)
     private val devSwitch = CandySwitch(activity, ::dpf)
     private val flag = ImageView(activity).apply {
@@ -96,6 +98,7 @@ class SettingsView(
     private var shownSound: Boolean? = null
     private var shownHaptics: Boolean? = null
     private var shownCoins: Boolean? = null
+    private var shownMultiSwipe: Boolean? = null
     private var shownDev: Boolean? = null
     private var shownLanguage: String? = null
     private var shownStartSpeed: Int? = null
@@ -122,6 +125,9 @@ class SettingsView(
                 addView(speedBar, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(46f)).apply { topMargin = dp(6f) })
             },
             switchRow(coinsTile, activity.getString(R.string.settings_coins), coinsSwitch, { Settings.roadCoins }) { Settings.setRoadCoins(it) },
+            switchRow(multiSwipeTile, activity.getString(R.string.settings_multiswipe), multiSwipeSwitch, { Settings.multiSwipe }) {
+                Settings.setMultiSwipe(it)
+            }.apply { tag = "settings_multiswipe" },
         ))
         column.addView(card(
             row(tile(R.drawable.ic_language, Theme.CYAN), activity.getString(R.string.settings_language), LinearLayout(activity).apply {
@@ -241,6 +247,11 @@ class SettingsView(
             shownCoins = Settings.roadCoins
             paintTile(coinsTile, Settings.roadCoins, Theme.GOLD)
             coinGlyph.off = !Settings.roadCoins; coinsTile.invalidate()
+        }
+        multiSwipeSwitch.set(Settings.multiSwipe, animate)
+        if (shownMultiSwipe != Settings.multiSwipe) {
+            shownMultiSwipe = Settings.multiSwipe
+            paintTile(multiSwipeTile, Settings.multiSwipe, Theme.CYAN)
         }
         devSwitch.set(Settings.devMode, animate)
         if (shownDev != Settings.devMode) {

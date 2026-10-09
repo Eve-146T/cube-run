@@ -13,4 +13,5 @@
     <string name="settings_volume">Lautstärke</string>
     <string name="settings_start_speed">Starttempo</string>
     <string name="settings_coins">Münzen auf der Straße</string>
+    <string name="settings_multiswipe">Mehrfachwischen</string>
 </resources>

@@ -711,6 +711,7 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
     }
 
     override fun smoothSwipeEnabled(): Boolean = Settings.smoothControl
+    override fun multiSwipeEnabled(): Boolean = Settings.multiSwipe
 
     override fun onSwipe(dir: Int) {
         if (session.isOver || dead || jackpot.active || Stage.paused || gift.active || showcase.active) return
