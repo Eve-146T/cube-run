@@ -24,6 +24,8 @@ class BiomeDraw(private val game: Gdx3DGame) {
     var drop = 0f
     /** The whole scene's opacity. */
     var opacity = 1f
+    /** Stretches what is drawn upward from the ground (y = 0): the horizon's height, per biome. */
+    var tall = 1f
 
     /**
      * [shape] standing at ([x], [y], [z]) scaled [sx]/[sy]/[sz], turned [yaw] (then [pitch], [roll]).
@@ -35,7 +37,7 @@ class BiomeDraw(private val game: Gdx3DGame) {
         val o = opacity * alpha
         if (o <= 0.004f || fog >= 0.995f) return
         val ground = if (onLand) Terrain.y(z) - drop else 0f
-        game.facets.add(shape, x, y + ground, z, sx, sy, sz, yaw, pitch, roll, palette, fog, game.fogColor,
+        game.facets.add(shape, x, y * tall + ground, z, sx, sy * tall, sz, yaw, pitch, roll, palette, fog, game.fogColor,
             glow = glow, bands = bands, opacity = if (o >= 0.996f) 1f else o)
     }
 

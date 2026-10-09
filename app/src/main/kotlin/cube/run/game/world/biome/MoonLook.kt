@@ -115,6 +115,8 @@ class MoonLook(world: Worlds.World) : BiomeLook(world) {
         p.paint(0, 258f, 0.3f, 0.42f + r.nextFloat() * 0.1f); p.paint(1, 250f, 0.22f, 0.62f); p.paint(2, 0f, 0f, 1f)
     }
 
+    override val horizonTall = 1.6f
+
     override fun drawFar(d: BiomeDraw, p: Piece, haze: Float, time: Float) {
         d.add(BiomeToys.bigBall, p.x, p.y - p.s * 0.12f, p.z, p.s, p.s * (0.18f + p.seed * 0.1f), p.s * 0.7f, p.yaw, p.pal, haze * 0.8f, onLand = false, bands = HILL)
     }

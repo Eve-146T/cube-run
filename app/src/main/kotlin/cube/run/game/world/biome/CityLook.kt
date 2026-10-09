@@ -129,6 +129,8 @@ class CityLook(world: Worlds.World) : BiomeLook(world) {
         p.paint(0, 255f, 0.6f, 0.22f); p.paint(1, neon(r), 0.55f, 1f); p.paint(2, 0f, 0f, 1f)
     }
 
+    override val horizonTall = 1.8f
+
     override fun drawFar(d: BiomeDraw, p: Piece, haze: Float, time: Float) {
         d.add(skylines[p.kind], p.x, p.y - 4f, p.z, p.s, p.s * (0.3f + p.seed * 0.18f), p.s, p.yaw, p.pal, haze, glow = 0.15f, onLand = false)
     }

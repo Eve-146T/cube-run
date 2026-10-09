@@ -96,6 +96,8 @@ class DunesLook(world: Worlds.World) : BiomeLook(world) {
         if (p.kind == 1) { p.paint(0, 36f, 0.5f, 0.95f); p.paint(1, 48f, 0.8f, 1f) }
     }
 
+    override val horizonTall = 1.5f
+
     override fun drawFar(d: BiomeDraw, p: Piece, haze: Float, time: Float) {
         if (p.kind == 0) d.add(BiomeToys.bigBall, p.x, p.y - p.s * 0.22f, p.z, p.s, p.s * 0.34f, p.s * 0.7f, p.yaw, p.pal, haze, onLand = false, bands = DUNE)
         else d.add(pyramid, p.x, p.y - 6f, p.z, p.s, p.s * 0.62f, p.s, 45f + p.yaw, p.pal, haze, onLand = false)

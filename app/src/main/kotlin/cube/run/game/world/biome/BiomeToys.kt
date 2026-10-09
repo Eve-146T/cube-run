@@ -76,6 +76,22 @@ object BiomeToys {
         steps(0f, 0f, 0f, steps, 1f, 1f / steps, 1f) { if (it >= steps - cap) 1 else 0 }
     }
 
+    /**
+     * A mountain range: [n] stepped summits side by side, about 1 wide, the highest 0.5 tall (broad
+     * slopes, as mountains are), the others lower; the top [cap] of each summit's [steps] are slot 1
+     * (snow, a glowing crest).
+     */
+    fun range(seed: Int, n: Int, steps: Int, cap: Int): FacetShape = toy {
+        val r = Random(seed)
+        val top = r.nextInt(n)
+        for (k in 0 until n) {
+            val x = -0.5f + (k + 0.5f) / n + (r.nextFloat() - 0.5f) * 0.08f
+            val h = if (k == top) 0.5f else 0.24f + r.nextFloat() * 0.18f
+            val base = h * 2.1f
+            steps(x, 0f, (r.nextFloat() - 0.5f) * 0.2f, steps, base, base * 0.14f, h) { if (it >= steps - cap) 1 else 0 }
+        }
+    }
+
     /** A cluster of [n] lumps spread on the ground around the centre, ~1 across: clouds and bushes. */
     fun cluster(seed: Int, n: Int, flat: Float): FacetShape = toy {
         val r = Random(seed)

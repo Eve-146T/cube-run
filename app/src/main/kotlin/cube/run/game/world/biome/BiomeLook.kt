@@ -22,6 +22,8 @@ class Piece {
     var show = 0f
     /** Horizon shapes: 0 the far range, 1 the lower ridge in front of it ([BiomeScene.LAYERED]). */
     var layer = 0
+    /** Its place in its layer's list (a biome may leave the later horizon places empty). */
+    var index = 0
     var vx = 0f; var vy = 0f; var vz = 0f
     var life = 0f
     val pal = arrayOf(Color(), Color(), Color())
@@ -66,6 +68,10 @@ abstract class BiomeLook(val world: Worlds.World) {
     // ---- the horizon: big shapes drifting by slowly, far beyond the land
     abstract fun seedFar(p: Piece, r: Random)
     abstract fun drawFar(d: BiomeDraw, p: Piece, haze: Float, time: Float)
+    /** How much taller than wide the low panorama stands in this biome ([BiomeScene.LOW]). */
+    open val horizonTall = 1.7f
+    /** How many shapes its horizon holds (up to [BiomeScene.FAR_COUNT]): fewer leaves sky between them. */
+    open val farCount = BiomeScene.FAR_COUNT
 
     // ---- landmarks: one set piece at a time, sliding past at a distance
     open val landmarkKinds = 0

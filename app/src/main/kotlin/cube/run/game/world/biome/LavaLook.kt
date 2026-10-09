@@ -12,7 +12,7 @@ import kotlin.random.Random
  * Lava Caves: glowing crystals, bubbling lava pools and smoking vents on a
  * dark red land, stalactites hanging from a cave roof you never see,
  * volcanoes on the horizon under a burning glow, embers rising all round.
- * An erupting volcano, a lava fall or a giant crystal comes past.
+ * An erupting volcano, a lava fall or a cave mouth comes past.
  */
 class LavaLook(world: Worlds.World) : BiomeLook(world) {
 
@@ -39,7 +39,15 @@ class LavaLook(world: Worlds.World) : BiomeLook(world) {
         block(0.45f, -0.25f, 0.1f, 0.3f, 0.25f, 0.3f, 0)
         block(0.45f, -0.6f, 0.1f, 0.14f, 0.35f, 0.14f, 1)
     }
-    private val volcano = BiomeToys.peak(6, 1)
+    private val volcano = toy { // a stepped cone, its crater glowing, lava running down its face
+        val n = 6
+        val h = 0.45f / n // broad and low: a volcano, not a tower
+        for (i in 0 until n) {
+            val w = 1f - i * 0.15f
+            block(0f, i * h, 0f, w, h, w, if (i == n - 1) 1 else 0)
+            block((i % 2) * 0.06f - 0.03f, i * h, w / 2f + 0.006f, 0.11f, h, 0.012f, 2)
+        }
+    }
     private val spire = BiomeToys.peak(4, 1)
     private val cliff = toy {
         block(0f, 0f, 0f, 1f, 1f, 0.5f, 0)
@@ -76,12 +84,12 @@ class LavaLook(world: Worlds.World) : BiomeLook(world) {
 
     override fun seedProp(p: Piece, r: Random) {
         val roll = r.nextFloat()
-        p.kind = when { roll < 0.12f -> 4; roll < 0.45f -> 0; roll < 0.7f -> 1; roll < 0.87f -> 2; else -> 3 }
+        p.kind = when { roll < 0.07f -> 4; roll < 0.37f -> 0; roll < 0.67f -> 1; roll < 0.86f -> 2; else -> 3 }
         p.yaw = r.nextFloat() * 90f
         p.paint(0, 355f + r.nextFloat() * 15f, 0.65f, 0.45f + r.nextFloat() * 0.1f)
         p.paint(1, 28f + r.nextFloat() * 25f, 0.85f, 1f); p.paint(2, 10f, 0.75f, 0.62f)
         when (p.kind) {
-            0 -> { p.s = 3f + r.nextFloat() * 3f; p.x = clear(p.s * 0.6f, r, 12f); p.paint(0, 18f + r.nextFloat() * 20f, 0.85f, 1f); p.paint(1, 52f, 0.6f, 1f) }
+            0 -> { p.s = 2.6f + r.nextFloat() * 2.2f; p.x = clear(p.s * 0.6f, r, 12f); p.paint(0, 18f + r.nextFloat() * 20f, 0.85f, 1f); p.paint(1, 52f, 0.6f, 1f) }
             1 -> { p.s = 4f + r.nextFloat() * 3f; p.x = clear(p.s * 0.85f, r, 12f) }
             2 -> { p.s = 1.6f + r.nextFloat() * 1.4f; p.x = clear(p.s * 1.3f, r, 12f) }
             3 -> { p.s = 3f + r.nextFloat() * 2f; p.x = clear(p.s * 0.5f, r, 12f) }
@@ -118,18 +126,21 @@ class LavaLook(world: Worlds.World) : BiomeLook(world) {
     }
 
     override fun seedFar(p: Piece, r: Random) {
-        p.kind = if (r.nextFloat() < 0.6f) 0 else 1
-        p.x = BiomeToys.farX(p, r, 0.06f, 0.3f)
+        p.kind = if (r.nextFloat() < 0.8f) 0 else 1
+        p.x = BiomeToys.farX(p, r, 0.05f, 0.3f)
         p.s = if (p.kind == 0) 60f + r.nextFloat() * 50f else 22f + r.nextFloat() * 20f
-        p.yaw = r.nextFloat() * 30f
-        p.paint(0, 6f + r.nextFloat() * 12f, 0.72f, 0.62f); p.paint(1, 40f, 0.9f, 1f); p.paint(2, 0f, 0f, 1f)
+        p.yaw = 0f // the lava faces you
+        p.paint(0, 8f + r.nextFloat() * 10f, 0.78f, 0.78f + r.nextFloat() * 0.12f); p.paint(1, 48f, 0.85f, 1f); p.paint(2, 36f, 0.95f, 1f)
     }
+
+    override val horizonTall = 1.5f
+    override val farCount = 7
 
     override fun drawFar(d: BiomeDraw, p: Piece, haze: Float, time: Float) {
         if (p.kind == 0) {
-            val h = p.s * (0.5f + p.seed * 0.25f)
-            d.add(volcano, p.x, p.y - 6f, p.z, p.s, h, p.s, p.yaw, p.pal, haze * 0.7f, onLand = false)
-            d.add(ember, p.x, p.y - 6f + h + 1.2f, p.z, p.s * 0.08f, 1.2f, p.s * 0.08f, p.yaw, hot, haze * 0.5f,
+            val h = p.s * (1f + p.seed * 0.4f)
+            d.add(volcano, p.x, p.y - 6f, p.z, p.s, h, p.s, p.yaw, p.pal, haze * 0.4f, glow = 0.12f, onLand = false)
+            d.add(ember, p.x, p.y - 6f + h * 0.45f + 1.6f, p.z, p.s * 0.13f, 1.6f, p.s * 0.13f, p.yaw, hot, haze * 0.3f,
                 glow = 0.8f + 0.2f * sin(time * 2f + p.seed * 6f), onLand = false)
         } else d.add(spire, p.x, p.y - 6f, p.z, p.s, p.s * 2.4f, p.s, p.yaw, p.pal, haze, onLand = false)
     }
@@ -149,9 +160,9 @@ class LavaLook(world: Worlds.World) : BiomeLook(world) {
     override fun drawLandmark(d: BiomeDraw, p: Piece, haze: Float, time: Float) {
         when (p.kind) {
             0 -> { // an erupting volcano, lava bombs arcing out of it
-                val h = p.s * 0.8f
+                val h = p.s * 1.6f
                 d.add(volcano, p.x, -6f, p.z, p.s, h, p.s, 10f, p.pal, haze, onLand = false)
-                val top = h - 6f
+                val top = h * 0.45f - 6f // the crater (the model is 0.45 tall)
                 for (k in 0 until BOMBS) {
                     val t = (time * 0.45f + k / BOMBS.toFloat()) % 1f
                     val dir = (k * 0.61f % 1f - 0.5f) * 2f

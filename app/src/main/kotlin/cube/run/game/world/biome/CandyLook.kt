@@ -114,10 +114,12 @@ class CandyLook(world: Worlds.World) : BiomeLook(world) {
         if (p.kind == 2) { p.paint(0, 330f, 0.45f, 1f); p.paint(1, 355f, 0.8f, 1f); p.paint(2, 48f, 0.5f, 1f) } // a cupcake mountain
     }
 
+    override val horizonTall = 1.6f
+
     override fun drawFar(d: BiomeDraw, p: Piece, haze: Float, time: Float) {
         when (p.kind) {
-            2 -> d.add(cupcake, p.x, p.y - 8f, p.z, p.s, p.s * 0.8f, p.s, p.yaw, p.pal, haze * 0.6f, onLand = false)
-            else -> d.add(BiomeToys.bigBall, p.x, p.y - p.s * 0.3f, p.z, p.s * 0.75f, p.s * 0.6f, p.s * 0.75f, p.yaw, p.pal, haze * 0.6f,
+            2 -> d.add(cupcake, p.x, p.y - 8f, p.z, p.s, p.s * 0.8f, p.s, p.yaw, p.pal, haze * 0.35f, onLand = false)
+            else -> d.add(BiomeToys.bigBall, p.x, p.y - p.s * 0.3f, p.z, p.s * 0.75f, p.s * 0.6f, p.s * 0.75f, p.yaw, p.pal, haze * 0.35f,
                 onLand = false, bands = FROSTING)
         }
     }
@@ -185,7 +187,7 @@ class CandyLook(world: Worlds.World) : BiomeLook(world) {
 
     private companion object {
         const val CLOUDS = 5
-        val FROSTING = floatArrayOf(0.62f)
+        val FROSTING = floatArrayOf(0.7f)
         val PUFF = floatArrayOf(-0.35f)
         /** Pink, lemon, mint, sky, lilac, peach. */
         val CANDY = floatArrayOf(330f, 52f, 150f, 195f, 275f, 18f)

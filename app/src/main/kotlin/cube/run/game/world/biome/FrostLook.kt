@@ -44,7 +44,7 @@ class FrostLook(world: Worlds.World) : BiomeLook(world) {
         block(0f, 0f, 0.5f + 0.13f, 0.3f, 0.3f, 0.26f, 0) // the entrance
         block(0f, 0f, 0.5f + 0.26f + 0.01f, 0.18f, 0.2f, 0.02f, 1)
     }
-    private val mountain = BiomeToys.peak(8, 3)
+    private val ranges = List(3) { BiomeToys.range(60 + it, 3 + it % 2, 7, 3) }
     private val castle = toy {
         block(0f, 0f, 0f, 1f, 0.36f, 0.3f, 0) // the wall
         for (i in 0 until 5) block(-0.4f + i * 0.2f, 0.36f, 0f, 0.1f, 0.08f, 0.3f, 0) // battlements
@@ -59,7 +59,7 @@ class FrostLook(world: Worlds.World) : BiomeLook(world) {
     private val arch = toy { pixels(BiomeToys.arcRows(24, 0.7f, 2), 1f / 12f, 0.18f) }
     private val flake = BiomeToys.speck
 
-    override val shapes = listOf(pine, snowman, ice, rock, igloo, mountain, castle, arch, flake, BiomeToys.ball, BiomeToys.bigBall)
+    override val shapes = listOf(pine, snowman, ice, rock, igloo, castle, arch, flake, BiomeToys.ball, BiomeToys.bigBall)
 
     private val snow = arrayOf(Color(), Color(), Color())
     private val sunCol = Color()
@@ -96,14 +96,18 @@ class FrostLook(world: Worlds.World) : BiomeLook(world) {
     }
 
     override fun seedFar(p: Piece, r: Random) {
-        p.x = BiomeToys.farX(p, r, 0.05f, 0.3f)
-        p.s = 70f + r.nextFloat() * 70f
-        p.yaw = r.nextFloat() * 45f
-        p.paint(0, 220f + r.nextFloat() * 30f, 0.42f, 0.72f + r.nextFloat() * 0.14f); p.paint(1, 205f, 0.03f, 1f); p.paint(2, 0f, 0f, 1f)
+        p.kind = r.nextInt(ranges.size)
+        p.x = BiomeToys.farX(p, r, 0.04f, 0.3f)
+        p.s = 80f + r.nextFloat() * 60f
+        p.yaw = (r.nextFloat() - 0.5f) * 30f
+        p.paint(0, 228f + r.nextFloat() * 22f, 0.5f, 0.74f + r.nextFloat() * 0.14f); p.paint(1, 205f, 0.03f, 1f); p.paint(2, 0f, 0f, 1f)
     }
 
+    override val horizonTall = 1.6f
+    override val farCount = 7
+
     override fun drawFar(d: BiomeDraw, p: Piece, haze: Float, time: Float) {
-        d.add(mountain, p.x, p.y - 6f, p.z, p.s, p.s * (0.85f + p.seed * 0.5f), p.s, p.yaw, p.pal, haze * 0.6f, onLand = false)
+        d.add(ranges[p.kind], p.x, p.y - 6f, p.z, p.s, p.s * (0.8f + p.seed * 0.4f), p.s * 0.6f, p.yaw, p.pal, haze * 0.45f, onLand = false)
     }
 
     override val landmarkKinds = 3

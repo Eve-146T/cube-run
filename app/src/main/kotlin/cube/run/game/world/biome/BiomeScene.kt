@@ -71,7 +71,7 @@ class BiomeScene(private val game: Gdx3DGame) {
             farthest[side] = z + gap(l)
         }
         if (horizon != NONE) repeat(FAR_COUNT) { i ->
-            far.add(Piece().also { it.layer = if (horizon == LAYERED) i % 2 else 0; seedFar(it, l, farZ(i)); it.show = 1f })
+            far.add(Piece().also { it.index = i; it.layer = if (horizon == LAYERED) i % 2 else 0; seedFar(it, l, farZ(i)); it.show = 1f })
         }
         repeat(MOTE_POOL) { motes.add(Piece()) }
         for (i in 0 until l.motes) { // the scene starts with its weather already about
@@ -246,10 +246,13 @@ class BiomeScene(private val game: Gdx3DGame) {
         if (layers and FAR != 0) for (i in far.indices) {
             val p = far[i]
             val l = p.look ?: continue
+            if (p.index >= l.farCount) continue // this biome keeps its horizon sparser
             // horizon shapes never slide: they fade in where they come up, out where they leave, and swap at a gate by fading
             val travel = if (p.rate > 0f) smooth((p.z - FAR_SPAWN) / 30f) * smooth((FAR_NEAR - p.z) / 25f) else 1f
             draw.opacity = base * p.show * travel
+            draw.tall = if (horizon == LOW) l.horizonTall else 1f
             l.drawFar(draw, p, if (p.layer == 1) FAR_HAZE * 0.45f else FAR_HAZE, time)
+            draw.tall = 1f
         }
         if (layers and LANDMARKS != 0) for (i in landmarks.indices) {
             val p = landmarks[i]
