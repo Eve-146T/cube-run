@@ -46,7 +46,7 @@ class TrackRenderer(private val game: Gdx3DGame) {
     private val flameCol = Color()
     private val padTop = Color()
     private val rod = Color(0.32f, 0.28f, 0.4f, 1f)
-    /** On the glass road, a full-width pit is an open gap (see SpaceRifts), not a black slab. */
+    /** On the glass road every pit is an open hole into space (see SpaceRifts), not a black slab. */
     var glassRifts = false
     /** 0..1: coins near the camera shrink away (a cube falling through a rift must not be hidden behind them). */
     var coinFade = 0f
@@ -89,7 +89,7 @@ class TrackRenderer(private val game: Gdx3DGame) {
                     ob.type == ObType.PLAT -> renderPlatform(ob, r.z, fog, p)
                     ob.type == ObType.PAD -> renderPad(ob, r.z, fog, time, p)
                     ob.anim == ObAnim.PISTON && ob.sy < 0.03f -> {} // sunk into the floor
-                    ob.pit -> if (!glassRifts || ob.sx < cube.run.game.space.SpaceRifts.WIDE) renderPit(ob, r.z, fog, time, p, r.visualPhase)
+                    ob.pit -> if (!glassRifts) renderPit(ob, r.z, fog, time, p, r.visualPhase)
                     ob.anim == ObAnim.PENDULUM -> {
                         box(ob.x, ob.cy, r.z, ob.sx, ob.sy, ob.sz, cues.body(ob, ob.col), fog, p, false)
                         game.worldBox(ob.x * 0.5f, ob.top + 1.1f, r.z, abs(ob.x) + 0.16f, 0.16f, 0.16f, rod, fog) // the rod up to the beam
@@ -211,8 +211,7 @@ class TrackRenderer(private val game: Gdx3DGame) {
     /**
      * A pit the cube fell into is a real hole: the road is cut away round it
      * (see Scenery.renderRoad), its lip becomes a frame, and black walls run
-     * far down, so a cube can drop inside and be lost in the dark. Under the
-     * glass road there is only space, so there the hole stays open to it.
+     * far down, so a cube can drop inside and be lost in the dark.
      */
     private fun renderShaft(ob: Ob, z: Float, fog: Float) {
         if (ob.type == ObType.DECO) { // the lip as a frame round the opening
@@ -223,7 +222,6 @@ class TrackRenderer(private val game: Gdx3DGame) {
             game.worldBox(ob.x + hx - LIP / 2f, -0.01f, z, LIP, 0.06f, ob.sz, ob.col, fog)
             return
         }
-        if (glassRifts) return
         // Walls just inside the opening, so they hide the cut ends of the road.
         val hx = ob.sx / 2f - 0.05f; val hz = ob.sz / 2f - 0.05f
         val y = -SHAFT / 2f - 0.005f

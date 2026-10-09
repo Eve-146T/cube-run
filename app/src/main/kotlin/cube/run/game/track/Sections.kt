@@ -60,6 +60,13 @@ object Step {
     const val HW = 215
     const val CT = 216
 
+    /**
+     * Rows that, in Outer Space, lay one slice of a void in the glass: a rift
+     * across the road, or a window that leaves one lane as a bridge. A run of
+     * one code is one long void.
+     */
+    fun isVoidSlice(code: Int) = code == RF || code in 120..122
+
     /** Rows that carry a platform segment. */
     fun isPlatform(code: Int) = code in 130..142
 

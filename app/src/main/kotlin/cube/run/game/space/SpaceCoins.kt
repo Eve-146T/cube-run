@@ -6,8 +6,8 @@ import cube.run.game.track.Step
 
 /**
  * Space's own coin shapes, traced on the low-gravity arcs: the rift's one
- * long float, a ring's slow launch, a comet's weave, and a wider, higher arc
- * over anything you jump.
+ * long float, a line along a bridge over the void, a ring's slow launch, a
+ * comet's weave, and a wider, higher arc over anything you jump.
  */
 object SpaceCoins {
     /**
@@ -26,6 +26,12 @@ object SpaceCoins {
                     val u = k / n.toFloat() * 2f - 1f // −1 at the near lip … +1 at the far one
                     coins.add(Coin(x, 0.55f + 1.5f * (1f - u * u), near + (far - near) * k / n))
                 }
+            }
+            code in 120..122 -> { // a bridge over the void: one line of coins along it, laid by its first slice
+                if (continued) return true
+                val far = -SpaceSpacing.riftSpan(SpaceSpacing.riftSlices(speed))
+                val n = ((0.8f - far) / 1.6f).toInt()
+                for (k in 0..n) coins.add(Coin(x, 0.5f, 0.8f - k * 1.6f))
             }
             Step.isPad(code) -> { // the ring's arc at this speed: follow the launch and you take them all
                 for (k in 1..5) {

@@ -28,7 +28,7 @@ object SpaceSpacing {
      * the ground), so at speed the gap keeps the same time to react and arrive.
      */
     fun dodge(speed: Float) = max(DODGE, speed * 0.29f)
-    /** Between the slices of one rift: they overlap into a single chasm. */
+    /** Between the slices of one void (a rift, or a bridge's open lanes): they overlap into one. */
     const val RIFT_SLICE = 1.65f
     /** One slice's length along the road (a pit 1.7 deep). */
     private const val SLICE_DEPTH = 1.7f
@@ -63,7 +63,7 @@ object SpaceSpacing {
         val s = speed * 1.08f // the run may speed up a little while the row approaches
         return when {
             prevKind == -1 -> 0f
-            code == Step.RF && prevKind == Step.RF -> RIFT_SLICE
+            Step.isVoidSlice(code) && code == prevKind -> RIFT_SLICE
             code == Step.PORTAL || prevKind == Step.PORTAL -> 12f
             Step.isTall(code) && Step.isPad(prevKind) -> ringToHull(s)
             Step.isJump(prevKind) -> afterJump(s)

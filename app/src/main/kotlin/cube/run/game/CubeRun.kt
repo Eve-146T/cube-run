@@ -20,7 +20,6 @@ import cube.run.data.Scores
 import cube.run.data.Settings
 import cube.run.game.stage.GiftStage
 import cube.run.game.stage.Showcase
-import cube.run.game.space.SpaceRifts
 import cube.run.game.space.SpaceWorld
 import cube.run.game.track.Coin
 import cube.run.game.track.ZenDissolve
@@ -478,8 +477,8 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
         }
     }
 
-    /** A full-width pit on the glass road is an open rift, not tar. */
-    private fun isRift(ob: Ob) = space.blend > 0f && ob.sx >= SpaceRifts.WIDE
+    /** On the glass road every pit is an open hole into space (a rift, or the lanes beside a bridge), not tar. */
+    private fun isRift(ob: Ob) = space.blend > 0f && ob.pit
 
     /**
      * True when a pit at the cube's x is open beneath it and would take it: there
@@ -492,9 +491,9 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
             if (abs(row.z) >= 0.86f) continue
             for (ob in row.obs) {
                 if (!ob.pit || ob.type != ObType.SOLID || ob === phasedObstacle || ob.lateral(px) >= 0f) continue
-                // A rift's slices overlap into one chasm (each spans its whole depth); a tar pit
-                // opens over the footprint its collision uses.
-                if (isRift(ob)) { if (abs(row.z) < ob.sz / 2f) return true else continue }
+                // A hole in space opens under the cube's centre, and its slices overlap into one
+                // void (each spans its whole depth); a tar pit opens over the footprint its collision uses.
+                if (isRift(ob)) { if (abs(row.z) < ob.sz / 2f && abs(px - ob.x) < ob.sx / 2f) return true else continue }
                 if (abs(row.z) >= 0.82f) continue
                 // Tar only opens up when nothing would save the cube from it.
                 val saved = bubble.active || zen || Progress.revives > 0 ||
@@ -1044,8 +1043,8 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
             holeWalls(mv)
             if (player.update(dt, mv, time, worldHue(), trail = true, groundH = 0f, stream = spd * 0.55f) == Player.EV_STRUCK)
                 fx.struck(player.px, player.py, player.pz, player.struckSpeed, voidFall.pit?.col ?: space.neon)
-            // Down a tar shaft the cube sinks into darkness (on the glass road a pit opens onto space).
-            if (voidFall.kind == VoidFall.Kind.TAR && !trackArt.glassRifts) player.dim = ((0.2f - player.py) / 11f).coerceIn(0f, 1f)
+            // Down a tar shaft the cube sinks into darkness.
+            if (voidFall.kind == VoidFall.Kind.TAR) player.dim = ((0.2f - player.py) / 11f).coerceIn(0f, 1f)
         }
         bubble.update(dt, time, player.px + player.nudge, player.py + Terrain.y(0f))
         refreshJumpAbility()

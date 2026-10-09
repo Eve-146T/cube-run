@@ -138,7 +138,7 @@ class Track(private val rnd: Random, private val fx: ObstacleFactory) {
         var zLast = z
         while (z > spawnZ) {
             if (pendingSteps.isEmpty()) loadNextSection()
-            if (bonus == Bonus.SPACE && pendingSteps.first() == Step.RF && prevKind != Step.RF) lengthenRift()
+            if (bonus == Bonus.SPACE && Step.isVoidSlice(pendingSteps.first()) && prevKind != pendingSteps.first()) lengthenVoid()
             spawnStep(pendingSteps.removeFirst(), z, hue)
             zLast = z
             if (pendingSteps.isEmpty()) loadNextSection()
@@ -158,18 +158,19 @@ class Track(private val rnd: Random, private val fx: ObstacleFactory) {
             val gap = gapFor(code)
             if (spawnAcc >= gap) {
                 spawnAcc -= gap
-                if (bonus == Bonus.SPACE && code == Step.RF && prevKind != Step.RF) lengthenRift()
+                if (bonus == Bonus.SPACE && Step.isVoidSlice(code) && prevKind != code) lengthenVoid()
                 spawnStep(code, spawnZ, hue)
                 pendingSteps.removeFirst()
             } else break
         }
     }
 
-    /** A rift is beginning: give it as many slices as its length at this speed needs (see SpaceSpacing.riftSlices). */
-    private fun lengthenRift() {
+    /** A void is beginning in space: give it as many slices as its length at this speed needs (see SpaceSpacing.riftSlices). */
+    private fun lengthenVoid() {
+        val code = pendingSteps.first()
         var run = 0
-        for (c in pendingSteps) if (c == Step.RF) run++ else break
-        repeat(SpaceSpacing.riftSlices(speed) - run) { pendingSteps.addFirst(Step.RF) }
+        for (c in pendingSteps) if (c == code) run++ else break
+        repeat(SpaceSpacing.riftSlices(speed) - run) { pendingSteps.addFirst(code) }
     }
 
     /** Move every row toward the player, stream it in, advance the animated obstacles, drop rows that passed. */
@@ -449,8 +450,8 @@ class Track(private val rnd: Random, private val fx: ObstacleFactory) {
         }
         val row = Row(z, obs)
         row.safeLane = curSafe
-        // A rift's later slices continue the chasm: one hazard, one row of the stretch, one point.
-        val continued = code == Step.RF && prevKind == Step.RF
+        // A void's later slices continue it: one hazard, one row of the stretch, one point.
+        val continued = Step.isVoidSlice(code) && prevKind == code
         row.scoreless = continued
         layCoins(row, code, platLane, continued)
         layPickup(row, code)
