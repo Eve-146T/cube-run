@@ -72,6 +72,11 @@ abstract class BiomeLook(val world: Worlds.World) {
     open fun drawLandmark(d: BiomeDraw, p: Piece, haze: Float, time: Float) {}
     /** How far a landmark reaches from its centre (it leaves once that is off screen). */
     open fun landmarkReach(p: Piece): Float = p.s
+    /**
+     * May this landmark come over the road? Arches may (the road runs through their opening) and
+     * so may things high in the sky; everything else is kept [LANDMARK_CLEAR] clear of the road.
+     */
+    open fun landmarkOverRoad(p: Piece): Boolean = false
 
     // ---- weather: motes around the camera
     open val motes = 0
@@ -103,6 +108,8 @@ abstract class BiomeLook(val world: Worlds.World) {
     companion object {
         /** Props keep this far from the road's middle: past the roadside posts and any channel along the kerb. */
         const val CLEAR = 5.2f
+        /** How far a landmark's nearest reach keeps from the road's middle. */
+        const val LANDMARK_CLEAR = 14f
         const val KERB_PLAIN = 0
         /** Alternating colours, row by row (candy stripes, neon). */
         const val KERB_STRIPES = 1

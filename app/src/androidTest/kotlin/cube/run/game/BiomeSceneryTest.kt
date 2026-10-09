@@ -18,7 +18,11 @@ import cube.run.game.world.Scenery
 import cube.run.game.world.biome.BiomeScene
 import cube.run.ui.Hud
 import org.junit.Assert.assertTrue
+import org.junit.Assume.assumeTrue
 import org.junit.Test
+import android.graphics.Bitmap
+import android.view.View
+import java.io.File
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 
@@ -149,6 +153,53 @@ class BiomeSceneryTest {
         } finally {
             Stage.paused = false
             Lanes.reset()
+        }
+    }
+
+    /**
+     * Opt-in review captures (-e captureBiomes true): every biome's landmarks in turn, brought up
+     * the road to where they show best, from the run camera with the HUD hidden. Saved to the
+     * app's files/biome-review on the device.
+     */
+    @Test fun captureLandmarks() {
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
+        assumeTrue(InstrumentationRegistry.getArguments().getString("captureBiomes") == "true")
+        val context = instrumentation.targetContext
+        val directory = File(context.getExternalFilesDir(null), "biome-review").apply { mkdirs() }
+        val intent = Intent(context, GameActivity::class.java).putExtra(Hud.EXTRA_AUTOSTART, true)
+            .putExtra(Hud.EXTRA_IDLE_BOT, true).putExtra("dev", true).putExtra("section", 56) // a started run, no obstacles
+        try {
+            ActivityScenario.launch<GameActivity>(intent).use { scenario ->
+                SystemClock.sleep(2500)
+                scenario.onActivity { (field(it, GameActivity::class.java, "hud") as View).visibility = View.INVISIBLE }
+                for (world in Worlds.all) {
+                    var kinds = 0
+                    gl { game ->
+                        val scenery = field(game, CubeRun::class.java, "scenery") as Scenery
+                        kinds = scenery.biome.lookOf(world).landmarkKinds
+                    }
+                    for (kind in 0 until kinds) for (shot in 0..1) {
+                        gl { game ->
+                            Stage.paused = true
+                            val scenery = field(game, CubeRun::class.java, "scenery") as Scenery
+                            val biome = scenery.biome
+                            scenery.init(world, seed = 146)
+                            val worlds = field(game, CubeRun::class.java, "worlds") as cube.run.game.world.WorldRunner
+                            worlds.reset(world.id) // its sky, too
+                            BiomeScene::class.java.getDeclaredField("nextLandmark").apply { isAccessible = true }.setFloat(biome, 0f)
+                            BiomeScene::class.java.getDeclaredField("landmarkTurn").apply { isAccessible = true }.setInt(biome, kind)
+                            repeat(if (shot == 0) 28 else 50) { scenery.scroll(5f); scenery.tick(0.25f, 5f) }
+                            game.cam.position.set(0f, 3.8f, 6.4f); game.cam.lookAt(0f, 1f, -8f); game.cam.update()
+                        }
+                        SystemClock.sleep(500)
+                        val bitmap = instrumentation.uiAutomation.takeScreenshot()
+                        File(directory, "landmark-${world.id}-$kind-$shot.png").outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
+                        bitmap.recycle()
+                    }
+                }
+            }
+        } finally {
+            Stage.paused = false
         }
     }
 }

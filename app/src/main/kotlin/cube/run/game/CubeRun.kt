@@ -1073,6 +1073,7 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
         debris.render()
         zenDissolve.render()
         val wind = if (dead) 0f else ((spd - 13f) / 15f).coerceIn(0f, 1f)
+        scenery.biome.veil = redPill.blend
         scenery.render(if (player.flying) 1f else wind, time)
         if (backdrop) space.sky.render(time, if (dead) 0f else ((spd - 8f) / 20f).coerceIn(0f, 1f))
         if (jackpot.active) jackpot.render()

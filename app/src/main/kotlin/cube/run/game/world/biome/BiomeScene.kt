@@ -39,6 +39,8 @@ class BiomeScene(private val game: Gdx3DGame) {
     private var windPhase = 0f
     /** Which layers draw (tests measure them one by one): [SKY], [PROPS], [STREAMS], [FAR], [LANDMARKS], [MOTES]. */
     internal var layers = ALL
+    /** 0…1: the biome fades out of the picture (the Red Pill strips the world to its wireframe). */
+    var veil = 0f
 
     /** The world new props and landmarks are born for. */
     private var spawnLook: BiomeLook? = null
@@ -152,6 +154,7 @@ class BiomeScene(private val game: Gdx3DGame) {
             p.z = LANDMARK_SPAWN; p.rate = 0.5f; p.travelled = 0f; p.y = 0f; p.s = 1f
             p.seed = rnd.nextFloat()
             spawn.seedLandmark(p, rnd)
+            if (!spawn.landmarkOverRoad(p)) p.x = max(abs(p.x), spawn.landmarkReach(p) + BiomeLook.LANDMARK_CLEAR)
             p.x = abs(p.x) * landmarkSide
             landmarkSide = -landmarkSide
             landmarks.add(p)
@@ -196,12 +199,12 @@ class BiomeScene(private val game: Gdx3DGame) {
 
     /** Queue the biome's facets. [drop]: how far the land has fallen away (Outer Space hides the biome). */
     fun render(time: Float, drop: Float) {
-        if (drop >= 60f) return
+        if (drop >= 60f || veil >= 1f) return
         for (id in looks.indices) { // upload each biome's shapes before they first show
             val l = looks[id] ?: continue
             if (!prepared[id]) { prepared[id] = true; game.facets.prepare(*l.shapes.toTypedArray()) }
         }
-        val base = game.worldOpacity * (1f - drop / 60f)
+        val base = game.worldOpacity * (1f - drop / 60f) * (1f - veil)
         draw.drop = drop
         draw.opacity = base
         if (layers and SKY != 0) for (id in weight.indices) if (weight[id] > 0.004f) looks[id]?.drawSky(draw, weight[id], time)
@@ -248,7 +251,7 @@ class BiomeScene(private val game: Gdx3DGame) {
 
     /** Sunbursts and the like (world shapes pass, the sky's bend switched off). [amount]: how much of the world is showing. */
     fun renderShapes(shapes: ShapeRenderer, time: Float, drop: Float, amount: Float) {
-        val a = amount * (1f - drop / 60f)
+        val a = amount * (1f - drop / 60f) * (1f - veil)
         if (a <= 0.004f) return
         sky.beginWorld(shapes)
         for (id in weight.indices) if (weight[id] > 0.004f) looks[id]?.skyRays(sky, weight[id] * a, time)
@@ -257,7 +260,7 @@ class BiomeScene(private val game: Gdx3DGame) {
 
     /** Stars and glows painted behind everything. */
     fun renderBackdrop(shapes: ShapeRenderer, cam: Camera, time: Float, drop: Float, amount: Float) {
-        val a = amount * (1f - drop / 60f)
+        val a = amount * (1f - drop / 60f) * (1f - veil)
         if (a <= 0.004f) return
         sky.beginPlane(shapes, cam)
         for (id in weight.indices) if (weight[id] > 0.004f) looks[id]?.paintSky(sky, weight[id] * a, time)
@@ -287,7 +290,7 @@ class BiomeScene(private val game: Gdx3DGame) {
         const val FAR_COUNT = 12
         const val FAR_HAZE = 0.42f
         const val SINK = 70f
-        const val LANDMARK_SPAWN = -300f
+        const val LANDMARK_SPAWN = -340f
         const val LANDMARK_HAZE = 0.3f
         const val MOTE_POOL = 48
         /** The sky cross-fade at a gate (matches the WorldRunner's). */

@@ -2,7 +2,6 @@ package cube.run.game.world.biome
 
 import com.badlogic.gdx.graphics.Color
 import cube.run.core.gfx.FacetShape
-import cube.run.core.gfx.FacetShapes
 import cube.run.core.hsvInto
 import cube.run.data.Worlds
 import kotlin.math.cos
@@ -12,8 +11,8 @@ import kotlin.random.Random
 /**
  * Neon City at night: towers with lit windows crowding the land, a skyline
  * on the horizon under a big moon and stars, flying cars streaming past
- * overhead, a ferris wheel, a neon heart or a radio mast coming by. The
- * kerb is a neon stripe.
+ * overhead; a blimp, fireworks or a giant neon heart up over the street.
+ * The kerb is a neon stripe.
  */
 class CityLook(world: Worlds.World) : BiomeLook(world) {
 
@@ -70,17 +69,10 @@ class CityLook(world: Worlds.World) : BiomeLook(world) {
             }
         }
     }
-    private val wheel = FacetShapes.voxelRing(16, 0.86f, 1)
-    private val wheelLegs = toy {
-        for (s in intArrayOf(-1, 1)) for (i in 0 until 5) block(s * (0.05f + (4 - i) * 0.07f), i * 0.2f, 0f, 0.1f, 0.2f, 0.1f, 0)
-    }
     private val heart = toy {
-        pixels(listOf(".11.11.", "1111111", "1112111", ".11111.", "..111..", "...1..."), 1f / 7f, 0.1f, y0 = 1f)
-        block(0f, 0f, 0f, 0.06f, 1f, 0.06f, 0)
+        pixels(listOf(".11.11.", "1111111", "1112111", ".11111.", "..111..", "...1..."), 1f / 7f, 0.1f)
     }
-    private val mast = toy {
-        steps(0f, 0f, 0f, 6, 0.3f, 0.06f, 1f) { if (it % 2 == 0) 0 else 2 }
-    }
+    private val fin = toy { block(0f, -0.5f, 0f, 0.3f, 1f, 0.06f, 1); block(0f, -0.03f, 0f, 0.3f, 0.06f, 0.8f, 1) }
     private val car = toy {
         block(0f, 0f, 0f, 0.5f, 0.18f, 1f, 0)
         block(0f, 0.18f, 0.05f, 0.36f, 0.14f, 0.5f, 0)
@@ -89,16 +81,17 @@ class CityLook(world: Worlds.World) : BiomeLook(world) {
     }
 
     override val shapes: List<FacetShape> = towers.flatMap { listOf(it.body, it.lit) } +
-        listOf(billboard, wheel, wheelLegs, heart, mast, car, BiomeToys.cube, BiomeToys.bigBall) + skylines
+        listOf(billboard, fin, heart, car, BiomeToys.cube, BiomeToys.bigBall, BiomeToys.speck) + skylines
 
     private val moonPal = arrayOf(Color(), Color())
-    private val beacon = arrayOf(Color())
+    private val sign = arrayOf(Color(1f, 0.95f, 0.6f, 1f))
+    private val sparkPal = arrayOf(Color())
     private val star = Color()
     private val stars = FloatArray(STARS * 4).also {
         val r = Random(77)
         for (i in 0 until STARS) {
             it[i * 4] = (r.nextFloat() * 2f - 1f) * 1.3f; it[i * 4 + 1] = 0.3f + r.nextFloat() * 0.85f
-            it[i * 4 + 2] = 0.008f + r.nextFloat() * 0.012f; it[i * 4 + 3] = r.nextFloat() * 6.3f
+            it[i * 4 + 2] = 0.004f + r.nextFloat() * 0.005f; it[i * 4 + 3] = r.nextFloat() * 6.3f
         }
     }
 
@@ -130,46 +123,56 @@ class CityLook(world: Worlds.World) : BiomeLook(world) {
 
     override fun seedFar(p: Piece, r: Random) {
         p.kind = r.nextInt(skylines.size)
-        p.x = BiomeToys.farX(p, r, 0.05f, 0.3f)
-        p.s = 90f + r.nextFloat() * 60f
+        p.x = BiomeToys.farX(p, r, 0.1f, 0.32f)
+        p.s = 80f + r.nextFloat() * 50f
         p.yaw = (r.nextFloat() - 0.5f) * 20f
         p.paint(0, 255f, 0.6f, 0.22f); p.paint(1, neon(r), 0.55f, 1f); p.paint(2, 0f, 0f, 1f)
     }
 
     override fun drawFar(d: BiomeDraw, p: Piece, haze: Float, time: Float) {
-        d.add(skylines[p.kind], p.x, p.y - 4f, p.z, p.s, p.s * (0.7f + p.seed * 0.4f), p.s, p.yaw, p.pal, haze * 0.8f, glow = 0.15f, onLand = false)
+        d.add(skylines[p.kind], p.x, p.y - 4f, p.z, p.s, p.s * (0.3f + p.seed * 0.18f), p.s, p.yaw, p.pal, haze, glow = 0.15f, onLand = false)
     }
 
     override val landmarkKinds = 3
 
+    // The towers hide anything standing at street level, so the city's landmarks are up in the sky over the street.
     override fun seedLandmark(p: Piece, r: Random) {
-        p.x = 0.17f * 300f; p.rate = 0.5f
-        val n = neon(r); p.paint(0, 265f, 0.4f, 0.55f); p.paint(1, n, 0.75f, 1f); p.paint(2, n + 150f, 0.6f, 1f)
-        p.s = when (p.kind) { 0 -> 24f; 1 -> 22f; else -> 60f }
-    }
-
-    override fun drawLandmark(d: BiomeDraw, p: Piece, haze: Float, time: Float) {
+        p.x = 6f + r.nextFloat() * 8f; p.rate = 0.45f
+        val n = neon(r); p.paint(0, 265f, 0.35f, 0.75f); p.paint(1, n, 0.75f, 1f); p.paint(2, n + 150f, 0.6f, 1f)
         when (p.kind) {
-            0 -> { // a ferris wheel turning, its cabins hanging level
-                val r = p.s
-                d.add(wheelLegs, p.x, -2f, p.z, r * 2.2f, r * 1.1f, r, 0f, p.pal, haze, onLand = false)
-                d.add(wheel, p.x, r * 1.1f - 2f, p.z, r, r, r, 0f, p.pal, haze, glow = 0.3f, pitch = 90f, onLand = false)
-                for (k in 0 until CABINS) {
-                    val a = time * 0.14f + k * 6.2832f / CABINS
-                    d.add(BiomeToys.cube, p.x + cos(a) * r, r * 1.1f - 2f + sin(a) * r - 1.4f, p.z, 1.1f, 0f,
-                        p.pal, haze, glow = 0.5f, onLand = false)
-                }
-            }
-            1 -> d.add(heart, p.x, -2f, p.z, p.s, p.s, p.s, 0f, p.pal, haze, glow = 0.8f + 0.2f * sin(time * 5f), onLand = false)
-            else -> {
-                d.add(mast, p.x, -2f, p.z, p.s * 0.5f, p.s, p.s * 0.5f, 45f, p.pal, haze, onLand = false)
-                beacon[0].set(if (sin(time * 4f) > 0f) Color.RED else Color.WHITE)
-                d.add(BiomeToys.cube, p.x, p.s - 0.4f, p.z, 1.6f, 0f, beacon, haze, glow = 1f, onLand = false)
-            }
+            0 -> { p.s = 9f; p.y = 40f }   // a blimp with a glowing sign
+            1 -> { p.s = 1f; p.y = 46f }   // fireworks over the street
+            else -> { p.s = 26f; p.y = 30f } // a giant neon heart hanging in the sky
         }
     }
 
-    override fun landmarkReach(p: Piece) = if (p.kind == 0) p.s * 1.2f else p.s * 0.5f
+    override fun landmarkOverRoad(p: Piece) = true
+
+    override fun landmarkReach(p: Piece) = if (p.kind == 1) 30f else p.s * 1.2f
+
+    override fun drawLandmark(d: BiomeDraw, p: Piece, haze: Float, time: Float) {
+        when (p.kind) {
+            0 -> { // a blimp drifting over the street, its sign band glowing
+                val bob = sin(time * 0.6f) * 1.2f
+                d.add(BiomeToys.bigBall, p.x, p.y + bob, p.z, p.s * 2.4f, p.s, p.s, 0f, p.pal, haze, glow = 0.15f, onLand = false)
+                d.add(BiomeToys.cube, p.x, p.y + bob, p.z + 0.2f, p.s * 1.7f, p.s * 0.28f, p.s * 1.02f, 0f, sign, haze, glow = 0.9f + 0.1f * sin(time * 6f), onLand = false)
+                d.add(BiomeToys.cube, p.x, p.y + bob - p.s * 1.1f, p.z, p.s * 0.5f, p.s * 0.2f, p.s * 0.3f, 0f, p.pal, haze, onLand = false) // the gondola
+                d.add(fin, p.x - p.s * 2.4f, p.y + bob, p.z, p.s, 0f, p.pal, haze, onLand = false)
+            }
+            1 -> for (k in 0 until BURSTS) { // fireworks: sparks flying out of a point and falling away
+                val t = (time * 0.42f + k / BURSTS.toFloat()) % 1f
+                val cx = p.x + ((k * 7 % 5) - 2f) * 9f; val cy = p.y + (k * 3 % 4) * 6f; val cz = p.z - (k % 3) * 25f
+                sparkPal[0].set(p.pal[1 + k % 2])
+                val r = 4f + t * 16f
+                for (j in 0 until SPARKS) {
+                    val a = j * 6.2832f / SPARKS + k
+                    d.add(BiomeToys.speck, cx + cos(a) * r, cy + sin(a) * r - t * t * 9f, cz, 0.9f * (1f - t) + 0.2f, t * 200f,
+                        sparkPal, haze, glow = 1f, onLand = false, alpha = ((1f - t) * 3f).coerceAtMost(1f))
+                }
+            }
+            else -> d.add(heart, p.x, p.y, p.z, p.s, p.s, p.s, sin(time * 0.5f) * 12f, p.pal, haze, glow = 0.8f + 0.2f * sin(time * 5f), onLand = false)
+        }
+    }
 
     override val motes = 14
 
@@ -206,7 +209,8 @@ class CityLook(world: Worlds.World) : BiomeLook(world) {
     override fun kerbColors(a: Color, b: Color) { hsvInto(a, 315f, 0.75f, 1f); hsvInto(b, 185f, 0.75f, 1f) }
 
     private companion object {
-        const val CABINS = 8
+        const val BURSTS = 4
+        const val SPARKS = 10
         const val STARS = 36
         /** Pink, cyan, lemon, lime, violet, orange. */
         val NEON = floatArrayOf(315f, 185f, 55f, 110f, 275f, 25f)

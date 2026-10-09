@@ -126,13 +126,14 @@ class CandyLook(world: Worlds.World) : BiomeLook(world) {
 
     override fun seedLandmark(p: Piece, r: Random) {
         when (p.kind) {
-            0 -> { p.s = 70f; p.x = 0.16f * 300f; p.rate = 0.4f }          // a rainbow standing over the land
-            1 -> { p.s = 22f; p.x = 0.2f * 300f; p.rate = 0.5f; p.y = 22f } // a giant donut
-            else -> { p.s = 26f; p.x = 0.2f * 300f; p.rate = 0.5f; p.paint(0, candy(r), 0.55f, 1f); p.paint(1, candy(r) + 150f, 0.6f, 1f); p.paint(2, 0f, 0f, 1f) }
+            0 -> { p.s = 70f; p.x = 22f; p.rate = 0.4f }                    // a rainbow over the road: you drive under it
+            1 -> { p.s = 17f; p.x = 0.14f * 340f; p.rate = 0.4f; p.y = 17f } // a giant donut
+            else -> { p.s = 20f; p.x = 0.14f * 340f; p.rate = 0.4f; p.paint(0, candy(r), 0.55f, 1f); p.paint(1, candy(r) + 150f, 0.6f, 1f); p.paint(2, 0f, 0f, 1f) }
         }
     }
 
     override fun landmarkReach(p: Piece) = if (p.kind == 0) p.s else p.s * 0.8f
+    override fun landmarkOverRoad(p: Piece) = p.kind == 0
 
     override fun drawLandmark(d: BiomeDraw, p: Piece, haze: Float, time: Float) {
         when (p.kind) {

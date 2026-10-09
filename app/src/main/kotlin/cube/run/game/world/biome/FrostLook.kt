@@ -109,21 +109,23 @@ class FrostLook(world: Worlds.World) : BiomeLook(world) {
     override val landmarkKinds = 3
 
     override fun seedLandmark(p: Piece, r: Random) {
-        p.x = 0.17f * 300f; p.rate = 0.45f
+        p.x = 0.14f * 340f; p.rate = 0.4f
         when (p.kind) {
-            0 -> { p.s = 48f; p.paint(0, 195f, 0.25f, 1f); p.paint(1, 215f, 0.5f, 0.95f); p.paint(2, 210f, 0.6f, 0.6f) }
-            1 -> { p.s = 26f; p.paint(0, 205f, 0.05f, 1f); p.paint(1, SCARF[r.nextInt(SCARF.size)], 0.75f, 0.95f); p.paint(2, 25f, 0.85f, 1f) }
-            else -> { p.s = 70f; p.paint(0, 190f, 0.35f, 1f); p.paint(1, 205f, 0.1f, 1f) }
+            0 -> { p.s = 36f; p.paint(0, 195f, 0.25f, 1f); p.paint(1, 215f, 0.5f, 0.95f); p.paint(2, 210f, 0.6f, 0.6f) }
+            1 -> { p.s = 22f; p.paint(0, 205f, 0.05f, 1f); p.paint(1, SCARF[r.nextInt(SCARF.size)], 0.75f, 0.95f); p.paint(2, 25f, 0.85f, 1f) }
+            else -> { p.s = 70f; p.x = 20f; p.paint(0, 188f, 0.62f, 1f); p.paint(1, 175f, 0.45f, 1f) } // an ice arch over the road
         }
     }
 
     override fun landmarkReach(p: Piece) = if (p.kind == 1) p.s * 0.5f else p.s
+    override fun landmarkOverRoad(p: Piece) = p.kind == 2
+
 
     override fun drawLandmark(d: BiomeDraw, p: Piece, haze: Float, time: Float) {
         when (p.kind) {
             0 -> d.add(castle, p.x, -4f, p.z, p.s, if (p.x > 0f) -20f else 20f, p.pal, haze, glow = 0.1f, onLand = false)
             1 -> d.add(snowman, p.x, -4f, p.z, p.s, if (p.x > 0f) -25f else 25f, p.pal, haze, onLand = false)
-            else -> d.add(arch, p.x, -10f, p.z, p.s, 0f, p.pal, haze, glow = 0.2f, onLand = false)
+            else -> d.add(arch, p.x, -10f, p.z, p.s, 0f, p.pal, haze * 0.5f, glow = 0.35f, onLand = false)
         }
     }
 

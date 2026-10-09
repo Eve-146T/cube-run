@@ -46,10 +46,11 @@ class LavaLook(world: Worlds.World) : BiomeLook(world) {
         block(0.08f, 0.05f, 0.25f + 0.02f, 0.14f, 0.95f, 0.04f, 1) // the lava fall down its face
         block(0.08f, 0f, 0.25f + 0.04f + 0.15f, 0.5f, 0.04f, 0.3f, 1) // its pool
     }
+    private val caveMouth = toy { pixels(BiomeToys.arcRows(26, 0.62f, 3), 1f / 13f, 0.3f) }
     private val ember = BiomeToys.cube
     private val clump = FacetShapes.clump(1)
 
-    override val shapes = listOf(crystals, poolRim, poolLava, vent, stalactite, volcano, spire, cliff, ember, clump, BiomeToys.slab, BiomeToys.speck)
+    override val shapes = listOf(crystals, poolRim, poolLava, vent, stalactite, volcano, spire, cliff, caveMouth, ember, clump, BiomeToys.slab, BiomeToys.speck)
 
     private val hot = arrayOf(Color(), Color(), Color())
     private val glowCol = Color()
@@ -75,7 +76,7 @@ class LavaLook(world: Worlds.World) : BiomeLook(world) {
 
     override fun seedProp(p: Piece, r: Random) {
         val roll = r.nextFloat()
-        p.kind = when { roll < 0.2f -> 4; roll < 0.5f -> 0; roll < 0.72f -> 1; roll < 0.88f -> 2; else -> 3 }
+        p.kind = when { roll < 0.12f -> 4; roll < 0.45f -> 0; roll < 0.7f -> 1; roll < 0.87f -> 2; else -> 3 }
         p.yaw = r.nextFloat() * 90f
         p.paint(0, 355f + r.nextFloat() * 15f, 0.65f, 0.45f + r.nextFloat() * 0.1f)
         p.paint(1, 28f + r.nextFloat() * 25f, 0.85f, 1f); p.paint(2, 10f, 0.75f, 0.62f)
@@ -121,7 +122,7 @@ class LavaLook(world: Worlds.World) : BiomeLook(world) {
         p.x = BiomeToys.farX(p, r, 0.06f, 0.3f)
         p.s = if (p.kind == 0) 60f + r.nextFloat() * 50f else 22f + r.nextFloat() * 20f
         p.yaw = r.nextFloat() * 30f
-        p.paint(0, 355f + r.nextFloat() * 12f, 0.7f, 0.4f); p.paint(1, 38f, 0.9f, 1f); p.paint(2, 0f, 0f, 1f)
+        p.paint(0, 6f + r.nextFloat() * 12f, 0.72f, 0.62f); p.paint(1, 40f, 0.9f, 1f); p.paint(2, 0f, 0f, 1f)
     }
 
     override fun drawFar(d: BiomeDraw, p: Piece, haze: Float, time: Float) {
@@ -136,12 +137,14 @@ class LavaLook(world: Worlds.World) : BiomeLook(world) {
     override val landmarkKinds = 3
 
     override fun seedLandmark(p: Piece, r: Random) {
-        p.x = 0.18f * 300f; p.rate = 0.45f
-        p.paint(0, 358f, 0.68f, 0.48f); p.paint(1, 34f, 0.9f, 1f); p.paint(2, 52f, 0.7f, 1f)
-        p.s = when (p.kind) { 0 -> 90f; 1 -> 46f; else -> 24f }
+        p.x = 0.15f * 340f; p.rate = 0.4f
+        p.paint(0, 8f, 0.7f, 0.66f); p.paint(1, 34f, 0.9f, 1f); p.paint(2, 52f, 0.7f, 1f)
+        p.s = when (p.kind) { 0 -> 64f; 1 -> 40f; else -> 56f }
+        if (p.kind == 2) { p.x = 8f; p.paint(0, 12f, 0.72f, 0.82f); p.paint(1, 28f, 0.85f, 1f); p.paint(2, 46f, 0.9f, 1f) } // a cave mouth over the road
     }
 
-    override fun landmarkReach(p: Piece) = p.s * 0.6f
+    override fun landmarkReach(p: Piece) = if (p.kind == 2) p.s else p.s * 0.6f
+    override fun landmarkOverRoad(p: Piece) = p.kind == 2
 
     override fun drawLandmark(d: BiomeDraw, p: Piece, haze: Float, time: Float) {
         when (p.kind) {
@@ -160,7 +163,14 @@ class LavaLook(world: Worlds.World) : BiomeLook(world) {
                 d.add(ember, p.x, top + 1.5f, p.z, 5f, 1.5f, 5f, 0f, hot, haze * 0.5f, glow = 1f, onLand = false)
             }
             1 -> d.add(cliff, p.x, -6f, p.z, p.s, p.s * 1.1f, p.s, if (p.x > 0f) -25f else 25f, p.pal, haze, glow = 0.1f, onLand = false)
-            else -> d.add(crystals, p.x, -4f, p.z, p.s, time * 4f, hot, haze, glow = 0.45f, onLand = false)
+            else -> { // a cave mouth: the road runs into it, glowing drips hanging from its roof
+                d.add(caveMouth, p.x, -10f, p.z, p.s, 0f, p.pal, haze, glow = 0.15f, onLand = false)
+                for (k in 0 until DRIPS) {
+                    val a = (k + 0.5f) / DRIPS * 3.1416f
+                    val r = p.s * 0.62f
+                    d.add(stalactite, p.x + kotlin.math.cos(a) * r, -10f + kotlin.math.sin(a) * r, p.z, p.s * 0.09f, k * 50f, p.pal, haze, glow = 0.3f, onLand = false)
+                }
+            }
         }
     }
 
@@ -191,5 +201,5 @@ class LavaLook(world: Worlds.World) : BiomeLook(world) {
     override fun kerbColors(a: Color, b: Color) { hsvInto(a, 6f, 0.72f, 0.62f); b.set(a) }
     override fun ground(out: Color, parity: Int) { hsvInto(out, 356f, 0.62f, if (parity == 0) 0.3f else 0.27f) }
 
-    private companion object { const val BOMBS = 7 }
+    private companion object { const val BOMBS = 7; const val DRIPS = 7 }
 }

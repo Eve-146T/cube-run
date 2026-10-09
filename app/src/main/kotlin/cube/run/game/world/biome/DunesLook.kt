@@ -104,20 +104,21 @@ class DunesLook(world: Worlds.World) : BiomeLook(world) {
     override val landmarkKinds = 3
 
     override fun seedLandmark(p: Piece, r: Random) {
-        p.x = 0.24f * 300f; p.rate = 0.45f
+        p.x = 0.14f * 340f; p.rate = 0.4f
         when (p.kind) {
-            0 -> { p.s = 80f; p.paint(0, 36f, 0.5f, 1f); p.paint(1, 50f, 0.8f, 1f) }
-            1 -> { p.s = 54f; p.paint(0, 10f, 0.72f, 0.95f); p.paint(1, 22f, 0.7f, 1f); p.paint(2, 34f, 0.6f, 1f) }
-            else -> { p.s = 22f; p.paint(0, 128f, 0.62f, 0.72f); p.paint(1, 330f, 0.7f, 1f) }
+            0 -> { p.s = 64f; p.paint(0, 36f, 0.5f, 1f); p.paint(1, 50f, 0.8f, 1f) }
+            1 -> { p.s = 54f; p.x = 10f; p.paint(0, 10f, 0.72f, 0.95f); p.paint(1, 22f, 0.7f, 1f); p.paint(2, 34f, 0.6f, 1f) }
+            else -> { p.s = 20f; p.paint(0, 128f, 0.62f, 0.72f); p.paint(1, 330f, 0.7f, 1f) }
         }
     }
 
-    override fun landmarkReach(p: Piece) = p.s * 0.6f
+    override fun landmarkReach(p: Piece) = if (p.kind == 1) p.s else p.s * 0.6f
+    override fun landmarkOverRoad(p: Piece) = p.kind == 1
 
     override fun drawLandmark(d: BiomeDraw, p: Piece, haze: Float, time: Float) {
         when (p.kind) {
             0 -> d.add(pyramid, p.x, -6f, p.z, p.s, p.s * 0.65f, p.s, 45f, p.pal, haze, onLand = false)
-            1 -> d.add(arch, p.x, -8f, p.z, p.s, if (p.x > 0f) -15f else 15f, p.pal, haze, onLand = false)
+            1 -> d.add(arch, p.x, -8f, p.z, p.s, 0f, p.pal, haze, onLand = false) // a rock arch: the road runs through it
             else -> d.add(cactus, p.x, -4f, p.z, p.s, 0f, p.pal, haze, onLand = false)
         }
     }

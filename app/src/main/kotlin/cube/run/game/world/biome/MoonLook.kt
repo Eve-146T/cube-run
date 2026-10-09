@@ -62,7 +62,7 @@ class MoonLook(world: Worlds.World) : BiomeLook(world) {
         val r = Random(91)
         for (i in 0 until STARS) {
             it[i * 4] = (r.nextFloat() * 2f - 1f) * 1.35f; it[i * 4 + 1] = 0.3f + r.nextFloat() * 0.9f
-            it[i * 4 + 2] = 0.008f + r.nextFloat() * r.nextFloat() * 0.016f; it[i * 4 + 3] = r.nextFloat() * 6.3f
+            it[i * 4 + 2] = 0.004f + r.nextFloat() * r.nextFloat() * 0.007f; it[i * 4 + 3] = r.nextFloat() * 6.3f
         }
     }
 
@@ -116,13 +116,13 @@ class MoonLook(world: Worlds.World) : BiomeLook(world) {
     }
 
     override fun drawFar(d: BiomeDraw, p: Piece, haze: Float, time: Float) {
-        d.add(BiomeToys.bigBall, p.x, p.y - p.s * 0.2f, p.z, p.s, p.s * (0.3f + p.seed * 0.12f), p.s * 0.7f, p.yaw, p.pal, haze * 0.8f, onLand = false, bands = HILL)
+        d.add(BiomeToys.bigBall, p.x, p.y - p.s * 0.12f, p.z, p.s, p.s * (0.18f + p.seed * 0.1f), p.s * 0.7f, p.yaw, p.pal, haze * 0.8f, onLand = false, bands = HILL)
     }
 
     override val landmarkKinds = 3
 
     override fun seedLandmark(p: Piece, r: Random) {
-        p.x = 0.16f * 300f; p.rate = 0.45f
+        p.x = 0.14f * 340f; p.rate = 0.4f
         p.paint(0, 230f, 0.06f, 1f); p.paint(1, 355f, 0.72f, 1f); p.paint(2, 185f, 0.75f, 1f)
         if (p.kind == 2) { p.paint(1, 185f, 0.75f, 1f); p.paint(2, 230f, 0.06f, 1f) }
         p.s = when (p.kind) { 0 -> 26f; 1 -> 30f; else -> 16f }
@@ -175,8 +175,8 @@ class MoonLook(world: Worlds.World) : BiomeLook(world) {
     }
 
     override fun drawSky(d: BiomeDraw, alpha: Float, time: Float) {
-        d.add(BiomeToys.bigBall, -56f, 44f, -330f, 30f, 30f, 30f, time * 1.2f, planet, 0.12f, glow = 0.35f, pitch = 15f, onLand = false, alpha = alpha, bands = planetBands)
-        d.add(ringShape, -56f, 44f, -330f, 62f, 62f, 62f, time * 2f, ringPal, 0.12f, glow = 0.35f, pitch = 14f, roll = -12f, onLand = false, alpha = alpha)
+        d.add(BiomeToys.bigBall, -54f, 52f, -330f, 28f, 28f, 28f, time * 1.2f, planet, 0.12f, glow = 0.35f, pitch = 15f, onLand = false, alpha = alpha, bands = planetBands)
+        d.add(ringShape, -54f, 52f, -330f, 58f, 58f, 58f, time * 2f, ringPal, 0.12f, glow = 0.35f, pitch = 14f, roll = -12f, onLand = false, alpha = alpha)
         d.add(BiomeToys.ball, 64f, 66f, -320f, 9f, 9f, 9f, time * 6f, earth, 0.05f, glow = 0.4f, onLand = false, alpha = alpha, bands = earthBands)
     }
 
