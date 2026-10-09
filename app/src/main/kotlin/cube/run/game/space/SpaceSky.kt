@@ -184,7 +184,7 @@ class SpaceSky(private val game: Gdx3DGame, private val space: SpaceWorld) {
             val fade = max(Fog.at(s.z), 1f - reach * (0.45f + 0.55f * max(speedK, w)))
             if (fade >= 0.99f) continue
             val len = s.len * (2f + 6f * speedK + 22f * w)
-            game.worldBox(s.x, s.y, s.z, 0.14f, 0.14f, len, streakCol, fade)
+            game.worldBox(s.x, s.y, s.z, 0.14f, 0.14f, len, streakCol, fade, Fog.appear(s.z))
         }
     }
 

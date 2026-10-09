@@ -79,9 +79,9 @@ class SpaceRifts(private val game: Gdx3DGame) {
             bright.set(lips[i]).lerp(Color.WHITE, 0.2f)
             val len = n - f
             val mid = (n + f) / 2f
-            game.worldBox(0f, 0f, n, half * 2f, BAR_H, BAR, bright, Fog.at(n))
-            game.worldBox(0f, 0f, f, half * 2f, BAR_H, BAR, bright, Fog.at(f))
-            for (side in -1..1 step 2) game.worldBox(side * (half - BAR / 2f), 0f, mid, BAR, BAR_H, len, bright, Fog.at(mid))
+            game.worldBox(0f, 0f, n, half * 2f, BAR_H, BAR, bright, Fog.at(n), Fog.appear(n))
+            game.worldBox(0f, 0f, f, half * 2f, BAR_H, BAR, bright, Fog.at(f), Fog.appear(f))
+            for (side in -1..1 step 2) game.worldBox(side * (half - BAR / 2f), 0f, mid, BAR, BAR_H, len, bright, Fog.at(mid), Fog.appear(f))
         }
     }
 

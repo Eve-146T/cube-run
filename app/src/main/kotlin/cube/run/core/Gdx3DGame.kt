@@ -82,6 +82,8 @@ abstract class Gdx3DGame(val session: GameSession) : ApplicationAdapter(), Touch
     private lateinit var world: WorldBoxBatch
     /** See-through floor pieces (Outer Space's glass road): blended over everything opaque, so what is below shows. */
     private lateinit var glass: WorldBoxBatch
+    /** Boxes fading in out of the distance ([worldBox] with alpha < 1): drawn after everything opaque they may stand in front of. */
+    private lateinit var fading: WorldBoxBatch
     private lateinit var coins: PrismBatch
     private lateinit var matrixWires: MatrixWireBatch
     private lateinit var crystals: cube.run.core.gfx.CrystalBatch
@@ -191,6 +193,9 @@ abstract class Gdx3DGame(val session: GameSession) : ApplicationAdapter(), Touch
         const val RIGHT = TouchInput.RIGHT
         const val UP = TouchInput.UP
         const val DOWN = TouchInput.DOWN
+        /** Fading boxes at least this opaque are drawn solid; at most [CLEAR], not at all. */
+        private const val OPAQUE = 0.996f
+        private const val CLEAR = 0.004f
     }
 
     // ----------------------------------------------------------------- setup
@@ -245,6 +250,7 @@ abstract class Gdx3DGame(val session: GameSession) : ApplicationAdapter(), Touch
             2 -> {
                 world = WorldBoxBatch(kit, wires = matrixWires).also { it.terrain = terrain }
                 glass = WorldBoxBatch(kit, maxBoxes = 360).also { it.terrain = terrain }
+                fading = WorldBoxBatch(kit, maxBoxes = 400, layered = true).also { it.terrain = terrain }
             }
             3 -> coins = PrismBatch(kit, wires = matrixWires).also { it.terrain = terrain }
             4 -> capsules = CapsuleBatch(kit).also { it.terrain = terrain }
@@ -363,6 +369,7 @@ abstract class Gdx3DGame(val session: GameSession) : ApplicationAdapter(), Touch
         facetBatch.begin(cam)
         world.begin(cam)
         glass.begin(cam)
+        fading.begin(cam)
         coins.begin(cam)
         renderWorldBatched()
         world.render(cam)           // opaque pass: 1 draw call for every world box
@@ -371,6 +378,7 @@ abstract class Gdx3DGame(val session: GameSession) : ApplicationAdapter(), Touch
         capsules.render(cam)
         crystals.render(cam)
         facetBatch.render(cam)
+        fading.render(cam)          // the far end of the world, coming into view over what lies behind it
         glass.render(cam)           // after everything it may show through
         // unlit blended shapes in the world (sunbursts): behind whatever the ModelBatch draws next
         Gdx.gl.glEnable(GL20.GL_DEPTH_TEST)
@@ -504,7 +512,11 @@ abstract class Gdx3DGame(val session: GameSession) : ApplicationAdapter(), Touch
     val fogColor: Color get() = world.fogColor
 
     /** Keep the coin pass hazed like the boxes (call after setting [fogColor]). */
-    fun syncFog() { coins.fogColor.set(world.fogColor); if (::glass.isInitialized) glass.fogColor.set(world.fogColor) }
+    fun syncFog() {
+        coins.fogColor.set(world.fogColor)
+        if (::glass.isInitialized) glass.fogColor.set(world.fogColor)
+        if (::fading.isInitialized) fading.fogColor.set(world.fogColor)
+    }
 
     /** Opacity of subsequently queued scenery; reset before drawing showcase effects. */
     fun setWorldOpacity(amount: Float) { world.opacity = amount; coins.opacity = amount }
@@ -516,6 +528,7 @@ abstract class Gdx3DGame(val session: GameSession) : ApplicationAdapter(), Touch
     fun setTerrain(f: TerrainHeight?) {
         terrain = f
         if (::world.isInitialized) world.terrain = f
+        if (::fading.isInitialized) fading.terrain = f
         if (::coins.isInitialized) coins.terrain = f
         if (::capsules.isInitialized) capsules.terrain = f
         if (::crystals.isInitialized) crystals.terrain = f
@@ -540,13 +553,20 @@ abstract class Gdx3DGame(val session: GameSession) : ApplicationAdapter(), Touch
     fun worldCoin(x: Float, y: Float, z: Float, r: Float, t: Float, yawDeg: Float, col: Color, fog: Float = 0f) =
         coins.coin(x, y, z, r, t, yawDeg, col, fog)
 
-    /** Queue one axis-aligned box (centre position, full sizes) for the batched world pass. */
-    fun worldBox(x: Float, y: Float, z: Float, sx: Float, sy: Float, sz: Float, col: Color, fog: Float = 0f) =
-        world.box(x, y, z, sx, sy, sz, col, fog)
+    /**
+     * Queue one axis-aligned box (centre position, full sizes) for the batched world pass.
+     * [alpha] < 1 fades it in (see [cube.run.game.world.Fog.appear]): it goes to the layered pass.
+     */
+    fun worldBox(x: Float, y: Float, z: Float, sx: Float, sy: Float, sz: Float, col: Color, fog: Float = 0f, alpha: Float = 1f) {
+        if (alpha >= OPAQUE) world.box(x, y, z, sx, sy, sz, col, fog)
+        else if (alpha > CLEAR) { fading.opacity = alpha * world.opacity; fading.box(x, y, z, sx, sy, sz, col, fog) }
+    }
 
     /** Continuous road/land pieces: both ends follow the terrain, joining adjacent tiles. */
-    fun worldGround(x: Float, y: Float, z: Float, sx: Float, sy: Float, sz: Float, col: Color, fog: Float = 0f) =
-        world.box(x, y, z, sx, sy, sz, col, fog, followTerrain = true)
+    fun worldGround(x: Float, y: Float, z: Float, sx: Float, sy: Float, sz: Float, col: Color, fog: Float = 0f, alpha: Float = 1f) {
+        if (alpha >= OPAQUE) world.box(x, y, z, sx, sy, sz, col, fog, followTerrain = true)
+        else if (alpha > CLEAR) { fading.opacity = alpha * world.opacity; fading.box(x, y, z, sx, sy, sz, col, fog, followTerrain = true) }
+    }
 
     /** A see-through road piece: like [worldGround], [alpha] opaque, drawn over whatever lies beneath it. */
     fun glassGround(x: Float, y: Float, z: Float, sx: Float, sy: Float, sz: Float, col: Color, fog: Float, alpha: Float) {
@@ -555,8 +575,10 @@ abstract class Gdx3DGame(val session: GameSession) : ApplicationAdapter(), Touch
     }
 
     /** Like [worldBox] but spun [yawDeg] about its vertical axis (coins, pickups). */
-    fun worldBoxSpin(x: Float, y: Float, z: Float, sx: Float, sy: Float, sz: Float, yawDeg: Float, col: Color, fog: Float = 0f) =
-        world.boxSpin(x, y, z, sx, sy, sz, yawDeg, col, fog)
+    fun worldBoxSpin(x: Float, y: Float, z: Float, sx: Float, sy: Float, sz: Float, yawDeg: Float, col: Color, fog: Float = 0f, alpha: Float = 1f) {
+        if (alpha >= OPAQUE) world.boxSpin(x, y, z, sx, sy, sz, yawDeg, col, fog)
+        else if (alpha > CLEAR) { fading.opacity = alpha * world.opacity; fading.boxSpin(x, y, z, sx, sy, sz, yawDeg, col, fog) }
+    }
 
     // ----------------------------------------------------------- model utils
 
@@ -590,6 +612,7 @@ abstract class Gdx3DGame(val session: GameSession) : ApplicationAdapter(), Touch
         if (::shards.isInitialized) shards.dispose()
         if (::world.isInitialized) world.dispose()
         if (::glass.isInitialized) glass.dispose()
+        if (::fading.isInitialized) fading.dispose()
         if (::coins.isInitialized) coins.dispose()
         if (::matrixWires.isInitialized) matrixWires.dispose()
         if (::capsules.isInitialized) capsules.dispose()

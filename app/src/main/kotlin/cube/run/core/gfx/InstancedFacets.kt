@@ -16,9 +16,10 @@ internal class InstancedFacets(private val kit: BoxMeshKit) : Disposable {
     private class Group(shape: FacetShape) {
         // A voxel face consists of two triangles with four identical surface vertices.
         // Index those corners so the vertex shader runs four times instead of six.
-        val mesh = Mesh(true, shape.faces * 2, shape.faces * 3,
-            VertexAttribute(Usage.Position, 3, "a_position"),
-            VertexAttribute(Usage.Generic, 4, "a_surface"))
+        // Solid and fading instances each get a mesh (and instance buffer) of their own: one
+        // buffer rewritten between the solid and the fading draws of a frame made objects flicker.
+        val mesh = newMesh(shape)
+        val fadeMesh = newMesh(shape)
         val solid = FloatArray(CAPACITY * STRIDE)
         val fading = FloatArray(CAPACITY * STRIDE)
         var solidUsed = 0
@@ -47,9 +48,19 @@ internal class InstancedFacets(private val kit: BoxMeshKit) : Disposable {
                 val base = f * 2
                 for (offset in intArrayOf(0, 1, 2, 0, 2, 3)) indices[index++] = (base + offset).toShort()
             }
-            mesh.setVertices(vertices); mesh.setIndices(indices)
-            mesh.enableInstancedRendering(false, CAPACITY,
-                *Array(10) { VertexAttribute(Usage.Generic, 4, "i_$it") })
+            for (m in arrayOf(mesh, fadeMesh)) {
+                m.setVertices(vertices); m.setIndices(indices)
+                m.enableInstancedRendering(false, CAPACITY,
+                    *Array(10) { VertexAttribute(Usage.Generic, 4, "i_$it") })
+            }
+        }
+
+        fun dispose() { mesh.dispose(); fadeMesh.dispose() }
+
+        private companion object {
+            fun newMesh(shape: FacetShape) = Mesh(true, shape.faces * 2, shape.faces * 3,
+                VertexAttribute(Usage.Position, 3, "a_position"),
+                VertexAttribute(Usage.Generic, 4, "a_surface"))
         }
     }
 
@@ -170,14 +181,14 @@ internal class InstancedFacets(private val kit: BoxMeshKit) : Disposable {
             // This gives solid voxel bodies a smooth fade without exposing internal faces.
             Gdx.gl.glColorMask(false, false, false, false)
             for (g in groups.values) if (g.fadingUsed > 0) {
-                g.mesh.setInstanceData(g.fading, 0, g.fadingUsed)
-                g.mesh.render(fadeShader, GL20.GL_TRIANGLES)
+                g.fadeMesh.setInstanceData(g.fading, 0, g.fadingUsed)
+                g.fadeMesh.render(fadeShader, GL20.GL_TRIANGLES)
             }
             Gdx.gl.glColorMask(true, true, true, true)
             Gdx.gl.glDepthMask(false); Gdx.gl.glDepthFunc(GL20.GL_EQUAL)
             Gdx.gl.glEnable(GL20.GL_BLEND)
             Gdx.gl.glBlendFunc(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA)
-            for (g in groups.values) if (g.fadingUsed > 0) g.mesh.render(fadeShader, GL20.GL_TRIANGLES)
+            for (g in groups.values) if (g.fadingUsed > 0) g.fadeMesh.render(fadeShader, GL20.GL_TRIANGLES)
         }
         Gdx.gl.glDepthMask(true); Gdx.gl.glDepthFunc(GL20.GL_LESS)
         Gdx.gl.glDisable(GL20.GL_BLEND)
@@ -185,7 +196,7 @@ internal class InstancedFacets(private val kit: BoxMeshKit) : Disposable {
     }
 
     override fun dispose() {
-        for (g in groups.values) g.mesh.dispose()
+        for (g in groups.values) g.dispose()
         groups.clear(); fadeShader.dispose(); solidShader.dispose()
     }
 

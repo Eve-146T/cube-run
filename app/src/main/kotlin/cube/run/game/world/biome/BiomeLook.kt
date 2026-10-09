@@ -18,7 +18,7 @@ class Piece {
     var rate = 1f
     /** Road units flown since it came up. */
     var travelled = 0f
-    /** Far shapes: 0 sunk below the horizon … 1 standing (rises and sinks with its world). */
+    /** 0…1: how far it has faded in (horizon shapes with their world, motes as they start). */
     var show = 0f
     var vx = 0f; var vy = 0f; var vz = 0f
     var life = 0f
@@ -80,7 +80,12 @@ abstract class BiomeLook(val world: Worlds.World) {
 
     // ---- weather: motes around the camera
     open val motes = 0
-    /** A fresh mote. [anywhere] spreads it through the whole volume (the biome just arrived), else it starts at its source. */
+    /**
+     * A fresh mote. Start it where it cannot be seen: past [cube.run.game.world.Fog.appearFar]
+     * (it fades in coming closer), above the view or behind the camera, or at a visible source it
+     * plainly comes out of (a spark out of lava). [anywhere]: the biome is arriving or the scene
+     * starting, and its weather fades in with it, so it may start anywhere.
+     */
     open fun seedMote(p: Piece, r: Random, anywhere: Boolean) {}
     /** Move a mote by its own drift; it also scrolls with the road at [Piece.rate]. False once it is gone. */
     open fun moveMote(p: Piece, dt: Float): Boolean {

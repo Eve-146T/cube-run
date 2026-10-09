@@ -74,10 +74,10 @@ internal class InstancedWorldBoxes(private val kit: BoxMeshKit, capacity: Int) :
         used = w
     }
 
-    fun render(camera: Camera, translucent: Boolean, matrix: Float) {
+    fun render(camera: Camera, translucent: Boolean, matrix: Float, depthWrites: Boolean = true) {
         if (used == 0) return
         mesh.setInstanceData(data, 0, used)
-        Gdx.gl.glEnable(GL20.GL_DEPTH_TEST); Gdx.gl.glDepthMask(true)
+        Gdx.gl.glEnable(GL20.GL_DEPTH_TEST); Gdx.gl.glDepthMask(depthWrites)
         Gdx.gl.glEnable(GL20.GL_CULL_FACE)
         if (translucent) {
             Gdx.gl.glEnable(GL20.GL_BLEND)

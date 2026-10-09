@@ -148,11 +148,11 @@ class CandyLook(world: Worlds.World) : BiomeLook(world) {
 
     override fun seedMote(p: Piece, r: Random, anywhere: Boolean) {
         p.x = (if (r.nextBoolean()) 1f else -1f) * (6f + r.nextFloat() * 24f)
-        p.z = -100f + r.nextFloat() * 95f
-        p.y = if (anywhere) r.nextFloat() * 26f else 0f
+        p.z = if (anywhere) -100f + r.nextFloat() * 95f else -102f - r.nextFloat() * 12f // floating in out of the haze
+        p.y = r.nextFloat() * 20f
         p.vy = 1.4f + r.nextFloat() * 1.6f
         p.s = 1.8f + r.nextFloat() * 1.2f
-        p.life = (30f - p.y) / p.vy
+        p.life = (32f - p.y) / p.vy
         p.paint(0, candy(r), 0.6f, 1f); p.paint(2, 0f, 0f, 1f)
     }
 

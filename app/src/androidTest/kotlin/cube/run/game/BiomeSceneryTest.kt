@@ -14,7 +14,11 @@ import cube.run.core.Stage
 import cube.run.core.gfx.WorldBoxBatch
 import cube.run.data.Settings
 import cube.run.data.Worlds
+import cube.run.game.world.Fog
 import cube.run.game.world.Scenery
+import com.badlogic.gdx.math.Vector3
+import com.badlogic.gdx.utils.ScreenUtils
+import cube.run.game.track.Track
 import cube.run.game.world.biome.BiomeScene
 import cube.run.ui.Hud
 import org.junit.Assert.assertTrue
@@ -201,5 +205,111 @@ class BiomeSceneryTest {
         } finally {
             Stage.paused = false
         }
+    }
+
+    /**
+     * Nothing pops into view: the game frozen on the run camera, the scenery scrolled one frame's
+     * worth at a time, each drawn frame read back. Where things are born (the far end, up to the
+     * sky above it) a newcomer drawn whole shows as a solid blob of changed pixels; things that
+     * fade in, or merely move, change by a little or along thin edges. Measured with the fade-in
+     * off and on (logged, tag BIOME_POP). What still jumps with it on is motion near the camera
+     * (towers, sparks, a car) or a lamp blinking, and varies from run to run: a measurement, not a gate.
+     */
+    @Test fun nothingPopsIntoView() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val intent = Intent(context, GameActivity::class.java).putExtra(Hud.EXTRA_AUTOSTART, true)
+            .putExtra(Hud.EXTRA_IDLE_BOT, true).putExtra("dev", true).putExtra("section", 56)
+        try {
+            ActivityScenario.launch<GameActivity>(intent).use {
+                SystemClock.sleep(3000)
+                for (pass in 0..Worlds.all.size) {
+                    val space = pass == Worlds.all.size // last: Outer Space, its glass road coming out of the dark
+                    val world = Worlds.get(if (space) 0 else pass)
+                    val pops = IntArray(2)
+                    val jumps = IntArray(2) // frames with a solid jump of 60+ pixels: a newcomer drawn whole
+                    for (fade in listOf(false, true)) {
+                        var window = IntArray(4)
+                        var previous: ByteArray? = null
+                        gl { game ->
+                            Stage.paused = true
+                            Fog.fadeIn = fade
+                            val scenery = field(game, CubeRun::class.java, "scenery") as Scenery
+                            (field(game, CubeRun::class.java, "track") as Track).rows.clear()
+                            (field(game, CubeRun::class.java, "worlds") as cube.run.game.world.WorldRunner).reset(world.id)
+                            scenery.init(world, seed = 146)
+                            val outer = field(game, CubeRun::class.java, "space") as cube.run.game.space.SpaceWorld
+                            outer.reset()
+                            if (space) { outer.enter(146, instant = true); outer.tick(0.016f, 0f, game.time, true) }
+                            repeat(20) { scenery.scroll(5f); scenery.tick(0.25f, 5f) }
+                            val cam = game.cam
+                            val far = cam.project(Vector3(0f, 0f, -Fog.appearFar))
+                            val sky = cam.project(Vector3(0f, 22f, -Fog.appearFar))
+                            window = intArrayOf((game.sw * 0.04f).toInt(), far.y.toInt() - 6, (game.sw * 0.96f).toInt(), sky.y.toInt())
+                        }
+                        repeat(150) { step ->
+                            var frame: ByteArray? = null
+                            gl { game ->
+                                val scenery = field(game, CubeRun::class.java, "scenery") as Scenery
+                                scenery.scroll(0.35f); scenery.tick(1f / 60f, 0.35f) // one frame at 21 units a second
+                                game.render() // draw it here and read it back before the swap (between frames the buffer is undefined)
+                                val w = window
+                                frame = ScreenUtils.getFrameBufferPixels(w[0], w[1], w[2] - w[0], w[3] - w[1], false)
+                            }
+                            val now = frame!!
+                            previous?.let {
+                                val n = solidChange(it, now, window[2] - window[0], window[3] - window[1])
+                                val k = if (fade) 1 else 0
+                                if (step > 2 && n >= 60) jumps[k]++
+                                if (step == 50 || (space && step in 60..67)) {
+                                    val dir = File(context.getExternalFilesDir(null), "biome-pop").apply { mkdirs() }
+                                    for ((tag, px) in listOf("a" to it, "b" to now)) {
+                                        val bmp = Bitmap.createBitmap(window[2] - window[0], window[3] - window[1], Bitmap.Config.ARGB_8888)
+                                        bmp.copyPixelsFromBuffer(java.nio.ByteBuffer.wrap(px))
+                                        File(dir, "step$step-${if (space) "space" else world.id}-$k-$tag.png").outputStream().use { o -> bmp.compress(Bitmap.CompressFormat.PNG, 100, o) }
+                                    }
+                                }
+                                if (step > 2 && n > pops[k]) {
+                                    pops[k] = n
+                                    val dir = File(context.getExternalFilesDir(null), "biome-pop").apply { mkdirs() }
+                                    for ((tag, px) in listOf("a" to it, "b" to now)) {
+                                        val bmp = Bitmap.createBitmap(window[2] - window[0], window[3] - window[1], Bitmap.Config.ARGB_8888)
+                                        bmp.copyPixelsFromBuffer(java.nio.ByteBuffer.wrap(px))
+                                        File(dir, "pop-${if (space) "space" else world.id}-$k-$tag.png").outputStream().use { o -> bmp.compress(Bitmap.CompressFormat.PNG, 100, o) }
+                                    }
+                                }
+                            }
+                            previous = now
+                        }
+                    }
+                    if (space) gl { game -> (field(game, CubeRun::class.java, "space") as cube.run.game.space.SpaceWorld).reset() }
+                    android.util.Log.i("BIOME_POP", "${if (space) "Outer Space" else world.name}: frames with a solid jump, without the fade-in ${jumps[0]}, with it ${jumps[1]} " +
+                        "(largest ${pops[0]} / ${pops[1]} px)")
+                }
+            }
+        } finally {
+            Fog.fadeIn = true
+            Stage.paused = false
+        }
+    }
+
+    /**
+     * Pixels in the middle of a solid 7×7 patch that changed a lot from [a] to [b]: an object
+     * appearing whole. Things moving a few pixels a frame only change along their edges.
+     */
+    private fun solidChange(a: ByteArray, b: ByteArray, w: Int, h: Int): Int {
+        val sum = IntArray((w + 1) * (h + 1)) // summed-area table of strongly changed pixels
+        for (y in 0 until h) for (x in 0 until w) {
+            val i = y * w + x
+            var d = 0
+            for (c in 0..2) d = maxOf(d, kotlin.math.abs((a[i * 4 + c].toInt() and 255) - (b[i * 4 + c].toInt() and 255)))
+            sum[(y + 1) * (w + 1) + x + 1] = (if (d > 40) 1 else 0) + sum[y * (w + 1) + x + 1] + sum[(y + 1) * (w + 1) + x] - sum[y * (w + 1) + x]
+        }
+        val r = 3
+        var n = 0
+        for (y in r until h - r) for (x in r until w - r) {
+            val x0 = x - r; val y0 = y - r; val x1 = x + r + 1; val y1 = y + r + 1
+            if (sum[y1 * (w + 1) + x1] - sum[y0 * (w + 1) + x1] - sum[y1 * (w + 1) + x0] + sum[y0 * (w + 1) + x0] == 49) n++
+        }
+        return n
     }
 }

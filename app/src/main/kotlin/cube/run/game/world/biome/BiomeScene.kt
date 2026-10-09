@@ -15,8 +15,8 @@ import kotlin.random.Random
 /**
  * A biome around the road, at every distance at once, like Outer Space:
  *  - props on the land beside the road, scrolling with it and born in the haze;
- *  - a horizon of big shapes drifting by slowly (they sink away and the next
- *    biome's rise in their place when a gate is passed);
+ *  - a horizon of big shapes drifting by slowly (they fade into one another
+ *    when a gate is passed);
  *  - landmarks: one set piece at a time sliding past at a distance;
  *  - weather around the camera, and the biome's sky (a sun, a moon, stars).
  *
@@ -72,6 +72,11 @@ class BiomeScene(private val game: Gdx3DGame) {
         }
         repeat(FAR_COUNT) { far.add(Piece().also { seedFar(it, l, FAR_NEAR - rnd.nextFloat() * (FAR_NEAR - FAR_SPAWN)); it.show = 1f }) }
         repeat(MOTE_POOL) { motes.add(Piece()) }
+        for (i in 0 until l.motes) { // the scene starts with its weather already about
+            val p = motes[i]
+            p.look = l; p.rate = 1f; p.seed = rnd.nextFloat(); p.show = 1f
+            l.seedMote(p, rnd, anywhere = true)
+        }
         nextLandmark = 40f + rnd.nextFloat() * 60f
         landmarkTurn = rnd.nextInt(8)
         landmarkSide = if (rnd.nextBoolean()) 1f else -1f
@@ -167,14 +172,14 @@ class BiomeScene(private val game: Gdx3DGame) {
         val sky = skyLook ?: return
         for (id in weight.indices) {
             val target = if (id == sky.world.id) 1f else 0f
-            weight[id] = if (target > weight[id]) min(1f, weight[id] + dt / FADE) else max(0f, weight[id] - dt / FADE)
+            weight[id] = approach(weight[id], target, dt / FADE)
         }
         for (i in far.indices) {
             val p = far[i]
             val l = p.look ?: continue
             val target = if (l === sky) 1f else 0f
-            p.show = if (target > p.show) min(1f, p.show + dt / FADE) else max(0f, p.show - dt / FADE)
-            if (p.show <= 0f && l !== sky) seedFar(p, sky, p.z) // sunk: the new world's shape rises in its place
+            p.show = approach(p.show, target, dt / FADE)
+            if (p.show <= 0f && l !== sky) seedFar(p, sky, p.z) // faded out: the new world's shape fades in in its place
         }
         // weather: the sky world's motes, as many as its weight allows
         val want = (sky.motes * weight[sky.world.id]).toInt()
@@ -184,14 +189,15 @@ class BiomeScene(private val game: Gdx3DGame) {
         for (i in motes.indices) {
             val p = motes[i]
             if (p.life > 0f) {
+                p.show = min(1f, p.show + dt / MOTE_FADE)
                 p.z += mv * p.rate
                 if (!p.look!!.moveMote(p, dt) || p.z > 12f) p.life = 0f
                 continue
             }
             if (have < want && started < 4) {
-                p.look = sky; p.rate = 1f; p.vx = 0f; p.vy = 0f; p.vz = 0f; p.yaw = 0f; p.s = 1f
+                p.look = sky; p.rate = 1f; p.vx = 0f; p.vy = 0f; p.vz = 0f; p.yaw = 0f; p.s = 1f; p.show = 0f
                 p.seed = rnd.nextFloat()
-                sky.seedMote(p, rnd, anywhere = weight[sky.world.id] < 0.99f || want - have > sky.motes / 2)
+                sky.seedMote(p, rnd, anywhere = weight[sky.world.id] < 0.99f) // arriving with its biome; otherwise out of sight
                 have++; started++
             }
         }
@@ -208,7 +214,11 @@ class BiomeScene(private val game: Gdx3DGame) {
         draw.drop = drop
         draw.opacity = base
         if (layers and SKY != 0) for (id in weight.indices) if (weight[id] > 0.004f) looks[id]?.drawSky(draw, weight[id], time)
-        if (layers and PROPS != 0) for (i in props.indices) { val p = props[i]; p.look?.drawProp(draw, p, Fog.at(p.z), time) }
+        if (layers and PROPS != 0) for (i in props.indices) {
+            val p = props[i]
+            draw.opacity = base * Fog.appear(p.z) // out of the distance, not out of nowhere
+            p.look?.drawProp(draw, p, Fog.at(p.z), time)
+        }
         if (layers and STREAMS != 0) {
             val edge = Lanes.halfRoadDrawn + KERB_OUT
             for (i in streams.indices) {
@@ -216,6 +226,7 @@ class BiomeScene(private val game: Gdx3DGame) {
                 if (p.kind != 1) continue
                 val x = p.x // out from the kerb, wherever the road's edge is
                 p.x = if (x < 0f) x - edge else x + edge
+                draw.opacity = base * Fog.appear(p.z)
                 p.look?.drawStream(draw, p, Fog.at(p.z), time)
                 p.x = x
             }
@@ -223,13 +234,9 @@ class BiomeScene(private val game: Gdx3DGame) {
         if (layers and FAR != 0) for (i in far.indices) {
             val p = far[i]
             val l = p.look ?: continue
-            // shapes rise out of the horizon and sink back into it (solid: a fade would cost a second pass)
-            val up = p.show * smooth((p.z - FAR_SPAWN) / 30f) * smooth((FAR_NEAR - p.z) / 25f)
-            if (up <= 0.01f) continue
-            val y = p.y
-            p.y -= (1f - up) * (1f - up) * SINK
+            // horizon shapes stand still: they fade in where they come up, out where they leave, and swap at a gate by fading
+            draw.opacity = base * p.show * smooth((p.z - FAR_SPAWN) / 30f) * smooth((FAR_NEAR - p.z) / 25f)
             l.drawFar(draw, p, FAR_HAZE, time)
-            p.y = y
         }
         if (layers and LANDMARKS != 0) for (i in landmarks.indices) {
             val p = landmarks[i]
@@ -243,7 +250,7 @@ class BiomeScene(private val game: Gdx3DGame) {
             val l = p.look ?: continue
             val w = weight[l.world.id]
             if (w <= 0f) continue
-            draw.opacity = base * w
+            draw.opacity = base * w * p.show * Fog.appear(p.z) // weather fades in wherever it starts
             l.drawMote(draw, p, Fog.at(p.z), time)
         }
         draw.opacity = base
@@ -273,6 +280,8 @@ class BiomeScene(private val game: Gdx3DGame) {
     companion object {
         const val SKY = 1; const val PROPS = 2; const val STREAMS = 4; const val FAR = 8; const val LANDMARKS = 16; const val MOTES = 32
         const val ALL = 63
+        /** [v] moved [step] toward [target], stopping there (a value already there stays put). */
+        private fun approach(v: Float, target: Float, step: Float) = if (v < target) min(target, v + step) else max(target, v - step)
         private fun smooth(v: Float): Float { val t = v.coerceIn(0f, 1f); return t * t * (3f - 2f * t) }
         /** Props are born here, in the haze, and recycled once behind the camera. */
         const val PROP_FAR = -112f
@@ -289,10 +298,11 @@ class BiomeScene(private val game: Gdx3DGame) {
         const val FAR_RATE = 0.22f
         const val FAR_COUNT = 12
         const val FAR_HAZE = 0.42f
-        const val SINK = 70f
         const val LANDMARK_SPAWN = -340f
         const val LANDMARK_HAZE = 0.3f
         const val MOTE_POOL = 48
+        /** Seconds a mote takes to fade in. */
+        const val MOTE_FADE = 1.2f
         /** The sky cross-fade at a gate (matches the WorldRunner's). */
         const val FADE = 2.4f
         const val CAMERA_Z = 6f

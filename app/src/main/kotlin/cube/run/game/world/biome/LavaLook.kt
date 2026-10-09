@@ -177,9 +177,11 @@ class LavaLook(world: Worlds.World) : BiomeLook(world) {
     override val motes = 40
 
     override fun seedMote(p: Piece, r: Random, anywhere: Boolean) {
-        p.x = (if (r.nextBoolean()) 1f else -1f) * (3.2f + abs(r.nextFloat() - r.nextFloat()) * 22f)
-        p.z = -90f + r.nextFloat() * 92f
-        p.y = if (anywhere) r.nextFloat() * 12f else 0f
+        // sparks out of the lava along the road, or out of the haze further off
+        val channel = r.nextFloat() < 0.6f
+        p.x = (if (r.nextBoolean()) 1f else -1f) * (if (channel) 3.3f + r.nextFloat() * 1.1f else 6f + r.nextFloat() * 18f)
+        p.z = if (anywhere || channel) -90f + r.nextFloat() * 92f else -101f - r.nextFloat() * 10f
+        p.y = if (anywhere) r.nextFloat() * 12f else if (channel) 0.05f else r.nextFloat() * 8f
         p.vy = 1.8f + r.nextFloat() * 2.4f
         p.vx = (r.nextFloat() - 0.5f) * 1.2f
         p.s = 0.11f + r.nextFloat() * 0.12f
@@ -188,8 +190,8 @@ class LavaLook(world: Worlds.World) : BiomeLook(world) {
     }
 
     override fun drawMote(d: BiomeDraw, p: Piece, fog: Float, time: Float) {
-        val flicker = 0.75f + 0.25f * sin(time * 11f + p.seed * 20f)
-        d.add(BiomeToys.speck, p.x + sin(time * 2f + p.seed * 9f) * 0.5f, p.y, p.z, p.s * flicker, time * 140f + p.seed * 360f, p.pal, fog,
+        val flicker = 0.75f + 0.25f * sin(time * 11f + p.seed * 20f) // a spark grows as it comes out of the lava
+        d.add(BiomeToys.speck, p.x + sin(time * 2f + p.seed * 9f) * 0.5f, p.y, p.z, p.s * flicker * p.show, time * 140f + p.seed * 360f, p.pal, fog,
             glow = 1f, onLand = false, alpha = (p.life / 1.2f).coerceAtMost(1f))
     }
 

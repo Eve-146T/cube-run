@@ -19,8 +19,13 @@ import kotlin.math.sqrt
  *
  * Both paths preserve terrain deformation, fog, opacity and original geometry.
  * Queue gameplay-critical boxes first: calls past [maxBoxes] are dropped.
+ *
+ * A [layered] batch holds see-through boxes (things fading in out of the
+ * distance): it writes their depth first, then blends only the nearest
+ * surface once, so a fading object shows no inner faces and fades as a whole.
  */
-class WorldBoxBatch(private val kit: BoxMeshKit, private val maxBoxes: Int = 900, private val wires: MatrixWireBatch? = null) : Disposable {
+class WorldBoxBatch(private val kit: BoxMeshKit, private val maxBoxes: Int = 900, private val wires: MatrixWireBatch? = null,
+                    private val layered: Boolean = false) : Disposable {
 
     /** Distance-haze target colour (set per frame to match the sky). */
     val fogColor = Color(0.1f, 0.1f, 0.2f, 1f)
@@ -223,14 +228,30 @@ class WorldBoxBatch(private val kit: BoxMeshKit, private val maxBoxes: Int = 900
         )
     }
 
-    /** One opaque, depth-written draw call for every queued box. */
+    /** One opaque, depth-written draw call for every queued box (two for a [layered] batch: depth, then colour). */
     fun render(cam: Camera) {
-        if (useInstances) instances!!.render(cam, translucent, wires?.amount ?: 0f)
+        if (!layered) return draw(cam, translucent)
+        if (count == 0) return
+        Gdx.gl.glColorMask(false, false, false, false)
+        draw(cam, false)
+        Gdx.gl.glColorMask(true, true, true, true)
+        Gdx.gl.glDepthFunc(GL20.GL_EQUAL)
+        depthWrites = false
+        draw(cam, true)
+        depthWrites = true
+        Gdx.gl.glDepthFunc(GL20.GL_LESS)
+        Gdx.gl.glDepthMask(true)
+    }
+
+    private var depthWrites = true
+
+    private fun draw(cam: Camera, translucent: Boolean) {
+        if (useInstances) instances!!.render(cam, translucent, wires?.amount ?: 0f, depthWrites)
         val n = faces
         if (n == 0) return
         mesh.setVertices(verts, 0, n * 16)
         Gdx.gl.glEnable(GL20.GL_DEPTH_TEST)
-        Gdx.gl.glDepthMask(true)
+        Gdx.gl.glDepthMask(depthWrites)
         Gdx.gl.glEnable(GL20.GL_CULL_FACE)
         if (translucent) {
             Gdx.gl.glEnable(GL20.GL_BLEND)

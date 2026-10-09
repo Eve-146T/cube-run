@@ -133,8 +133,8 @@ class FrostLook(world: Worlds.World) : BiomeLook(world) {
 
     override fun seedMote(p: Piece, r: Random, anywhere: Boolean) {
         p.x = (r.nextFloat() * 2f - 1f) * 22f
-        p.z = -80f + r.nextFloat() * 85f
-        p.y = if (anywhere) r.nextFloat() * 16f else 14f + r.nextFloat() * 3f
+        p.z = if (anywhere) -80f + r.nextFloat() * 85f else -101f - r.nextFloat() * 12f // snowing all the way out, coming closer
+        p.y = 2f + r.nextFloat() * 15f
         p.vy = -(1.4f + r.nextFloat() * 1.4f)
         p.vx = 0.4f + r.nextFloat() * 0.8f
         p.rate = 0.9f

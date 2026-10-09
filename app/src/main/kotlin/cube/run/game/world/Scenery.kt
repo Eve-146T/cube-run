@@ -21,6 +21,23 @@ object Fog {
 
     /** Fog factor for world geometry at [z] (negative = ahead of the player). */
     fun at(z: Float) = ((-z - start) / (end - start)).coerceIn(0f, 1f)
+
+    /** Things come into view: invisible where they are born ([appearFar] and beyond), whole by [appearNear]. */
+    /** Off only to measure what the fade-in saves (tests). */
+    @Volatile var fadeIn = true
+    const val appearFar = 100f
+    const val appearNear = 76f
+
+    /**
+     * How much of something at [z] is there (0…1): the world's far end fades in instead of
+     * popping up a tile or a post at a time. Fog only tints toward one colour, never the
+     * sky, sun or mountains behind, so it cannot hide a newcomer on its own.
+     */
+    fun appear(z: Float): Float {
+        if (!fadeIn) return 1f
+        val t = ((appearFar + z) / (appearFar - appearNear)).coerceIn(0f, 1f)
+        return t * t * (3f - 2f * t)
+    }
 }
 
 /**
@@ -178,7 +195,7 @@ class Scenery(private val game: Gdx3DGame, private val rnd: Random) {
         biome.scroll(mv)
         for (s in streaks) { // wind streaks fly past faster than the world (parallax sells the speed)
             s.z += mv * 1.6f
-            if (s.z > 10f) { s.z = -90f - rnd.nextFloat() * 30f; seedStreak(s) }
+            if (s.z > 10f) { s.z = -102f - rnd.nextFloat() * 18f; seedStreak(s) } // born unseen, past Fog.appearFar
         }
         var passed = 0
         var i = gates.size - 1
@@ -207,6 +224,7 @@ class Scenery(private val game: Gdx3DGame, private val rnd: Random) {
         val landX = kerb + 0.12f + landW / 2f
         for (t in tiles) {
             val fog = Fog.at(t.z)
+            val a = Fog.appear(t.z)
             val c1 = if (sp > 0f) space!!.roadTile(tileA, t.col, false) else t.col
             val c2 = if (sp > 0f) space!!.roadTile(tileB, t.col2, true) else t.col2
             // the three core lanes, then the two outer ones growing out from the edges as the road unfolds
@@ -219,26 +237,26 @@ class Scenery(private val game: Gdx3DGame, private val rnd: Random) {
                 for (i in 0 until rifts.count) {
                     val hn = rifts.near(i); val hf = rifts.far(i)
                     if (hf >= top || hn <= bottom) continue
-                    if (hn < top) glassPiece(hn, top, w, t.parity, c1, c2, fog, alpha)
+                    if (hn < top) glassPiece(hn, top, w, t.parity, c1, c2, fog, alpha * a)
                     top = min(top, hf)
                 }
-                if (top > bottom) glassPiece(bottom, top, w, t.parity, c1, c2, fog, alpha)
-            } else for (l in 0 until 3) game.worldGround((l - 1) * w, -0.14f, t.z, w, 0.26f, tileD, if ((l + 1 + t.parity) % 2 == 0) c1 else c2, fog)
+                if (top > bottom) glassPiece(bottom, top, w, t.parity, c1, c2, fog, alpha * a)
+            } else for (l in 0 until 3) game.worldGround((l - 1) * w, -0.14f, t.z, w, 0.26f, tileD, if ((l + 1 + t.parity) % 2 == 0) c1 else c2, fog, a)
             if (u > 0.01f) {
                 val ow = w * u
-                game.worldGround(-(1.5f * w + ow / 2f), -0.14f, t.z, ow, 0.26f, tileD, if (t.parity == 0) c1 else c2, fog)
-                game.worldGround(1.5f * w + ow / 2f, -0.14f, t.z, ow, 0.26f, tileD, if (t.parity == 0) c1 else c2, fog)
+                game.worldGround(-(1.5f * w + ow / 2f), -0.14f, t.z, ow, 0.26f, tileD, if (t.parity == 0) c1 else c2, fog, a)
+                game.worldGround(1.5f * w + ow / 2f, -0.14f, t.z, ow, 0.26f, tileD, if (t.parity == 0) c1 else c2, fog, a)
             }
-            renderKerb(t, kerb, fog, sp)
+            renderKerb(t, kerb, fog, sp, a)
             if (dropY < 60f) {
-                game.worldGround(-landX, -0.16f - dropY, t.z, landW, 0.3f, tileD, t.ground, fog)
-                game.worldGround(landX, -0.16f - dropY, t.z, landW, 0.3f, tileD, t.ground, fog)
+                game.worldGround(-landX, -0.16f - dropY, t.z, landW, 0.3f, tileD, t.ground, fog, a)
+                game.worldGround(landX, -0.16f - dropY, t.z, landW, 0.3f, tileD, t.ground, fog, a)
             }
         }
     }
 
     /** The road's edge on one tile row, both sides, in the style of the biome the row was born in. */
-    private fun renderKerb(t: Tile, x: Float, fog: Float, sp: Float) {
+    private fun renderKerb(t: Tile, x: Float, fog: Float, sp: Float, a: Float) {
         edgeCol.set(t.kerb)
         if (sp > 0f) space!!.kerb(edgeCol, edgeCol)
         when (t.kerbStyle) {
@@ -246,15 +264,15 @@ class Scenery(private val game: Gdx3DGame, private val rnd: Random) {
                 val w = if (t.parity == 0) 0.5f else 0.42f
                 val h = if (t.parity == 0) 0.52f else 0.42f
                 val bx = x - 0.12f + w / 2f
-                game.worldGround(-bx, -0.1f + (h - 0.34f) / 2f, t.z, w, h, tileD, edgeCol, fog)
-                game.worldGround(bx, -0.1f + (h - 0.34f) / 2f, t.z, w, h, tileD, edgeCol, fog)
+                game.worldGround(-bx, -0.1f + (h - 0.34f) / 2f, t.z, w, h, tileD, edgeCol, fog, a)
+                game.worldGround(bx, -0.1f + (h - 0.34f) / 2f, t.z, w, h, tileD, edgeCol, fog, a)
             }
             else -> {
-                game.worldGround(-x, -0.1f, t.z, 0.24f, 0.34f, tileD, edgeCol, fog)
-                game.worldGround(x, -0.1f, t.z, 0.24f, 0.34f, tileD, edgeCol, fog)
+                game.worldGround(-x, -0.1f, t.z, 0.24f, 0.34f, tileD, edgeCol, fog, a)
+                game.worldGround(x, -0.1f, t.z, 0.24f, 0.34f, tileD, edgeCol, fog, a)
                 if (t.kerbStyle == BiomeLook.KERB_LIGHTS && t.parity == 0 && sp < 0.5f) { // a runway light on every other tile
-                    game.worldBox(-x, 0.19f, t.z, 0.2f, 0.12f, 0.5f, t.light, fog)
-                    game.worldBox(x, 0.19f, t.z, 0.2f, 0.12f, 0.5f, t.light, fog)
+                    game.worldBox(-x, 0.19f, t.z, 0.2f, 0.12f, 0.5f, t.light, fog, a)
+                    game.worldBox(x, 0.19f, t.z, 0.2f, 0.12f, 0.5f, t.light, fog, a)
                 }
             }
         }
@@ -275,25 +293,30 @@ class Scenery(private val game: Gdx3DGame, private val rnd: Random) {
         if (wind > 0f && dropY < 1f) { // faint at cruising speed, vivid near the ceiling (fog doubles as fade)
             for (s in streaks) {
                 val fade = max(Fog.at(s.z), 1f - wind * 0.75f)
-                game.worldBox(s.x, s.y, s.z, 0.05f, 0.05f, s.len * (0.6f + wind * 0.8f), streakCol, fade)
+                game.worldBox(s.x, s.y, s.z, 0.05f, 0.05f, s.len * (0.6f + wind * 0.8f), streakCol, fade, Fog.appear(s.z))
             }
         }
     }
 
     /** Roadside pieces stand on the land: when it falls away (Outer Space) they fall with it. */
+    /** How much of the post being drawn has come into view (see [Fog.appear]). */
+    private var postAlpha = 1f
+
     private fun postBox(x: Float, y: Float, z: Float, sx: Float, sy: Float, sz: Float, col: Color, fog: Float = 0f) =
-        game.worldBox(x, y - dropY, z, sx, sy, sz, col, fog)
+        game.worldBox(x, y - dropY, z, sx, sy, sz, col, fog, postAlpha)
 
     private fun postSpin(x: Float, y: Float, z: Float, sx: Float, sy: Float, sz: Float, yaw: Float, col: Color, fog: Float = 0f) =
-        game.worldBoxSpin(x, y - dropY, z, sx, sy, sz, yaw, col, fog)
+        game.worldBoxSpin(x, y - dropY, z, sx, sy, sz, yaw, col, fog, postAlpha)
 
     private fun renderPost(p: Post, time: Float) {
         val fog = Fog.at(p.z)
+        postAlpha = Fog.appear(p.z)
+        if (postAlpha <= 0f) return
         val x = p.x; val z = p.z
         when (p.style) {
             Worlds.LOLLIPOPS -> when (p.kind) { // candy: gumdrops, candy canes, cupcakes — clean stacked shapes
                 0 -> { // gumdrop: a fat base with a smaller dome on top
-                    postSpin(x, p.h * 0.35f, z, 1.1f, p.h * 0.7f, 1.1f, 45f, p.col)
+                    postSpin(x, p.h * 0.35f, z, 1.1f, p.h * 0.7f, 1.1f, 45f, p.col, fog)
                     postSpin(x, p.h * 0.7f + p.h * 0.18f, z, 0.7f, p.h * 0.36f, 0.7f, 45f, p.col2, fog)
                 }
                 1 -> { // candy cane: striped stack
@@ -357,27 +380,28 @@ class Scenery(private val game: Gdx3DGame, private val rnd: Random) {
     /** Two tall pylons and a beam across the road, in the coming world's colour. The start gate adds bunting and flags. */
     private fun renderGate(g: Gate, time: Float) {
         val fog = Fog.at(g.z)
+        val a = Fog.appear(g.z) // a world's gate comes up out of the distance
         val x = Lanes.halfRoadDrawn + 1.1f
         val h = if (g.start) 5.4f else 4.0f // the start gate stands taller: the camera passes clean under its bunting
-        game.worldBox(-x, h / 2f, g.z, 0.5f, h, 0.5f, g.col, fog)
-        game.worldBox(x, h / 2f, g.z, 0.5f, h, 0.5f, g.col, fog)
-        game.worldBox(0f, h + 0.15f, g.z, x * 2f + 0.5f, 0.4f, 0.5f, g.col, fog)
-        game.worldBox(0f, h + 0.55f, g.z, 1.4f, 0.4f, 0.5f, white, fog)
+        game.worldBox(-x, h / 2f, g.z, 0.5f, h, 0.5f, g.col, fog, a)
+        game.worldBox(x, h / 2f, g.z, 0.5f, h, 0.5f, g.col, fog, a)
+        game.worldBox(0f, h + 0.15f, g.z, x * 2f + 0.5f, 0.4f, 0.5f, g.col, fog, a)
+        game.worldBox(0f, h + 0.55f, g.z, 1.4f, 0.4f, 0.5f, white, fog, a)
         if (g.start) { // a chequered start banner under the beam, a chequered line on the road, a spinning star on each pylon
             val n = 12
             val cw = (2 * x - 0.6f) / n
             for (i in 0 until n) {
                 val bx = -x + 0.3f + cw * (i + 0.5f)
-                game.worldBox(bx, h - 0.22f, g.z, cw, 0.36f, 0.2f, if (i % 2 == 0) white else dark, fog)
+                game.worldBox(bx, h - 0.22f, g.z, cw, 0.36f, 0.2f, if (i % 2 == 0) white else dark, fog, a)
             }
             val m = 8
             val lw = (Lanes.halfRoadDrawn * 2f) / m
             for (i in 0 until m) for (k in 0 until 2) {
-                game.worldBox(-Lanes.halfRoadDrawn + lw * (i + 0.5f), 0.0f, g.z + (k - 0.5f) * 0.55f, lw, 0.03f, 0.55f, if ((i + k) % 2 == 0) white else dark, fog)
+                game.worldBox(-Lanes.halfRoadDrawn + lw * (i + 0.5f), 0.0f, g.z + (k - 0.5f) * 0.55f, lw, 0.03f, 0.55f, if ((i + k) % 2 == 0) white else dark, fog, a)
             }
             hsvInto(edgeCol, 50f, 0.8f, 1f)
-            game.worldBoxSpin(-x, h + 0.55f, g.z, 0.55f, 0.55f, 0.55f, time * 140f, edgeCol, fog)
-            game.worldBoxSpin(x, h + 0.55f, g.z, 0.55f, 0.55f, 0.55f, -time * 140f, edgeCol, fog)
+            game.worldBoxSpin(-x, h + 0.55f, g.z, 0.55f, 0.55f, 0.55f, time * 140f, edgeCol, fog, a)
+            game.worldBoxSpin(x, h + 0.55f, g.z, 0.55f, 0.55f, 0.55f, -time * 140f, edgeCol, fog, a)
         }
     }
 }
