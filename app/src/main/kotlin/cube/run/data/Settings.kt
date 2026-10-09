@@ -21,7 +21,7 @@ object Settings {
     /** Effective smooth-control state — always false while [SMOOTH_CONTROL_UI] is off. */
     val smoothControl: Boolean get() = SMOOTH_CONTROL_UI && smoothControlPref
 
-    /** Allow successive swipe actions without lifting the finger. */
+    /** Allow swipe direction changes without lifting the finger. */
     @Volatile var multiSwipe: Boolean = false
         private set
 

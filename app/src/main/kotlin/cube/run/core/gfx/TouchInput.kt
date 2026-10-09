@@ -15,7 +15,7 @@ interface TouchListener {
     /** When true, the game interprets drags positionally instead of receiving flicks. */
     fun smoothSwipeEnabled(): Boolean = false
 
-    /** Allow multiple swipe segments during one touch. */
+    /** Allow successive direction changes during one touch. */
     fun multiSwipeEnabled(): Boolean = false
 }
 
@@ -44,13 +44,14 @@ class TouchInput(
     private var lastX = 0f
     private var lastY = 0f
     private var downAt = 0L
+    private var lastSwipe = -1
     private var swiped = false
     private var active = false
     private var moved = false
     private val swipeDist get() = screenWidth() * 0.055f
     private val tapSlop get() = screenWidth() * 0.03f
 
-    fun reset() { active = false; moved = false; swiped = false; downAt = 0L }
+    fun reset() { active = false; moved = false; swiped = false; lastSwipe = -1; downAt = 0L }
 
     override fun touchDown(x: Int, y: Int, pointer: Int, button: Int): Boolean {
         if (pointer != 0) return false
@@ -60,7 +61,7 @@ class TouchInput(
         lastX = downX; lastY = downY
         swipeX = downX; swipeY = downY
         downAt = System.nanoTime()
-        swiped = false; moved = false
+        swiped = false; moved = false; lastSwipe = -1
         listener.onDown(downX, downY)
         return true
     }
@@ -78,17 +79,20 @@ class TouchInput(
     private fun recognizeSwipe(fx: Float, fy: Float) {
         if (abs(fx - downX) >= tapSlop || abs(fy - downY) >= tapSlop) moved = true
         // smooth mode: the game interprets the drag positionally (in onDrag).
-        // Multiswipe starts a new segment after every threshold crossing.
+        // Refresh the segment even when continuing in the same direction,
+        // so a turn is measured from the latest point instead of the first swipe.
         if (!listener.smoothSwipeEnabled() && (!swiped || listener.multiSwipeEnabled())) {
             val dx = fx - swipeX
             val dy = fy - swipeY
             if (abs(dx) > swipeDist || abs(dy) > swipeDist) {
                 swiped = true
                 swipeX = fx; swipeY = fy
-                listener.onSwipe(
-                    if (abs(dx) > abs(dy)) { if (dx > 0) RIGHT else LEFT }
-                    else { if (dy > 0) DOWN else UP },
-                )
+                val dir = if (abs(dx) > abs(dy)) { if (dx > 0) RIGHT else LEFT }
+                    else { if (dy > 0) DOWN else UP }
+                if (dir != lastSwipe) {
+                    lastSwipe = dir
+                    listener.onSwipe(dir)
+                }
             }
         }
     }

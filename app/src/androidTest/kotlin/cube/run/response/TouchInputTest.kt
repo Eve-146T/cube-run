@@ -32,7 +32,7 @@ class TouchInputTest {
         assertEquals(0, l.taps)
     }
 
-    @Test fun continuousTouchRecognizesTurnsReversalsAndRepeatedSegments() {
+    @Test fun continuousTouchCombinesDirectionChangesWithoutRepeatingActions() {
         val l = Listener().apply { multi = true }; val input = TouchInput(l, { 720 }, { false })
         input.touchDown(360, 760, 0, 0)
         input.touchDragged(310, 760, 0)
@@ -40,7 +40,31 @@ class TouchInputTest {
         input.touchDragged(260, 710, 0)
         input.touchDragged(310, 710, 0)
         input.touchUp(310, 760, 0, 0)
-        assertEquals(listOf(TouchInput.LEFT, TouchInput.LEFT, TouchInput.UP, TouchInput.RIGHT, TouchInput.DOWN), l.swipes)
+        assertEquals(listOf(TouchInput.LEFT, TouchInput.UP, TouchInput.RIGHT, TouchInput.DOWN), l.swipes)
+        assertEquals(0, l.taps)
+    }
+
+    @Test fun multiswipeNeverRepeatsAStraightSwipeIncludingOnRelease() {
+        val l = Listener().apply { multi = true }; val input = TouchInput(l, { 720 }, { false })
+        for ((dx, dy) in listOf(-50 to 0, 50 to 0, 0 to -50, 0 to 50)) {
+            input.touchDown(360, 760, 0, 0)
+            repeat(3) { step -> input.touchDragged(360 + dx * (step + 1), 760 + dy * (step + 1), 0) }
+            input.touchUp(360 + dx * 4, 760 + dy * 4, 0, 0)
+        }
+        assertEquals(listOf(TouchInput.LEFT, TouchInput.RIGHT, TouchInput.UP, TouchInput.DOWN), l.swipes)
+        assertEquals(0, l.taps)
+    }
+
+    @Test fun multiswipeAllowsReversalsAndANewTouchCanRepeatTheDirection() {
+        val l = Listener().apply { multi = true }; val input = TouchInput(l, { 720 }, { false })
+        input.touchDown(360, 760, 0, 0)
+        input.touchDragged(310, 760, 0)
+        input.touchDragged(360, 760, 0)
+        input.touchDragged(310, 760, 0)
+        input.touchUp(260, 760, 0, 0)
+        input.touchDown(360, 760, 0, 0)
+        input.touchUp(310, 760, 0, 0)
+        assertEquals(listOf(TouchInput.LEFT, TouchInput.RIGHT, TouchInput.LEFT, TouchInput.LEFT), l.swipes)
         assertEquals(0, l.taps)
     }
 
