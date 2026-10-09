@@ -102,9 +102,11 @@ class LanguageSheet(
                     }
                 }
                 setOnClickListener {
+                    Anim.tap(this)
                     SoundFx.play("tap"); Haptics.click()
                     if (!selected) onSelected(option.code)
                 }
+                Anim.pressFeedback(this)
             }
             row.addView(ImageView(activity).apply {
                 setImageResource(option.flag)

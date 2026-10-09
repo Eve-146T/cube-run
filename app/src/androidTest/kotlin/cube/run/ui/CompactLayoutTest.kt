@@ -8,6 +8,7 @@ import android.widget.ScrollView
 import android.widget.TextView
 import androidx.test.core.app.ActivityScenario
 import cube.run.GameActivity
+import cube.run.data.Progress
 import cube.run.data.Skins
 import org.junit.Assert.*
 import org.junit.Test
@@ -31,6 +32,98 @@ class CompactLayoutTest {
             rect.left >= 0 && rect.top >= 0 && rect.right <= root.width && rect.bottom <= root.height)
     }
     private val sizes = listOf(360 to 375, 320 to 426, 280 to 320, 360 to 500, 360 to 250, 360 to 720, 360 to 375, 360 to 720)
+
+    @Test fun settingsControlsStayInsideTheirRowsThroughCompactAndRtlLayouts() {
+        ActivityScenario.launch(GameActivity::class.java).use { scenario -> scenario.onActivity { activity ->
+            for (scale in listOf(1f, 1.5f)) {
+                val kit = UiKit(activity.createConfigurationContext(Configuration(activity.resources.configuration).apply { fontScale = scale }))
+                val page = SettingsView(activity, kit, {}, {}, {}) {}
+                for (direction in listOf(View.LAYOUT_DIRECTION_LTR, View.LAYOUT_DIRECTION_RTL)) {
+                    page.layoutDirection = direction
+                    for ((w, h) in sizes) {
+                        measure(page, kit, w, h)
+                        if (w >= 320 && h >= 720 && scale == 1f) {
+                            val scroller = all(page).filterIsInstance<ScrollView>().single()
+                            assertTrue("Full-screen settings must not have a tiny scroll range",
+                                scroller.getChildAt(0).height <= scroller.height - scroller.paddingTop - scroller.paddingBottom)
+                        }
+                        for (control in all(page).filter { it is CandySwitch || it is LevelPicker }) {
+                            inside(control.parent as ViewGroup, control)
+                            assertTrue("Control has a usable width at $w x $h / $scale", control.width >= kit.dp(48f))
+                            if (control is CandySwitch) {
+                                val row = control.parent as ViewGroup
+                                assertTrue("Whole switch row is a touch target", row.isClickable && row.height >= kit.dp(48f))
+                                assertEquals("Switch is centred in its row", row.height / 2f, control.top + control.height / 2f, kit.dp(1f).toFloat())
+                            }
+                        }
+                        for (label in all(page).filterIsInstance<TextView>().filter { it.visibility == View.VISIBLE }) {
+                            assertTrue("Label has width at $w x $h / $scale: ${label.text}", label.width > 0)
+                        }
+                    }
+                }
+                Anim.cancelTree(page)
+            }
+        } }
+    }
+
+    @Test fun settingsSlidersPickPersistAndReachTheirMinimumInBothDirections() {
+        ActivityScenario.launch(GameActivity::class.java).use { scenario -> scenario.onActivity { activity ->
+            val settings = cube.run.data.Settings
+            val savedVolume = settings.volume; val savedSpeed = settings.startSpeed; val savedSound = settings.soundEnabled
+            val savedStartEnabled = settings.startSpeedEnabled
+            val taps = Progress.totalHapticTaps
+            try {
+                for (direction in listOf(View.LAYOUT_DIRECTION_LTR, View.LAYOUT_DIRECTION_RTL)) {
+                    settings.setVolume(1); settings.setStartSpeed(0); settings.setSoundEnabled(false)
+                    val kit = UiKit(activity)
+                    val page = SettingsView(activity, kit, {}, {}, {}) {}
+                    page.layoutDirection = direction
+                    measure(page, kit, 360, 720)
+                    val volume = all(page).filterIsInstance<VolumeSteps>().single()
+                    val speed = all(page).filterIsInstance<StartSpeedBar>().single()
+                    fun gesture(view: View, fraction: Float, cancel: Boolean = false) {
+                        val x = view.width * if (direction == View.LAYOUT_DIRECTION_RTL) 1f - fraction else fraction
+                        val now = android.os.SystemClock.uptimeMillis()
+                        for ((index, action) in listOf(android.view.MotionEvent.ACTION_DOWN,
+                            if (cancel) android.view.MotionEvent.ACTION_CANCEL else android.view.MotionEvent.ACTION_UP).withIndex()) {
+                            val event = android.view.MotionEvent.obtain(now, now + index * 80L, action, x, view.height / 2f, 0)
+                            assertTrue(view.dispatchTouchEvent(event)); event.recycle()
+                        }
+                    }
+                    gesture(volume, .45f)
+                    assertEquals(5, settings.volume)
+                    assertTrue("Adjusting volume unmutes sound", settings.soundEnabled)
+                    gesture(volume, .45f); assertEquals(4, settings.volume)
+                    gesture(speed, .98f); assertEquals(Progress.maxStartPresses, settings.startSpeed)
+                    (field(page, "speedTile") as View).performClick()
+                    assertFalse("The start-speed icon disables the preset", settings.startSpeedEnabled)
+                    assertEquals("Disabling keeps the selected steps", Progress.maxStartPresses, speed.level)
+                    assertEquals("A disabled preset starts normally", 0, settings.effectiveStartSpeed)
+                    settings.init(activity)
+                    assertFalse("The disabled state persists", settings.startSpeedEnabled)
+                    assertEquals("The selected level persists while disabled", Progress.maxStartPresses, settings.startSpeed)
+                    (field(page, "speedTile") as View).performClick()
+                    assertTrue(settings.startSpeedEnabled)
+                    assertEquals("Toggling back restores the preset", Progress.maxStartPresses, settings.effectiveStartSpeed)
+                    (field(page, "speedTile") as View).performClick()
+                    gesture(speed, .02f)
+                    assertTrue("Selecting steps re-enables the preset", settings.startSpeedEnabled)
+                    gesture(speed, .98f)
+                    gesture(speed, .02f); gesture(speed, .02f)
+                    assertEquals("The zero-speed start stays reachable", 0, settings.startSpeed)
+                    gesture(speed, .02f, cancel = true)
+                    assertEquals("Cancel must not act as a second tap", 1, settings.startSpeed)
+                    settings.init(activity)
+                    assertEquals(4, settings.volume); assertEquals(1, settings.startSpeed)
+                    assertEquals("Sliders do not count as haptic-toggle taps", taps, Progress.totalHapticTaps)
+                    Anim.cancelTree(page)
+                }
+            } finally {
+                settings.setVolume(savedVolume); settings.setStartSpeed(savedSpeed); settings.setSoundEnabled(savedSound)
+                settings.setStartSpeedEnabled(savedStartEnabled)
+            }
+        } }
+    }
 
     @Test fun menuKeepsStartAndNavigationSeparateAtEverySize() {
         ActivityScenario.launch(GameActivity::class.java).use { scenario -> scenario.onActivity { activity ->

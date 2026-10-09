@@ -60,7 +60,7 @@
     <string name="text_bubble_shield">Bubble shield</string>
     <string name="text_double_tap_to_block_a_hit">Double-tap to block a hit</string>
     <string name="text_more_boost_presses_at_the_start_of_every_run">More boost presses at the start of every run</string>
-    <string name="text_every_run_begins_under_a_bubble">Every run begins under a bubble</string>
+    <string name="text_bubble_cooldown_reduces">Reduces the cooldown between bubble uses</string>
     <string name="text_every_coin_is_worth_more">Every coin is worth more</string>
     <string name="text_portals_to_bonus_worlds_open_sooner">Portals to bonus worlds open sooner</string>
     <string name="text_mystery_boxes_turn_up_more_often">Mystery boxes turn up more often</string>
@@ -132,7 +132,7 @@
     <string name="game_magnet">Magnet</string>
     <string name="game_2_score">2× score</string>
     <string name="game_jetpack">Jetpack</string>
-    <string name="game_safe_start">Safe start</string>
+    <string name="game_faster_bubbles">Faster bubbles</string>
     <string name="game_rich_coins">Rich coins</string>
     <string name="game_portal_luck">Portal luck</string>
     <string name="game_lucky_boxes">Lucky boxes</string>

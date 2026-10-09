@@ -34,6 +34,11 @@ and calls `onCompactChanged` when a live resize crosses it.
 Full-height layouts retain their original sizing. Resizing changes presentation,
 not navigation, purchases or reward state. Cutout padding remains authoritative.
 
+Settings trims card gaps and row padding when its content only slightly exceeds
+the available height, so ordinary full-screen phones do not have a tiny scroll
+range. Short split panes and large accessibility fonts retain scrolling rather
+than shrinking the controls below usable touch targets.
+
 ## Verification
 
 `CompactLayoutTest` exercises the same view instances at 360×375, 320×426,

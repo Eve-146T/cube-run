@@ -47,8 +47,9 @@ emissive lift and 72% body opacity instead of pulsing to gray.
 
 The figures above describe the September 14 build, before the track rate doubled.
 These are finite on-device samples, not an across-device performance guarantee.
-`ShardReviewTest` accepts `captureShards=true` for screenshots;
-`WardrobeFrameProbeTest` accepts `probeWardrobe=true` for timing measurements.
+`ShardReviewTest` accepts `captureShards=true` for screenshots. The historical
+frame logger has been retired; navigation timing and rendering regressions remain
+covered by `MenuReturnTimingTest` and `ShopRenderingRegressionTest`.
 
 ## Shard rebalance (2026-09-15)
 

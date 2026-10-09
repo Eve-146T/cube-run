@@ -54,7 +54,7 @@ object Achievements {
         Definition("center", "Stay Centered", "Reach 100 points without leaving the middle lane.", intArrayOf(100), false),
         Definition("homeress", "Homeress", "Reach 60 points without picking up a coin.", intArrayOf(60), false),
         Definition("gambliphobic", "Gambliphobic", "Miss 10 mystery boxes in a single run.", intArrayOf(10), false),
-        Definition("cookie", "Cookie Clicker", "Toggle mute 1000 times.", intArrayOf(1000), false),
+        Definition("cookie", "Haptic Taps", "Toggle haptics 1000 times.", intArrayOf(1000), false),
         Definition("globetrotter", "Globetrotter", "Visit every bonus world across your runs.", intArrayOf(1, 2, 3, 4)),
         Definition("long_hauler", "Long Hauler", "Travel metres across all runs.", intArrayOf(10000, 100000, 500000, 2000000)),
         Definition("shardsmith", "Shardsmith", "Collect shards of any kind.", intArrayOf(25, 100, 250, 750)),
@@ -99,7 +99,7 @@ object Achievements {
         "center" -> Progress.bestCenteredScore
         "homeress" -> Progress.bestCoinlessScore
         "gambliphobic" -> Progress.maxRunMissedBoxes
-        "cookie" -> Progress.totalMuteToggles
+        "cookie" -> Progress.totalHapticTaps
         "bounces" -> Progress.maxRunBounces
         "regular" -> Progress.metric("regular")
         "shardsmith" -> Progress.metric("shardsmith")

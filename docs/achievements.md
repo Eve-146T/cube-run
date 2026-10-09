@@ -39,7 +39,7 @@ a short gold sunburst, and the coins pour out of it into the bank.
 Fully claimed cards fade back with a green check.
 
 Bronze/silver/gold/diamond pay 250/750/2,000/5,000 coins per family. Big Bubble and
-Cookie Clicker each pay 2,000; Bouncer, Stay Centered, Homeress, and Gambliphobic each
+Haptic Taps each pay 2,000; Bouncer, Stay Centered, Homeress, and Gambliphobic each
 pay 1,500. Previously earned tiers remain claimable. The claim marker and coin balance
 persist together, and each tier pays once. Claim bonuses enter the bank without advancing
 the lifetime-coin counter. Completed challenges show a green check and their claim status.
@@ -97,12 +97,15 @@ counts once after it passes the player. Collected boxes, including forfeited
 Gambler lottery boxes, do not count as missed. Run counters reset on restart;
 the best missed-box count persists, capped at 10.
 
-Cookie Clicker requires **1,000 lifetime mute toggles**. Each deliberate sound
-button press in the main menu or pause sheet counts once, in either direction.
-Loading settings, refreshing controls, and changing haptics do not count. The
-counter starts with this version, persists between sessions, and is cleared by
-Reset Progress. These three challenges use the same unlock gate, quiet discovery,
-claim flow, completed checkmarks, and dev-mode support as the other challenges.
+Haptic Taps requires **1,000 lifetime haptics-toggle taps**. Each deliberate tap
+on the vibration row in settings or the vibration chip in pause counts once,
+in either direction. Loading settings, refreshing controls, muting sound, and
+programmatic changes do not count. Existing Cookie Clicker progress and earned
+or claimed rewards carry forward; new taps persist under `total_haptic_taps`.
+Reset Progress clears the counter. The existing `cookie` achievement id stays
+stable so the replacement cannot pay out an already claimed reward again.
+These challenges use the same unlock gate, quiet discovery, claim flow,
+completed checkmarks, and dev-mode support as the other challenges.
 
 Run notifications are silent, show one medal at a time for 2.8 seconds, and start
 at least 10 seconds apart. Pending tiers from the same achievement coalesce into

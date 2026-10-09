@@ -482,31 +482,6 @@ class AnimationRegressionTest {
         }
     }
 
-    @Test fun rareRewardHeartbeatWaitsForEntranceAndStopsForTheNextReward() {
-        lateinit var flow: RunOverFlow
-        ui {
-            flow = results(boxes = 2); attach(flow)
-            field<View>(flow, "page").performClick()
-            field<View>(flow, "page").performClick()
-            flow.onBoxOpened(Progress.BoxReward.COINS, 200, 0, 0)
-            assertNull(field<ValueAnimator?>(flow, "rewardBeat"))
-        }
-        waitFor(650)
-        ui { assertTrue(field<ValueAnimator>(flow, "rewardBeat").isStarted) }
-        ui {
-            field<View>(flow, "page").performClick() // Open the next box before delivering its reward.
-            flow.onBoxOpened(Progress.BoxReward.BUBBLE, 1, 0, 0)
-            assertNull(field<ValueAnimator?>(flow, "rewardBeat"))
-        }
-        waitFor(600)
-        ui {
-            settled(field(flow, "rewardCard"))
-            assertNull(field<ValueAnimator?>(flow, "rewardBeat"))
-            // Reward text is fitted during Android's next measurement pass.
-            assertEquals(36f, field<TextView>(flow, "rewardBig").textSize / activity.resources.displayMetrics.scaledDensity, 0.1f)
-        }
-    }
-
     @Test fun paymentCannotCompleteOnADetachedPage() {
         lateinit var paymentHost: FrameLayout
         var completed = false

@@ -90,4 +90,4 @@ uv run --no-project --python /usr/bin/python3 tools/responsiveness/analyze.py \
   captures/responsiveness/example
 ```
 
-Use `--fast` for the speed-30 condition, or `--jumps-only` to record actual Player acceptance around platform edges and landings (2.0 onward; 1.4 has no platforms). Set `JAVA_HOME`, `TMPDIR` and `UV_CACHE_DIR` to the local JDK/workspace paths when needed. Raw traces remain under ignored `captures/responsiveness`; published artifacts exclude game preferences.
+Use `--fast` for the speed-30 condition. Platform-edge grace and buffered landings are covered by `JumpResponsivenessTest`; the historical CSV-only jump recorder has been retired. Set `JAVA_HOME`, `TMPDIR` and `UV_CACHE_DIR` to the local JDK/workspace paths when needed. Raw traces remain under ignored `captures/responsiveness`; published artifacts exclude game preferences.

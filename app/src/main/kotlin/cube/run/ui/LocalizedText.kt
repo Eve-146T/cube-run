@@ -104,7 +104,7 @@ fun Context.gameText(stableLabel: String): String = when (stableLabel) {
     "Magnet" -> getString(R.string.game_magnet)
     "2× score" -> getString(R.string.game_2_score)
     "Jetpack" -> getString(R.string.game_jetpack)
-    "Safe start" -> getString(R.string.game_safe_start)
+    "Faster bubbles" -> getString(R.string.game_faster_bubbles)
     "Rich coins" -> getString(R.string.game_rich_coins)
     "Portal luck" -> getString(R.string.game_portal_luck)
     "Lucky boxes" -> getString(R.string.game_lucky_boxes)
@@ -193,7 +193,7 @@ fun Context.gameText(stableLabel: String): String = when (stableLabel) {
     "Stay Centered" -> getString(R.string.achievement_center)
     "Homeress" -> getString(R.string.achievement_homeress)
     "Gambliphobic" -> getString(R.string.achievement_gambliphobic)
-    "Cookie Clicker" -> getString(R.string.achievement_cookie)
+    "Haptic Taps" -> getString(R.string.achievement_haptic_taps)
     "Bronze" -> getString(R.string.medal_bronze)
     "Silver" -> getString(R.string.medal_silver)
     "Diamond" -> getString(R.string.medal_diamond)
@@ -261,7 +261,7 @@ fun Context.achievementTitle(id: String): String = getString(when (id) {
     "stage_fright" -> R.string.achievement_stage_fright
     "monk" -> R.string.achievement_monk
     "neo" -> R.string.achievement_neo
-    else -> R.string.achievement_cookie_clicker
+    else -> R.string.achievement_haptic_taps
 })
 
 /** A medal family's short "what counts" line, or a challenge's goal. */
@@ -304,7 +304,7 @@ fun Context.achievementGoal(id: String): String = getString(when (id) {
     "stage_fright" -> R.string.achievement_goal_stage_fright
     "monk" -> R.string.achievement_goal_monk
     "neo" -> R.string.achievement_goal_neo
-    else -> R.string.achievement_toggle_sound
+    else -> R.string.achievement_toggle_haptics
 })
 
 fun Context.achievementTierName(tier: Int): String = getString(listOf(

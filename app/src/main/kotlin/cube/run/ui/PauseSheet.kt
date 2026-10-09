@@ -31,7 +31,7 @@ class PauseSheet(
     private lateinit var pair: LinearLayout
 
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
-        // Sound and haptics remain in the main menu. In a short split pane they
+        // Sound and haptics are also in settings. In a short split pane they
         // push the essential resume/restart/menu controls below the divider.
         val height = MeasureSpec.getSize(heightMeasureSpec)
         val short = CompactLayout.uses(this, height)
@@ -84,11 +84,16 @@ class PauseSheet(
                 { Settings.soundEnabled }, { enabled ->
                     if (Settings.soundEnabled != enabled) {
                         Settings.setSoundEnabled(enabled)
-                        Progress.recordMuteToggle()
                     }
                 }), LinearLayout.LayoutParams(size, size + dp(4f)))
             addView(kit.toggle(R.drawable.ic_haptic_on, R.drawable.ic_haptic_off, activity.getString(R.string.cd_haptics), Theme.SKY,
-                { Settings.hapticsEnabled }, { Settings.setHapticsEnabled(it) }), LinearLayout.LayoutParams(size, size + dp(4f)).apply { marginStart = dp(14f) })
+                { Settings.hapticsEnabled }, { enabled ->
+                    if (Settings.hapticsEnabled != enabled) {
+                        Settings.setHapticsEnabled(enabled)
+                        Progress.recordHapticTap()
+                        if (enabled) cube.run.core.Haptics.click()
+                    }
+                }), LinearLayout.LayoutParams(size, size + dp(4f)).apply { marginStart = dp(14f) })
         }, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(16f) })
     }
 }

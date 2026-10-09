@@ -42,6 +42,17 @@ class LanguageTest {
         view.contentDescription == activity.getString(id)
     }
 
+    /** The language sheet lives on the settings page: open that first unless it is already up. */
+    private fun openLanguages() {
+        var onSettings = false
+        onActivity { a -> onSettings = views(a.window.decorView).any { it is SettingsView && it.isShown } }
+        if (!onSettings) {
+            tap(R.string.settings_title)
+            await { a -> views(a.window.decorView).any { it is SettingsView && it.isShown && it.alpha == 1f } }
+        }
+        tap(R.string.cd_languages)
+    }
+
     /** Exercise Android hit testing, including every ancestor's bounds. */
     private fun tapMatching(matches: (GameActivity, View) -> Boolean) {
         val point = IntArray(2)
@@ -110,7 +121,7 @@ class LanguageTest {
         ActivityScenario.launch<GameActivity>(Intent(context, GameActivity::class.java)
             .putExtra(Hud.EXTRA_AUTOSTART, false)).use {
             SystemClock.sleep(800)
-            tap(R.string.cd_languages)
+            openLanguages()
             SystemClock.sleep(300)
             fun cardBounds(): android.graphics.Rect {
                 val bounds = android.graphics.Rect()
@@ -181,7 +192,7 @@ class LanguageTest {
                     onActivity { a ->
                         val menu = views(a.window.decorView).filterIsInstance<MainMenu>().single()
                         val chips = views(menu).filterIsInstance<CandyChip>().toList()
-                        val globe = chips.single { it.contentDescription == a.getString(R.string.cd_languages) }
+                        val globe = chips.single { it.contentDescription == a.getString(R.string.settings_title) }
                         for (chip in chips) {
                             assertEquals("Toolbar buttons must fade together", globe.alpha, chip.alpha, 0.02f)
                             assertEquals("Toolbar buttons must rise together", globe.translationY, chip.translationY, 1f)
@@ -189,14 +200,14 @@ class LanguageTest {
                     }
                 }
                 capture("home-en")
-                tap(R.string.cd_languages)
-                await { a -> views(a.window.decorView).any { it is LanguageSheet && it.alpha == 1f } }
+                openLanguages()
+                await { a -> views(a.window.decorView).any { it is LanguageSheet && it.isShown && it.alpha == 1f } }
                 var outsideY = 0
                 onActivity { outsideY = it.window.decorView.height / 2 }
                 tapAt(4, outsideY)
-                await { a -> views(a.window.decorView).none { it is LanguageSheet } }
-                assertTrue(Stage.homeScreen)
-                tap(R.string.cd_languages)
+                await { a -> views(a.window.decorView).none { it is LanguageSheet && it.isShown } }
+                assertFalse("The settings page stays under the sheet", Stage.homeScreen)
+                openLanguages()
                 for (code in listOf("en", "de", "he", "en")) {
                     if (code != Languages.current(context)) {
                         tapMatching { a, view ->
@@ -238,7 +249,9 @@ class LanguageTest {
                     capture(code)
                     if (code == "de") {
                         tap(R.string.cd_back)
-                        await { a -> views(a.window.decorView).none { it is LanguageSheet } }
+                        await { a -> views(a.window.decorView).none { it is LanguageSheet && it.isShown } }
+                        tap(R.string.cd_back) // and out of settings
+                        await { a -> views(a.window.decorView).none { it is SettingsView && it.isShown } }
                         tap(R.string.cd_skins)
                         onActivity { a ->
                             val labels = views(a.window.decorView).filterIsInstance<TextView>().map { it.text.toString() }.toList()
@@ -247,13 +260,15 @@ class LanguageTest {
                         capture("wardrobe-de")
                         tap(R.string.cd_back)
                         SystemClock.sleep(400)
-                        tap(R.string.cd_languages)
+                        openLanguages()
                     }
                 }
                 onActivity { it.changeLanguage("he") }
                 await { a -> a.resources.configuration.layoutDirection == View.LAYOUT_DIRECTION_RTL && views(a.window.decorView).filterIsInstance<Hud>().count() == 1 && views(a.window.decorView).any { it is LanguageSheet } }
                 onActivity { a -> views(a.window.decorView).filterIsInstance<Hud>().single().navigateBack() }
-                await { a -> views(a.window.decorView).none { it is LanguageSheet } }
+                await { a -> views(a.window.decorView).none { it is LanguageSheet && it.isShown } }
+                onActivity { a -> views(a.window.decorView).filterIsInstance<Hud>().single().navigateBack() }
+                await { a -> views(a.window.decorView).none { it is SettingsView && it.isShown } }
                 capture("home-he")
                 assertTrue(Stage.homeScreen)
                 tap(R.string.cd_skins)

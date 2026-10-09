@@ -48,6 +48,25 @@ object Anim {
     val springSoft = OvershootInterpolator(1.1f)
     val ease = DecelerateInterpolator(1.6f)
 
+    /** Immediate tap response; completion never holds up the control's action. */
+    fun tap(v: View) {
+        v.scaleX = .97f; v.scaleY = .97f
+        v.move().scaleX(1f).scaleY(1f).setDuration(160).setInterpolator(springSoft).start()
+    }
+
+    @android.annotation.SuppressLint("ClickableViewAccessibility")
+    fun pressFeedback(v: View) {
+        v.setOnTouchListener { _, event ->
+            when (event.actionMasked) {
+                android.view.MotionEvent.ACTION_DOWN ->
+                    v.move().scaleX(.97f).scaleY(.97f).setDuration(45).start()
+                android.view.MotionEvent.ACTION_UP, android.view.MotionEvent.ACTION_CANCEL ->
+                    v.move().scaleX(1f).scaleY(1f).setDuration(160).setInterpolator(springSoft).start()
+            }
+            false
+        }
+    }
+
     /** Refresh layout after an entrance without resetting newer animation state. */
     private fun settle(v: View) {
         // The animator already reached its targets. Do not overwrite properties

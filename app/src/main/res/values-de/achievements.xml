@@ -11,7 +11,7 @@
     <string name="achievement_stay_centered">Bleib in der Mitte</string>
     <string name="achievement_homeress">Ohne Zuhause</string>
     <string name="achievement_gambliphobic">Glücksspielscheu</string>
-    <string name="achievement_cookie_clicker">Cookie-Klicker</string>
+    <string name="achievement_haptic_taps">Vibrations-Taps</string>
     <string name="achievement_single_run_score">Punkte in einem Lauf</string>
     <string name="achievement_collected_over_time">Insgesamt gesammelt</string>
     <string name="achievement_cube_collection">Würfelsammlung</string>
@@ -22,7 +22,7 @@
     <string name="achievement_stay_middle">Erreiche 100, ohne die mittlere Spur zu verlassen</string>
     <string name="achievement_no_coins">Erreiche 60, ohne eine Münze einzusammeln</string>
     <string name="achievement_miss_boxes">Verpasse 10 Geschenke in einem Lauf</string>
-    <string name="achievement_toggle_sound">Schalte den Ton 1000-mal um</string>
+    <string name="achievement_toggle_haptics">Schalte die Vibration 1000-mal um</string>
     <string name="achievement_claimed">Abgeholt</string>
     <string name="achievement_claimed_with_best">Abgeholt · %1$s</string>
     <string name="achievement_best_bounces">Bestwert: %1$s Abpraller</string>

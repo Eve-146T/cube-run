@@ -11,12 +11,14 @@ class TouchInputTest {
         var taps = 0
         var drags = 0
         var smooth = false
+        var multi = false
         override fun onDown(x: Float, y: Float) {}
         override fun onDrag(x: Float, y: Float, dx: Float, dy: Float) { drags++ }
         override fun onUp(x: Float, y: Float) {}
         override fun onTap(x: Float, y: Float) { taps++ }
         override fun onSwipe(dir: Int) { swipes.add(dir) }
         override fun smoothSwipeEnabled() = smooth
+        override fun multiSwipeEnabled() = multi
     }
 
     @Test fun shortFlicksRecognizeAllDirectionsBeforeTheOldThreshold() {
@@ -24,10 +26,57 @@ class TouchInputTest {
         for ((dx, dy) in listOf(-40 to 0, 40 to 0, 0 to -40, 0 to 40)) {
             input.touchDown(360, 760, 0, 0)
             input.touchDragged(360 + dx, 760 + dy, 0)
-            input.touchDragged(360 - dx * 3, 760 - dy * 3, 0)
             input.touchUp(360 + dx, 760 + dy, 0, 0)
         }
         assertEquals(listOf(TouchInput.LEFT, TouchInput.RIGHT, TouchInput.UP, TouchInput.DOWN), l.swipes)
+        assertEquals(0, l.taps)
+    }
+
+    @Test fun continuousTouchCombinesDirectionChangesWithoutRepeatingActions() {
+        val l = Listener().apply { multi = true }; val input = TouchInput(l, { 720 }, { false })
+        input.touchDown(360, 760, 0, 0)
+        input.touchDragged(310, 760, 0)
+        input.touchDragged(260, 760, 0)
+        input.touchDragged(260, 710, 0)
+        input.touchDragged(310, 710, 0)
+        input.touchUp(310, 760, 0, 0)
+        assertEquals(listOf(TouchInput.LEFT, TouchInput.UP, TouchInput.RIGHT, TouchInput.DOWN), l.swipes)
+        assertEquals(0, l.taps)
+    }
+
+    @Test fun multiswipeNeverRepeatsAStraightSwipeIncludingOnRelease() {
+        val l = Listener().apply { multi = true }; val input = TouchInput(l, { 720 }, { false })
+        for ((dx, dy) in listOf(-50 to 0, 50 to 0, 0 to -50, 0 to 50)) {
+            input.touchDown(360, 760, 0, 0)
+            repeat(3) { step -> input.touchDragged(360 + dx * (step + 1), 760 + dy * (step + 1), 0) }
+            input.touchUp(360 + dx * 4, 760 + dy * 4, 0, 0)
+        }
+        assertEquals(listOf(TouchInput.LEFT, TouchInput.RIGHT, TouchInput.UP, TouchInput.DOWN), l.swipes)
+        assertEquals(0, l.taps)
+    }
+
+    @Test fun multiswipeAllowsReversalsAndANewTouchCanRepeatTheDirection() {
+        val l = Listener().apply { multi = true }; val input = TouchInput(l, { 720 }, { false })
+        input.touchDown(360, 760, 0, 0)
+        input.touchDragged(310, 760, 0)
+        input.touchDragged(360, 760, 0)
+        input.touchDragged(310, 760, 0)
+        input.touchUp(260, 760, 0, 0)
+        input.touchDown(360, 760, 0, 0)
+        input.touchUp(310, 760, 0, 0)
+        assertEquals(listOf(TouchInput.LEFT, TouchInput.RIGHT, TouchInput.LEFT, TouchInput.LEFT), l.swipes)
+        assertEquals(0, l.taps)
+    }
+
+    @Test fun disabledMultiswipeKeepsOneActionPerTouch() {
+        val l = Listener(); val input = TouchInput(l, { 720 }, { false })
+        input.touchDown(360, 760, 0, 0)
+        input.touchDragged(310, 760, 0)
+        input.touchDragged(260, 760, 0)
+        input.touchDragged(260, 710, 0)
+        input.touchDragged(310, 710, 0)
+        input.touchUp(310, 760, 0, 0)
+        assertEquals(listOf(TouchInput.LEFT), l.swipes)
         assertEquals(0, l.taps)
     }
 

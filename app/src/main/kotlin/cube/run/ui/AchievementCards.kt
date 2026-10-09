@@ -251,7 +251,7 @@ internal class AchievementCards(
             "center" -> Theme.MINT
             "homeress" -> Theme.GOLD
             "gambliphobic" -> Theme.LAVENDER
-            "cookie" -> Theme.ORANGE
+            "cookie" -> Theme.SKY
             "globetrotter" -> Theme.SKY
             "long_hauler" -> Theme.ORANGE
             "shardsmith" -> Theme.LAVENDER
