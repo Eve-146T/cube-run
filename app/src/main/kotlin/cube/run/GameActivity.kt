@@ -123,6 +123,7 @@ open class GameActivity : AndroidApplication() {
             intent.getIntExtra("world", -2).let { if (it >= -1) Settings.testWorld = it }
             intent.getIntExtra("boxes", -1).let { if (it >= 0) Settings.testBoxes = it }
             intent.getIntExtra("bonusnow", -2).let { if (it >= -1) Settings.testBonusNow = it }
+            intent.getIntExtra("horizon", -1).let { if (it >= 0) cube.run.game.world.biome.BiomeScene.horizon = it }
         }
         val session = GameHostSession(this, SCORE_ID)
         hostSession = session

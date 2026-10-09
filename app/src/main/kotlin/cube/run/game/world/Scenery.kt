@@ -16,8 +16,8 @@ import kotlin.random.Random
 
 /** Distance haze: crisp until [start], fully dissolved into the sky by [end]. Rows spawn beyond [end]. */
 object Fog {
-    const val start = 58f
-    const val end = 96f
+    const val start = 70f
+    const val end = 98f
 
     /** Fog factor for world geometry at [z] (negative = ahead of the player). */
     fun at(z: Float) = ((-z - start) / (end - start)).coerceIn(0f, 1f)
@@ -26,7 +26,7 @@ object Fog {
     /** Off only to measure what the fade-in saves (tests). */
     @Volatile var fadeIn = true
     const val appearFar = 100f
-    const val appearNear = 76f
+    const val appearNear = 88f
 
     /**
      * How much of something at [z] is there (0…1): the world's far end fades in instead of

@@ -140,9 +140,9 @@ class CityLook(world: Worlds.World) : BiomeLook(world) {
         p.x = 6f + r.nextFloat() * 8f; p.rate = 0.45f
         val n = neon(r); p.paint(0, 265f, 0.35f, 0.75f); p.paint(1, n, 0.75f, 1f); p.paint(2, n + 150f, 0.6f, 1f)
         when (p.kind) {
-            0 -> { p.s = 9f; p.y = 40f }   // a blimp with a glowing sign
+            0 -> { p.s = 9f; p.y = 48f }   // a blimp with a glowing sign, above the tallest masts
             1 -> { p.s = 1f; p.y = 46f }   // fireworks over the street
-            else -> { p.s = 26f; p.y = 30f } // a giant neon heart hanging in the sky
+            else -> { p.s = 26f; p.y = 38f } // a giant neon heart hanging in the sky
         }
     }
 
@@ -177,11 +177,14 @@ class CityLook(world: Worlds.World) : BiomeLook(world) {
     override val motes = 14
 
     override fun seedMote(p: Piece, r: Random, anywhere: Boolean) {
-        val ahead = r.nextBoolean() // overtaking you, or coming the other way
-        p.x = (if (r.nextBoolean()) 1f else -1f) * (4.5f + r.nextFloat() * 8f)
-        p.y = 7f + r.nextFloat() * 5f
-        p.z = if (anywhere) -100f + r.nextFloat() * 100f else if (ahead) 10f else -110f
-        p.vz = if (ahead) -(45f + r.nextFloat() * 20f) else 10f + r.nextFloat() * 15f
+        // Skyways over the street, clear of the towers (they start 5.2 out): traffic overtaking you on
+        // the right, oncoming on the left, two lanes at two heights each way. One speed per direction,
+        // so no car ever drives through another.
+        val ahead = r.nextBoolean()
+        p.x = (if (ahead) 1f else -1f) * (if (r.nextBoolean()) 1.3f else 3f)
+        p.y = if (r.nextBoolean()) 8.5f else 11f
+        p.z = if (anywhere) -100f + r.nextFloat() * 100f else if (ahead) 10f + r.nextFloat() * 25f else -104f - r.nextFloat() * 25f
+        p.vz = if (ahead) -55f else 16f
         p.yaw = if (ahead) 0f else 180f
         p.s = 2.4f
         p.life = 12f

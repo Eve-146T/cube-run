@@ -70,7 +70,9 @@ class BiomeScene(private val game: Gdx3DGame) {
             while (z > PROP_FAR) { props.add(Piece().also { seedProp(it, l, side, z) }); z -= gap(l) }
             farthest[side] = z + gap(l)
         }
-        repeat(FAR_COUNT) { far.add(Piece().also { seedFar(it, l, FAR_NEAR - rnd.nextFloat() * (FAR_NEAR - FAR_SPAWN)); it.show = 1f }) }
+        if (horizon != NONE) repeat(FAR_COUNT) { i ->
+            far.add(Piece().also { it.layer = if (horizon == LAYERED) i % 2 else 0; seedFar(it, l, farZ(i)); it.show = 1f })
+        }
         repeat(MOTE_POOL) { motes.add(Piece()) }
         for (i in 0 until l.motes) { // the scene starts with its weather already about
             val p = motes[i]
@@ -108,10 +110,20 @@ class BiomeScene(private val game: Gdx3DGame) {
     }
 
     private fun seedFar(p: Piece, l: BiomeLook, z: Float) {
-        p.look = l; p.z = z; p.y = 0f; p.yaw = 0f; p.s = 1f; p.kind = 0; p.rate = FAR_RATE
+        p.look = l; p.z = z; p.y = 0f; p.yaw = 0f; p.s = 1f; p.kind = 0
+        p.rate = when (horizon) { DRIFT -> FAR_RATE; CREEP -> CREEP_RATE; else -> 0f }
         p.seed = rnd.nextFloat()
         p.show = 0f
         l.seedFar(p, rnd)
+        if (p.layer == 1) { p.s *= 0.5f; p.y -= 2f } // the ridge in front: lower and smaller, so the range shows over it
+        if (horizon == LOW) p.s *= 0.6f
+    }
+
+    /** Where a horizon shape stands when the scene starts or a gate swaps it, by [horizon] style. */
+    private fun farZ(i: Int): Float = when (horizon) {
+        DRIFT -> FAR_NEAR - rnd.nextFloat() * (FAR_NEAR - FAR_SPAWN)
+        LAYERED -> if (i % 2 == 1) -185f - rnd.nextFloat() * 20f else -300f + rnd.nextFloat() * 25f
+        else -> -300f + rnd.nextFloat() * 70f // a panorama, as good as infinitely far
     }
 
     /** Scroll by [mv] road units. (Index loops throughout the per-frame paths: no iterators, no garbage.) */
@@ -141,7 +153,7 @@ class BiomeScene(private val game: Gdx3DGame) {
         for (i in far.indices) {
             val p = far[i]
             p.z += mv * p.rate
-            if (p.z > FAR_NEAR && sky != null) { seedFar(p, sky, FAR_SPAWN - rnd.nextFloat() * 30f); p.show = 1f }
+            if (p.z > FAR_NEAR && sky != null) { seedFar(p, sky, FAR_SPAWN - rnd.nextFloat() * 30f); p.show = 1f } // drifted past: round again
         }
         var i = landmarks.size - 1
         while (i >= 0) {
@@ -191,7 +203,7 @@ class BiomeScene(private val game: Gdx3DGame) {
             if (p.life > 0f) {
                 p.show = min(1f, p.show + dt / MOTE_FADE)
                 p.z += mv * p.rate
-                if (!p.look!!.moveMote(p, dt) || p.z > 12f) p.life = 0f
+                if (!p.look!!.moveMote(p, dt) || p.z > MOTE_GONE) p.life = 0f
                 continue
             }
             if (have < want && started < 4) {
@@ -234,14 +246,15 @@ class BiomeScene(private val game: Gdx3DGame) {
         if (layers and FAR != 0) for (i in far.indices) {
             val p = far[i]
             val l = p.look ?: continue
-            // horizon shapes stand still: they fade in where they come up, out where they leave, and swap at a gate by fading
-            draw.opacity = base * p.show * smooth((p.z - FAR_SPAWN) / 30f) * smooth((FAR_NEAR - p.z) / 25f)
-            l.drawFar(draw, p, FAR_HAZE, time)
+            // horizon shapes never slide: they fade in where they come up, out where they leave, and swap at a gate by fading
+            val travel = if (p.rate > 0f) smooth((p.z - FAR_SPAWN) / 30f) * smooth((FAR_NEAR - p.z) / 25f) else 1f
+            draw.opacity = base * p.show * travel
+            l.drawFar(draw, p, if (p.layer == 1) FAR_HAZE * 0.45f else FAR_HAZE, time)
         }
         if (layers and LANDMARKS != 0) for (i in landmarks.indices) {
             val p = landmarks[i]
             val l = p.look ?: continue
-            draw.opacity = base * smooth(p.travelled / 70f)
+            draw.opacity = base * smooth(p.travelled / LANDMARK_FADE)
             l.drawLandmark(draw, p, LANDMARK_HAZE * (1f - smooth(p.travelled / 260f)), time)
         }
         if (layers and MOTES != 0) for (i in motes.indices) {
@@ -298,9 +311,29 @@ class BiomeScene(private val game: Gdx3DGame) {
         const val FAR_RATE = 0.22f
         const val FAR_COUNT = 12
         const val FAR_HAZE = 0.42f
+        const val CREEP_RATE = 0.03f
+
+        // Horizon styles, to compare (debug builds: --ei horizon N)
+        /** Shapes come up far off, drift slowly closer and leave, fading in and out. */
+        const val DRIFT = 0
+        /** A still panorama, as if infinitely far; it swaps at a gate by fading. */
+        const val PANORAMA = 1
+        /** The panorama, closing in very slowly: you feel the travel but never see it slide. */
+        const val CREEP = 2
+        /** A still range with a lower, crisper ridge in front of it. */
+        const val LAYERED = 3
+        /** Sky only. */
+        const val NONE = 4
+        /** The still panorama, smaller: a low range far away. */
+        const val LOW = 5
+        @Volatile var horizon = LOW
         const val LANDMARK_SPAWN = -340f
         const val LANDMARK_HAZE = 0.3f
+        /** Road units a landmark takes to fade in: quick, or a big arch hangs there half-there. */
+        const val LANDMARK_FADE = 30f
         const val MOTE_POOL = 48
+        /** Motes are gone this far behind the camera (traffic overtaking you starts back there). */
+        const val MOTE_GONE = 40f
         /** Seconds a mote takes to fade in. */
         const val MOTE_FADE = 1.2f
         /** The sky cross-fade at a gate (matches the WorldRunner's). */

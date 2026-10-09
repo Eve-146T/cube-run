@@ -20,6 +20,8 @@ class Piece {
     var travelled = 0f
     /** 0…1: how far it has faded in (horizon shapes with their world, motes as they start). */
     var show = 0f
+    /** Horizon shapes: 0 the far range, 1 the lower ridge in front of it ([BiomeScene.LAYERED]). */
+    var layer = 0
     var vx = 0f; var vy = 0f; var vz = 0f
     var life = 0f
     val pal = arrayOf(Color(), Color(), Color())
