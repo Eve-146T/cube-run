@@ -1,0 +1,6 @@
+New bonus world: Outer Space!
+Major visual overhaul of the decorations.
+Settings menu!
+The Safe start upgrade is now Faster bubbles.
+Smoother frame rates, faster restarts from the pause menu and snappier shop and wardrobe.
+Bug fixes.
