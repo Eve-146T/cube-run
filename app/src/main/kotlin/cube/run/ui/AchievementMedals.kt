@@ -13,19 +13,18 @@ import kotlin.math.sin
  * challenge pays a square plaque instead. Not yet won, the same silhouette is a recessed empty
  * slot, so a row of medals always keeps its shape. Drawn on a 64-unit grid.
  */
-internal class MedalArt(private val tier: Int, private val owned: Boolean, private val strap: Boolean = true) : Icon() {
+internal class MedalArt(private val tier: Int, private val owned: Boolean) : Icon() {
     private val path = Path()
 
     override fun draw(canvas: Canvas) {
         val save = canvas.save()
-        // Without its ribbon (on a card's medal track) the disc alone fills the box.
-        val scale = minOf(bounds.width(), bounds.height()) / if (strap) 64f else 46f
-        canvas.translate(bounds.exactCenterX() - 32f * scale, bounds.exactCenterY() - (if (strap) 32f else 42f) * scale)
+        val scale = minOf(bounds.width(), bounds.height()) / 64f
+        canvas.translate(bounds.exactCenterX() - 32f * scale, bounds.exactCenterY() - 32f * scale)
         canvas.scale(scale, scale)
         paint.style = Paint.Style.FILL
         val t = tier.coerceIn(0, 3)
         val metal = if (owned) METALS[t] else SLOT
-        if (strap) ribbon(canvas, path, paint, if (owned) RIBBONS[t] else SLOT, owned)
+        ribbon(canvas, path, paint, if (owned) RIBBONS[t] else SLOT, owned)
         // An empty slot is sunk in: its darker edge is on top instead of underneath.
         paint.color = if (owned) Theme.darken(metal, .3f) else SLOT_EDGE
         canvas.drawCircle(32f, if (owned) 44.5f else 39.5f, 20.5f, paint)
@@ -188,5 +187,110 @@ internal class WaitingGlow(private val color: Int) : Icon() {
         paint.style = Paint.Style.FILL
         paint.color = Theme.lighten(color, .45f); canvas.drawCircle(cx, cy, r, paint)
         paint.color = Theme.lighten(color, .72f); canvas.drawCircle(cx, cy, r * .86f, paint)
+    }
+}
+
+/**
+ * A medal family's own medal: its picture stamped on a face of its colour inside a chunky metal
+ * rim, hung on a ribbon of its colour, with a banner across the bottom that carries the tier:
+ * one, two or three stars for bronze, silver and gold, a gem for diamond. [tier] is the last one
+ * collected; before the first it is a pale blank, its face a hint of its colour with the picture
+ * sunk in as a silhouette.
+ * [glow], the next metal, sits behind it as a pale disc while a medal waits to be collected.
+ * Drawn on a 100-unit grid.
+ */
+internal class AchievementMedal(id: String, private val color: Int, private val tier: Int, private val glow: Int? = null) : Icon() {
+    private val art = achievementIcon(id)
+    private val path = Path()
+    /** A blank keeps a hint of its family's colour: a pale face with the picture sunk in a shade deeper. */
+    private val blankFace = Theme.lighten(color, .84f)
+    private val sunk = Paint().also { it.colorFilter = android.graphics.PorterDuffColorFilter(Theme.lighten(color, .62f), android.graphics.PorterDuff.Mode.SRC_IN) }
+
+    override fun draw(canvas: Canvas) {
+        val save = canvas.save()
+        val scale = minOf(bounds.width(), bounds.height()) / 100f
+        canvas.translate(bounds.exactCenterX() - 50f * scale, bounds.exactCenterY() - 50f * scale)
+        canvas.scale(scale, scale)
+        paint.style = Paint.Style.FILL
+        val won = tier >= 0
+        val t = tier.coerceIn(0, 3)
+        // Diamond is ice: a pale rim around a crystal-blue groove, so it never melts into a sky-blue face.
+        val metal = if (!won) MedalArt.SLOT else if (t == 3) ICE else MedalArt.METALS[t]
+        val groove = if (t == 3) MedalArt.METALS[3] else Theme.darken(metal, .22f)
+        glow?.let {
+            paint.color = Theme.lighten(it, .5f); canvas.drawCircle(50f, 55f, 45f, paint)
+            paint.color = Theme.lighten(it, .74f); canvas.drawCircle(50f, 55f, 40.5f, paint)
+        }
+        // The ribbon: two straps from the top meeting behind the disc, the far one in shade.
+        paint.color = if (won) Theme.darken(color, .34f) else MedalArt.SLOT_EDGE
+        path.reset(); path.moveTo(57f, 2f); path.lineTo(75f, 2f); path.lineTo(61f, 32f); path.lineTo(43f, 32f); path.close(); canvas.drawPath(path, paint)
+        paint.color = if (won) Theme.darken(color, .1f) else MedalArt.SLOT
+        path.reset(); path.moveTo(25f, 2f); path.lineTo(43f, 2f); path.lineTo(57f, 32f); path.lineTo(39f, 32f); path.close(); canvas.drawPath(path, paint)
+        if (won) {
+            paint.color = Theme.alpha(Theme.WHITE, 120)
+            path.reset(); path.moveTo(31f, 2f); path.lineTo(35.5f, 2f); path.lineTo(49.5f, 32f); path.lineTo(45f, 32f); path.close(); canvas.drawPath(path, paint)
+        }
+        // The disc on its lip; a blank one is sunk in, its edge on top.
+        paint.color = if (!won) MedalArt.SLOT_EDGE else if (t == 3) Theme.darken(MedalArt.METALS[3], .25f) else Theme.darken(metal, .32f)
+        canvas.drawCircle(50f, if (won) 60.5f else 53.5f, 36f, paint)
+        paint.color = metal; canvas.drawCircle(50f, 57f, 36f, paint)
+        paint.color = if (won) groove else MedalArt.SLOT_EDGE; canvas.drawCircle(50f, 57f, 29f, paint)
+        paint.color = if (won) color else blankFace; canvas.drawCircle(50f, 58f, 27.5f, paint)
+        if (won) {
+            paint.style = Paint.Style.STROKE; paint.strokeWidth = 3.4f; paint.strokeCap = Paint.Cap.ROUND
+            paint.color = Theme.alpha(Theme.WHITE, 190)
+            rect.set(17.5f, 24.5f, 82.5f, 89.5f); canvas.drawArc(rect, 195f, 60f, false, paint)
+            paint.style = Paint.Style.FILL
+            if (t == 3) for (a in intArrayOf(-30, 150, 200)) glint(canvas, 50f + 32.5f * cos(Math.toRadians(a.toDouble())).toFloat(), 57f + 32.5f * sin(Math.toRadians(a.toDouble())).toFloat())
+        }
+        // The picture, stamped on the face.
+        art.setBounds(32, 40, 68, 76)
+        if (won) art.draw(canvas)
+        else { canvas.saveLayer(30f, 38f, 70f, 78f, sunk); art.draw(canvas); canvas.restore() }
+        if (won) banner(canvas, t, metal)
+        canvas.restoreToCount(save)
+    }
+
+    /** A four-pointed sparkle cut into the ice rim. */
+    private fun glint(canvas: Canvas, x: Float, y: Float) {
+        paint.color = Theme.WHITE
+        path.reset(); path.moveTo(x, y - 4.2f); path.lineTo(x + 1.3f, y - 1.3f); path.lineTo(x + 4.2f, y); path.lineTo(x + 1.3f, y + 1.3f)
+        path.lineTo(x, y + 4.2f); path.lineTo(x - 1.3f, y + 1.3f); path.lineTo(x - 4.2f, y); path.lineTo(x - 1.3f, y - 1.3f); path.close()
+        canvas.drawPath(path, paint)
+    }
+
+    /** A plaque across the bottom of the rim carrying the tier's stars, or the diamond's gem. */
+    private fun banner(canvas: Canvas, tier: Int, metal: Int) {
+        val body = if (tier == 3) Theme.darken(MedalArt.METALS[3], .2f) else Theme.darken(metal, if (tier == 1) .38f else .26f)
+        val width = if (tier == 2) 50f else 40f
+        paint.color = Theme.darken(body, .3f); rect.set(50f - width / 2f, 83f, 50f + width / 2f, 99f); canvas.drawRoundRect(rect, 7f, 7f, paint)
+        paint.color = body; rect.set(50f - width / 2f, 80f, 50f + width / 2f, 96f); canvas.drawRoundRect(rect, 7f, 7f, paint)
+        paint.color = Theme.WHITE
+        fun star(x: Float) {
+            path.reset()
+            for (k in 0 until 10) {
+                val a = Math.toRadians(k * 36.0 - 90.0)
+                val reach = if (k % 2 == 0) 6f else 2.9f
+                val px = x + reach * cos(a).toFloat(); val py = 88.5f + reach * sin(a).toFloat()
+                if (k == 0) path.moveTo(px, py) else path.lineTo(px, py)
+            }
+            path.close(); canvas.drawPath(path, paint)
+        }
+        when (tier) {
+            0 -> star(50f)
+            1 -> { star(43.5f); star(56.5f) }
+            2 -> { star(37f); star(50f); star(63f) }
+            else -> {
+                path.reset(); path.moveTo(45f, 83.5f); path.lineTo(55f, 83.5f); path.lineTo(59.5f, 87.5f)
+                path.lineTo(50f, 94f); path.lineTo(40.5f, 87.5f); path.close(); canvas.drawPath(path, paint)
+            }
+        }
+    }
+
+    override fun getIntrinsicWidth(): Int = 100
+    override fun getIntrinsicHeight(): Int = 100
+
+    private companion object {
+        const val ICE = 0xFFC4F3FF.toInt()
     }
 }

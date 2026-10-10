@@ -71,7 +71,7 @@ class AchievementAlignmentTest {
         assertEquals("$label painted vertical center", expectedY, painted.centerY(), tolerance)
     }
 
-    @Test fun allTilesCenterInTheirSlotsAndMedalsSitEvenlyOnTheLadder() {
+    @Test fun tilesAndMedalsCenterAndTheWallPairsMedalFamilies() {
         val prefs = context.getSharedPreferences("progress", Context.MODE_PRIVATE)
         val scores = context.getSharedPreferences("scores", Context.MODE_PRIVATE)
         val saved = prefs.all; val savedScores = scores.all
@@ -112,34 +112,27 @@ class AchievementAlignmentTest {
                             images.single { it.tag == "achievement_icon_${definition.id}" }
                         }
                         for ((definition, image) in Achievements.all.zip(categoryImages)) {
-                            // The tile, face and lip together, centres in its slot and stays square.
                             val painted = artBounds(image)
-                            assertCenter(definition.id, painted, image.width / 2f, image.height / 2f, tolerance)
-                            assertEquals("${definition.id} tile keeps square aspect", painted.width(), painted.height(), tolerance * 2)
+                            if (definition.tiered) {
+                                // A family's medal hangs centred in its card, and its glow never leaves its box.
+                                assertEquals("${definition.id} medal painted horizontal center", image.width / 2f, painted.centerX(), tolerance)
+                                assertTrue("${definition.id} medal fits its box", painted.top >= 0f && painted.bottom <= image.height.toFloat())
+                            } else {
+                                // The tile, face and lip together, centres in its slot and stays square.
+                                assertCenter(definition.id, painted, image.width / 2f, image.height / 2f, tolerance)
+                                assertEquals("${definition.id} tile keeps square aspect", painted.width(), painted.height(), tolerance * 2)
+                            }
                             if (!earned) {
                                 // What a reward pays stays hidden until it can be claimed.
                                 assertTrue("${definition.id} shows no future payout", descendants(page).none { it.tag == "achievement_claim_${definition.id}" })
                             }
                         }
+                        // Two medal families to a row, the cards of a row equally tall.
                         for (definition in Achievements.all.filter { it.tiered }) {
-                            // The four medals sit on the ladder's bar as evenly spaced checkpoints, the last at its end.
-                            val track = descendants(page).single { it.tag == "achievement_track_${definition.id}" } as ViewGroup
-                            val bar = descendants(track).single { it.tag == "achievement_progress_${definition.id}" }
-                            val medals = (0..3).map { tier -> images.single { it.tag == "achievement_medal_${definition.id}_$tier" } }
-                            val centres = medals.map { it.left + it.width / 2f }
-                            val step = centres[1] - centres[0]
-                            assertTrue("${definition.id} medals run left to right", step > 0f)
-                            for (i in 1..3) assertEquals("${definition.id} medal $i evenly spaced", step, centres[i] - centres[i - 1], tolerance * 2)
-                            assertEquals("${definition.id} diamond ends the ladder", track.width.toFloat(), medals.last().right.toFloat(), tolerance * 2)
-                            assertEquals("${definition.id} bar ends under the diamond", centres.last(), bar.right.toFloat(), tolerance * 2)
-                            for ((tier, medal) in medals.withIndex()) {
-                                assertEquals("${definition.id} tier $tier shares the row", medals.first().top, medal.top)
-                                assertEquals("${definition.id} tier $tier sits on the bar", (bar.top + bar.bottom) / 2f, (medal.top + medal.bottom) / 2f, tolerance)
-                                // The lip under a medal (or over an empty slot) shifts its paint a little off centre on purpose.
-                                val artwork = artBounds(medal)
-                                assertEquals("${definition.id} tier $tier painted horizontal center", medal.width / 2f, artwork.centerX(), tolerance)
-                                assertEquals("${definition.id} tier $tier painted vertical center", medal.height / 2f, artwork.centerY(), tolerance * 1.6f)
-                            }
+                            val card = descendants(page).single { it.tag == "achievement_card_${definition.id}" }
+                            val row = card.parent as ViewGroup
+                            assertTrue("${definition.id} shares its row with at most one other", row.childCount <= 2)
+                            for (i in 0 until row.childCount) assertEquals("${definition.id} row cards match height", card.height, row.getChildAt(i).height)
                         }
                         // A compact native-rendered diagnostic strip preserves the actual background/foreground relationship.
                         val gap = kit.dp(8f); val stripWidth = categoryImages.sumOf { it.width + gap } + gap

@@ -42,4 +42,23 @@ class AchievementArtSheetTest {
         File(output, "sheet.png").outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
         bitmap.recycle()
     }
+
+    /** Every medal family's own medal: blank, blank with bronze waiting, bronze to diamond, silver with gold waiting. */
+    @Test fun renderFamilyMedals() {
+        assumeTrue(InstrumentationRegistry.getArguments().getString("captureArt") == "true")
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val kit = UiKit(context)
+        val size = kit.dp(96f); val gap = kit.dp(10f)
+        val states = listOf<Pair<Int, Int?>>(-1 to null, -1 to MedalArt.METALS[0], 0 to null, 1 to null, 2 to null, 3 to null, 1 to MedalArt.METALS[2])
+        val families = Achievements.all.filter { it.tiered }.map { it.id }
+        val bitmap = Bitmap.createBitmap(states.size * (size + gap) + gap, families.size * (size + gap) + gap, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(bitmap); canvas.drawColor(Color.WHITE)
+        for ((row, id) in families.withIndex()) for ((column, state) in states.withIndex()) {
+            val x = gap + column * (size + gap); val y = gap + row * (size + gap)
+            AchievementMedal(id, AchievementCards.accent(id), state.first, state.second).apply { setBounds(x, y, x + size, y + size); draw(canvas) }
+        }
+        val output = File(context.getExternalFilesDir(null), "achievement-art").apply { mkdirs() }
+        File(output, "family-medals.png").outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
+        bitmap.recycle()
+    }
 }

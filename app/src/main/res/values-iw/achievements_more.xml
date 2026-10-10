@@ -4,7 +4,6 @@
     <string name="achievement_section_medals">מדליות</string>
     <string name="achievement_section_challenges">אתגרים</string>
     <string name="achievement_section_done">הושלמו</string>
-    <string name="achievement_section_ready">מוכנים לאיסוף</string>
     <string name="achievement_claim_all">לאסוף הכול</string>
     <string name="achievement_claim_all_description">לאסוף את כל הפרסים, %1$s מטבעות</string>
     <string name="achievement_done_description">%1$s: הושלם</string>
