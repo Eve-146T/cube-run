@@ -251,6 +251,13 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
 
     // --------------------------------------------------------------- events
 
+    /** Start over without recreating the Android host, surface, or renderer. GL thread only. */
+    fun restartRun() {
+        resetToMenu()
+        Stage.homeScreen = false
+        start()
+    }
+
     private fun live() = started && !dead && !session.isOver
 
     override fun paused(): Boolean {

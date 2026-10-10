@@ -66,6 +66,29 @@ open class GameActivity : AndroidApplication() {
     private lateinit var hud: Hud
     private lateinit var game: CubeRun
     private var returningToMenu = false
+    private var foreground = false
+    private var pauseAfterReset = false
+
+    /** Keep the pause card over the live surface until the new run has been submitted. */
+    fun restartFromPause() {
+        if (returningToMenu || isFinishing || isDestroyed) return
+        returningToMenu = true
+        pauseAfterReset = false
+        hud.beginPauseRestart()
+        com.badlogic.gdx.Gdx.app.postRunnable {
+            hostSession.resetToMenu()
+            game.restartRun()
+            game.afterNextSceneFrame {
+                runOnUiThread {
+                    if (!isFinishing && !isDestroyed) {
+                        hud.finishPauseRestart()
+                        if (!foreground || pauseAfterReset) hud.autoPause()
+                    }
+                    returningToMenu = false
+                }
+            }
+        }
+    }
 
     /** Results and pause return to the live menu instead of rebuilding Android and GL. */
     fun returnToMenu() {
@@ -387,6 +410,8 @@ open class GameActivity : AndroidApplication() {
 
     /** Leaving the app mid-run (home, a call) pauses it: the run resumes from the pause card. */
     override fun onPause() {
+        foreground = false
+        if (returningToMenu) pauseAfterReset = true
         physicalInput.reset()
         Stage.userInteraction()
         openingClock?.pause()
@@ -395,6 +420,7 @@ open class GameActivity : AndroidApplication() {
     }
 
     override fun onResume() {
+        foreground = true
         openingClock?.resume()
         super.onResume()
         goFullscreen()

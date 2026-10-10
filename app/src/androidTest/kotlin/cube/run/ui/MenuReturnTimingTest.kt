@@ -150,6 +150,49 @@ class MenuReturnTimingTest {
         } finally { ui { unlockField.setBoolean(null, unlocked); activity.finish() } }
     }
 
+    @Test fun closedShopReusesItsCardsUntilProgressChanges() {
+        val activity = launch()
+        fun open(): ShopView {
+            lateinit var shop: ShopView
+            ui {
+                val hud = field<Hud>(activity, "hud")
+                hud.javaClass.getDeclaredMethod("openShop").apply { isAccessible = true }.invoke(hud)
+                shop = field(hud, "page")
+            }
+            val deadline = SystemClock.uptimeMillis() + 5000
+            while (cube.run.core.Stage.shopProgress < .999f && SystemClock.uptimeMillis() < deadline) SystemClock.sleep(10)
+            assertTrue("Shop completed its entrance", cube.run.core.Stage.shopProgress >= .999f)
+            awaitScene()
+            return shop
+        }
+        fun close(shop: ShopView) {
+            ui { shop.navigateBack() }
+            val deadline = SystemClock.uptimeMillis() + 5000
+            var closed = false
+            while (!closed && SystemClock.uptimeMillis() < deadline) {
+                ui { closed = field<Page?>(field<Hud>(activity, "hud"), "page") == null }
+                if (!closed) SystemClock.sleep(10)
+            }
+            assertTrue("Shop closed", closed)
+            awaitMenu(activity)
+        }
+        try {
+            awaitMenu(activity); awaitScene()
+            val original = open()
+            repeat(3) {
+                close(original)
+                assertSame("Reuse the current shop immediately after closing", original, open())
+            }
+            close(original)
+            ui { Progress.addCoins(5) }
+            val updated = open()
+            assertNotSame("Balance changes must rebuild stale shop cards", original, updated)
+            assertTrue(updated.isCurrent())
+            assertFalse("Discard stale hidden cards", original.isAttachedToWindow)
+            close(updated)
+        } finally { ui { activity.finish() } }
+    }
+
     @Test fun changedBalanceInvalidatesHiddenPagesBeforeTheNextTap() {
         val activity = launch()
         val unlocked = Progress.achievementsUnlocked
@@ -414,18 +457,14 @@ class MenuReturnTimingTest {
                     hud.pause(animate = false)
                     field<CandyButton>(field<PauseSheet>(hud, "pauseSheet"), "restart").performClick()
                 }
-                val deadline = SystemClock.uptimeMillis() + 8000
-                var restarted: GameActivity? = null
-                while (restarted == null && SystemClock.uptimeMillis() < deadline) {
-                    ui {
-                        restarted = androidx.test.runner.lifecycle.ActivityLifecycleMonitorRegistry.getInstance()
-                            .getActivitiesInStage(androidx.test.runner.lifecycle.Stage.RESUMED)
-                            .filterIsInstance<GameActivity>().firstOrNull { it !== previous }
-                    }
-                    if (restarted == null) SystemClock.sleep(10)
+                val deadline = SystemClock.uptimeMillis() + 2000
+                var restarted = false
+                while (!restarted && SystemClock.uptimeMillis() < deadline) {
+                    ui { restarted = field<PauseSheet?>(field<Hud>(previous, "hud"), "pauseSheet") == null }
+                    if (!restarted) SystemClock.sleep(5)
                 }
-                assertNotNull("Restart launches the next activity", restarted)
-                activity = restarted!!
+                assertTrue("Restart reveals the run in the same activity", restarted)
+                assertFalse(previous.isFinishing)
                 awaitRun(activity)
                 if (pauseDelay > 0) SystemClock.sleep(pauseDelay)
                 ui {

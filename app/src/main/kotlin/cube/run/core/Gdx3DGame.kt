@@ -64,6 +64,11 @@ abstract class Gdx3DGame(val session: GameSession) : ApplicationAdapter(), Touch
     fun afterFreshSceneFrame(action: () -> Unit) {
         sceneCallback = SceneCallback(sceneFramesDrawn+2, action)
     }
+
+    /** GL-thread resets happen before drawing, so the next complete scene swap is sufficient. */
+    internal fun afterNextSceneFrame(action: () -> Unit) {
+        sceneCallback = SceneCallback(sceneFramesDrawn+1, action)
+    }
     private var firstFrameDrawn = false
     private var firstFrameReported = false
     private var startupStep = -1

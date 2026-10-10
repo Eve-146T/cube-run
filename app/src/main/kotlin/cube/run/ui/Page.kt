@@ -200,6 +200,7 @@ abstract class Page(
 
     /** Prepaint a hidden page while retaining its normal entrance/exit durations. */
     internal fun prepareAnimatedNavigation() {
+        closing = false
         deferredEntrance = true
         visibility = INVISIBLE
         alpha = 1f

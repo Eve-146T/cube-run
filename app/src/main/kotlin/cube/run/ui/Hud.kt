@@ -345,6 +345,7 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false, retu
 
     /** System Back navigates out of the stores and the settings page. */
     fun navigateBack() {
+        if (restartBlocker != null) return
         languageSheet?.let { it.dismiss(); return }
         if (runStarted || pauseSheet != null || runOver != null) return
         if (shopBox != null || voidPurchase != null) return // keep purchased presentations intact
@@ -358,6 +359,7 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false, retu
 
     /** Return false only when the GL game should receive this action. */
     fun handlePhysicalAction(action: PhysicalAction): Boolean {
+        if (restartBlocker != null) return true
         if (opening) return false
         if (action == PhysicalAction.BACK || action == PhysicalAction.PAUSE) {
             clearHardwareFocus()
@@ -409,16 +411,29 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false, retu
         scheduleShopPreparation()
     }
 
-    private fun newShop() = ShopView(activity, kit, menu.shopBalance, menu::setShopProgress,
-        onOpenMysteryBox = ::openPurchasedBox, onVoidPurchase = ::showVoidPurchase,
-        onProgressReset = ::refreshAfterProgressReset) {
-        clearHardwareFocus()
-        page = null
-        menu.finishShop()
-        Progress.shopClosed()
-        Stage.homeScreen = true
-        setBubbles(Progress.bubbles)
-        scheduleShopPreparation()
+    private fun newShop(): ShopView {
+        lateinit var shop: ShopView
+        shop = ShopView(activity, kit, menu.shopBalance, menu::setShopProgress,
+            onOpenMysteryBox = ::openPurchasedBox, onVoidPurchase = ::showVoidPurchase,
+            onProgressReset = ::refreshAfterProgressReset) {
+            clearHardwareFocus()
+            page = null
+            menu.finishShop()
+            Progress.shopClosed()
+            Stage.homeScreen = true
+            setBubbles(Progress.bubbles)
+            // Keep the expensive card tree ready across short runs. Purchases and
+            // changes to progress still invalidate it through isCurrent().
+            if (isAttachedToWindow && shop.isCurrent()) {
+                preparedShop?.let { removeView(it) }
+                shop.prepareAnimatedNavigation()
+                preparedShop = shop
+                addView(shop, 0, LayoutParams(-1, -1))
+                shop.warmNavigation()
+            }
+            scheduleShopPreparation()
+        }
+        return shop
     }
 
     /** Reset the visible caches too, so closing the developer shop shows a fresh game. */
@@ -693,7 +708,8 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false, retu
                 }
                 addView(b, LayoutParams(dp(84f), dp(160f)).apply { gravity = Gravity.TOP or Gravity.END; topMargin = dp(116f); marginEnd = dp(10f) })
                 boost = b
-                Anim.popIn(b, 250, 0.4f, 420)
+                if (restartBlocker == null) Anim.popIn(b, 250, 0.4f, 420) else Anim.reset(b)
+                restartBlocker?.bringToFront()
             }
             b.taps = taps
         } else {
@@ -707,7 +723,8 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false, retu
     }
 
     /** A run has begun: the menu drops away, the HUD and the pause chip pop in. */
-    fun hideOptions() {
+    fun hideOptions(animate: Boolean = true) {
+        if (restartBlocker != null) return // Reveal the reset HUD with the submitted new scene.
         clearHardwareFocus()
         Stage.homeScreen = false
         runStarted = true
@@ -725,10 +742,10 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false, retu
         setBubbles(bubbleStock)
         if (!Progress.zenRun) { // Zen keeps no score, no haul, no stock: an empty sky
             topBox.visibility = VISIBLE
-            Anim.popIn(topBox, 120, 0.6f)
+            if (animate) Anim.popIn(topBox, 120, 0.6f) else Anim.reset(topBox)
         }
         pauseChip.visibility = VISIBLE
-        Anim.popIn(pauseChip, 200, 0.5f)
+        if (animate) Anim.popIn(pauseChip, 200, 0.5f) else Anim.reset(pauseChip)
     }
 
     // ------------------------------------------------------------- pause
@@ -755,7 +772,7 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false, retu
                 pauseChip.visibility = VISIBLE
                 Anim.popIn(pauseChip, 0, 0.6f)
             },
-            onRestart = { relaunch(autoStart = true) },
+            onRestart = { (activity as GameActivity).restartFromPause() },
             onMenu = { relaunch(autoStart = false) },
         )
         pauseSheet = sheet
@@ -779,12 +796,44 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false, retu
         activity.finish()
     }
 
+    private var restartBlocker: View? = null
+
+    fun beginPauseRestart() {
+        pauseSheet?.importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS
+        clearHardwareFocus()
+        SoundFx.play("whoosh", rate = 0.8f)
+        restartBlocker = View(activity).apply {
+            isClickable = true
+            importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
+            addView(this, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
+        }
+        boost?.let { Anim.cancelTree(it); removeView(it) }; boost = null
+        // Clear the old run before GL publishes the new run's score, stock and
+        // boost window. The pause card still covers the surface during the reset.
+        resetRunChrome(keepPauseCard = true)
+    }
+
+    fun finishPauseRestart() {
+        pauseSheet?.let { removeView(it) }; pauseSheet = null
+        restartBlocker?.let { removeView(it) }; restartBlocker = null
+        hideOptions(animate = false)
+    }
+
     /** Called after the GL thread has reset the run; the old menu and its page cache are still here. */
     fun finishMenuReturn() {
+        resetRunChrome()
+        Stage.homeScreen = true
+        menu.showInstant()
+        scheduleShopPreparation()
+    }
+
+    private fun resetRunChrome(keepPauseCard: Boolean = false) {
         clearHardwareFocus()
         removeCallbacks(pollAchievements)
-        listOfNotNull(runOver, pauseSheet).forEach { removeView(it) }
-        runOver = null; pauseSheet = null; runStarted = false; runPauseResumes = 0
+        listOfNotNull(runOver, pauseSheet.takeUnless { keepPauseCard }).forEach { removeView(it) }
+        runOver = null
+        if (!keepPauseCard) pauseSheet = null
+        runStarted = false; runPauseResumes = 0
         page?.let { it.visibility = INVISIBLE }; page = null
         achievementToast.reset(); jackpotCounter.reset(); bonusVisited.clear()
         Anim.cancelTree(topBox); topBox.visibility = GONE; pauseChip.visibility = GONE
@@ -793,9 +842,6 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false, retu
         kit.labelOf(boxes).text = "×0"; boxes.visibility = GONE
         setBest(cube.run.data.Scores.best("cuberun"))
         setBubbleCooldown(0); setBubbles(Progress.bubbles)
-        Stage.homeScreen = true
-        menu.showInstant()
-        scheduleShopPreparation()
     }
 
     fun showRunOver(score: Int, best: Int, isNewBest: Boolean, coins: Int, boxes: Int, shards: IntArray = IntArray(3)) {
