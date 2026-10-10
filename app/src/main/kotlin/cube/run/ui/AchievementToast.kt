@@ -137,8 +137,8 @@ class AchievementToast(activity: Activity, private val kit: UiKit) : FrameLayout
         val first = pending.entries.first()
         val unlock = first.value
         pending.remove(first.key)
-        // The badge in the frame this unlock earns: the same badge the trophy room strikes when it is claimed.
-        badge.setImageDrawable(AchievementBadge(unlock.definition.id, unlock.definition.tiered, unlock.tier))
+        // The medal (or plaque) this unlock earns: the one the trophy room hands over when it is claimed.
+        badge.setImageDrawable(rewardArt(unlock.definition.tiered, unlock.tier, true))
         title.text = context.achievementTitle(unlock.definition.id)
         val reward = Achievements.reward(unlock.definition, unlock.tier)
         detail.text = kit.coins(number(reward), 12f)

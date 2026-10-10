@@ -205,11 +205,16 @@ internal class ChallengeIcon(private val id: String) : Icon() {
                 burst(24f, 33f, Theme.BERRY)
             }
             "monk" -> {
-                cube(10f, 14f, 26f, Theme.WHITE)
-                line(23f, 17f, 23f, 37f, Theme.INK, 3f)
-                line(12f, 26f, 34f, 26f, Theme.INK, 3f)
-                line(8f, 8f, 35f, 8f, Theme.INK, 2.4f)
-                sparkle(39f, 14f, 4f)
+                // The Zen cube, calm under a halo.
+                paint.style = Paint.Style.STROKE; paint.strokeWidth = 4f
+                paint.color = Theme.darken(Theme.YELLOW, .3f); rect.set(12f, 5.5f, 36f, 13.5f); canvas.drawOval(rect, paint)
+                paint.color = Theme.YELLOW; rect.set(12f, 4f, 36f, 12f); canvas.drawOval(rect, paint)
+                cube(8f, 15f, 32f, Theme.WHITE)
+                // Closed, content eyes on the front face.
+                paint.style = Paint.Style.STROKE; paint.strokeWidth = 2.4f; paint.strokeCap = Paint.Cap.ROUND; paint.color = Theme.INK
+                rect.set(11.5f, 30f, 17.5f, 35f); canvas.drawArc(rect, 20f, 140f, false, paint)
+                rect.set(18.5f, 33.5f, 24.5f, 38.5f); canvas.drawArc(rect, 20f, 140f, false, paint)
+                sparkle(41f, 12f, 4.5f)
             }
             "neo" -> {
                 // The red pill: a glossy capsule lying at a tilt, with its seam.

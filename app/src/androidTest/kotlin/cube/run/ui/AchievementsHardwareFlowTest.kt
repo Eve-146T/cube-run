@@ -487,6 +487,8 @@ class AchievementsHardwareFlowTest {
                     save(menu, "menu-280dp-font150")
 
                     val page = AchievementsView(activity, kit) {}
+                    // Off screen nothing posts the later cards: build them all for the review.
+                    page.buildAll()
                     measure(page)
                     fun checkCards() {
                         measure(page)
