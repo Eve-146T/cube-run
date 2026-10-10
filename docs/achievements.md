@@ -34,26 +34,30 @@ sheet for review.
 
 Below the case, four labelled groups in one column: READY (every card with a reward waiting,
 medal families first), MEDALS, CHALLENGES and DONE, the open ones sorted by how close they are
-to their next goal. Every achievement is a white card in three parts. On the left its picture on
-its own candy tile, a saturated rounded square chosen to contrast with the picture (the
-pictures use white, so they need a coloured ground). In the middle the name, what counts, and
-either a bar in the achievement's colour with the count beside it (`31200 / 100K`) or, when
-something is waiting, a gold CLAIM button with everything the card pays. Yes-or-no dares
-(target 1) show nothing below their description until they are done. On the right the reward:
-the medal waiting to be collected on a still sunburst, else the empty slot of the one being
-worked towards, or the last one won once everything is paid; medal families have four tier dots
-under it. When the text would be squeezed narrower than a few words of the title (a split pane,
-large text) the reward column folds away. DONE collects everything fully claimed as slim rows
-with the tile, the name and the medals won. What a reward pays stays a surprise until it can be
-claimed. The list clips below the header and coin bank. The last card invites players to suggest
+to their next goal. Every achievement is a white card. On top its picture on its own candy
+tile, a saturated rounded square chosen to contrast with the picture (the pictures use white, so
+they need a coloured ground), beside the name and what counts; the tile is as tall as that text,
+so it never floats in empty space. A medal family adds its count (`31200 / 100K`) under the
+description and runs its ladder across the card below (`AchievementTrack`): one bar in the
+achievement's colour with the four medals sitting on it as evenly spaced checkpoints, the last
+at its end. Each stretch between two medals is one tier, so a medal is reached exactly when the
+fill arrives under it. Collected medals show in their metal, one waiting to be collected sits on
+a pale glow of its metal, and the ones still to win are recessed slots of the same size. A
+challenge shows its plaque (or the plaque's empty slot) beside its name and, if it counts, its
+bar and count below; yes-or-no dares (target 1) show nothing below their description until they
+are done. When something is waiting, a gold CLAIM button with everything the card pays closes
+the card. When a challenge's text would be squeezed narrower than a few words of the title (a
+split pane, large text) its plaque folds away. DONE collects everything fully claimed as slim
+rows with the tile, the name and the medals won. What a reward pays stays a surprise until it can
+be claimed. The list clips below the header and coin bank. The last card invites players to suggest
 an achievement as a GitHub issue.
 
 A card with a reward waiting has a gold edge. One tap on CLAIM collects every medal that card
 has waiting (there is still no claim-all across cards), about half a second apart: the medal
-winds up and springs off the card with a soft thump (a little higher for every medal in the
+on the ladder (or the plaque) winds up and springs off the card with a soft thump (a little higher for every medal in the
 chain) and a ring of its colour, flies into its slot in the case (which pops and counts it;
-with the case scrolled away it just counts), its tier dot lights, and the coins pour out into
-the bank; then the next medal, or the empty slot of the next goal, pops into its place. When the
+with the case scrolled away it just counts) and the coins pour out into the bank; it pops back
+onto the ladder as collected, without its glow. When the
 last coins land the card settles into its next state, and the cards below ease up instead of
 jumping. The in-run unlock toast shows the medal (or plaque) just earned.
 

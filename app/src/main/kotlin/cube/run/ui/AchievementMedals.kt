@@ -13,18 +13,19 @@ import kotlin.math.sin
  * challenge pays a square plaque instead. Not yet won, the same silhouette is a recessed empty
  * slot, so a row of medals always keeps its shape. Drawn on a 64-unit grid.
  */
-internal class MedalArt(private val tier: Int, private val owned: Boolean) : Icon() {
+internal class MedalArt(private val tier: Int, private val owned: Boolean, private val strap: Boolean = true) : Icon() {
     private val path = Path()
 
     override fun draw(canvas: Canvas) {
         val save = canvas.save()
-        val scale = minOf(bounds.width(), bounds.height()) / 64f
-        canvas.translate(bounds.exactCenterX() - 32f * scale, bounds.exactCenterY() - 32f * scale)
+        // Without its ribbon (on a card's medal track) the disc alone fills the box.
+        val scale = minOf(bounds.width(), bounds.height()) / if (strap) 64f else 46f
+        canvas.translate(bounds.exactCenterX() - 32f * scale, bounds.exactCenterY() - (if (strap) 32f else 42f) * scale)
         canvas.scale(scale, scale)
         paint.style = Paint.Style.FILL
         val t = tier.coerceIn(0, 3)
         val metal = if (owned) METALS[t] else SLOT
-        ribbon(canvas, path, paint, if (owned) RIBBONS[t] else SLOT, owned)
+        if (strap) ribbon(canvas, path, paint, if (owned) RIBBONS[t] else SLOT, owned)
         // An empty slot is sunk in: its darker edge is on top instead of underneath.
         paint.color = if (owned) Theme.darken(metal, .3f) else SLOT_EDGE
         canvas.drawCircle(32f, if (owned) 44.5f else 39.5f, 20.5f, paint)
@@ -176,52 +177,16 @@ internal class AchievementTile(id: String, private val color: Int) : Icon() {
 }
 
 /**
- * The light behind a reward waiting to be collected: soft rays of its colour around a clear
- * middle. Flat and still, so it reads as a spotlight rather than a shadow.
+ * What sits behind a reward waiting to be collected: a flat disc of its colour, paled, with a
+ * white ring, like the spot it is lifted from. Flat and still, so it reads as a spotlight
+ * rather than a shadow.
  */
-internal class RewardRays(private val color: Int) : Icon() {
-    private val path = Path()
-
+internal class WaitingGlow(private val color: Int) : Icon() {
     override fun draw(canvas: Canvas) {
-        val cx = bounds.exactCenterX(); val cy = bounds.exactCenterY() + bounds.height() * .12f
-        val r = bounds.width() * .56f
+        val cx = bounds.exactCenterX(); val cy = bounds.exactCenterY()
+        val r = minOf(bounds.width(), bounds.height()) / 2f
         paint.style = Paint.Style.FILL
-        paint.color = Theme.alpha(Theme.lighten(color, .4f), 90)
-        path.reset()
-        for (i in 0 until 12) {
-            val a = Math.toRadians(i * 30.0 - 90.0); val b = Math.toRadians(i * 30.0 - 90.0 + 15.0)
-            path.moveTo(cx, cy)
-            path.lineTo(cx + r * cos(a).toFloat(), cy + r * sin(a).toFloat())
-            path.lineTo(cx + r * cos(b).toFloat(), cy + r * sin(b).toFloat())
-            path.close()
-        }
-        canvas.drawPath(path, paint)
-        paint.color = Theme.alpha(Theme.lighten(color, .55f), 170)
-        canvas.drawCircle(cx, cy, r * .5f, paint)
-    }
-}
-
-/** One tier of a medal family, as a dot: [WON] in its metal, [WAITING] ringed in it, [EMPTY] a hollow slot. */
-internal class TierDot(private val metal: Int, private val state: Int) : Icon() {
-    override fun draw(canvas: Canvas) {
-        val cx = bounds.exactCenterX(); val cy = bounds.exactCenterY(); val r = minOf(bounds.width(), bounds.height()) / 2f
-        paint.style = Paint.Style.FILL
-        when (state) {
-            WON -> { paint.color = Theme.darken(metal, .3f); canvas.drawCircle(cx, cy, r, paint); paint.color = metal; canvas.drawCircle(cx, cy - r * .12f, r * .82f, paint) }
-            WAITING -> {
-                paint.color = metal; canvas.drawCircle(cx, cy, r, paint)
-                paint.color = Theme.WHITE; canvas.drawCircle(cx, cy, r * .42f, paint)
-            }
-            else -> {
-                paint.color = MedalArt.SLOT_EDGE; canvas.drawCircle(cx, cy, r, paint)
-                paint.color = MedalArt.SLOT; canvas.drawCircle(cx, cy + r * .14f, r * .7f, paint)
-            }
-        }
-    }
-
-    companion object {
-        const val WON = 0
-        const val WAITING = 1
-        const val EMPTY = 2
+        paint.color = Theme.lighten(color, .45f); canvas.drawCircle(cx, cy, r, paint)
+        paint.color = Theme.lighten(color, .72f); canvas.drawCircle(cx, cy, r * .86f, paint)
     }
 }

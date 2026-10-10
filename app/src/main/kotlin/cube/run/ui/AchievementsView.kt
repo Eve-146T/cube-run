@@ -28,9 +28,9 @@ import kotlin.math.sin
  * counts everything collected; below it whatever has a reward waiting, then the medal families,
  * the challenges and the finished ones, one card per row.
  *
- * Claiming is collecting: the medal waiting on the right of the card winds up and springs off
- * with a thump and a ring of its colour, flies into its slot in the case, and the coins pour out
- * of it into the bank; the next medal (or the empty slot of the next goal) pops into its place.
+ * Claiming is collecting: the medal waiting on the card's ladder (or a challenge's plaque) winds
+ * up and springs off with a thump and a ring of its colour, flies into its slot in the case, and
+ * the coins pour out of it into the bank; it pops back onto the ladder as collected.
  * Every medal the card has waiting is handed over in one go, each a little higher in pitch.
  * The first screenful is built at once and the rest a few cards a frame, so the page opens
  * without a pause.
@@ -208,40 +208,39 @@ class AchievementsView(activity: Activity, kit: UiKit, private val preparing: Bo
         if (state.claimableTier == null) return
         val definition = state.definition
         val card = rows.findViewWithTag<View>("achievement_card_${definition.id}") ?: return
-        val reward = card.findViewWithTag<ImageView>("achievement_reward_${definition.id}") ?: return
         paying = true
         button.isEnabled = false
         Haptics.click()
         // The button is spent: it sinks into the card.
         button.pivotY = 0f
         button.move().scaleY(0f).alpha(0f).setDuration(170).start()
-        collect(definition, card, reward, 0)
+        collect(definition, card, 0)
     }
 
     /** Hand over the next waiting medal of [definition]: into the case, coins into the bank; then the one after, or finish. */
-    private fun collect(definition: Achievements.Definition, card: View, reward: ImageView, step: Int) {
+    private fun collect(definition: Achievements.Definition, card: View, step: Int) {
         if (closing || !isAttachedToWindow) return
         val tier = Achievements.snapshot(definition).claimableTier ?: return finish(definition)
         val before = Progress.coins
         if (Achievements.claim(definition.id) <= 0) return finish(definition)
         val after = Achievements.snapshot(definition)
         val more = after.claimableTier != null
-        // A narrow card folds its reward column away: the medal then leaves from the tile.
-        val from: View = reward.takeIf { it.isShown } ?: card.findViewWithTag("achievement_icon_${definition.id}") ?: reward
-        lift(reward, refill = { cards.bindReward(reward, after) }) {
+        val reward = card.findViewWithTag<ImageView>(if (definition.tiered) "achievement_medal_${definition.id}_$tier" else "achievement_reward_${definition.id}")
+        // A narrow card folds a challenge's plaque away: it then leaves from the tile.
+        val from: View = reward?.takeIf { it.isShown } ?: card.findViewWithTag("achievement_icon_${definition.id}") ?: card
+        val launched = {
             // The moment the medal leaves the card.
             SoundFx.play("place", rate = .8f + .12f * step, vol = .8f)
             if (tier == 3 && definition.tiered) SoundFx.play("perfect", rate = 1f, vol = .45f)
             Haptics.success()
             ring(from, AchievementCards.frameColor(definition, tier))
-            card.findViewWithTag<ImageView>("achievement_medal_${definition.id}_$tier")?.let {
-                cards.bindDot(it, after, tier); Anim.popIn(it, 0, 2f, 340)
-            }
             toCase(from, definition, tier)
             val coins = PayFx.fly(this, kit, from, bank, n = 4 + 2 * tier.coerceAtMost(3), onDone = { if (!more && isAttachedToWindow) finish(definition) })
             countBank(before, coins)
-            if (more) postDelayed({ collect(definition, card, reward, step + 1) }, 560L)
+            if (more) postDelayed({ collect(definition, card, step + 1) }, 560L)
         }
+        if (reward == null) launched()
+        else lift(reward, refill = { if (definition.tiered) cards.bindNode(reward, after, tier) else cards.bindPlaque(reward, after) }, launched)
     }
 
     /** Every medal is in: the card settles into its new state. */
@@ -410,7 +409,8 @@ class AchievementsView(activity: Activity, kit: UiKit, private val preparing: Bo
         val index = parent.indexOfChild(old)
         val params = old.layoutParams
         parent.removeViewAt(index)
-        return cards.card(Achievements.snapshot(definition), index, animateFill = true).also { parent.addView(it, index, params) }
+        // Claiming moves no bar: the new card starts filled where the old one was.
+        return cards.card(Achievements.snapshot(definition), index, animateFill = false).also { parent.addView(it, index, params) }
     }
 
     override fun onDetachedFromWindow() {
