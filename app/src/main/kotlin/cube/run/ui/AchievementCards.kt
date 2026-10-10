@@ -5,19 +5,14 @@ import android.annotation.SuppressLint
 import android.app.Activity
 import android.content.Context
 import android.graphics.Canvas
-import android.graphics.LinearGradient
 import android.graphics.Paint
-import android.graphics.Path
 import android.graphics.RectF
-import android.graphics.Shader
 import android.graphics.drawable.Drawable
 import android.graphics.drawable.GradientDrawable
 import android.graphics.drawable.LayerDrawable
-import android.os.SystemClock
 import android.util.TypedValue
 import android.view.Gravity
 import android.view.View
-import android.view.ViewGroup
 import android.view.ViewTreeObserver
 import android.view.animation.PathInterpolator
 import android.widget.FrameLayout
@@ -28,10 +23,12 @@ import cube.run.core.Haptics
 import cube.run.data.Achievements
 
 /**
- * The achievement page's cards: one white card per achievement, in a single column. The top row
- * is the badge, the name and what counts; below it how far along it is. What a reward pays stays
- * a surprise until it can be claimed: then a wide gold CLAIM button shows it. Medal families show
- * their four medals on one track instead of a bar; fully claimed ones fade back.
+ * The achievement page's cards: one white card per achievement, in a single column. On the left
+ * the achievement's badge, whose frame is what you collect (grey, then bronze, silver, gold and
+ * diamond for a medal family; its own colour for a challenge), with a medal family's four level
+ * pips under it. On the right the name, what counts, and either how far along it is or, when a
+ * reward is waiting, a gold CLAIM button with everything it pays. What a reward pays stays a
+ * surprise until it can be claimed.
  */
 @SuppressLint("SetTextI18n")
 internal class AchievementCards(
@@ -44,70 +41,108 @@ internal class AchievementCards(
 
     fun card(state: Achievements.Snapshot, index: Int, animateFill: Boolean = true): View {
         val definition = state.definition
-        val tier = state.claimableTier ?: state.earnedTiers.coerceAtMost(definition.thresholds.lastIndex)
-        val complete = state.nextTarget == null
-        return SheenBand(activity, FloatArray(8) { dpf(RADIUS) }).apply {
+        val ready = state.claimableTier != null
+        return LinearLayout(activity).apply {
             tag = "achievement_card_${definition.id}"
-            orientation = LinearLayout.VERTICAL
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.TOP
             clipChildren = false; clipToPadding = false
-            shine = state.claimableTier != null
-            background = surface(state)
-            setPadding(dp(14f), dp(14f), dp(14f), dp(14f) + kit.CARD_LIP)
-            if (state.allClaimed) alpha = .82f
-            addView(header(state), LinearLayout.LayoutParams(-1, -2))
-            if (state.allClaimed) return@apply
-            val footer = LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(12f) }
-            when {
-                state.claimableTier != null -> addView(claimButton(state), footer)
-                // A one-off dare is done or not: a "0 / 1" count would only ever read 0.
-                !definition.tiered && definition.thresholds.single() == 1 -> Unit
-                !complete -> addView(counterText(state, tier), footer)
-            }
-            if (definition.tiered) addView(medalTrack(state, tier).apply { tag = "achievement_progress_${definition.id}" },
-                LinearLayout.LayoutParams(-1, dp(40f)).apply { topMargin = dp(8f) })
-            else if (!complete && definition.thresholds.single() > 1) addView(bar(state, index, animateFill),
-                LinearLayout.LayoutParams(-1, dp(12f)).apply { topMargin = dp(8f) })
+            background = surface(ready)
+            setPadding(dp(5f), dp(5f), dp(14f), dp(12f) + kit.CARD_LIP)
+            addView(LinearLayout(activity).apply {
+                orientation = LinearLayout.VERTICAL
+                gravity = Gravity.CENTER_HORIZONTAL
+                clipChildren = false; clipToPadding = false
+                addView(badgeHolder(state), LinearLayout.LayoutParams(dp(BADGE + HALO), dp(BADGE + HALO)))
+                if (definition.tiered) addView(medalPips(state), LinearLayout.LayoutParams(-2, -2).apply { topMargin = -dp(2f) })
+            }, LinearLayout.LayoutParams(dp(BADGE + HALO), -2))
+            addView(LinearLayout(activity).apply {
+                orientation = LinearLayout.VERTICAL
+                clipChildren = false; clipToPadding = false
+                addView(header(state), LinearLayout.LayoutParams(-1, -2))
+                slot(state, index, animateFill)?.let {
+                    addView(it, LinearLayout.LayoutParams(-1, dp(if (ready) CLAIM_SLOT else BAR_SLOT)).apply { topMargin = dp(10f) })
+                }
+            }, LinearLayout.LayoutParams(0, -2, 1f).apply { marginStart = dp(4f); topMargin = dp(12f) })
         }
     }
 
-    /** A finished achievement on the DONE shelf: a slim row with its badge, its name and a check. */
+    /** A finished achievement on the DONE shelf: a slim row with its final badge and its name. */
     fun doneChip(state: Achievements.Snapshot): View = LinearLayout(activity).apply {
         val definition = state.definition
         tag = "achievement_card_${definition.id}"
         orientation = LinearLayout.HORIZONTAL
         gravity = Gravity.CENTER_VERTICAL
-        background = GradientDrawable().apply { cornerRadius = dpf(18f); setColor(Theme.alpha(Theme.WHITE, 40)) }
-        setPadding(dp(10f), dp(8f), dp(14f), dp(8f))
-        val icon = badge(definition.id, 40f)
-        addView(icon, LinearLayout.LayoutParams(dp(40f), dp(40f)))
-        addView(kit.text(activity.achievementTitle(definition.id), 17f, Theme.WHITE, 700, Gravity.START).apply {
+        background = kit.cardDrawable(Theme.CARD, null, 18f)
+        setPadding(dp(10f), dp(8f), dp(16f), dp(8f) + kit.CARD_LIP)
+        val icon = badge(state)
+        addView(icon, LinearLayout.LayoutParams(dp(44f), dp(44f)))
+        addView(kit.text(activity.achievementTitle(definition.id), 17f, Theme.INK, 700, Gravity.START).apply {
             maxLines = 2
             hyphenationFrequency = android.text.Layout.HYPHENATION_FREQUENCY_FULL
         }, LinearLayout.LayoutParams(0, -2, 1f).apply { marginStart = dp(12f) })
-        addView(ImageView(activity).apply {
-            setImageDrawable(if (definition.tiered) MedalIcon(medalColor(3), true, true, dark = true, ribbon = false) else AchievementCheckIcon())
-            importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
-        }, LinearLayout.LayoutParams(dp(28f), dp(28f)))
+        // Bouncer keeps its personal best on show after it is done.
+        if (definition.id == "bounces") addView(kit.text(number(state.value), 17f, Theme.INK_SOFT, 700).apply {
+            tag = "achievement_best_${definition.id}"
+        }, LinearLayout.LayoutParams(-2, -2).apply { marginStart = dp(8f) })
         contentDescription = activity.getString(R.string.achievement_done_description, activity.achievementTitle(definition.id))
         setOnClickListener { Anim.popIn(icon, 0, 1.15f, 320); Haptics.tick() }
     }
 
-    /** The accent-coloured disc with the achievement's picture on it. */
-    private fun badge(id: String, size: Float): ImageView = ImageView(activity).apply {
-        tag = "achievement_icon_$id"
-        setImageDrawable(achievementIcon(id))
+    /** The badge in the frame of what is claimed so far; it says when there is nothing left to do. */
+    private fun badge(state: Achievements.Snapshot): ImageView = ImageView(activity).apply {
+        val definition = state.definition
+        tag = "achievement_icon_${definition.id}"
+        setImageDrawable(AchievementBadge(definition.id, definition.tiered, state.claimedTiers - 1))
         scaleType = ImageView.ScaleType.FIT_CENTER
-        val pad = dp(size * .17f)
-        setPadding(pad, pad, pad, pad)
-        background = GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(Theme.lighten(accent(id), .72f)) }
-        importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
+        val finished = state.allClaimed || (!definition.tiered && state.nextTarget == null)
+        if (finished) contentDescription = activity.getString(if (definition.tiered) R.string.achievement_all_rewards_claimed else R.string.achievement_challenge_complete)
+        else importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
     }
 
-    /** Badge, name and what counts (or "Claimed" once it is all paid out), with a check when finished. */
+    /** The badge, on a glow of the frame it is about to get when a reward is waiting. */
+    private fun badgeHolder(state: Achievements.Snapshot): FrameLayout = FrameLayout(activity).apply {
+        clipChildren = false; clipToPadding = false
+        state.claimableTier?.let { background = halo(frameColor(state.definition, it)) }
+        addView(badge(state), FrameLayout.LayoutParams(dp(BADGE), dp(BADGE), Gravity.CENTER))
+    }
+
+    fun halo(color: Int): Drawable = BadgeHalo(color, dpf(BADGE))
+
+    /**
+     * The family's four medals as small pips: claimed ones solid, waiting ones solid on a glow,
+     * the rest faint outlines.
+     */
+    private fun medalPips(state: Achievements.Snapshot): LinearLayout = LinearLayout(activity).apply {
+        orientation = LinearLayout.HORIZONTAL
+        gravity = Gravity.CENTER
+        clipChildren = false; clipToPadding = false
+        for (tier in 0..3) addView(ImageView(activity).apply {
+            tag = "achievement_medal_${state.definition.id}_$tier"
+            bindPip(this, state, tier)
+        }, LinearLayout.LayoutParams(dp(PIP), dp(PIP)).apply { if (tier > 0) marginStart = dp(1f) })
+    }
+
+    fun bindPip(pip: ImageView, state: Achievements.Snapshot, tier: Int) {
+        val waiting = tier >= state.claimedTiers && tier < state.earnedTiers
+        pip.setImageDrawable(MedalIcon(medalColor(tier), tier < state.earnedTiers, tier == 3, ribbon = false))
+        pip.background = if (waiting) GradientDrawable().apply {
+            gradientType = GradientDrawable.RADIAL_GRADIENT
+            gradientRadius = dpf(PIP / 2f + 2f)
+            colors = intArrayOf(Theme.alpha(Theme.lighten(medalColor(tier), .3f), 220), Theme.alpha(medalColor(tier), 0))
+        } else null
+        pip.contentDescription = activity.getString(R.string.achievement_medal_status, activity.achievementTierName(tier), activity.getString(when {
+            tier < state.claimedTiers -> R.string.achievement_status_claimed
+            tier < state.earnedTiers -> R.string.achievement_status_ready
+            tier == state.earnedTiers -> R.string.achievement_status_progress
+            else -> R.string.achievement_status_locked
+        }))
+    }
+
+    /** Name and what counts (or "Claimed" once it is all paid out). */
     private fun header(state: Achievements.Snapshot): View = LinearLayout(activity).apply {
         val definition = state.definition
-        orientation = LinearLayout.HORIZONTAL
-        gravity = Gravity.CENTER_VERTICAL
+        orientation = LinearLayout.VERTICAL
         val complete = state.nextTarget == null
         val best = if (definition.id == "bounces") activity.getString(R.string.achievement_best_bounces, number(state.value)) else null
         val subtitle = when {
@@ -117,129 +152,97 @@ internal class AchievementCards(
             !definition.tiered && complete -> ""
             else -> activity.achievementGoal(definition.id)
         }
-        addView(badge(definition.id, 54f), LinearLayout.LayoutParams(dp(54f), dp(54f)))
-        addView(LinearLayout(activity).apply {
-            orientation = LinearLayout.VERTICAL
-            addView(kit.text(activity.achievementTitle(definition.id), 20f, Theme.INK, 700, Gravity.START).apply {
-                maxLines = 2
-                // Long single words (German compounds) shrink, then hyphenate, never split at random.
-                setAutoSizeTextTypeUniformWithConfiguration(16, 20, 1, TypedValue.COMPLEX_UNIT_SP)
-                hyphenationFrequency = android.text.Layout.HYPHENATION_FREQUENCY_FULL
-            }, LinearLayout.LayoutParams(-1, -2))
-            if (subtitle.isNotEmpty()) addView(kit.text(subtitle, 15f, Theme.INK_SOFT, 500, Gravity.START).apply {
-                maxLines = 3
-                tag = if (best != null && complete) "achievement_best_${definition.id}" else "achievement_subtitle_${definition.id}"
-            }, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(2f) })
-        }, LinearLayout.LayoutParams(0, -2, 1f).apply { marginStart = dp(12f) })
-        if (state.allClaimed || (!definition.tiered && complete)) addView(ImageView(activity).apply {
-            setImageDrawable(AchievementCheckIcon())
-            contentDescription = activity.getString(if (definition.tiered) R.string.achievement_all_rewards_claimed else R.string.achievement_challenge_complete)
-        }, LinearLayout.LayoutParams(dp(30f), dp(30f)).apply { marginStart = dp(8f) })
+        addView(kit.text(activity.achievementTitle(definition.id), 20f, Theme.INK, 700, Gravity.START).apply {
+            maxLines = 2
+            // Long single words (German compounds) shrink, then hyphenate, never split at random.
+            setAutoSizeTextTypeUniformWithConfiguration(16, 20, 1, TypedValue.COMPLEX_UNIT_SP)
+            hyphenationFrequency = android.text.Layout.HYPHENATION_FREQUENCY_FULL
+        }, LinearLayout.LayoutParams(-1, -2))
+        if (subtitle.isNotEmpty()) addView(kit.text(subtitle, 15f, Theme.INK_SOFT, 500, Gravity.START).apply {
+            maxLines = 3
+            tag = if (best != null && complete) "achievement_best_${definition.id}" else "achievement_subtitle_${definition.id}"
+        }, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(2f) })
     }
 
-    /** "1,340 / 2,000": how far towards the next goal. */
-    private fun counterText(state: Achievements.Snapshot, tier: Int): View =
-        kit.text(counter(state, tier), 17f, Theme.INK, 700, Gravity.START).apply {
-            maxLines = 1; tag = "achievement-counter"
-            // A long count shrinks rather than being cut off.
-            setAutoSizeTextTypeUniformWithConfiguration(12, 17, 1, TypedValue.COMPLEX_UNIT_SP)
+    /** Under the name: the CLAIM button, or the bar and count towards the next goal, or nothing. */
+    private fun slot(state: Achievements.Snapshot, index: Int, animateFill: Boolean): View? {
+        val definition = state.definition
+        return when {
+            state.claimableTier != null -> claimButton(state)
+            state.nextTarget == null -> null
+            // A one-off dare is done or not: a "0 / 1" count would only ever read 0.
+            !definition.tiered && definition.thresholds.single() == 1 -> null
+            else -> progress(state, state.earnedTiers, index, animateFill)
         }
+    }
 
-    /**
-     * Four medals joined by one track. Claimed medals are solid, the one waiting to be claimed
-     * glows, the one being worked on wears a ring, later ones are faint outlines. The link into
-     * the medal being worked on fills as you get closer.
-     */
-    private fun medalTrack(state: Achievements.Snapshot, current: Int): LinearLayout = LinearLayout(activity).apply {
+    /** A bar in the colour of the frame it earns next, and "1,340 / 2K" beside it. */
+    private fun progress(state: Achievements.Snapshot, tier: Int, index: Int, animateFill: Boolean): View = LinearLayout(activity).apply {
+        tag = "achievement_slot_${state.definition.id}"
         orientation = LinearLayout.HORIZONTAL
         gravity = Gravity.CENTER_VERTICAL
-        clipChildren = false; clipToPadding = false
-        for (tier in 0..3) {
-            if (tier > 0) addView(MedalLink(activity, medalColor(tier - 1), medalColor(tier), when {
-                tier < state.earnedTiers -> 1f
-                tier == state.earnedTiers -> state.fraction
-                else -> 0f
-            }), LinearLayout.LayoutParams(0, dp(8f), 1f).apply { marginStart = dp(4f); marginEnd = dp(4f) })
-            val waiting = tier >= state.claimedTiers && tier < state.earnedTiers
-            addView(ImageView(activity).apply {
-                tag = "achievement_medal_${state.definition.id}_$tier"
-                setImageDrawable(MedalIcon(medalColor(tier), tier < state.earnedTiers, tier == 3, ribbon = false))
-                setPadding(dp(4f), dp(4f), dp(4f), dp(4f))
-                background = when {
-                    waiting -> GradientDrawable().apply {
-                        gradientType = GradientDrawable.RADIAL_GRADIENT
-                        gradientRadius = dpf(22f)
-                        colors = intArrayOf(Theme.alpha(Theme.lighten(medalColor(tier), .3f), 200), Theme.alpha(medalColor(tier), 0))
-                    }
-                    tier == current && !state.allClaimed -> GradientDrawable().apply {
-                        shape = GradientDrawable.OVAL; setColor(Theme.alpha(medalColor(tier), 30))
-                        setStroke(dp(2f), medalColor(tier))
-                    }
-                    else -> null
-                }
-                contentDescription = activity.getString(R.string.achievement_medal_status, activity.achievementTierName(tier), activity.getString(when {
-                    tier < state.claimedTiers -> R.string.achievement_status_claimed
-                    tier < state.earnedTiers -> R.string.achievement_status_ready
-                    tier == current -> R.string.achievement_status_progress
-                    else -> R.string.achievement_status_locked
-                }))
-            }, LinearLayout.LayoutParams(dp(40f), dp(40f)))
-        }
+        addView(bar(state, tier, index, animateFill), LinearLayout.LayoutParams(0, dp(12f), 1f))
+        addView(kit.text(counter(state, tier), 15f, Theme.INK, 700, Gravity.END).apply {
+            maxLines = 1; tag = "achievement-counter"
+        }, LinearLayout.LayoutParams(-2, -2).apply { marginStart = dp(10f) })
     }
 
     /**
-     * "1,340 / 2,000". Good Runner asks you to beat its number, not to reach one more than it:
+     * "1,340 / 2K". Good Runner asks you to beat its number, not to reach one more than it:
      * the counter shows the number on the medal, and on the exact boundary says so rather than
      * showing a full-looking 1,000 / 1,000 with no reward behind it.
      */
-    private fun counter(state: Achievements.Snapshot, tier: Int, short: Boolean = false): String {
+    private fun counter(state: Achievements.Snapshot, tier: Int): String {
         val definition = state.definition
         val target = definition.thresholds[tier]
-        val ready = state.claimableTier != null
-        val beat = definition.id == "runner" && !ready && state.value >= target
+        val beat = definition.id == "runner" && state.value >= target
         // Non-breaking around the slash: a narrow column must never split the count over two lines.
-        return if (definition.id == "bounces") activity.getString(R.string.achievement_best_progress, number(state.value), number(target)).replace(" / ", "\u00A0/\u00A0")
-            else "${number(if (ready) target else minOf(state.value, target))}\u00A0/\u00A0${(if (short) ::compact else ::number)(if (beat) target + 1 else target)}"
+        return if (definition.id == "bounces") activity.getString(R.string.achievement_best_progress, number(state.value), number(target)).replace(" / ", " / ")
+            else "${number(minOf(state.value, target))} / ${compact(if (beat) target + 1 else target)}"
     }
 
-    /** How far along a challenge is. A reward ready to claim shows it full, in mint. */
-    private fun bar(state: Achievements.Snapshot, index: Int, animateFill: Boolean): View {
-        val ready = state.claimableTier != null
-        val fraction = if (ready) 1f else state.fraction
-        return AchievementProgressBar(activity, kit, if (ready) Theme.MINT else accent(state.definition.id), fraction,
-            if (animateFill) 120L + index * 35L else 0L, animateFill,
-            fromFraction = if (!animateFill && !ready) 1f else null, trough = Theme.alpha(Theme.INK, 26)).apply {
+    /** How far towards the next goal, filled in the colour of the frame it earns. */
+    private fun bar(state: Achievements.Snapshot, tier: Int, index: Int, animateFill: Boolean): View =
+        AchievementProgressBar(activity, kit, frameColor(state.definition, tier), state.fraction,
+            if (animateFill) 120L + index * 35L else 0L, animateFill, trough = Theme.alpha(Theme.INK, 22)).apply {
             tag = "achievement_progress_${state.definition.id}"
-            contentDescription = activity.getString(R.string.achievement_percent_complete, (fraction * 100).toInt())
+            contentDescription = activity.getString(R.string.achievement_percent_complete, (state.fraction * 100).toInt())
         }
-    }
 
-    /** The wide gold CLAIM button, with what it pays. */
+    /** The gold CLAIM button, with everything the card has waiting: one tap collects every medal earned. */
     private fun claimButton(state: Achievements.Snapshot): View {
-        val amount = state.rewardAmount ?: Achievements.reward(state.definition, state.claimableTier ?: 0)
+        val amount = (state.claimedTiers until state.earnedTiers).sumOf { Achievements.reward(state.definition, it) }
         lateinit var button: CandyButton
-        button = kit.button(android.text.SpannableStringBuilder(activity.getString(R.string.achievement_claim)).append("  ").append(kit.coins(number(amount), 18f)), Theme.GOLD) {
+        button = kit.button(android.text.SpannableStringBuilder(activity.getString(R.string.achievement_claim)).append("  ").append(kit.coins(number(amount), 17f)), Theme.GOLD, UiKit.Size.SMALL) {
             onClaim(state, button)
         }.apply {
             tag = "achievement_claim_${state.definition.id}"
             maxLines = 1
+            textSize = 17f
             contentDescription = activity.getString(R.string.achievement_claim_description, number(amount), activity.achievementTitle(state.definition.id))
         }
         return button
     }
 
     /** A white card with a darker lip. A waiting reward gets a gold edge. */
-    private fun surface(state: Achievements.Snapshot): Drawable {
-        val ready = state.claimableTier != null
+    private fun surface(ready: Boolean): Drawable {
         val radius = dpf(RADIUS)
         return LayerDrawable(arrayOf(
-            GradientDrawable().apply { cornerRadius = radius; setColor(if (ready) Theme.darken(Theme.GOLD, .2f) else 0xFFB9B2DA.toInt()) },
+            GradientDrawable().apply { cornerRadius = radius; setColor(if (ready) Theme.darken(Theme.GOLD, .2f) else Theme.alpha(Theme.INK, 26)) },
             GradientDrawable().apply { cornerRadius = radius; setColor(Theme.CARD); if (ready) setStroke(dp(3f), Theme.GOLD) },
         )).apply { setLayerInset(1, 0, 0, 0, kit.CARD_LIP) }
     }
 
     companion object {
         private const val RADIUS = 22f
+        const val BADGE = 60f
+        const val HALO = 18f
+        const val PIP = 17f
+        const val CLAIM_SLOT = 42f
+        const val BAR_SLOT = 22f
+
+        /** The colour of the frame a claim of [tier] gives. */
+        fun frameColor(definition: Achievements.Definition, tier: Int): Int = if (definition.tiered) medalColor(tier) else accent(definition.id)
 
         fun accent(id: String): Int = when (id) {
             "runner" -> Theme.ORANGE
@@ -281,82 +284,6 @@ internal class AchievementCards(
             "neo" -> Theme.MINT
             else -> Theme.PINK
         }
-    }
-}
-
-/**
- * A card that can shine. When a reward is waiting on it, a soft sheen sweeps across it a few
- * times, clipped to its rounded corners, and then it goes quiet.
- */
-@SuppressLint("ViewConstructor")
-internal class SheenBand(context: Context, val corners: FloatArray) : LinearLayout(context) {
-    var shine = false
-        set(value) { field = value; setWillNotDraw(!value); invalidate() }
-    private var sweeps = 0
-    private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
-    private val clip = Path()
-    private val box = RectF()
-    private val seen = android.graphics.Rect()
-    /** Set on the first draw with the band actually on screen: a card below the fold still gets its sweeps. */
-    private var born = 0L
-
-    override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
-        super.onSizeChanged(w, h, oldw, oldh)
-        box.set(0f, 0f, w.toFloat(), h.toFloat())
-        clip.reset(); clip.addRoundRect(box, corners, Path.Direction.CW)
-    }
-
-    override fun dispatchDraw(canvas: Canvas) {
-        super.dispatchDraw(canvas)
-        if (!shine || width == 0) return
-        if (sweeps >= SWEEPS) return
-        if (born == 0L) {
-            if (!isShown || !getLocalVisibleRect(seen)) return
-            born = SystemClock.uptimeMillis() + 260L
-        }
-        val elapsed = SystemClock.uptimeMillis() - born
-        if (elapsed < 0L) { postDelayed({ Anim.repaint(this) }, -elapsed); return }
-        sweeps = (elapsed / SWEEP_EVERY).toInt()
-        val t = elapsed.mod(SWEEP_EVERY)
-        if (t < SWEEP) {
-            val p = t / SWEEP.toFloat()
-            val x = -width * .5f + width * 2f * (p * p * (3f - 2f * p))
-            val half = width * .22f
-            paint.shader = LinearGradient(x - half, 0f, x + half, height * .6f,
-                intArrayOf(0, Theme.alpha(Theme.WHITE, 110), 0), floatArrayOf(0f, .5f, 1f), Shader.TileMode.CLAMP)
-            val saved = canvas.save()
-            canvas.clipPath(clip)
-            canvas.drawRect(box, paint)
-            canvas.restoreToCount(saved)
-            paint.shader = null
-            postOnAnimation { Anim.repaint(this) }
-        } else postDelayed({ Anim.repaint(this) }, SWEEP_EVERY - t)
-    }
-
-    private companion object {
-        const val SWEEP = 900L
-        const val SWEEP_EVERY = 3200L
-        const val SWEEPS = 3
-    }
-}
-
-/** The link between two medals: faint when locked, filled (bronze into silver…) as far as you have come. */
-private class MedalLink(context: Context, private val from: Int, private val to: Int, private val fill: Float) : View(context) {
-    private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
-    private val box = RectF()
-    override fun onDraw(canvas: Canvas) {
-        val r = height / 2f
-        box.set(0f, 0f, width.toFloat(), height.toFloat())
-        paint.shader = null; paint.color = Theme.alpha(Theme.INK, 26)
-        canvas.drawRoundRect(box, r, r, paint)
-        if (fill <= 0f) return
-        // The track mirrors in Hebrew, so the link has to grow from the same end the medals do.
-        val rtl = layoutDirection == LAYOUT_DIRECTION_RTL
-        val length = maxOf(width * fill.coerceIn(0f, 1f), height.toFloat())
-        if (rtl) box.left = width - length else box.right = length
-        paint.shader = LinearGradient(if (rtl) width.toFloat() else 0f, 0f, if (rtl) 0f else width.toFloat(), 0f, from, to, Shader.TileMode.CLAMP)
-        canvas.drawRoundRect(box, r, r, paint)
-        paint.shader = null
     }
 }
 

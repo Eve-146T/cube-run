@@ -1,147 +1,70 @@
 package cube.run.ui
 
-import android.animation.ValueAnimator
 import android.annotation.SuppressLint
 import android.content.Context
-import android.graphics.Canvas
-import android.graphics.Matrix
-import android.graphics.Paint
-import android.graphics.Path
-import android.graphics.RadialGradient
-import android.graphics.RectF
-import android.graphics.Shader
-import android.graphics.SweepGradient
 import android.view.Gravity
 import android.view.View
+import android.widget.ImageView
 import android.widget.LinearLayout
+import android.widget.TextView
 import cube.run.data.Achievements
-import kotlin.math.cos
-import kotlin.math.sin
 
 /**
- * The top of the achievement page: a trophy inside a ring that fills with everything earned so
- * far, and the count beside it.
+ * The top of the achievement page: the medal case. One slot per medal (bronze, silver, gold,
+ * diamond) and one for challenge stickers, each with how many of them you have collected out
+ * of how many there are. Only claimed rewards count: claiming is what fills the case.
  */
 @SuppressLint("ViewConstructor")
 internal class AchievementHero(context: Context, private val kit: UiKit) : LinearLayout(context) {
-    private val ring = TrophyRing(context, kit)
-    private val total = kit.stageText("", 34f, stroke = 3f).apply { tag = "achievement_total"; maxLines = 1 }
-    private var earned = -1
+    private val icons = ArrayList<ImageView>()
+    private val counts = ArrayList<TextView>()
+    private val shown = IntArray(SLOTS) { -1 }
 
     init {
-        orientation = VERTICAL
-        gravity = Gravity.CENTER_HORIZONTAL
+        orientation = HORIZONTAL
+        gravity = Gravity.CENTER_VERTICAL
         clipChildren = false; clipToPadding = false
-        setPadding(0, kit.dp(2f), 0, kit.dp(4f))
+        background = kit.cardDrawable(Theme.CARD, null, 22f)
+        setPadding(kit.dp(6f), kit.dp(12f), kit.dp(6f), kit.dp(10f) + kit.CARD_LIP)
         importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_YES
-        addView(LinearLayout(context).apply {
-            orientation = HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
+        for (slot in 0 until SLOTS) addView(LinearLayout(context).apply {
+            orientation = VERTICAL
+            gravity = Gravity.CENTER_HORIZONTAL
             clipChildren = false; clipToPadding = false
-            addView(ring, LayoutParams(kit.dp(92f), kit.dp(92f)))
-            addView(total, LayoutParams(-2, -2).apply { marginStart = kit.dp(14f) })
-        }, LayoutParams(-2, -2))
+            importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS
+            val icon = ImageView(context).apply { tag = "achievement_case_$slot" }
+            icons += icon
+            addView(icon, LayoutParams(kit.dp(40f), kit.dp(40f)))
+            val count = kit.text("", 15f, Theme.INK, 700).apply { maxLines = 1 }
+            counts += count
+            addView(count, LayoutParams(-2, -2).apply { topMargin = kit.dp(4f) })
+        }, LayoutParams(0, -2, 1f))
     }
 
-    /** Show [states]; [animate] rolls the ring and the total from where they were. */
+    /** The case slot a claim of [tier] of [definition] lands in. */
+    fun slotFor(definition: Achievements.Definition, tier: Int): View = icons[if (definition.tiered) tier.coerceIn(0, 3) else CHALLENGES]
+
+    /** Show [states]; [animate] pops every slot whose count went up. */
     fun bind(states: List<Achievements.Snapshot>, animate: Boolean, delay: Long = 0L) {
+        val medals = states.filter { it.definition.tiered }
+        val challenges = states.filterNot { it.definition.tiered }
+        for (slot in 0 until SLOTS) {
+            val have = if (slot == CHALLENGES) challenges.count { it.claimedTiers > 0 } else medals.count { it.claimedTiers > slot }
+            val of = if (slot == CHALLENGES) challenges.size else medals.size
+            icons[slot].setImageDrawable(if (slot == CHALLENGES) StickerIcon(have > 0)
+                else MedalIcon(medalColor(slot), have > 0, slot == 3, ribbon = false))
+            counts[slot].text = "$have/$of"
+            counts[slot].setTextColor(if (have > 0) Theme.INK else Theme.MUTED)
+            if (animate && shown[slot] in 0 until have) postDelayed({ Anim.popIn(icons[slot], 0, 1.5f, 380) }, delay)
+            shown[slot] = have
+        }
         val max = states.sumOf { it.definition.thresholds.size }
-        val now = states.sumOf { it.earnedTiers }
-        val from = if (earned < 0) 0 else earned
-        earned = now
-        ring.fillTo(if (max == 0) 0f else now / max.toFloat(), animate, delay)
-        if (animate && now != from) {
-            total.text = "$from / $max"
-            postDelayed({ Anim.countTo(total, from, now, 850L) { "$it / $max" } }, delay)
-        } else total.text = "$now / $max"
+        val now = states.sumOf { it.claimedTiers }
         contentDescription = context.getString(cube.run.R.string.achievement_earned_description, now, max)
     }
-}
 
-/**
- * A trophy in a ring of every medal colour. The ring fills to the share of achievements earned,
- * a bright spark riding its leading end, over a still sunburst behind the cup. Nothing here
- * repaints once the fill has landed: a page that never goes idle stalls instrumented tests.
- */
-private class TrophyRing(context: Context, private val kit: UiKit) : View(context) {
-    private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
-    private val trophy = TrophyIcon()
-    private val arc = RectF()
-    private val rays = Path()
-    private val disc = Path()
-    private var amount = 0f
-    private var animator: ValueAnimator? = null
-    private var glow: RadialGradient? = null
-    private var inner: RadialGradient? = null
-    private var sweep: SweepGradient? = null
-
-    init { importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO }
-
-    fun fillTo(target: Float, animate: Boolean, delay: Long) {
-        animator?.cancel()
-        if (!animate) { amount = target; invalidate(); return }
-        animator = ValueAnimator.ofFloat(amount, target).apply {
-            duration = 1100; startDelay = delay
-            interpolator = android.view.animation.PathInterpolator(.2f, .9f, .3f, 1f)
-            addUpdateListener { amount = it.animatedValue as Float; Anim.repaint(this@TrophyRing) }
-            Anim.cancelOnDetach(this@TrophyRing, this)
-            start()
-        }
-    }
-
-    private val stroke get() = kit.dpf(11f)
-    private val radius get() = minOf(width, height) / 2f - stroke - kit.dpf(4f)
-
-    override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
-        val cx = w / 2f; val cy = h / 2f
-        glow = RadialGradient(cx, cy, minOf(w, h) / 2f, intArrayOf(Theme.alpha(Theme.YELLOW, 120), Theme.alpha(Theme.ORANGE, 45), 0),
-            floatArrayOf(0f, .6f, 1f), Shader.TileMode.CLAMP)
-        val light = Theme.lighten(0xFF3B2F86.toInt(), .05f)
-        inner = RadialGradient(cx, cy - radius * .25f, radius * 1.1f, intArrayOf(light, 0xFF1B1644.toInt()), null, Shader.TileMode.CLAMP)
-        sweep = SweepGradient(cx, cy, intArrayOf(Theme.lighten(medalColor(0), .3f), medalColor(1), Theme.YELLOW, medalColor(3), Theme.lighten(medalColor(0), .3f)), null).apply {
-            setLocalMatrix(Matrix().apply { setRotate(-90f, cx, cy) })
-        }
-        disc.reset(); disc.addCircle(cx, cy, radius - stroke / 2f, Path.Direction.CW)
-        rays.reset()
-        val far = radius * 1.2f
-        for (i in 0 until 12) {
-            val a = Math.toRadians(i * 30.0); val b = Math.toRadians(i * 30.0 + 13.0)
-            rays.moveTo(cx, cy)
-            rays.lineTo(cx + far * cos(a).toFloat(), cy + far * sin(a).toFloat())
-            rays.lineTo(cx + far * cos(b).toFloat(), cy + far * sin(b).toFloat())
-            rays.close()
-        }
-    }
-
-    override fun onDraw(canvas: Canvas) {
-        val cx = width / 2f; val cy = height / 2f
-        val r = radius
-        paint.style = Paint.Style.FILL
-        paint.shader = glow; canvas.drawCircle(cx, cy, minOf(width, height) / 2f, paint)
-        paint.shader = inner; canvas.drawCircle(cx, cy, r - stroke / 2f, paint); paint.shader = null
-        val saved = canvas.save()
-        canvas.clipPath(disc)
-        paint.color = Theme.alpha(Theme.WHITE, 20); canvas.drawPath(rays, paint)
-        canvas.restoreToCount(saved)
-        arc.set(cx - r, cy - r, cx + r, cy + r)
-        paint.style = Paint.Style.STROKE; paint.strokeCap = Paint.Cap.ROUND
-        paint.strokeWidth = stroke; paint.color = Theme.alpha(0xFF0B0826.toInt(), 150); canvas.drawCircle(cx, cy, r, paint)
-        paint.strokeWidth = kit.dpf(1.5f); paint.color = Theme.alpha(Theme.WHITE, 60); canvas.drawCircle(cx, cy, r - stroke / 2f, paint)
-        if (amount > 0f) {
-            val sweepAngle = 360f * amount.coerceIn(0f, 1f)
-            paint.shader = sweep; paint.color = Theme.WHITE
-            paint.strokeWidth = stroke * 1.9f; paint.alpha = 55; canvas.drawArc(arc, -90f, sweepAngle, false, paint)
-            paint.strokeWidth = stroke; paint.alpha = 255; canvas.drawArc(arc, -90f, sweepAngle, false, paint)
-            paint.shader = null
-            val end = Math.toRadians((-90f + sweepAngle).toDouble())
-            val ex = cx + r * cos(end).toFloat(); val ey = cy + r * sin(end).toFloat()
-            paint.style = Paint.Style.FILL
-            paint.color = Theme.alpha(Theme.WHITE, 70); canvas.drawCircle(ex, ey, stroke * .55f, paint)
-            paint.color = Theme.alpha(Theme.WHITE, 190); canvas.drawCircle(ex, ey, stroke * .24f, paint)
-        }
-        paint.style = Paint.Style.FILL
-        val cup = r * 1.1f
-        trophy.setBounds((cx - cup / 2f).toInt(), (cy - cup / 2f - kit.dpf(2f)).toInt(), (cx + cup / 2f).toInt(), (cy + cup / 2f - kit.dpf(2f)).toInt())
-        trophy.draw(canvas)
+    private companion object {
+        const val SLOTS = 5
+        const val CHALLENGES = 4
     }
 }

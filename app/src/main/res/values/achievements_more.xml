@@ -4,6 +4,7 @@
     <string name="achievement_section_medals">MEDALS</string>
     <string name="achievement_section_challenges">CHALLENGES</string>
     <string name="achievement_section_done">DONE</string>
+    <string name="achievement_section_ready">READY</string>
     <string name="achievement_claim_all">CLAIM ALL</string>
     <string name="achievement_claim_all_description">Claim all rewards, %1$s coins</string>
     <string name="achievement_done_description">%1$s: complete</string>

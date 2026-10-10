@@ -25,22 +25,6 @@ internal fun achievementIcon(id: String): android.graphics.drawable.Drawable = w
     else -> AchievementCubeIcon(collection = false)
 }
 
-internal class AchievementCheckIcon : Icon() {
-    private val path = Path()
-    override fun draw(canvas: Canvas) {
-        val save = canvas.save()
-        canvas.translate(bounds.left.toFloat(), bounds.top.toFloat())
-        canvas.scale(bounds.width() / 32f, bounds.height() / 32f)
-        paint.style = Paint.Style.FILL; paint.color = Theme.MINT
-        canvas.drawCircle(16f, 16f, 15f, paint)
-        paint.style = Paint.Style.STROKE; paint.color = Theme.INK
-        paint.strokeWidth = 3.4f; paint.strokeCap = Paint.Cap.ROUND; paint.strokeJoin = Paint.Join.ROUND
-        path.reset(); path.moveTo(9f, 16f); path.lineTo(14f, 21f); path.lineTo(23f, 11f)
-        canvas.drawPath(path, paint)
-        canvas.restoreToCount(save)
-    }
-}
-
 /** Isometric cubes reuse the game's bevelled candy language, with speed lines for running. */
 private class AchievementCubeIcon(private val collection: Boolean) : Icon() {
     private val path = Path()

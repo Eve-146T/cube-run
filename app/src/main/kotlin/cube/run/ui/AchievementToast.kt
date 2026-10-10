@@ -50,7 +50,7 @@ class AchievementToast(activity: Activity, private val kit: UiKit) : FrameLayout
         gravity = Gravity.CENTER_VERTICAL
         background = kit.cardDrawable(Theme.WHITE, null, 20f)
         setPadding(kit.dp(14f), kit.dp(10f), kit.dp(16f), kit.dp(14f))
-        addView(badge, LinearLayout.LayoutParams(kit.dp(40f), kit.dp(44f)))
+        addView(badge, LinearLayout.LayoutParams(kit.dp(46f), kit.dp(46f)))
         addView(words, LinearLayout.LayoutParams(0, -2, 1f).apply { leftMargin = kit.dp(12f) })
         visibility = INVISIBLE
         importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_YES
@@ -137,8 +137,8 @@ class AchievementToast(activity: Activity, private val kit: UiKit) : FrameLayout
         val first = pending.entries.first()
         val unlock = first.value
         pending.remove(first.key)
-        val color = if (unlock.definition.tiered) medalColor(unlock.tier) else Theme.MINT
-        badge.setImageDrawable(if (unlock.definition.tiered) MedalIcon(color, true, unlock.tier == 3) else AchievementCheckIcon())
+        // The badge in the frame this unlock earns: the same badge the trophy room strikes when it is claimed.
+        badge.setImageDrawable(AchievementBadge(unlock.definition.id, unlock.definition.tiered, unlock.tier))
         title.text = context.achievementTitle(unlock.definition.id)
         val reward = Achievements.reward(unlock.definition, unlock.tier)
         detail.text = kit.coins(number(reward), 12f)

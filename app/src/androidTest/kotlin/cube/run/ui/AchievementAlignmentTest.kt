@@ -7,7 +7,6 @@ import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.RectF
-import android.graphics.drawable.LayerDrawable
 import android.os.SystemClock
 import android.view.View
 import android.view.ViewGroup
@@ -72,7 +71,7 @@ class AchievementAlignmentTest {
         assertEquals("$label painted vertical center", expectedY, painted.centerY(), tolerance)
     }
 
-    @Test fun allCategoryArtworkCentersOnItsRaisedFaceAndMedalsAlignWithTheirConnectors() {
+    @Test fun allBadgesCenterOnTheirRaisedFaceAndLevelPipsCenterUnderThem() {
         val prefs = context.getSharedPreferences("progress", Context.MODE_PRIVATE)
         val scores = context.getSharedPreferences("scores", Context.MODE_PRIVATE)
         val saved = prefs.all; val savedScores = scores.all
@@ -113,14 +112,11 @@ class AchievementAlignmentTest {
                             images.single { it.tag == "achievement_icon_${definition.id}" }
                         }
                         for ((definition, image) in Achievements.all.zip(categoryImages)) {
-                            val background = image.background
-                            background.setBounds(0, 0, image.width, image.height)
-                            val face = if (background is LayerDrawable) background.getDrawable(background.numberOfLayers - 1) else background
-                            val faceBounds = paintedBounds(image.width, image.height) { face.draw(it) }
-                            assertCenter(definition.id, artBounds(image), faceBounds.centerX(), faceBounds.centerY(), tolerance)
-                            val mappedCenter = floatArrayOf(image.drawable.bounds.exactCenterX(), image.drawable.bounds.exactCenterY())
-                            image.imageMatrix.mapPoints(mappedCenter)
-                            assertEquals("${definition.id} ImageView matrix centers on the visible face", faceBounds.centerY(), mappedCenter[1] + image.paddingTop, tolerance)
+                            // The badge is a raised face on a lip: the face, not face and lip, centres in its slot.
+                            val painted = artBounds(image)
+                            val lip = image.height * 3f / 64f
+                            assertCenter(definition.id, RectF(painted.left, painted.top, painted.right, painted.bottom - lip), image.width / 2f, image.height / 2f, tolerance)
+                            assertEquals("${definition.id} badge keeps square aspect", painted.width(), painted.height() - lip, tolerance * 2)
                             if (!earned) {
                                 // What a reward pays stays hidden until it can be claimed.
                                 assertTrue("${definition.id} shows no future payout", descendants(page).none { it.tag == "achievement_claim_${definition.id}" })
@@ -128,18 +124,16 @@ class AchievementAlignmentTest {
                         }
                         for (definition in Achievements.all.filter { it.tiered }) {
                             val medals = (0..3).map { tier -> images.single { it.tag == "achievement_medal_${definition.id}_$tier" } }
-                            val row = medals.first().parent as ViewGroup
-                            val connectors = (0 until row.childCount).map { row.getChildAt(it) }.filter { it !is ImageView }
-                            assertEquals("Three visible connectors join four tiers", 3, connectors.size)
-                            val connectorCenters = connectors.map { connector ->
-                                val painted = paintedBounds(connector.width, connector.height) { connector.draw(it) }
-                                connector.top + painted.centerY()
-                            }
+                            val badge = images.single { it.tag == "achievement_icon_${definition.id}" }
+                            val badgeBox = android.graphics.Rect(0, 0, badge.width, badge.height); page.offsetDescendantRectToMyCoords(badge, badgeBox)
+                            val first = android.graphics.Rect(0, 0, medals.first().width, medals.first().height); page.offsetDescendantRectToMyCoords(medals.first(), first)
+                            val last = android.graphics.Rect(0, 0, medals.last().width, medals.last().height); page.offsetDescendantRectToMyCoords(medals.last(), last)
+                            assertEquals("${definition.id} level pips centre under the badge", badgeBox.exactCenterX(), (first.left + last.right) / 2f, tolerance * 2)
+                            assertTrue("${definition.id} level pips sit below the badge face", first.top > badgeBox.centerY())
                             for ((tier, medal) in medals.withIndex()) {
                                 val artwork = artBounds(medal)
                                 assertCenter("${definition.id} tier $tier", artwork, medal.width / 2f, medal.height / 2f, tolerance)
-                                for (center in connectorCenters) assertEquals("${definition.id} tier $tier face aligns with connector", center, medal.top + artwork.centerY(), tolerance)
-                                assertEquals("Medal face keeps square aspect", artwork.width(), artwork.height(), tolerance * 2)
+                                assertEquals("${definition.id} tier $tier shares the row", medals.first().top, medal.top)
                             }
                         }
                         // A compact native-rendered diagnostic strip preserves the actual background/foreground relationship.

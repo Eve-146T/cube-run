@@ -118,19 +118,20 @@ class AchievementDevModeUiTest {
                 assertTrue(button.performClick()); button.performClick()
             }
             awaitUi(scenario, "Developer claim and card update settle") { !field(page(it), "paying").getBoolean(page(it)) }
-            assertEquals(before + 250, Progress.coins)
-            assertEquals(1, Achievements.snapshot().single { it.definition.id == "runner" }.claimedTiers)
+            // One tap collects every medal the card has waiting: bronze, silver, gold and diamond.
+            assertEquals(before + 8000, Progress.coins)
+            assertEquals(4, Achievements.snapshot().single { it.definition.id == "runner" }.claimedTiers)
             scenario.onActivity {
-                assertEquals("Single-run score", (tagged(page(it), "achievement_subtitle_runner") as TextView).text.toString())
+                assertEquals("Claimed", (tagged(page(it), "achievement_subtitle_runner") as TextView).text.toString())
                 assertFalse(descendants(tagged(page(it), "achievement_card_runner")).filterIsInstance<TextView>()
                     .any { view -> view.text.toString().contains("Best:") })
-                assertTrue(tagged(page(it), "achievement_claim_runner").contentDescription.toString().contains("750"))
+                assertFalse(descendants(tagged(page(it), "achievement_card_runner")).any { view -> view.tag == "achievement_claim_runner" })
             }
             assertEquals(5001, Achievements.snapshot().single { it.definition.id == "runner" }.value)
             capture("dev-runner-claimed-simple-subtitle")
             Progress.leaveDev(); Settings.setDevMode(false); Progress.init(context)
-            assertEquals("Permanent claim payout survives leaving the developer bank", 10250, Progress.coins)
-            assertEquals(1, Achievements.snapshot().single { it.definition.id == "runner" }.claimedTiers)
+            assertEquals("Permanent claim payout survives leaving the developer bank", 18000, Progress.coins)
+            assertEquals(4, Achievements.snapshot().single { it.definition.id == "runner" }.claimedTiers)
             assertEquals(5001, Achievements.snapshot().single { it.definition.id == "runner" }.value)
         }
     }

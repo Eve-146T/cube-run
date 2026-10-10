@@ -4,6 +4,7 @@
     <string name="achievement_section_medals">MEDAILLEN</string>
     <string name="achievement_section_challenges">HERAUSFORDERUNGEN</string>
     <string name="achievement_section_done">GESCHAFFT</string>
+    <string name="achievement_section_ready">ABHOLBEREIT</string>
     <string name="achievement_claim_all">ALLE EINSAMMELN</string>
     <string name="achievement_claim_all_description">Alle Belohnungen einsammeln, %1$s Münzen</string>
     <string name="achievement_done_description">%1$s: geschafft</string>

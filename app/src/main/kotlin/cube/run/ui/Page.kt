@@ -99,6 +99,7 @@ abstract class Page(
     /** Every measure, with the pane's usable height: for adjustments finer than compact/full. */
     protected open fun onPaneMeasured(usableHeight: Int) {}
     private var headerAccessory: View? = null
+    private var accessoryRoom = 0
     protected fun reserveHeaderFor(view: View) { headerAccessory = view }
     private var normalTitleLines = Int.MAX_VALUE
     private var normalTitleSize = 0f
@@ -171,10 +172,13 @@ abstract class Page(
         }
         onPaneMeasured(MeasureSpec.getSize(heightMeasureSpec) - safeTop - safeBottom)
         var end = dp(16f)
-        if (short && titleView.parent === topBar) headerAccessory?.let { accessory ->
+        // The title never runs under the corner control (the coin bank, a count). The room kept for
+        // it only grows, with a digit to spare, so a balance counting up never nudges the title.
+        if (titleView.parent === topBar) headerAccessory?.let { accessory ->
             accessory.measure(MeasureSpec.makeMeasureSpec(MeasureSpec.getSize(widthMeasureSpec) / 2, MeasureSpec.AT_MOST),
                 MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED))
-            end += accessory.measuredWidth + dp(8f)
+            if (accessory.measuredWidth > accessoryRoom) accessoryRoom = accessory.measuredWidth + dp(10f)
+            end += accessoryRoom + dp(8f)
         }
         topBar.setPaddingRelative(dp(14f), dp(if (short) 0f else 10f), end, dp(if (short) 0f else 6f))
         val top = maxOf(dp(if (short) 8f else 36f), safeTop + dp(6f))
