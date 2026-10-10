@@ -4,23 +4,25 @@ import com.badlogic.gdx.Gdx
 import com.badlogic.gdx.graphics.Camera
 import com.badlogic.gdx.graphics.Color
 import com.badlogic.gdx.graphics.GL20
-import com.badlogic.gdx.graphics.VertexAttribute
-import com.badlogic.gdx.graphics.VertexAttributes.Usage
 import com.badlogic.gdx.graphics.glutils.ShaderProgram
 import com.badlogic.gdx.math.Matrix4
 import com.badlogic.gdx.utils.Disposable
 
 /** Tumbling cubes share one static mesh; the GPU transforms and lights their faces. */
 internal class InstancedShards(private val kit: BoxMeshKit, capacity: Int) : Disposable {
-    private val mesh = kit.newUnitMesh()
+    private val mesh = kit.newUnitMesh(capacity)
     private val data = FloatArray(capacity * 20)
     private var used = 0
     private val shader = ShaderProgram("""
         #version 300 es
         precision highp float;
-        in vec3 a_position;
-        in vec3 a_normal;
-        in vec4 i_col0, i_col1, i_col2, i_col3, i_tint;
+        layout(location=0) in vec3 a_position;
+        layout(location=1) in vec3 a_normal;
+        layout(location=2) in vec4 i_col0;
+        layout(location=3) in vec4 i_col1;
+        layout(location=4) in vec4 i_col2;
+        layout(location=5) in vec4 i_col3;
+        layout(location=6) in vec4 i_tint;
         uniform mat4 u_projViewTrans;
         uniform vec3 u_toL1, u_toL2, u_ambient, u_light1, u_light2;
         out vec4 v_color;
@@ -31,7 +33,12 @@ internal class InstancedShards(private val kit: BoxMeshKit, capacity: Int) : Dis
             vec3 light = u_ambient + max(0.0, dot(n, u_toL1))*u_light1 + max(0.0, dot(n, u_toL2))*u_light2;
             vec3 rgb = min(vec3(1.0), i_tint.rgb * light);
             v_color = vec4(floor(rgb*255.0)/255.0, floor(floor(i_tint.a*255.0)/2.0)*2.0/255.0);
-            gl_Position = u_projViewTrans * (m * vec4(a_position, 1.0)) + u_projViewTrans * vec4(bendOffset((m * vec4(a_position, 1.0)).xyz), 0.0);
+            vec4 world = m * vec4(a_position, 1.0);
+            gl_Position = u_projViewTrans * world;
+            // Most runs have no visual bend. Avoid a second matrix projection
+            // for every particle vertex when its offset is exactly zero.
+            if (u_bend.x != 0.0 || u_bend.y != 0.0)
+                gl_Position += u_projViewTrans * vec4(bendOffset(world.xyz), 0.0);
         }
     """.trimIndent(), """
         #version 300 es
@@ -43,10 +50,6 @@ internal class InstancedShards(private val kit: BoxMeshKit, capacity: Int) : Dis
 
     init {
         require(shader.isCompiled) { "instanced shard shader: ${shader.log}" }
-        mesh.enableInstancedRendering(false, capacity,
-            VertexAttribute(Usage.Generic, 4, "i_col0"), VertexAttribute(Usage.Generic, 4, "i_col1"),
-            VertexAttribute(Usage.Generic, 4, "i_col2"), VertexAttribute(Usage.Generic, 4, "i_col3"),
-            VertexAttribute(Usage.Generic, 4, "i_tint"))
     }
 
     fun begin() { used = 0 }

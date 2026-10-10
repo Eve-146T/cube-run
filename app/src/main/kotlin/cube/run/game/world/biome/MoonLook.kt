@@ -173,7 +173,9 @@ class MoonLook(world: Worlds.World) : BiomeLook(world) {
     override fun moveMote(p: Piece, dt: Float): Boolean = super.moveMote(p, dt) && kotlin.math.abs(p.x) < 40f
 
     override fun drawMote(d: BiomeDraw, p: Piece, fog: Float, time: Float) {
-        d.add(satellite, p.x, p.y, p.z, p.s, time * 15f + p.seed * 360f, p.pal, fog * 0.6f, glow = 0.2f, onLand = false)
+        val radius = satellite.radius * p.s
+        if (!d.visible(p.x, p.y, p.z, radius, radius, radius)) return
+        d.add(satellite, p.x, p.y, p.z, p.s, time * 15f + p.seed * 360f, p.pal, fog * 0.6f, glow = 0.2f, onLand = false, preculled = true)
     }
 
     override fun drawSky(d: BiomeDraw, alpha: Float, time: Float) {
@@ -183,6 +185,7 @@ class MoonLook(world: Worlds.World) : BiomeLook(world) {
     }
 
     override fun paintSky(sky: SkyPainter, alpha: Float, time: Float) {
+        if (sky.stars(stars, starCol, alpha, time, .6f, .4f, 1.3f, .85f, 9)) return
         for (i in 0 until STARS) {
             val tw = 0.6f + 0.4f * sin(time * 1.3f + stars[i * 4 + 3])
             val r = stars[i * 4 + 2]
@@ -190,6 +193,7 @@ class MoonLook(world: Worlds.World) : BiomeLook(world) {
             else sky.glow(stars[i * 4], stars[i * 4 + 1], r * 2f, starCol, alpha * tw * 0.85f)
         }
     }
+    override fun prepareSky(sky: SkyPainter) = sky.prepareStars(stars, starCol, .6f, .4f, .85f, 9)
 
     override val kerb = KERB_LIGHTS
     override fun kerbColors(a: Color, b: Color) { hsvInto(a, 235f, 0.25f, 0.7f); hsvInto(b, 185f, 0.7f, 1f) }

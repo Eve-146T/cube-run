@@ -55,10 +55,13 @@ class BoxMeshKit(mb: ModelBuilder) : Disposable {
     private val toL2 = Vector3(dir2).scl(-1f).nor()
     private val l2R = 0.25f; private val l2G = 0.22f; private val l2B = 0.3f
     private val sN = Vector3()
+    private val litPrograms = java.util.IdentityHashMap<ShaderProgram, Int>()
+    internal fun resetLightUniforms() { litPrograms.clear(); WorldBend.resetUniforms() }
 
     val shader: ShaderProgram
 
     init {
+        WorldBend.resetUniforms()
         val tpl = mb.createBox(1f, 1f, 1f, Material(ColorAttribute.createDiffuse(Color.WHITE)), (Usage.Position or Usage.Normal).toLong())
         val m0 = tpl.meshes.first()
         val vCount = m0.numVertices                 // 24
@@ -126,14 +129,20 @@ class BoxMeshKit(mb: ModelBuilder) : Disposable {
     }
 
     internal fun setLightUniforms(target: ShaderProgram) {
+        // The rig is immutable. Re-send it only for a new/recreated program or GL context.
+        val handle = target.handle
+        if (litPrograms[target] == handle) return
+        litPrograms[target] = handle
         target.setUniformf("u_toL1", toL1); target.setUniformf("u_toL2", toL2)
         target.setUniformf("u_ambient", ambR, ambG, ambB)
         target.setUniformf("u_light1", l1R, l1G, l1B); target.setUniformf("u_light2", l2R, l2G, l2B)
     }
 
-    internal fun newUnitMesh(): Mesh {
-        val mesh = Mesh(true, vertsPerBox, idxPerBox,
+    internal fun newUnitMesh(instanceCapacity: Int = 0): Mesh {
+        val attributes = com.badlogic.gdx.graphics.VertexAttributes(
             VertexAttribute(Usage.Position, 3, "a_position"), VertexAttribute(Usage.Normal, 3, "a_normal"))
+        val mesh = if (instanceCapacity > 0) InstanceMesh(vertsPerBox, idxPerBox, instanceCapacity, 20, attributes)
+            else Mesh(true, vertsPerBox, idxPerBox, attributes)
         val data = FloatArray(vertsPerBox * 6)
         for (v in 0 until vertsPerBox) {
             val ci = cornerOf[v] * 3; val fi = faceOf[v] * 3
@@ -160,6 +169,7 @@ class BoxMeshKit(mb: ModelBuilder) : Disposable {
     }
 
     override fun dispose() {
+        resetLightUniforms()
         shader.dispose()
     }
 }

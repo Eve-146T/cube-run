@@ -7,7 +7,7 @@ import com.badlogic.gdx.graphics.Color
 import com.badlogic.gdx.graphics.GL20
 import com.badlogic.gdx.utils.Disposable
 import kotlin.math.cos
-import kotlin.math.abs
+import cube.run.core.gfx.fastMagnitude as abs
 import kotlin.math.min
 import kotlin.math.sin
 import kotlin.math.sqrt
@@ -36,10 +36,11 @@ class WorldBoxBatch(private val kit: BoxMeshKit, private val maxBoxes: Int = 900
     var opacity = 1f
     private var translucent = false
 
-    private val mesh = kit.newBatchMesh(maxBoxes)
+    private val meshDelegate = lazy { kit.newBatchMesh(maxBoxes) }
+    private val mesh by meshDelegate
     private val instances = if (Gdx.gl30 != null) InstancedWorldBoxes(kit, maxBoxes) else null
     private var useInstances = false
-    private val verts = FloatArray(maxBoxes * kit.vertsPerBox * 4)
+    private val verts by lazy { FloatArray(maxBoxes * kit.vertsPerBox * 4) }
     private var count = 0
     private var faces = 0
     private var view: PerspectiveCamera? = null
@@ -153,8 +154,7 @@ class WorldBoxBatch(private val kit: BoxMeshKit, private val maxBoxes: Int = 900
     fun boxSpin(x: Float, y0: Float, z: Float, sx: Float, sy: Float, sz: Float, yawDeg: Float, col: Color, fog: Float = 0f) {
         if (count >= maxBoxes) return
         val y = y0 + (terrain?.invoke(z) ?: 0f)
-        val bits = yawDeg.toRawBits()
-        val slot = ((bits * -1640531527) ushr 23)
+        val slot = (yawDeg * 3.7f).toInt() and 511
         val lightOffset = slot * 18
         if (yawDeg != spinYaw[slot]) {
             spinYaw[slot] = yawDeg
@@ -273,6 +273,6 @@ class WorldBoxBatch(private val kit: BoxMeshKit, private val maxBoxes: Int = 900
 
     override fun dispose() {
         instances?.dispose()
-        mesh.dispose()
+        if (meshDelegate.isInitialized()) mesh.dispose()
     }
 }

@@ -1,14 +1,18 @@
 package cube.run.game
 
+import android.content.Intent
+import androidx.test.core.app.ApplicationProvider
 import androidx.test.core.app.ActivityScenario
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.badlogic.gdx.Gdx
 import com.badlogic.gdx.graphics.Color
 import com.badlogic.gdx.graphics.GL20
+import com.badlogic.gdx.graphics.Mesh
 import com.badlogic.gdx.graphics.PerspectiveCamera
 import com.badlogic.gdx.graphics.Pixmap
 import com.badlogic.gdx.graphics.g3d.utils.ModelBuilder
 import com.badlogic.gdx.graphics.glutils.FrameBuffer
+import com.badlogic.gdx.graphics.glutils.ShaderProgram
 import com.badlogic.gdx.utils.ScreenUtils
 import cube.run.GameActivity
 import cube.run.core.gfx.BoxMeshKit
@@ -30,7 +34,8 @@ import org.junit.runner.RunWith
 @RunWith(AndroidJUnit4::class)
 class BatchVisibilityTest {
     @Test fun particleCullingPreservesBlendingAndTumblingPixels() {
-        ActivityScenario.launch(GameActivity::class.java).use { scenario ->
+        ActivityScenario.launch<GameActivity>(Intent(ApplicationProvider.getApplicationContext(), GameActivity::class.java)
+            .putExtra("autostart", true)).use { scenario ->
             scenario.onActivity { it.setShowWhenLocked(true); it.setTurnScreenOn(true) }
             val done = CountDownLatch(1)
             var failure: Throwable? = null
@@ -85,6 +90,13 @@ class BatchVisibilityTest {
                                 val delta = abs((reference[i].toInt() and 255) - (gpu[i].toInt() and 255))
                                 assertTrue("Particle pixels changed at phase $phase, byte $i: delta=$delta", delta <= 1)
                             }
+                            if (phase == 11) {
+                                Mesh.invalidateAllMeshes(Gdx.app)
+                                ShaderProgram.invalidateAllShaderPrograms(Gdx.app)
+                                kit.resetLightUniforms()
+                                assertArrayEquals("Particle bindings after managed reload", gpu, draw(true))
+                                assertEquals(GL20.GL_NO_ERROR, Gdx.gl.glGetError())
+                            }
                         }
                     } finally { target.dispose(); shards.dispose(); kit.dispose() }
                 } catch (t: Throwable) { failure = t } finally { done.countDown() }
@@ -95,7 +107,8 @@ class BatchVisibilityTest {
     }
 
     @Test fun cullingPreservesPixelsAcrossCameraEdgesRotationsAndHills() {
-        ActivityScenario.launch(GameActivity::class.java).use { scenario ->
+        ActivityScenario.launch<GameActivity>(Intent(ApplicationProvider.getApplicationContext(), GameActivity::class.java)
+            .putExtra("autostart", true)).use { scenario ->
             scenario.onActivity { it.setShowWhenLocked(true); it.setTurnScreenOn(true) }
             val done = CountDownLatch(1)
             var failure: Throwable? = null

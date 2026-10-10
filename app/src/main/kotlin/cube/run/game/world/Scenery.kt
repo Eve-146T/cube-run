@@ -20,11 +20,15 @@ object Fog {
     const val end = 98f
 
     /** Fog factor for world geometry at [z] (negative = ahead of the player). */
-    fun at(z: Float) = ((-z - start) / (end - start)).coerceIn(0f, 1f)
+    @Suppress("NOTHING_TO_INLINE")
+    inline fun at(z: Float): Float {
+        val value = (-z - start) / (end - start)
+        return if (value < 0f) 0f else if (value > 1f) 1f else value
+    }
 
     /** Things come into view: invisible where they are born ([appearFar] and beyond), whole by [appearNear]. */
     /** Off only to measure what the fade-in saves (tests). */
-    @Volatile var fadeIn = true
+    @JvmField @Volatile var fadeIn = true
     const val appearFar = 100f
     const val appearNear = 88f
 
@@ -33,9 +37,11 @@ object Fog {
      * popping up a tile or a post at a time. Fog only tints toward one colour, never the
      * sky, sun or mountains behind, so it cannot hide a newcomer on its own.
      */
-    fun appear(z: Float): Float {
+    @Suppress("NOTHING_TO_INLINE")
+    inline fun appear(z: Float): Float {
         if (!fadeIn) return 1f
-        val t = ((appearFar + z) / (appearFar - appearNear)).coerceIn(0f, 1f)
+        val value = (appearFar + z) / (appearFar - appearNear)
+        val t = if (value < 0f) 0f else if (value > 1f) 1f else value
         return t * t * (3f - 2f * t)
     }
 }
@@ -288,7 +294,9 @@ class Scenery(private val game: Gdx3DGame, private val rnd: Random) {
     /** Everything beside and above the road: the roadside, the gates, the wind. [wind] 0..1 = how vivid the speed streaks are. */
     fun render(wind: Float, time: Float) {
         if (dropY < 60f) for (p in posts) renderPost(p, time)
+        game.renderProbe?.invoke("biome")
         biome.render(time, dropY)
+        game.renderProbe?.invoke("wind")
         for (g in gates) renderGate(g, time)
         if (wind > 0f && dropY < 1f) { // faint at cruising speed, vivid near the ceiling (fog doubles as fade)
             for (s in streaks) {

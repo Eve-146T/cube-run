@@ -22,6 +22,7 @@ parser.add_argument('--out', type=Path, required=True)
 parser.add_argument('--cpu0', type=int, default=614400)
 parser.add_argument('--cpu4', type=int, default=633600)
 parser.add_argument('--gpu', type=int, default=320000000)
+parser.add_argument('--gpu-min', type=int, help='Optional GPU floor for CPU/GPU isolation; restored by the watchdog.')
 parser.add_argument('--timeout', type=int, default=900)
 parser.add_argument('command', nargs=argparse.REMAINDER)
 args = parser.parse_args()
@@ -54,6 +55,11 @@ gpu = '/sys/class/kgsl/kgsl-3d0/devfreq/'
 boost = '/sys/module/cpu_boost/parameters/input_boost_freq'
 msm = '/sys/module/msm_performance/parameters/cpu_max_freq'
 floor = '/sys/module/big_cluster_min_freq_adjust/parameters/min_freq_floor'
+kgsl = '/sys/class/kgsl/kgsl-3d0/'
+frequencies = sorted(map(int, root(f'cat {gpu}available_frequencies').split()), reverse=True)
+if args.gpu not in frequencies:
+    raise ValueError('Unsupported GPU clock')
+gpu_level = frequencies.index(args.gpu)
 changes = {
     floor: str(min(args.cpu4, int(root('cat ' + floor)))),
     boost: '0:0 1:0 2:0 3:0 4:0 5:0 6:0 7:0',
@@ -63,12 +69,18 @@ changes = {
     cpu + '0/scaling_max_freq': str(args.cpu0),
     cpu + '4/scaling_max_freq': str(args.cpu4),
     gpu + 'max_freq': str(args.gpu),
+    # KGSL can wake at its default level before devfreq applies its ceiling.
+    kgsl + 'max_pwrlevel': str(gpu_level),
+    kgsl + 'default_pwrlevel': str(max(gpu_level, int(root('cat ' + kgsl + 'default_pwrlevel')))),
 }
+if args.gpu_min is not None:
+    if args.gpu_min > args.gpu or args.gpu_min not in frequencies:
+        raise ValueError('Unsupported GPU floor or floor above ceiling')
+    changes[gpu + 'min_freq'] = str(args.gpu_min)
+    changes[kgsl + 'min_pwrlevel'] = str(frequencies.index(args.gpu_min))
 for policy, cap in ((0, args.cpu0), (4, args.cpu4)):
     if str(cap) not in root(f'cat {cpu}{policy}/scaling_available_frequencies').split():
         raise ValueError(f'Unsupported CPU clock: {cap}')
-if str(args.gpu) not in root(f'cat {gpu}available_frequencies').split():
-    raise ValueError('Unsupported GPU clock')
 services = {name: root('getprop init.svc.' + name) for name in ('vendor.power', 'perf-hal-2-0')}
 saved = {path: root('cat ' + path) for path in changes}
 (args.out / 'original-clocks.json').write_text(json.dumps(saved, indent=2) + '\n')
@@ -77,6 +89,10 @@ remote = f'/data/local/tmp/cube-clocks-{os.getpid()}'
 # minimum votes. Lower the custom kernel floor as well as the policy limits.
 restore_order = [floor, boost, msm, cpu + '0/scaling_max_freq', cpu + '4/scaling_max_freq',
                  cpu + '0/scaling_min_freq', cpu + '4/scaling_min_freq', gpu + 'max_freq']
+restore_order += [kgsl + 'max_pwrlevel', kgsl + 'default_pwrlevel']
+if args.gpu_min is not None:
+    restore_order.insert(0, gpu + 'min_freq')
+    restore_order.insert(0, '/sys/class/kgsl/kgsl-3d0/min_pwrlevel')
 def write(path, value):
     return f'echo {shlex.quote(value)} > {path}'
 restore = '\n'.join(write(path, saved[path]) for path in restore_order)
@@ -118,6 +134,8 @@ try:
     limits = [args.cpu0, args.cpu0, args.cpu4, args.cpu4, args.gpu, args.gpu]
     if len(initial) != 6 or any(value > limit for value, limit in zip(initial, limits)):
         raise RuntimeError(f'Clock caps did not hold before launch: {initial}')
+    if args.gpu_min is not None and initial[5] < args.gpu_min:
+        raise RuntimeError(f'GPU floor did not hold before launch: {initial}')
     print('Clock caps active:', initial, flush=True)
     result = subprocess.run(command, timeout=max(1, args.timeout - 10))
     if root(f'[ -f {remote}.restored ] && echo early || true') == 'early':
@@ -141,14 +159,21 @@ finally:
     print('Restored clock controls:', json.dumps(restored), flush=True)
     # HAL can change minimums asynchronously; all ceilings and boost controls
     # must match the original values exactly.
-    for path in (floor, boost, msm, cpu + '0/scaling_max_freq', cpu + '4/scaling_max_freq', gpu + 'max_freq'):
+    for path in (floor, boost, msm, cpu + '0/scaling_max_freq', cpu + '4/scaling_max_freq', gpu + 'max_freq',
+                 kgsl + 'max_pwrlevel', kgsl + 'default_pwrlevel'):
         if restored[path] != saved[path]:
             raise RuntimeError(f'Clock restoration mismatch: {path}')
     if restored_services != services:
         raise RuntimeError('Power-service state changed during the run; inspect service snapshots')
+    if args.gpu_min is not None and restored[gpu + 'min_freq'] != saved[gpu + 'min_freq']:
+        raise RuntimeError('GPU floor restoration mismatch')
+    if args.gpu_min is not None and restored['/sys/class/kgsl/kgsl-3d0/min_pwrlevel'] != saved['/sys/class/kgsl/kgsl-3d0/min_pwrlevel']:
+        raise RuntimeError('GPU power-level restoration mismatch')
 limits = [args.cpu0, args.cpu0, args.cpu4, args.cpu4, args.gpu, args.gpu]
 rows = [list(map(int, line.split())) for line in samples.splitlines()]
 if not rows or any(len(row) != 7 or any(value > limit for value, limit in zip(row[1:], limits)) for row in rows):
     raise RuntimeError('Clock cap violated; exclude these measurements (see clocks.txt)')
+if args.gpu_min is not None and any(row[6] < args.gpu_min for row in rows):
+    raise RuntimeError('GPU floor violated; exclude these measurements (see clocks.txt)')
 if result is not None:
     raise SystemExit(result.returncode)

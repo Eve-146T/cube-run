@@ -6,7 +6,7 @@ import cube.run.core.Gdx3DGame
 import cube.run.data.Worlds
 import cube.run.game.Lanes
 import cube.run.game.world.Fog
-import kotlin.math.abs
+import cube.run.core.gfx.fastMagnitude as abs
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.sin
@@ -27,7 +27,8 @@ import kotlin.random.Random
 class BiomeScene(private val game: Gdx3DGame) {
     private val looks = arrayOfNulls<BiomeLook>(Worlds.all.size)
     private var rnd = Random(7)
-    private val draw = BiomeDraw(game)
+    // The opening constructs this scene before the renderer's facet batch exists.
+    private val draw by lazy { BiomeDraw(game) }
     val sky = SkyPainter(game)
 
     private val props = ArrayList<Piece>()
@@ -55,6 +56,19 @@ class BiomeScene(private val game: Gdx3DGame) {
     /** [world]'s look (built, and its shapes uploaded, the first time it is asked for). */
     fun lookOf(world: Worlds.World): BiomeLook = looks[world.id] ?: BiomeLooks.of(world).also { looks[world.id] = it }
     private val prepared = BooleanArray(Worlds.all.size)
+
+    /** Build and upload every biome before gameplay, rather than hitch at its first gate. */
+    fun prepareAll() {
+        draw.begin()
+        for (world in Worlds.all) {
+            val look = lookOf(world)
+            if (!prepared[world.id]) {
+                game.facets.prepare(*look.shapes.toTypedArray())
+                look.prepareSky(sky)
+                prepared[world.id] = true
+            }
+        }
+    }
 
     /** Start over in [world], everything in place at once. [seed] fixes the layout (captures, tests). */
     fun init(world: Worlds.World, seed: Int = Random.nextInt()) {
@@ -218,6 +232,8 @@ class BiomeScene(private val game: Gdx3DGame) {
     /** Queue the biome's facets. [drop]: how far the land has fallen away (Outer Space hides the biome). */
     fun render(time: Float, drop: Float) {
         if (drop >= 60f || veil >= 1f) return
+        val draw = this.draw
+        draw.begin()
         for (id in looks.indices) { // upload each biome's shapes before they first show
             val l = looks[id] ?: continue
             if (!prepared[id]) { prepared[id] = true; game.facets.prepare(*l.shapes.toTypedArray()) }

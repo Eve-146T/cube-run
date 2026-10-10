@@ -4,7 +4,7 @@ import com.badlogic.gdx.Gdx
 import com.badlogic.gdx.graphics.Camera
 import com.badlogic.gdx.graphics.Color
 import com.badlogic.gdx.graphics.GL20
-import com.badlogic.gdx.graphics.Mesh
+import com.badlogic.gdx.graphics.VertexAttributes
 import com.badlogic.gdx.graphics.VertexAttribute
 import com.badlogic.gdx.graphics.VertexAttributes.Usage
 import com.badlogic.gdx.graphics.glutils.ShaderProgram
@@ -14,16 +14,20 @@ import kotlin.math.sin
 
 /** The same twelve-sided coin, with a shared mesh instead of 72 rebuilt vertices per coin. */
 internal class InstancedPrisms(private val kit: BoxMeshKit, sides: Int, capacity: Int) : Disposable {
-    private val mesh = Mesh(true, sides * 6, sides * 6 + (sides - 2) * 6,
+    private val mesh = InstanceMesh(sides * 6, sides * 6 + (sides - 2) * 6, capacity, 16, VertexAttributes(
         VertexAttribute(Usage.Position, 3, "a_position"),
-        VertexAttribute(Usage.Normal, 3, "a_normal"))
+        VertexAttribute(Usage.Normal, 3, "a_normal")))
     private val data = FloatArray(capacity * 16)
     private var used = 0
     private val shader = ShaderProgram("""
         #version 300 es
         precision highp float;
-        in vec3 a_position, a_normal;
-        in vec4 i_center, i_shape, i_tint, i_fog;
+        layout(location=0) in vec3 a_position;
+        layout(location=1) in vec3 a_normal;
+        layout(location=2) in vec4 i_center;
+        layout(location=3) in vec4 i_shape;
+        layout(location=4) in vec4 i_tint;
+        layout(location=5) in vec4 i_fog;
         uniform mat4 u_projViewTrans;
         uniform vec3 u_toL1, u_toL2, u_ambient, u_light1, u_light2;
         out vec4 v_color;
@@ -81,9 +85,6 @@ internal class InstancedPrisms(private val kit: BoxMeshKit, sides: Int, capacity
             indices[w++] = b.toShort(); indices[w++] = (b + k + 1).toShort(); indices[w++] = (b + k).toShort()
         }
         mesh.setVertices(vertices); mesh.setIndices(indices)
-        mesh.enableInstancedRendering(false, capacity,
-            VertexAttribute(Usage.Generic, 4, "i_center"), VertexAttribute(Usage.Generic, 4, "i_shape"),
-            VertexAttribute(Usage.Generic, 4, "i_tint"), VertexAttribute(Usage.Generic, 4, "i_fog"))
     }
 
     fun begin() { used = 0 }

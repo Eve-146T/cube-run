@@ -4,26 +4,25 @@ import com.badlogic.gdx.Gdx
 import com.badlogic.gdx.graphics.Camera
 import com.badlogic.gdx.graphics.Color
 import com.badlogic.gdx.graphics.GL20
-import com.badlogic.gdx.graphics.VertexAttribute
-import com.badlogic.gdx.graphics.VertexAttributes.Usage
 import com.badlogic.gdx.graphics.glutils.ShaderProgram
 import com.badlogic.gdx.utils.Disposable
 
 /** Static cube geometry, with only transform/color data uploaded for each visible box. */
 internal class InstancedWorldBoxes(private val kit: BoxMeshKit, capacity: Int) : Disposable {
-    private val mesh = kit.newUnitMesh()
+    private val mesh = kit.newUnitMesh(capacity)
     private val data = FloatArray(capacity * 20)
     private var used = 0
+    private var uploaded = false
     private val shader = ShaderProgram("""
         #version 300 es
         precision highp float;
-        in vec3 a_position;
-        in vec3 a_normal;
-        in vec4 i_center;
-        in vec4 i_size;
-        in vec4 i_surface;
-        in vec4 i_tint;
-        in vec4 i_fog;
+        layout(location=0) in vec3 a_position;
+        layout(location=1) in vec3 a_normal;
+        layout(location=2) in vec4 i_center;
+        layout(location=3) in vec4 i_size;
+        layout(location=4) in vec4 i_surface;
+        layout(location=5) in vec4 i_tint;
+        layout(location=6) in vec4 i_fog;
         uniform mat4 u_projViewTrans;
         uniform float u_matrix;
         uniform vec3 u_toL1, u_toL2, u_ambient, u_light1, u_light2;
@@ -53,15 +52,9 @@ internal class InstancedWorldBoxes(private val kit: BoxMeshKit, capacity: Int) :
 
     init {
         require(shader.isCompiled) { "instanced box shader: ${shader.log}" }
-        mesh.enableInstancedRendering(false, capacity,
-            VertexAttribute(Usage.Generic, 4, "i_center"),
-            VertexAttribute(Usage.Generic, 4, "i_size"),
-            VertexAttribute(Usage.Generic, 4, "i_surface"),
-            VertexAttribute(Usage.Generic, 4, "i_tint"),
-            VertexAttribute(Usage.Generic, 4, "i_fog"))
     }
 
-    fun begin() { used = 0 }
+    fun begin() { used = 0; uploaded = false }
 
     fun add(x: Float, y: Float, z: Float, sx: Float, sy: Float, sz: Float, c: Float, s: Float,
             back: Float, front: Float, color: Color, fog: Float, fogColor: Color, opacity: Float) {
@@ -72,11 +65,14 @@ internal class InstancedWorldBoxes(private val kit: BoxMeshKit, capacity: Int) :
         data[w++] = color.r; data[w++] = color.g; data[w++] = color.b; data[w++] = opacity
         data[w++] = fogColor.r; data[w++] = fogColor.g; data[w++] = fogColor.b; data[w++] = 0f
         used = w
+        uploaded = false
     }
 
     fun render(camera: Camera, translucent: Boolean, matrix: Float, depthWrites: Boolean = true) {
         if (used == 0) return
-        mesh.setInstanceData(data, 0, used)
+        // Layered fades render depth and color from the same instance records.
+        // Re-uploading between those passes needlessly renames the GPU buffer.
+        if (!uploaded) { mesh.setInstanceData(data, 0, used); uploaded = true }
         Gdx.gl.glEnable(GL20.GL_DEPTH_TEST); Gdx.gl.glDepthMask(depthWrites)
         Gdx.gl.glEnable(GL20.GL_CULL_FACE)
         if (translucent) {

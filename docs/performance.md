@@ -489,3 +489,236 @@ unattached, so its 90 Hz target remains unverified.
 Final validation: all 14 affected on-device regression checks passed. Debug/test
 and release builds passed; lint reports no errors and the same 21 warnings.
 The final debug APK remains installed on Motorola.
+
+## Scenery performance comparison
+
+The scenery worktree compares the detailed biome scenery against commit
+`00468ba`, before that scenery was introduced. Both snapshots use normal debug
+APK settings and the same benchmark controls. The baseline-compatible test
+removes only calls to newer diagnostic APIs and the newer biome seed argument.
+Road generation uses seed 73 and classic scenery uses seed 74; the detailed
+biome scene additionally uses seed 75. These produce repeatable workloads within
+each renderer, rather than pretending the two scenery systems contain identical
+objects. Sound is enabled and haptics are disabled in both comparison builds.
+Per-frame audio CSV diagnostics are disabled in both builds; formatting three
+sample values into strings on every GL callback distorts the low-clock workload.
+Frame/CPU sample arrays and all percentile and stall counters remain enabled.
+Use `--audio-csv` only for separate audio diagnostics.
+
+The detailed renderer shares indexed static geometry across facet objects and
+uploads transform/palette records through a managed float texture. It retains
+submission order, uses separate depth and color passes for fading assemblies,
+and shares a shader through solid, depth and fade draws to reduce program and
+uniform changes. It falls back to the existing instanced renderer if the atlas fills. Static sky
+rays and stars retain their original geometry and channel quantization. Bounds
+rejection, cached orientation and immutable lighting uniforms reduce repeated
+CPU work. Box, coin and particle instance attributes retain managed VAO bindings;
+context restoration rebuilds both geometry and instance bindings. Scenery density, mesh detail, resolution, MSAA, and simulation timing
+are unchanged.
+
+`compare.py` alternates baseline/candidate order, verifies installed APK hashes,
+records test APK hashes, and requires the requested biome to be confirmed for
+every phase. The harness resets the host and game before timing: Android's
+activity launch can otherwise let an autostart run collide before instrumentation
+gains control. That reset must explicitly restore the requested biome because
+the normal menu reset chooses a new one. Each phase excludes five seconds of
+warm-up and reports FPS, frame percentiles, frames over 25/50 ms, render-thread
+CPU time, allocations and GC. Failed or interrupted runs are excluded.
+
+The rooted Moto G7 Power clock harness defaults to ceilings of **614.4 MHz** on
+the little CPU cluster, **633.6 MHz** on the big cluster, and **320 MHz** on the
+GPU. It temporarily lowers the custom big-cluster minimum and input boost votes,
+and caps KGSL's maximum and wake-up power levels alongside devfreq so a wake
+cannot bypass a GPU ceiling below the original default level. Those controls
+are also restored and checked. Governors, thermal protection and power services
+remain active. A device-side
+watchdog samples configured ceilings and current clocks every second and restores
+controls after success, failure, host interruption or timeout. A cap violation
+invalidates the measurements. `--gpu-min` additionally controls and restores both
+the GPU devfreq floor and KGSL power-level floor for CPU/GPU isolation.
+
+```sh
+uv run --no-project tools/performance/throttle.py \
+  --serial ZY323NNKTB --out captures/scenery/clocks --timeout 900 -- \
+  uv run --no-project tools/performance/compare.py \
+  --serial ZY323NNKTB --baseline captures/pre-biome.apk \
+  --baseline-test-apk captures/pre-biome-test.apk \
+  --candidate app/build/outputs/apk/debug/app-debug.apk \
+  --test-apk app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk \
+  --out captures/scenery/comparison --world 2 --section 8 \
+  --seconds 35 --repetitions 2 --modes hills,jet,wide,second-wind
+```
+
+For normal-clock comparisons, invoke `compare.py` directly with the same
+arguments. Keep APK inputs immutable during comparisons and collect profiles,
+screenshots and heap diagnostics in separate runs. Frame-rate parity on a 60 Hz
+display alone does not establish equal CPU cost or equal power use.
+
+For shipping-mode comparisons, build both application and instrumentation with
+`./gradlew -PperformanceRelease=true assembleRelease assembleReleaseAndroidTest`.
+This opt-in build signs the local release with the debug key and targets release
+instrumentation, excluding the two window fixtures whose activities exist only
+in `src/debug`. Ordinary release builds retain their normal signing configuration.
+Use the resulting release test APK: Kotlin internal method names differ across
+debug/release variants, so a debug test APK cannot reliably target a release app.
+
+The complete six-biome capped matrix used 30-second phases (25 measured),
+cruise followed by hills, and the ceilings above. All ceilings and current
+clocks stayed within the limits in 856 one-second watchdog samples. Settings
+restored after each pair. Results are old / detailed scenery:
+
+| Biome | Cruise FPS | Hills FPS | Frames >25 ms across both phases |
+| --- | --- | --- | --- |
+| Candy Fields | 59.86 / 59.86 | 59.85 / 59.85 | 0 / 0 |
+| Neon City | 59.85 / 59.86 | 59.81 / 59.85 | 2 / 0 |
+| Lava Caves | 59.86 / 59.86 | 59.85 / 59.85 | 0 / 0 |
+| Frost Peaks | 59.82 / 59.86 | 59.85 / 59.85 | 3 / 1 |
+| Sunset Dunes | 59.86 / 59.86 | 59.77 / 59.85 | 3 / 0 |
+| Deep Space | 59.86 / 59.87 | 59.85 / 59.85 | 0 / 0 |
+
+The old build measured 17,960 frames with eight over 25 ms; the detailed build
+measured 17,964 with one over 25 ms. Neither had frames over 50 ms. Frame p99
+ranged from 19.47–20.28 ms old and 19.56–20.35 ms detailed. The detailed renderer
+still consumes more render-thread CPU: cruise medians were 11.29–12.44 ms versus
+9.68–10.56 ms old, and hills medians were 10.28–11.54 versus 9.34–10.44 ms old.
+These results establish practical frame-rate parity in this matrix, not equal
+CPU utilization or a guarantee for every device and possible clock ceiling.
+
+Matrix APK SHA-256: old
+`2fdff794906f189f436c8988dbe53739a9ae0cba39ef0a5c4a5b6ab0708fa742`, detailed
+`aada8ab2b07d1cede4f6be0703245dfdf919cd244f1819b6a317ea48f68d44c3`.
+The subsequently reviewed build also invalidates partially assembled index
+layouts on capacity fallback and precompiles both atlas programs before play;
+the matrix never used the fallback. Exact framebuffer checks cover every biome,
+multi-chunk order, fallback followed by atlas reuse, and managed reload.
+
+`--world-switching` enables a single sustained phase with normal biome gates and
+a fixed order. The result records every visited biome and rejects a run without
+transitions. The first three-minute capped comparison exposed a 48.47 ms detailed
+frame while the static atlas expanded to three chunks. The renderer now allocates
+that CPU/GPU chunk working set before play, retaining spare chunks outside the
+frame loops and growing instance slots only when needed. This removes large
+buffer allocations from the first biome transitions without adding extra rows
+to texture uploads or changing scenery. Ten affected framebuffer and restoration
+tests pass, including a fixture crossing multiple chunks, exceeding atlas capacity,
+returning to the atlas, and recreating the GL resources.
+
+The three-minute repeat with the preallocated build ran candidate first. Both
+builds visited all six biomes. Old / detailed results were 59.83 / 59.85 FPS,
+p99 19.96 / 20.04 ms, maximum 43.73 / 24.79 ms, and four / zero frames over
+25 ms across 10,471 / 10,475 measured frames. No frames exceeded 50 ms, the
+watchdog accepted the caps, and all controls restored. This repeat fixes the
+observed first-transition allocation stall; it does not establish equal CPU cost.
+The preallocated candidate APK SHA-256 is
+`9287837ce9395881835c40b21ba2cd39c1189a02bc659b317dc46345e6b81b86`.
+
+Additional 45-second capped debug phases (40 measured) exercised hills, jet,
+wide road and Second Wind in Lava Caves and Candy Fields. Both builds held
+59.85 FPS in jet. Candy hills and Second Wind also matched. Lava hills had a
+small remaining debug-mode difference: old/new 59.83/59.69 FPS first and
+59.83/59.79 in reversed order, with 1/7 and 1/3 frames over 25 ms. Second Wind
+was 59.85/59.80 first and 59.82/59.85 reversed. Candy wide had a candidate
+stall cluster (59.53 FPS, 13 frames over 25 ms) that did not recur in the
+reversed standalone pair: both 59.86 FPS, zero frames over 25 ms. These runs
+are retained rather than hiding outliers behind the six-biome matrix.
+
+### Worktree review, 2026-10-10
+
+`improve-scenery-performance` still points to `81d135a`; the optimization pass is
+in its working tree. A fresh build passed all ten affected renderer checks:
+box visibility and instances, coin instances, space facets/backdrops, fixed
+lighting, every biome, atlas capacity fallback followed by reuse, and managed
+resource restoration. The four clock-watchdog regression tests passed. Debug,
+instrumentation and ordinary release builds passed; lint has zero errors and
+21 warnings. Temporary screenshot instrumentation is excluded from the source.
+
+The later release comparison at **216 MHz GPU**, with the same 614.4 / 633.6 MHz
+CPU ceilings, remains below parity in dense Second Wind. In alternating order,
+the old scenery measured **59.25 / 59.20 FPS**, p99 **25.09 / 25.94 ms**, and
+**24 / 25** frames over 25 ms. Detailed scenery measured **58.63 / 58.68 FPS**,
+p99 **29.61 / 29.24 ms**, and **49 / 47** frames over 25 ms. Each window measured
+40 seconds after warm-up; APK identities and caps were checked and controls
+restored. The subsequent lean-shader candidate remained at **58.63 / 58.58 FPS**
+with **49 / 49** slow frames. These results are in
+`.local-tmp/release-secondwind-abba/` and `.local-tmp/lean-gpu-secondwind216/`.
+They do not invalidate the 320 MHz matrix; they establish a stricter limit that
+the current pass has not matched.
+
+The last GPU-stage diagnostic measured **11.51 FPS** with instrumentation on
+and produced no `gpu_` stage summaries. Its CPU-stage figures cannot identify
+normal-game GPU cost. Validate the timer implementation and measurement overhead
+before using it to choose further shader or draw changes. Also measure startup
+and memory after the all-biome/three-chunk preallocation, and complete sustained
+normal-clock and another-device/90 Hz checks before integration. Only Motorola
+was attached for this review. No merge, commit, push or release was performed.
+
+The fresh three-way debug comparison built `00468ba` (original scenery),
+`81d135a` (detailed scenery before optimizations), and the reviewed working tree.
+The original snapshot's main source was verified against its commit; newer reset
+and seed controls were adapted only in instrumentation. Two pairs ran in order
+original → current, then current → pre-optimization, at 614.4 / 633.6 MHz CPU
+ceilings and 320 MHz GPU. Each Lava Caves phase measured 20 seconds after five
+seconds of warm-up, with sound on, haptics off, profiling/audio CSV off, and
+seeds 73 / 74 / 75. All 339 watchdog samples accepted the caps; original controls
+were restored. One original and pre-optimization window and two current windows
+per scenario are reported without averaging their percentile values.
+
+| Scenario | Original FPS / CPU p50 ms | Before optimization FPS / CPU p50 ms | Current FPS / CPU p50 ms |
+| --- | --- | --- | --- |
+| Maximum-speed cruise | 59.86 / 10.99 | 45.60 / 20.10 | 59.84–59.85 / 12.85–12.94 |
+| Hills | 59.85 / 10.54 | 47.43 / 18.97 | 59.85–59.86 / 11.77–11.79 |
+| Repeated Second Wind | 59.85 / 10.68 | 45.36 / 18.90 | 59.80 / 11.94–12.08 |
+
+Current GL-thread CPU medians are about **35–38% lower** than the detailed scenery
+before optimization, while remaining about **12–18% higher** than original
+scenery. The current cruise/hills windows had no frames over 25 ms; each Second
+Wind window had one. The pre-optimization windows had 151, 167 and 254 such frames,
+respectively. No current or original frame exceeded 50 ms. Short deterministic
+windows establish this observed recovery, rather than universal device parity.
+
+The reviewed debug APK (2.6 / code 16) SHA-256 is
+`f0ed6152dfa9ebe9b7147588a8ed12871425fa2c64ced4d8f70b0f4d85ec8859`.
+Comparison inputs, results, clock readbacks and eighteen separate visual captures
+are in `.build-tmp/review/`; the local drop page contains those raw results and
+the reviewed source patch. The application APK in that page matches the measured
+APK. Desktop/mobile page controls and all eighteen images passed browser checks.
+
+### Pixel correction, 2026-10-10
+
+The user reported mixed old/new scenery on a Pixel 7a (Mali-G710). Pulling the
+installed application confirmed it matched the reviewed APK above. The atlas
+comparison and capacity tests reproduced missing detailed scenery; the older
+roadside decorations still rendered. libGDX 1.13.1's Android
+`FloatTextureData.consumeCustomData` ignores the requested sized internal format.
+The atlas now overrides that upload to allocate **RGBA32F explicitly**, preserving
+the managed texture buffer and reload behavior. This restores the scenery on Mali.
+
+All ten affected renderer checks passed on **both Pixel 7a and Moto G7 Power**
+with the corrected application. The full atlas/reference comparison permits at
+most one RGB byte of rounding between Mali's attribute and texture-fetch vertex
+programs; alpha, culling, depth selection and reload comparisons remain exact.
+Missing layers produce much larger differences and still fail the check. Six
+Pixel captures also show the restored biome layers. Debug, instrumentation and
+ordinary release builds passed; lint remains at zero errors and 21 warnings.
+
+A short normal-clock Pixel run used Lava Caves, section 8, repeatable seeds,
+static protection, sound on, haptics off and profiling/audio CSV off. The display
+was observed at **90 Hz**. Each phase measured 20 seconds after five seconds of
+warm-up; no clock controls were changed.
+
+| Scenario | FPS | GL CPU p50 ms | Frame p99 ms | Frames >25 ms |
+| --- | --- | --- | --- | --- |
+| Maximum-speed cruise | 90.30 | 7.92 | 12.83 | 0 / 1807 |
+| Hills | 90.30 | 7.94 | 13.11 | 0 / 1807 |
+| Repeated Second Wind | 90.31 | 8.03 | 13.21 | 0 / 1807 |
+
+This is a short check of the corrected renderer, not a sustained thermal test or
+an old/new Pixel comparison. The Motorola three-way figures above describe the
+**earlier APK**, before this texture-format correction, and retain their original
+hash. The updated download (2.6 / code 16) has SHA-256
+`0fca6a3c2f8989036eafb99f8ed8cb53875fe9e8ad11012b9f629712a3a5179d`.
+Pixel/Motorola checks, Pixel captures and the new performance log are in
+`.build-tmp/artifact-check/` and copied into the updated comparison page.
+Startup/memory, sustained thermal behavior, GPU timer validation and the strict
+216 MHz GPU performance gap remain open. The Pixel's saved preferences were
+restored after testing.

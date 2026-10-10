@@ -32,6 +32,201 @@ import java.util.concurrent.TimeUnit
 
 /** Every biome's scenery fits the box batch with room left for the course, and its layers stay bounded. */
 class BiomeSceneryTest {
+    @Test fun atlasPreservesChunkOrderAfterCapacityFallbackAndReload() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        try {
+            ActivityScenario.launch<GameActivity>(Intent(context, GameActivity::class.java)
+                .putExtra(Hud.EXTRA_AUTOSTART, true)).use {
+                gl {
+                    Stage.paused = true
+                    val kit = cube.run.core.gfx.BoxMeshKit(com.badlogic.gdx.graphics.g3d.utils.ModelBuilder())
+                    val facets = cube.run.core.gfx.FacetBatch(kit)
+                    val shapes = Array(18) {
+                        cube.run.core.gfx.FacetShapes.model(listOf(
+                            cube.run.core.gfx.FacetShapes.Box(-.3f, 0f, 0f, .25f, .4f, .3f),
+                            cube.run.core.gfx.FacetShapes.Box(.3f, 0f, 0f, .25f, .4f, .3f)))
+                    }
+                    val colors = Array(18) { arrayOf(com.badlogic.gdx.graphics.Color((it + 1) / 19f, .6f, 1f - it / 19f, 1f)) }
+                    facets.prepare(*shapes)
+                    val fog = com.badlogic.gdx.graphics.Color(.1f, .2f, .3f, 1f)
+                    val target = FrameBuffer(Pixmap.Format.RGBA8888, 160, 320, true)
+                    val camera = PerspectiveCamera(60f, 160f, 320f).apply {
+                        near = .1f; far = 100f; position.set(0f, 2f, 4f); lookAt(0f, 0f, -12f); update()
+                    }
+                    try {
+                        fun pixels(atlas: Boolean, count: Int): ByteArray {
+                            facets.atlasEnabled = atlas
+                            target.begin()
+                            try {
+                                Gdx.gl.glDepthMask(true); Gdx.gl.glClearColor(.1f, .2f, .3f, 1f)
+                                Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT or GL20.GL_DEPTH_BUFFER_BIT)
+                                facets.begin(camera)
+                                for (shape in shapes.indices) for (i in 0 until count) {
+                                    facets.add(shapes[shape], (i % 5 - 2) * .4f, (i % 3) * .3f, -4f - i * .15f,
+                                        .6f, .6f, .6f, 0f, 0f, 0f, colors[shape], .1f, fog,
+                                        opacity = if (i % 2 == 0) 1f else .5f, preculled = true)
+                                }
+                                facets.render(camera)
+                                return ScreenUtils.getFrameBufferPixels(0, 0, 160, 320, false)
+                            } finally { target.end() }
+                        }
+                        for (count in listOf(110, 120, 110, 105, 110)) {
+                            val reference = pixels(false, count)
+                            org.junit.Assert.assertArrayEquals("Atlas count=$count", reference, pixels(true, count))
+                            if (count == 120) assertTrue("Fixture must exceed capacity: ${facets.statistics()}",
+                                !facets.statistics().contains("fallbackFrames=0"))
+                        }
+                        assertTrue("Fixture must cross chunks: ${facets.statistics()}", !facets.statistics().contains("chunks=1 "))
+                        val before = pixels(true, 110)
+                        com.badlogic.gdx.graphics.Mesh.invalidateAllMeshes(Gdx.app)
+                        com.badlogic.gdx.graphics.glutils.ShaderProgram.invalidateAllShaderPrograms(Gdx.app)
+                        kit.resetLightUniforms()
+                        org.junit.Assert.assertArrayEquals("Atlas reload after fallback", before, pixels(true, 110))
+                        org.junit.Assert.assertEquals(GL20.GL_NO_ERROR, Gdx.gl.glGetError())
+                    } finally { target.dispose(); facets.dispose(); kit.dispose() }
+                }
+            }
+        } finally { Stage.paused = false }
+    }
+
+    @Test fun staticStarsPreserveBothBiomeSkies() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        try {
+            ActivityScenario.launch<GameActivity>(Intent(context, GameActivity::class.java)
+                .putExtra(Hud.EXTRA_AUTOSTART, true)).use { scenario ->
+                scenario.onActivity { it.setShowWhenLocked(true); it.setTurnScreenOn(true) }
+                SystemClock.sleep(1800)
+                gl { game ->
+                    Stage.paused = true
+                    val scenery = field(game, CubeRun::class.java, "scenery") as Scenery
+                    var shapes = com.badlogic.gdx.graphics.glutils.ShapeRenderer(5000)
+                    val target = FrameBuffer(Pixmap.Format.RGBA8888, 240, 480, true)
+                    val cam = PerspectiveCamera(60f, 240f, 480f).apply {
+                        near = .1f; far = 400f; position.set(1f, 4f, 6f); lookAt(0f, 1f, -8f); update()
+                    }
+                    try {
+                        for (id in listOf(1, 5)) {
+                            scenery.init(Worlds.get(id), seed = 146)
+                            for (time in listOf(0f, .8f, 3.2f, 10000f)) for (alpha in listOf(0f, .001f, .25f, .75f, 1f)) {
+                                fun pixels(gpu: Boolean): ByteArray {
+                                    scenery.biome.sky.fastStarsEnabled = gpu
+                                    target.begin()
+                                    try {
+                                        Gdx.gl.glDepthMask(true); Gdx.gl.glClearColor(.12f, .17f, .25f, 1f)
+                                        Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT or GL20.GL_DEPTH_BUFFER_BIT)
+                                        Gdx.gl.glDisable(GL20.GL_DEPTH_TEST); Gdx.gl.glDepthMask(false)
+                                        Gdx.gl.glEnable(GL20.GL_BLEND)
+                                        Gdx.gl.glBlendFunc(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA)
+                                        shapes.projectionMatrix = cam.combined
+                                        shapes.begin(com.badlogic.gdx.graphics.glutils.ShapeRenderer.ShapeType.Filled)
+                                        scenery.renderBackdrop(shapes, cam, time, alpha)
+                                        shapes.end()
+                                        return ScreenUtils.getFrameBufferPixels(0, 0, 240, 480, false)
+                                    } finally { target.end() }
+                                }
+                                val reference = pixels(false); val optimized = pixels(true)
+                                var max = 0
+                                for (i in reference.indices) max = maxOf(max,
+                                    kotlin.math.abs((reference[i].toInt() and 255) - (optimized[i].toInt() and 255)))
+                                assertTrue("Stars world=$id time=$time alpha=$alpha maximum channel difference=$max", max <= 2)
+                                if (time == 10000f && alpha == 1f) {
+                                    com.badlogic.gdx.graphics.Mesh.invalidateAllMeshes(Gdx.app)
+                                    com.badlogic.gdx.graphics.Texture.invalidateAllTextures(Gdx.app)
+                                    com.badlogic.gdx.graphics.glutils.ShaderProgram.invalidateAllShaderPrograms(Gdx.app)
+                                    shapes.dispose(); shapes = com.badlogic.gdx.graphics.glutils.ShapeRenderer(5000)
+                                    game.resume()
+                                    org.junit.Assert.assertArrayEquals("Managed stars world=$id", optimized, pixels(true))
+                                }
+                            }
+                        }
+                        assertTrue(Gdx.gl.glGetError() == GL20.GL_NO_ERROR)
+                    } finally {
+                        scenery.biome.sky.fastStarsEnabled = true
+                        Gdx.gl.glDepthMask(true); Gdx.gl.glEnable(GL20.GL_DEPTH_TEST); Gdx.gl.glDisable(GL20.GL_BLEND)
+                        shapes.dispose(); target.dispose()
+                    }
+                }
+            }
+        } finally { Stage.paused = false; Lanes.reset(); Settings.testWorld = -1 }
+    }
+
+    /** Compare the full lighting reference; culling, depth selection and reload must remain exact. */
+    @Test fun optimizedSceneryPreservesEveryBiome() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val intent = Intent(context, GameActivity::class.java).putExtra(Hud.EXTRA_AUTOSTART, true)
+        try {
+            ActivityScenario.launch<GameActivity>(intent).use { scenario ->
+                scenario.onActivity { it.setShowWhenLocked(true); it.setTurnScreenOn(true) }
+                SystemClock.sleep(1800)
+                gl { game ->
+                    Stage.paused = true
+                    val scenery = field(game, CubeRun::class.java, "scenery") as Scenery
+                    var shapes = com.badlogic.gdx.graphics.glutils.ShapeRenderer(5000)
+                    val target = FrameBuffer(Pixmap.Format.RGBA8888, 240, 480, true)
+                    val cam = PerspectiveCamera(60f, 240f, 480f).apply {
+                        near = 0.1f; far = 400f
+                    }
+                    try {
+                        for (world in Worlds.all) {
+                            scenery.init(world, seed = 146)
+                            for (step in 0 until 12) {
+                                scenery.scroll(25f); scenery.tick(0.8f, 25f)
+                                cam.position.set(if (step % 2 == 0) -2f else 2f, 3.8f + step % 3, 6.4f)
+                                cam.lookAt(0f, 1f, -8f); cam.update()
+                                fun pixels(fastDepth: Boolean, culling: Boolean, atlas: Boolean = false): ByteArray {
+                                    game.facets.atlasEnabled = atlas
+                                    scenery.biome.sky.fastRaysEnabled = atlas
+                                    game.facets.fastDepthEnabled = fastDepth
+                                    game.facets.cullingEnabled = culling
+                                    target.begin()
+                                    try {
+                                        Gdx.gl.glDepthMask(true); Gdx.gl.glClearColor(.12f, .17f, .25f, 1f)
+                                        Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT or GL20.GL_DEPTH_BUFFER_BIT)
+                                        game.facets.begin(cam)
+                                        scenery.biome.render(step * 0.8f, if (step % 3 == 0) 15f else 0f)
+                                        game.facets.render(cam)
+                                        Gdx.gl.glEnable(GL20.GL_DEPTH_TEST); Gdx.gl.glDepthMask(false)
+                                        Gdx.gl.glEnable(GL20.GL_BLEND)
+                                        Gdx.gl.glBlendFunc(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA)
+                                        shapes.projectionMatrix = cam.combined
+                                        shapes.begin(com.badlogic.gdx.graphics.glutils.ShapeRenderer.ShapeType.Filled)
+                                        scenery.renderShapes(shapes, step * .8f, 1f)
+                                        shapes.end()
+                                        Gdx.gl.glDepthMask(true); Gdx.gl.glDisable(GL20.GL_BLEND)
+                                        return ScreenUtils.getFrameBufferPixels(0, 0, 240, 480, false)
+                                    } finally { target.end() }
+                                }
+                                val reference = pixels(false, false)
+                                val culled = pixels(false, true)
+                                org.junit.Assert.assertArrayEquals("Culling ${world.name} step $step", reference, culled)
+                                val optimized = pixels(false, true, true)
+                                assertAtlasColors("Atlas and rays ${world.name} step $step", reference, optimized)
+                                org.junit.Assert.assertArrayEquals("Atlas depth ${world.name} step $step", optimized, pixels(true, true, true))
+                                if (world.id == 2 && step == 6) {
+                                    com.badlogic.gdx.graphics.Mesh.invalidateAllMeshes(Gdx.app)
+                                    com.badlogic.gdx.graphics.Texture.invalidateAllTextures(Gdx.app)
+                                    com.badlogic.gdx.graphics.glutils.ShaderProgram.invalidateAllShaderPrograms(Gdx.app)
+                                    // Stock libGDX ShapeRenderer retains obsolete VAO attribute bindings on
+                                    // invalidation. Recreate the reference fixture; our custom meshes must restore.
+                                    shapes.dispose(); shapes = com.badlogic.gdx.graphics.glutils.ShapeRenderer(5000)
+                                    game.resume()
+                                    org.junit.Assert.assertArrayEquals("Managed atlas and rays restoration", optimized, pixels(true, true, true))
+                                }
+                            }
+                        }
+                        org.junit.Assert.assertEquals(GL20.GL_NO_ERROR, Gdx.gl.glGetError())
+                        assertTrue("Every biome must fit the atlas: ${game.facets.statistics()}",
+                            game.facets.statistics().startsWith("fallbackFrames=0 "))
+                    } finally {
+                        game.facets.atlasEnabled = true; game.facets.fastDepthEnabled = true; game.facets.cullingEnabled = true
+                        scenery.biome.sky.fastRaysEnabled = true
+                        shapes.dispose(); target.dispose()
+                    }
+                }
+            }
+        } finally { Stage.paused = false; Lanes.reset(); Settings.testWorld = -1 }
+    }
+
     /**
      * The batch holds 900. The road goes first, then the course, then the roadside, so too much
      * scenery only loses scenery. The biome's own layers are facets; only its kerb is boxes. The
@@ -40,6 +235,20 @@ class BiomeSceneryTest {
     private val LIMIT = 640
 
     private fun field(owner: Any, cls: Class<*>, name: String) = cls.getDeclaredField(name).apply { isAccessible = true }.get(owner)
+
+    private fun assertAtlasColors(label: String, reference: ByteArray, optimized: ByteArray) {
+        org.junit.Assert.assertEquals("$label size", reference.size, optimized.size)
+        var maximum = 0
+        for (i in reference.indices) {
+            val difference = kotlin.math.abs((reference[i].toInt() and 255) - (optimized[i].toInt() and 255))
+            // Mali can round a color channel one byte differently between the
+            // attribute and texture-fetch vertex programs. Alpha stays exact.
+            if (i % 4 == 3 && difference != 0)
+                org.junit.Assert.assertEquals("$label alpha at $i", 0, difference)
+            maximum = maxOf(maximum, difference)
+        }
+        assertTrue("$label maximum color difference=$maximum", maximum <= 1)
+    }
 
     private fun gl(action: (CubeRun) -> Unit) {
         val done = CountDownLatch(1)

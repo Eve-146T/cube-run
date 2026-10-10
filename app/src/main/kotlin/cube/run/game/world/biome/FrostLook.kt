@@ -150,8 +150,10 @@ class FrostLook(world: Worlds.World) : BiomeLook(world) {
     override fun moveMote(p: Piece, dt: Float): Boolean = super.moveMote(p, dt) && p.y > -0.3f
 
     override fun drawMote(d: BiomeDraw, p: Piece, fog: Float, time: Float) {
+        val radius = flake.radius * p.s
+        if (!d.visible(p.x, p.y, p.z, radius + .6f, radius, radius)) return
         d.add(flake, p.x + sin(time * 1.4f + p.seed * 12f) * 0.6f, p.y, p.z, p.s, p.s, p.s, time * 60f + p.seed * 360f, p.pal, fog,
-            glow = 0.5f, pitch = 30f, onLand = false)
+            glow = 0.5f, pitch = 30f, onLand = false, preculled = true)
     }
 
     override fun drawSky(d: BiomeDraw, alpha: Float, time: Float) {
@@ -161,6 +163,7 @@ class FrostLook(world: Worlds.World) : BiomeLook(world) {
     override fun skyRays(sky: SkyPainter, alpha: Float, time: Float) {
         sky.rays(70f, 62f, -345f, 70f, 12, time * 3f, sunCol, 0.3f * alpha)
     }
+    override fun prepareSky(sky: SkyPainter) = sky.prepareRays(70f, 12)
 
     override val kerb = KERB_BANK
     override fun kerbColors(a: Color, b: Color) { hsvInto(a, 205f, 0.05f, 1f); hsvInto(b, 200f, 0.12f, 0.97f) }

@@ -13,7 +13,7 @@ import unittest
 
 
 class ClockWatchdogTest(unittest.TestCase):
-    def exercise(self, outcome):
+    def exercise(self, outcome, gpu_floor=False):
         with tempfile.TemporaryDirectory(dir=os.environ['TMPDIR']) as scratch:
             base = Path(scratch)
             device = base / 'device'
@@ -23,6 +23,10 @@ class ClockWatchdogTest(unittest.TestCase):
                 '/sys/module/msm_performance/parameters/cpu_max_freq': ' '.join(f'{i}:4294967295' for i in range(8)),
                 '/sys/module/big_cluster_min_freq_adjust/parameters/min_freq_floor': '1094400',
                 '/sys/class/kgsl/kgsl-3d0/devfreq/max_freq': '725000000',
+                '/sys/class/kgsl/kgsl-3d0/devfreq/min_freq': '133330000',
+                '/sys/class/kgsl/kgsl-3d0/min_pwrlevel': '3',
+                '/sys/class/kgsl/kgsl-3d0/max_pwrlevel': '0',
+                '/sys/class/kgsl/kgsl-3d0/default_pwrlevel': '1',
                 '/sys/class/kgsl/kgsl-3d0/devfreq/available_frequencies': '133330000 216000000 320000000 725000000',
             }
             for policy, low in ((0, 614400), (4, 633600)):
@@ -67,7 +71,8 @@ else:
             command = [sys.executable, '-c',
                        f'from pathlib import Path; Path({str(marker)!r}).touch(); raise SystemExit({7 if outcome == "failure" else 0})']
             result = subprocess.run([sys.executable, str(Path(__file__).with_name('throttle.py')),
-                                     '--serial', 'fake', '--out', str(base / 'out'), '--timeout', '20', '--', *command],
+                                     '--serial', 'fake', '--out', str(base / 'out'), '--timeout', '20',
+                                     *(['--gpu', '216000000', '--gpu-min', '216000000'] if gpu_floor else []), '--', *command],
                                     env=env, capture_output=True, text=True, timeout=18)
             self.assertEqual(7 if outcome == 'failure' else 1 if outcome == 'overridden' else 0,
                              result.returncode, result.stdout + result.stderr)
@@ -85,6 +90,9 @@ else:
 
     def test_failed_command_restores_controls_and_retains_exit_code(self):
         self.exercise('failure')
+
+    def test_gpu_floor_restores_frequency_and_power_level_after_failure(self):
+        self.exercise('failure', gpu_floor=True)
 
     def test_overridden_cap_prevents_launch_and_restores_controls(self):
         self.exercise('overridden')

@@ -32,7 +32,9 @@ class RunPerformanceTest {
     private lateinit var badge: android.widget.TextView
     private var botEnabled = true
     private var audioMode: String? = null
+    private var audioCsv = true
     private var repeatable = false
+    private var worldSwitching = false
     private val audioEvents = java.util.concurrent.ConcurrentLinkedQueue<String>()
     private val frameEvents = ArrayList<String>()
     private var statusGeneration = 0
@@ -54,7 +56,9 @@ class RunPerformanceTest {
         val args = InstrumentationRegistry.getArguments()
         botEnabled = args.getString("bot") != "false"
         audioMode = args.getString("audio")
+        audioCsv = args.getString("audioCsv") != "false"
         repeatable = args.getString("repeatable") == "true"
+        worldSwitching = args.getString("worldSwitching") == "true"
         val oldSound = cube.run.data.Settings.soundEnabled
         val oldHaptics = cube.run.data.Settings.hapticsEnabled
         audioMode?.let { mode ->
@@ -62,15 +66,34 @@ class RunPerformanceTest {
             cube.run.data.Settings.setSoundEnabled(mode != "off")
             cube.run.data.Settings.setHapticsEnabled(false)
             cube.run.core.SoundFx.testMutedName = if (mode == "no-tick") "tick" else null
-            cube.run.core.SoundFx.testObserver = { name, start, end, stream -> audioEvents.add("$name,$start,$end,$stream"); Unit }
+            if (audioCsv) cube.run.core.SoundFx.testObserver = { name, start, end, stream -> audioEvents.add("$name,$start,$end,$stream"); Unit }
         }
         val intent = Intent(ApplicationProvider.getApplicationContext(), GameActivity::class.java)
+            .putExtra("autostart", true)
             .putExtra("world", args.getString("world")?.toInt() ?: -1)
         if (audioMode != null || args.getString("section") != null)
             intent.putExtra("section", args.getString("section")?.toInt() ?: 8).putExtra("dev", false)
         try { ActivityScenario.launch<GameActivity>(intent).use { scenario ->
             scenario.onActivity {
                 it.setShowWhenLocked(true); it.setTurnScreenOn(true)
+                Gdx.app.postRunnable {
+                    // ActivityScenario can wait long enough for the autostart run to
+                    // collide before this test gains control. Start measurement from
+                    // a fresh menu using the normal host/game reset, then hold it.
+                    val game = Gdx.app.applicationListener as CubeRun
+                    if (args.getString("facetAtlas") == "false") game.facets.atlasEnabled = false
+                    (game.session as cube.run.core.GameHostSession).resetToMenu()
+                    game.resetToMenu()
+                    val requestedWorld = args.getString("world")?.toInt()
+                    if (requestedWorld != null && requestedWorld >= 0) {
+                        val worlds = field(CubeRun::class.java, "worlds").get(game) as cube.run.game.world.WorldRunner
+                        worlds.reset(requestedWorld)
+                        val scenery = field(CubeRun::class.java, "scenery").get(game) as cube.run.game.world.Scenery
+                        scenery.init(worlds.world)
+                        assertEquals("Requested benchmark biome", requestedWorld, worlds.world.id)
+                    }
+                    Stage.paused = true
+                }
                 badge = android.widget.TextView(it).apply {
                     text = if (botEnabled) "BOT PERFORMANCE TEST · PROTECTED" else "STATIC PERFORMANCE TEST · IMMUNITY"
                     setTextColor(android.graphics.Color.WHITE); setBackgroundColor(0xDD161322.toInt())
@@ -93,12 +116,15 @@ class RunPerformanceTest {
                 for (mode in (args.getString("modes") ?: "cruise,hills,second-wind").split(',')) benchmark(mode, seconds)
             } finally { if (profile) Debug.stopMethodTracing() }
         } } finally {
+            Stage.paused = false
             cube.run.core.SoundFx.testObserver = null; cube.run.core.SoundFx.testMutedName = null
             if (audioMode != null) {
                 cube.run.data.Settings.setSoundEnabled(oldSound); cube.run.data.Settings.setHapticsEnabled(oldHaptics)
-                val dir = InstrumentationRegistry.getInstrumentation().targetContext.getExternalFilesDir(null)!!
-                java.io.File(dir, "sound-events.csv").writeText("name,start_ns,end_ns,stream_id\n" + audioEvents.joinToString("\n"))
-                java.io.File(dir, "sound-frames.csv").writeText("end_ns,frame_ms,render_ms,thread_cpu_ms\n" + frameEvents.joinToString("\n"))
+                if (audioCsv) {
+                    val dir = InstrumentationRegistry.getInstrumentation().targetContext.getExternalFilesDir(null)!!
+                    java.io.File(dir, "sound-events.csv").writeText("name,start_ns,end_ns,stream_id\n" + audioEvents.joinToString("\n"))
+                    java.io.File(dir, "sound-frames.csv").writeText("end_ns,frame_ms,render_ms,thread_cpu_ms\n" + frameEvents.joinToString("\n"))
+                }
             }
         }
     }
@@ -112,6 +138,23 @@ class RunPerformanceTest {
         val threadCpu = ArrayList<Float>(seconds * 65)
         val bursts = ArrayList<Float>(20)
         val game = Gdx.app.applicationListener as CubeRun
+        val benchmarkWorlds = field(CubeRun::class.java, "worlds").get(game) as cube.run.game.world.WorldRunner
+        val worldsSeen = BooleanArray(cube.run.data.Worlds.all.size)
+        val breakdown = linkedMapOf<String, ArrayList<Float>>()
+        var probeTag = ""
+        var probeCpu = 0L
+        var probeReady = false
+        val gpuProbe = InstrumentationRegistry.getArguments().getString("gpuQueries") == "true"
+        var gpuTimer: GpuStageTimer? = null
+        if (InstrumentationRegistry.getArguments().getString("breakdown") == "true") game.renderProbe = { tag ->
+            if (gpuProbe) {
+                val timer = gpuTimer ?: GpuStageTimer(breakdown).also { gpuTimer = it }
+                timer.stage(tag, probeReady)
+            }
+            val cpuNow = Debug.threadCpuTimeNanos()
+            if (probeReady && probeCpu != 0L) breakdown.getOrPut(probeTag) { ArrayList() }.add((cpuNow - probeCpu) / 1e6f)
+            probeTag = tag; probeCpu = cpuNow
+        }
         val track = field(CubeRun::class.java, "track").get(game) as Track
         val difficulty = field(CubeRun::class.java, "difficulty").get(game) as Difficulty
         val fire = field(CubeRun::class.java, "fire").get(game) as FireBoost
@@ -150,15 +193,25 @@ class RunPerformanceTest {
                             field(Track::class.java, "fx").set(track, ObstacleFactory(Random(73)))
                         }
                         if (repeatable) {
-                            val worlds = field(CubeRun::class.java, "worlds").get(game)
-                            field(worlds.javaClass, "lastSwitchRow").setInt(worlds, 1_000_000)
+                            val worlds = field(CubeRun::class.java, "worlds").get(game) as cube.run.game.world.WorldRunner
+                            val requested = InstrumentationRegistry.getArguments().getString("world")?.toInt()
+                            if (requested != null && requested >= 0)
+                                assertEquals("Timed benchmark biome", requested, worlds.world.id)
+                            Log.i("RUN_BENCH", "setup mode=$mode biome=${worlds.world.id}")
+                            field(worlds.javaClass, "lastSwitchRow").setInt(worlds, if (worldSwitching) 0 else 1_000_000)
+                            if (worldSwitching) {
+                                @Suppress("UNCHECKED_CAST")
+                                val order = field(worlds.javaClass, "order").get(worlds) as MutableList<Int>
+                                order.clear()
+                                for (id in cube.run.data.Worlds.all.indices) if (id != worlds.world.id) order.add(id)
+                            }
                             // Repeat the same scenery, too: random roadside complexity must
                             // not masquerade as a renderer improvement between APKs.
                             val scenery = field(CubeRun::class.java, "scenery").get(game) as cube.run.game.world.Scenery
                             field(scenery.javaClass, "rnd").set(scenery, Random(74))
                             for (name in listOf("tiles", "posts", "streaks"))
                                 (field(scenery.javaClass, name).get(scenery) as MutableList<*>).clear()
-                            scenery.init(field(scenery.javaClass, "world").get(scenery) as cube.run.data.Worlds.World)
+                            scenery.init(field(scenery.javaClass, "world").get(scenery) as cube.run.data.Worlds.World, seed = 75)
                         }
                         game.onTap(360f, 760f)
                         if (mode == "five-boosts") Stage.boostRequests.set(5)
@@ -205,16 +258,18 @@ class RunPerformanceTest {
                         nextBurst = now
                     }
                     val hit = collisionSeen.getAndSet(false)
+                    if (worldSwitching) worldsSeen[benchmarkWorlds.world.id] = true
                     if (hit && !previousHit) { protectedHits++; showStatus(mode, protectedHits, hit = true)
                         Log.w("RUN_BENCH", "$mode protected collision episode $protectedHits") }
                     previousHit = hit
                     val elapsed = (now - start) / 1e9
+                    probeReady = elapsed >= 5
                     if (!botEnabled) grace.setFloat(game, 100f) // render real obstacles without ending the unattended run
                     if (elapsed >= 5 && previous != 0L) {
                         frames.add((now - previous) / 1e6f)
                         cpu.add(samples[slot.getInt(perf)])
                         threadCpu.add((nowCpu - previousCpu) / 1e6f)
-                        if (audioMode != null) frameEvents.add("$now,${frames.last()},${cpu.last()},${threadCpu.last()}")
+                        if (audioMode != null && audioCsv) frameEvents.add("$now,${frames.last()},${cpu.last()},${threadCpu.last()}")
                     }
                     if (elapsed >= 5 && allocations == 0L) {
                         if (mode == "five-boosts") assertEquals("All five opening boosts must apply", 5, boostTaps.getInt(fire))
@@ -253,9 +308,18 @@ class RunPerformanceTest {
                         val gc = Debug.getRuntimeStat("art.gc.gc-count").toLong() - collections
                         val fps = 1000.0 / frames.average()
                         Log.i("RUN_BENCH", "$mode frames=${frames.size} frame=${stats(frames)} cpu=${stats(cpu)} threadCpu=${stats(threadCpu)} " +
-                            "over25=${frames.count { it > 25f }} over50=${frames.count { it > 50f }} " +
+                            "over12=${frames.count { it > 12f }} over16=${frames.count { it > 16f }} over25=${frames.count { it > 25f }} over50=${frames.count { it > 50f }} " +
                             "bot=$botEnabled protectedHits=$protectedHits burst=${stats(bursts)} bursts=$count maxRows=$maxRows maxSpeed=$maxSpeed allocBytes=$allocated gc=$gc " +
                             "fps=%.2f measuredMs=%.2f".format(java.util.Locale.US, fps, frames.sumOf { it.toDouble() }))
+                        if (worldSwitching) {
+                            val visited = worldsSeen.indices.filter { worldsSeen[it] }
+                            Log.i("RUN_BENCH", "worldsSeen=${visited.joinToString(",")}")
+                            assertTrue("Switching benchmark must enter another biome", visited.size > 1)
+                        }
+                        for ((tag, values) in breakdown) Log.i("RUN_BREAKDOWN", "$mode $tag=${stats(values)}")
+                        Log.i("SCENERY_STATS", "$mode ${game.facets.statistics()}")
+                        game.renderProbe = null
+                        gpuTimer?.dispose(); gpuTimer = null
                         assertTrue("Track rows grew without bound: $maxRows", maxRows < 100)
                         InstrumentationRegistry.getArguments().getString("minFps")?.toDouble()?.let { minimum ->
                             assertTrue("$mode sustained %.2f FPS, below $minimum".format(java.util.Locale.US, fps), fps >= minimum)
@@ -292,7 +356,10 @@ class RunPerformanceTest {
             }
             assertTrue("$mode timed out", done.await(if (botEnabled) 1L else seconds + 20L, TimeUnit.SECONDS))
             failure?.let { throw it }
-        } finally { LiveBotDriver.gl { observer.set(game, null); Stage.paused = true } }
+        } finally { LiveBotDriver.gl {
+            game.renderProbe = null; gpuTimer?.dispose(); gpuTimer = null
+            observer.set(game, null); Stage.paused = true
+        } }
 
     }
 

@@ -165,6 +165,7 @@ class DunesLook(world: Worlds.World) : BiomeLook(world) {
     override fun skyRays(sky: SkyPainter, alpha: Float, time: Float) {
         sky.rays(0f, 4f, -376f, 230f, 18, time * 2.5f, rayCol, 0.3f * alpha, 0.45f)
     }
+    override fun prepareSky(sky: SkyPainter) = sky.prepareRays(230f, 18, .45f)
 
     override val kerb = KERB_BANK
     override fun kerbColors(a: Color, b: Color) { hsvInto(a, 40f, 0.42f, 1f); hsvInto(b, 36f, 0.48f, 0.96f) }

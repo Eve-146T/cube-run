@@ -9,7 +9,7 @@ import com.badlogic.gdx.graphics.VertexAttribute
 import com.badlogic.gdx.graphics.VertexAttributes.Usage
 import com.badlogic.gdx.graphics.glutils.ShaderProgram
 import com.badlogic.gdx.utils.Disposable
-import kotlin.math.abs
+import cube.run.core.gfx.fastMagnitude as abs
 import kotlin.math.max
 import kotlin.math.cos
 import kotlin.math.min
@@ -24,18 +24,29 @@ import kotlin.math.sqrt
  */
 class FacetShape(
     /** Three corners per face, xyz each. */
-    val pos: FloatArray,
+    @JvmField val pos: FloatArray,
     /** One outward normal per face. */
-    val nrm: FloatArray,
-    val slot: ByteArray,
-    val tone: FloatArray,
-    val lat: FloatArray,
+    @JvmField val nrm: FloatArray,
+    @JvmField val slot: ByteArray,
+    @JvmField val tone: FloatArray,
+    @JvmField val lat: FloatArray,
     /** Same surface with coplanar cells joined, retaining band heights and silhouette. */
-    internal val gpuSurface: FacetShape? = null,
+    @JvmField internal val gpuSurface: FacetShape? = null,
 ) {
-    val faces: Int get() = slot.size
+    @JvmField val faces = slot.size
+    @JvmField internal val threeColorSlots = slot.all { it in 0..2 }
+    /** Local bounds include off-centre models (trees stand on y=0). */
+    @JvmField internal val bounds = FloatArray(6).also { b ->
+        for (axis in 0..2) {
+            var lo = Float.POSITIVE_INFINITY; var hi = Float.NEGATIVE_INFINITY
+            var i = axis
+            while (i < pos.size) { lo = min(lo, pos[i]); hi = max(hi, pos[i]); i += 3 }
+            b[axis] = (lo + hi) * 0.5f
+            b[axis + 3] = (hi - lo) * 0.5f
+        }
+    }
     /** Conservative radius, computed once for whole-object visibility rejection. */
-    val radius: Float = run {
+    @JvmField val radius: Float = run {
         var squared = 0f
         var i = 0
         while (i < pos.size) {
@@ -54,6 +65,7 @@ class FacetShape(
  * the visible surface smoothly. The CPU fallback has a fixed vertex budget.
  */
 class FacetBatch(private val kit: BoxMeshKit, private val maxVerts: Int = 40000) : Disposable {
+    private val IDENTITY = floatArrayOf(1f, 0f, 0f, 0f, 1f, 0f, 0f, 0f, 1f)
     private val vertices by lazy { FloatArray(maxVerts * 4) }
     private val fadingVertices by lazy { FloatArray(maxVerts * 4) }
     private var fadingUsed = 0
@@ -66,7 +78,13 @@ class FacetBatch(private val kit: BoxMeshKit, private val maxVerts: Int = 40000)
     internal var gpuEnabled = true
     internal var cullingEnabled = true
     internal var compactEnabled = true
-    private val visibility = BatchVisibility()
+    internal var atlasEnabled: Boolean
+        get() = gpu?.atlasEnabled ?: false
+        set(value) { gpu?.atlasEnabled = value }
+    internal var fastDepthEnabled: Boolean
+        get() = gpu?.fastDepthEnabled ?: false
+        set(value) { gpu?.fastDepthEnabled = value }
+    @PublishedApi internal val visibility = BatchVisibility()
     private val fadeShaderDelegate = lazy {
         ShaderProgram("""
             attribute vec3 a_position;
@@ -88,6 +106,8 @@ class FacetBatch(private val kit: BoxMeshKit, private val maxVerts: Int = 40000)
     private val light = FloatArray(3)
     private val axisLights = FloatArray(18)
     private val m = FloatArray(9)
+    private val rotationKeys = FloatArray(256 * 3) { Float.NaN }
+    private val rotations = FloatArray(256 * 9)
 
     fun begin(camera: Camera? = null) { used = 0; fadingUsed = 0; gpuVerts = 0; gpu?.begin(); visibility.begin(if (cullingEnabled) camera else null) }
 
@@ -96,6 +116,10 @@ class FacetBatch(private val kit: BoxMeshKit, private val maxVerts: Int = 40000)
 
     /** Vertices queued this frame (for budgeting and tests). */
     val queued: Int get() = (used + fadingUsed) / 4 + gpuVerts
+    internal fun statistics() = gpu?.statistics() ?: "CPU facets"
+    @Suppress("NOTHING_TO_INLINE")
+    @PublishedApi internal inline fun visible(x: Float, y: Float, z: Float, hx: Float, hy: Float, hz: Float) =
+        visibility.visible(x, y, z, hx, hy, hz)
 
     /**
      * Queue [shape] at ([x],[y],[z]), scaled by ([sx],[sy],[sz]) and turned
@@ -106,20 +130,34 @@ class FacetBatch(private val kit: BoxMeshKit, private val maxVerts: Int = 40000)
      */
     fun add(shape: FacetShape, x: Float, y: Float, z: Float, sx: Float, sy: Float, sz: Float,
             yaw: Float, pitch: Float, roll: Float, palette: Array<Color>, fog: Float, fogColor: Color,
-            glow: Float = 0f, bands: FloatArray? = null, bent: Boolean = false, opacity: Float = 1f) {
+            glow: Float = 0f, bands: FloatArray? = null, bent: Boolean = false, opacity: Float = 1f,
+            preculled: Boolean = false) {
         if (opacity <= 0f) return
-        val radius = shape.radius * max(abs(sx), max(abs(sy), abs(sz)))
-        var cx = x; var cy = y; var hx = radius; var hy = radius
-        if (bent) {
-            val farX = WorldBend.dx(z - radius); val nearX = WorldBend.dx(z + radius)
-            val farY = WorldBend.dy(z - radius); val nearY = WorldBend.dy(z + radius)
-            cx += (farX + nearX) * 0.5f; cy += (farY + nearY) * 0.5f
-            hx += abs(farX - nearX) * 0.5f; hy += abs(farY - nearY) * 0.5f
+        val axisAligned = yaw == 0f && pitch == 0f && roll == 0f
+        if (!axisAligned || !gpuEnabled || gpu == null) rotation(yaw, pitch, roll)
+        // Weather can supply an already-tested conservative animation envelope.
+        // Passing survivors straight through avoids rebuilding rotated bounds.
+        // Keep tight rejection on the CPU fallback, whose vertex budget is smaller.
+        if (!preculled || !gpuEnabled || gpu == null) {
+            val b = shape.bounds
+            val bx = b[0] * sx; val by = b[1] * sy; val bz = b[2] * sz
+            val ex = b[3] * abs(sx); val ey = b[4] * abs(sy); val ez = b[5] * abs(sz)
+            var cx = if (axisAligned) x + bx else x + m[0] * bx + m[1] * by + m[2] * bz
+            var cy = if (axisAligned) y + by else y + m[3] * bx + m[4] * by + m[5] * bz
+            val cz = if (axisAligned) z + bz else z + m[6] * bx + m[7] * by + m[8] * bz
+            var hx = if (axisAligned) ex else abs(m[0]) * ex + abs(m[1]) * ey + abs(m[2]) * ez
+            var hy = if (axisAligned) ey else abs(m[3]) * ex + abs(m[4]) * ey + abs(m[5]) * ez
+            val hz = if (axisAligned) ez else abs(m[6]) * ex + abs(m[7]) * ey + abs(m[8]) * ez
+            if (bent) {
+                val farX = WorldBend.dx(cz - hz); val nearX = WorldBend.dx(cz + hz)
+                val farY = WorldBend.dy(cz - hz); val nearY = WorldBend.dy(cz + hz)
+                cx += (farX + nearX) * 0.5f; cy += (farY + nearY) * 0.5f
+                hx += abs(farX - nearX) * 0.5f; hy += abs(farY - nearY) * 0.5f
+            }
+            if (!visibility.visible(cx, cy, cz, hx, hy, hz)) return
         }
-        if (!visibility.visible(cx, cy, z, hx, hy, radius)) return
-        rotation(yaw, pitch, roll)
         if (gpuEnabled && gpu != null) {
-            if (gpu.add(shape, x, y, z, sx, sy, sz, m, palette, fog, fogColor, glow, bands, bent, opacity, compactEnabled)) gpuVerts += shape.faces * 3
+            if (gpu.add(shape, x, y, z, sx, sy, sz, if (axisAligned) IDENTITY else m, palette, fog, fogColor, glow, bands, bent, opacity, compactEnabled)) gpuVerts += shape.faces * 3
             return
         }
         if (used + fadingUsed + shape.faces * 12 > vertices.size) return
@@ -169,10 +207,18 @@ class FacetBatch(private val kit: BoxMeshKit, private val maxVerts: Int = 40000)
 
     /** R = Ry(yaw) · Rx(pitch) · Rz(roll), row-major into [m]. */
     private fun rotation(yaw: Float, pitch: Float, roll: Float) {
+        // Hash chooses a cache slot only; exact angle checks still determine a hit.
+        val slot = (yaw * 31f + pitch * 17f + roll * 7f).toInt() and 255
+        val key = slot * 3
+        val offset = slot * 9
+        if (rotationKeys[key] == yaw && rotationKeys[key + 1] == pitch && rotationKeys[key + 2] == roll) {
+            System.arraycopy(rotations, offset, m, 0, 9)
+            return
+        }
         val d = Math.PI.toFloat() / 180f
         val cy = cos(yaw * d); val sy = sin(yaw * d)
-        val cp = cos(pitch * d); val sp = sin(pitch * d)
-        val cr = cos(roll * d); val sr = sin(roll * d)
+        val cp = if (pitch == 0f) 1f else cos(pitch * d); val sp = if (pitch == 0f) pitch else sin(pitch * d)
+        val cr = if (roll == 0f) 1f else cos(roll * d); val sr = if (roll == 0f) roll else sin(roll * d)
         // Rx · Rz
         val a0 = cr; val a1 = -sr; val a2 = 0f
         val a3 = cp * sr; val a4 = cp * cr; val a5 = -sp
@@ -181,6 +227,8 @@ class FacetBatch(private val kit: BoxMeshKit, private val maxVerts: Int = 40000)
         m[0] = cy * a0 + sy * a6; m[1] = cy * a1 + sy * a7; m[2] = cy * a2 + sy * a8
         m[3] = a3; m[4] = a4; m[5] = a5
         m[6] = -sy * a0 + cy * a6; m[7] = -sy * a1 + cy * a7; m[8] = -sy * a2 + cy * a8
+        rotationKeys[key] = yaw; rotationKeys[key + 1] = pitch; rotationKeys[key + 2] = roll
+        System.arraycopy(m, 0, rotations, offset, 9)
     }
 
     fun render(cam: Camera) {

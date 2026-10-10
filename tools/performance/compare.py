@@ -22,14 +22,22 @@ parser.add_argument('--serial', required=True)
 parser.add_argument('--baseline', type=Path, required=True)
 parser.add_argument('--candidate', type=Path, required=True)
 parser.add_argument('--test-apk', type=Path, required=True)
+parser.add_argument('--baseline-test-apk', type=Path,
+                    help='Baseline-compatible harness when scenery APIs differ; use identical benchmark controls.')
 parser.add_argument('--out', type=Path, required=True)
 parser.add_argument('--seconds', type=int, default=25)
 parser.add_argument('--repetitions', type=int, default=2)
 parser.add_argument('--candidate-first', action='store_true')
+parser.add_argument('--candidate-no-atlas', action='store_true', help='Diagnostic: force the candidate instanced facet path.')
 parser.add_argument('--modes', default='cruise,hills,jet,second-wind')
 parser.add_argument('--section', type=int, default=56)
 parser.add_argument('--world', type=int, default=2)
+parser.add_argument('--breakdown', action='store_true', help='Collect render-phase CPU timings; use separately from final comparisons.')
+parser.add_argument('--audio-csv', action='store_true', help='Record per-frame audio CSV diagnostics; adds substantial measurement overhead.')
+parser.add_argument('--world-switching', action='store_true', help='Allow normal biome gates in a single-phase sustained run with a fixed biome order.')
 args = parser.parse_args()
+if args.world_switching and ',' in args.modes:
+    parser.error('--world-switching requires one mode per comparison')
 args.out.mkdir(parents=True, exist_ok=True)
 
 
@@ -47,13 +55,17 @@ manifest = {'serial': args.serial, 'seconds_per_phase': args.seconds,
             'warmup_seconds_per_phase': 5, 'section': args.section,
             'modes': args.modes, 'world': args.world, 'track_seed': 73,
             'first_build': 'candidate' if args.candidate_first else 'baseline',
-            'scenery_seed': 74, 'world_switching': False,
-            'note': 'Process allocations include harness/audio CSV logging.',
-            'apk_sha256': {'baseline': sha(args.baseline), 'candidate': sha(args.candidate)}, 'runs': []}
+            'scenery_seed': 74, 'biome_seed': 75, 'world_switching': args.world_switching,
+            'phase_breakdown': args.breakdown,
+            'candidate_no_atlas': args.candidate_no_atlas,
+            'audio_csv': args.audio_csv,
+            'note': 'Process allocations include the harness; audio CSV logging is opt-in.',
+            'apk_sha256': {'baseline': sha(args.baseline), 'candidate': sha(args.candidate)},
+            'test_apk_sha256': {'baseline': sha(args.baseline_test_apk or args.test_apk),
+                                'candidate': sha(args.test_apk)}, 'runs': []}
 graphics = '\n'.join(line for line in adb('shell', 'dumpsys', 'SurfaceFlinger').splitlines() if 'GLES' in line)
 (args.out / 'device.txt').write_text(adb('shell', 'getprop') + '\n' + adb('shell', 'dumpsys', 'battery') + '\n' +
                                    adb('shell', 'wm', 'size') + adb('shell', 'wm', 'density') + graphics + '\n')
-adb('install', '-r', args.test_apk)
 adb('install', '-r', args.baseline)
 adb('shell', 'pm', 'clear', 'cube.run')
 for repeat in range(args.repetitions):
@@ -62,18 +74,26 @@ for repeat in range(args.repetitions):
         prefix = args.out / f'{repeat + 1}-{name}'
         print(f'Running {prefix.name}', flush=True)
         adb('install', '-r', apk)
+        adb('install', '-r', args.baseline_test_apk if name == 'baseline' and args.baseline_test_apk else args.test_apk)
         adb('shell', 'pm', 'clear', 'cube.run')
         adb('logcat', '-c')
         output = adb('shell', 'am', 'instrument', '-w', '-e', 'class', 'cube.run.game.RunPerformanceTest',
-                     '-e', 'bot', 'false', '-e', 'audio', 'on', '-e', 'repeatable', 'true', '-e', 'section', args.section,
+                     '-e', 'bot', 'false', '-e', 'audio', 'on', '-e', 'audioCsv', str(args.audio_csv).lower(),
+                     '-e', 'repeatable', 'true', '-e', 'section', args.section,
+                     '-e', 'worldSwitching', str(args.world_switching).lower(),
                      '-e', 'world', args.world, '-e', 'modes', args.modes, '-e', 'seconds', args.seconds,
+                     '-e', 'breakdown', str(args.breakdown).lower(),
+                     '-e', 'facetAtlas', str(not (name == 'candidate' and args.candidate_no_atlas)).lower(),
                      'cube.run.test/androidx.test.runner.AndroidJUnitRunner',
                      timeout=args.seconds * len(args.modes.split(',')) + 120)
         prefix.with_suffix('.test.txt').write_text(output)
-        logs = adb('logcat', '-d', '-s', 'RUN_BENCH:I', 'AndroidRuntime:E', '*:S')
+        logs = adb('logcat', '-d', '-s', 'RUN_BENCH:I', 'RUN_BREAKDOWN:I', 'SCENERY_STATS:I', 'AndroidRuntime:E', '*:S')
         prefix.with_suffix('.log').write_text(logs)
         if 'OK (1 test)' not in output:
             raise RuntimeError(f'{prefix.name}: failed/interrupted test; see raw logs')
+        biomes = re.findall(r'RUN_BENCH: setup mode=\S+ biome=(\d+)', logs)
+        if len(biomes) != len(args.modes.split(',')) or any(int(biome) != args.world for biome in biomes):
+            raise RuntimeError(f'{prefix.name}: requested biome not verified for every phase')
         installed = adb('shell', 'pm', 'path', 'cube.run').strip().removeprefix('package:')
         copy = args.out / 'installed.apk'
         adb('pull', installed, copy)
@@ -94,8 +114,17 @@ for repeat in range(args.repetitions):
                 measured_fps = re.search(r' fps=([\d.]+)', line)
                 if measured_fps:
                     samples[-1]['fps'] = float(measured_fps.group(1))
+                for counter in ('over12', 'over16', 'over25', 'over50'):
+                    value = re.search(rf' {counter}=(\d+)', line)
+                    if value:
+                        samples[-1][counter] = int(value.group(1))
         if len(samples) != len(args.modes.split(',')):
             raise RuntimeError(f'{prefix.name}: missing benchmark phase logs')
+        if args.world_switching:
+            seen = re.findall(r'RUN_BENCH: worldsSeen=([\d,]+)', logs)
+            if len(seen) != 1 or len(seen[0].split(',')) < 2:
+                raise RuntimeError(f'{prefix.name}: no verified biome transitions')
+            samples[0]['worlds_seen'] = list(map(int, seen[0].split(',')))
         manifest['runs'].append({'name': name, 'repeat': repeat + 1, 'installed_apk_verified': True, 'samples': samples})
         (args.out / 'results.json').write_text(json.dumps(manifest, indent=2) + '\n')
 print(f'Results: {args.out / "results.json"}', flush=True)

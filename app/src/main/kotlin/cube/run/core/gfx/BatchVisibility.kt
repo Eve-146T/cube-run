@@ -1,12 +1,12 @@
 package cube.run.core.gfx
 
 import com.badlogic.gdx.graphics.Camera
-import kotlin.math.abs
+import cube.run.core.gfx.fastMagnitude as abs
 
 /** Frame-local camera planes; rejecting a whole bounding box never trims visible geometry. */
-internal class BatchVisibility {
-    private val planes = FloatArray(6 * 7)
-    private var enabled = false
+@PublishedApi internal class BatchVisibility {
+    @PublishedApi @JvmField internal val planes = FloatArray(6 * 7)
+    @PublishedApi @JvmField internal var enabled = false
 
     fun begin(camera: Camera?) {
         enabled = camera != null
@@ -24,7 +24,8 @@ internal class BatchVisibility {
         }
     }
 
-    fun visible(x: Float, y: Float, z: Float, hx: Float, hy: Float, hz: Float): Boolean {
+    @Suppress("NOTHING_TO_INLINE")
+    @PublishedApi internal inline fun visible(x: Float, y: Float, z: Float, hx: Float, hy: Float, hz: Float): Boolean {
         if (!enabled) return true
         var p = 0
         while (p < planes.size) {

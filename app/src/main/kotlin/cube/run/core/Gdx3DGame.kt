@@ -73,10 +73,14 @@ abstract class Gdx3DGame(val session: GameSession) : ApplicationAdapter(), Touch
 
     /** The intro only needs the player; prepare scenery batches while its native animation continues. */
     protected open val hasLaunchOpening = false
+    /** Scene assets needed during a run; called once after both scene and batches exist. */
+    protected open fun prepareSceneResources() {}
+    internal var renderProbe: ((String) -> Unit)? = null
 
     lateinit var cam: PerspectiveCamera
     lateinit var env: Environment
     private lateinit var batch: ModelBatch
+    private lateinit var modelShaders: cube.run.core.gfx.FixedLightShaderProvider
     private lateinit var shapes: ShapeRenderer
     private lateinit var kit: BoxMeshKit
     private lateinit var world: WorldBoxBatch
@@ -212,11 +216,13 @@ abstract class Gdx3DGame(val session: GameSession) : ApplicationAdapter(), Touch
         kit = BoxMeshKit(mb)
         LaunchTrace.mark("box kit")
         env = kit.environment()
-        batch = ModelBatch()
+        modelShaders = cube.run.core.gfx.FixedLightShaderProvider(env)
+        batch = ModelBatch(modelShaders)
         perf = PerfMonitor(showFps, perfLog)
         Gdx.input.inputProcessor = TouchInput(this, { sw }, { session.isOver || paused() || Stage.mode != Stage.NONE })
         if (hasLaunchOpening) startupStep = 0 else for (step in 0..6) prepareRenderer(step)
         init()
+        if (!hasLaunchOpening) prepareSceneResources()
         LaunchTrace.mark(if (hasLaunchOpening) "cube ready" else "game ready")
     }
 
@@ -268,6 +274,7 @@ abstract class Gdx3DGame(val session: GameSession) : ApplicationAdapter(), Touch
         if (startupStep < 0) return
         while (startupStep <= 7) prepareRenderer(startupStep++)
         startupStep = -1
+        prepareSceneResources()
         resumed = true
         LaunchTrace.mark("game ready")
     }
@@ -304,6 +311,7 @@ abstract class Gdx3DGame(val session: GameSession) : ApplicationAdapter(), Touch
             return
         }
         perf.beginFrame()
+        renderProbe?.invoke("sim")
         val raw = if (resumed) 0f else Gdx.graphics.rawDeltaTime
         resumed = false
         var dt = 0f
@@ -323,6 +331,7 @@ abstract class Gdx3DGame(val session: GameSession) : ApplicationAdapter(), Touch
             dt += simDt
         }
         perf.addSim(System.nanoTime() - sim0)
+        renderProbe?.invoke("clear")
 
         Gdx.gl.glViewport(0, 0, sw, sh)
         Gdx.gl.glClearColor(bgBottom.r, bgBottom.g, bgBottom.b, 1f)
@@ -351,6 +360,7 @@ abstract class Gdx3DGame(val session: GameSession) : ApplicationAdapter(), Touch
         cam.update()
 
         val draw0 = System.nanoTime()
+        renderProbe?.invoke("backdrop")
         // Draw backdrop effects before the fading road can write depth. Otherwise almost-invisible
         // floor tiles cut holes in the shop rays until the last tile disappears at progress = 1.
         Gdx.gl.glDisable(GL20.GL_DEPTH_TEST)
@@ -371,15 +381,20 @@ abstract class Gdx3DGame(val session: GameSession) : ApplicationAdapter(), Touch
         glass.begin(cam)
         fading.begin(cam)
         coins.begin(cam)
+        renderProbe?.invoke("queue")
         renderWorldBatched()
+        renderProbe?.invoke("boxes")
         world.render(cam)           // opaque pass: 1 draw call for every world box
         coins.render(cam)           // + 1 for every coin
         matrixWires.render(cam)
         capsules.render(cam)
         crystals.render(cam)
+        renderProbe?.invoke("facets")
         facetBatch.render(cam)
+        renderProbe?.invoke("fade")
         fading.render(cam)          // the far end of the world, coming into view over what lies behind it
         glass.render(cam)           // after everything it may show through
+        renderProbe?.invoke("shapes")
         // unlit blended shapes in the world (sunbursts): behind whatever the ModelBatch draws next
         Gdx.gl.glEnable(GL20.GL_DEPTH_TEST)
         Gdx.gl.glDepthMask(false)
@@ -391,12 +406,14 @@ abstract class Gdx3DGame(val session: GameSession) : ApplicationAdapter(), Touch
         shapes.end()
         Gdx.gl.glDepthMask(true)
         Gdx.gl.glDisable(GL20.GL_BLEND)
+        renderProbe?.invoke("model")
         batch.begin(cam)
         renderWorld(batch, env)
         batch.end()
         renderBlended()
         shards.render(cam)          // own pass: 1 draw call for all live shards
         perf.addDraw(System.nanoTime() - draw0)
+        renderProbe?.invoke("hud")
 
         if (shaken) cam.position.set(camSave)
 
@@ -423,6 +440,7 @@ abstract class Gdx3DGame(val session: GameSession) : ApplicationAdapter(), Touch
         Gdx.gl30?.glInvalidateFramebuffer(GL20.GL_FRAMEBUFFER, 1, discardDepth)
 
         perf.endFrame(shards.count)
+        renderProbe?.invoke("swap")
         sceneFrameDrawn = true
         sceneFramesDrawn++
         markFirstFrame()
@@ -435,7 +453,15 @@ abstract class Gdx3DGame(val session: GameSession) : ApplicationAdapter(), Touch
         }
     }
 
-    override fun resume() { resumed = true; frameStepper.reset() }
+    override fun resume() {
+        resumed = true; frameStepper.reset()
+        if (::kit.isInitialized) kit.resetLightUniforms()
+        if (::modelShaders.isInitialized) modelShaders.resetLightUniforms()
+    }
+    override fun resize(width: Int, height: Int) {
+        if (::kit.isInitialized) kit.resetLightUniforms()
+        if (::modelShaders.isInitialized) modelShaders.resetLightUniforms()
+    }
     override fun pause() { resumed = true; frameStepper.reset() }
 
     // ----------------------------------------------------------------- juice

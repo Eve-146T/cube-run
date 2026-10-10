@@ -7,26 +7,27 @@ import cube.run.data.Worlds
 import kotlin.random.Random
 
 /** One thing in a biome's layers: a prop on the land, a far shape on the horizon, a landmark, a mote of weather. */
+/** Reused scene state, with direct JVM fields like Scenery's tiles and roadside posts. */
 class Piece {
-    var look: BiomeLook? = null
-    var kind = 0
-    var x = 0f; var y = 0f; var z = 0f
-    var s = 1f
-    var yaw = 0f
-    var seed = 0f
+    @JvmField var look: BiomeLook? = null
+    @JvmField var kind = 0
+    @JvmField var x = 0f; @JvmField var y = 0f; @JvmField var z = 0f
+    @JvmField var s = 1f
+    @JvmField var yaw = 0f
+    @JvmField var seed = 0f
     /** How fast it closes in, as a share of the road's speed (far things are slow). */
-    var rate = 1f
+    @JvmField var rate = 1f
     /** Road units flown since it came up. */
-    var travelled = 0f
+    @JvmField var travelled = 0f
     /** 0…1: how far it has faded in (horizon shapes with their world, motes as they start). */
-    var show = 0f
+    @JvmField var show = 0f
     /** Horizon shapes: 0 the far range, 1 the lower ridge in front of it ([BiomeScene.LAYERED]). */
-    var layer = 0
+    @JvmField var layer = 0
     /** Its place in its layer's list (a biome may leave the later horizon places empty). */
-    var index = 0
-    var vx = 0f; var vy = 0f; var vz = 0f
-    var life = 0f
-    val pal = arrayOf(Color(), Color(), Color())
+    @JvmField var index = 0
+    @JvmField var vx = 0f; @JvmField var vy = 0f; @JvmField var vz = 0f
+    @JvmField var life = 0f
+    @JvmField val pal = arrayOf(Color(), Color(), Color())
 
     fun paint(slot: Int, h: Float, s: Float, v: Float) { hsvInto(pal[slot], h, s, v) }
 }
@@ -40,7 +41,7 @@ class Piece {
  * Positions: x across (the road is |x| < 3), y up from the land, z along the
  * road (negative ahead). Seeding never touches the course's random numbers.
  */
-abstract class BiomeLook(val world: Worlds.World) {
+abstract class BiomeLook(@JvmField val world: Worlds.World) {
 
     /** Every shape this biome draws, uploaded before it first shows. */
     abstract val shapes: List<FacetShape>
@@ -107,6 +108,7 @@ abstract class BiomeLook(val world: Worlds.World) {
     open fun drawSky(d: BiomeDraw, alpha: Float, time: Float) {}
     open fun skyRays(sky: SkyPainter, alpha: Float, time: Float) {}
     open fun paintSky(sky: SkyPainter, alpha: Float, time: Float) {}
+    open fun prepareSky(sky: SkyPainter) {}
 
     // ---- the road's edge and the land's colour
     open val kerb = KERB_PLAIN

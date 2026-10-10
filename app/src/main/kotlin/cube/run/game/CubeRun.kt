@@ -184,6 +184,8 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
     /** Obstacles and the cube's classic skin key off the current world's hue. */
     private fun worldHue() = worlds.hue
 
+    override fun prepareSceneResources() { scenery.biome.prepareAll() }
+
     override fun init() {
         Stage.reset()
         initialInteraction = Stage.interactions.get()
@@ -1067,13 +1069,16 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
         syncFog()
         space.rifts.update(track.rows)
         trackArt.glassRifts = space.blend > 0f
+        renderProbe?.invoke("road")
         scenery.renderRoad()
+        renderProbe?.invoke("course")
         trackArt.render(track, time, kaleido, kaleidoHue)
         if (space.blend > 0f) space.rifts.render()
         debris.render()
         zenDissolve.render()
         val wind = if (dead) 0f else ((spd - 13f) / 15f).coerceIn(0f, 1f)
         scenery.biome.veil = redPill.blend
+        renderProbe?.invoke("roadside")
         scenery.render(if (player.flying) 1f else wind, time)
         if (backdrop) space.sky.render(time, if (dead) 0f else ((spd - 8f) / 20f).coerceIn(0f, 1f))
         if (jackpot.active) jackpot.render()
@@ -1126,6 +1131,6 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
         }
     }
     override fun pause() { idlePilot.stop(); space.pauseAudio(); super.pause() }
-    override fun dispose() { Progress.zenRun = false; idlePilot.close(); space.deco.dispose(); showcase.dispose(); super.dispose() }
+    override fun dispose() { Progress.zenRun = false; idlePilot.close(); scenery.biome.sky.dispose(); space.deco.dispose(); showcase.dispose(); super.dispose() }
 
 }

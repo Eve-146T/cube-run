@@ -201,14 +201,17 @@ class LavaLook(world: Worlds.World) : BiomeLook(world) {
     }
 
     override fun drawMote(d: BiomeDraw, p: Piece, fog: Float, time: Float) {
+        val radius = BiomeToys.speck.radius * p.s // flicker and show never exceed one; sway is ±0.5.
+        if (!d.visible(p.x, p.y, p.z, radius + .5f, radius, radius)) return
         val flicker = 0.75f + 0.25f * sin(time * 11f + p.seed * 20f) // a spark grows as it comes out of the lava
         d.add(BiomeToys.speck, p.x + sin(time * 2f + p.seed * 9f) * 0.5f, p.y, p.z, p.s * flicker * p.show, time * 140f + p.seed * 360f, p.pal, fog,
-            glow = 1f, onLand = false, alpha = (p.life / 1.2f).coerceAtMost(1f))
+            glow = 1f, onLand = false, alpha = (p.life / 1.2f).coerceAtMost(1f), preculled = true)
     }
 
     override fun skyRays(sky: SkyPainter, alpha: Float, time: Float) {
         sky.rays(0f, -14f, -360f, 210f, 16, time * 2f, glowCol, 0.16f * alpha, 0.55f)
     }
+    override fun prepareSky(sky: SkyPainter) = sky.prepareRays(210f, 16, .55f)
 
     /** A red rock rim between the road and its lava. */
     override fun kerbColors(a: Color, b: Color) { hsvInto(a, 6f, 0.72f, 0.62f); b.set(a) }

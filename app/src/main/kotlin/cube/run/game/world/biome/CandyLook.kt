@@ -159,9 +159,11 @@ class CandyLook(world: Worlds.World) : BiomeLook(world) {
     }
 
     override fun drawMote(d: BiomeDraw, p: Piece, fog: Float, time: Float) {
+        val radius = balloon.radius * p.s
+        if (!d.visible(p.x, p.y, p.z, radius + .4f, radius, radius)) return
         val sway = sin(time * 1.3f + p.seed * 9f)
         d.add(balloon, p.x + sway * 0.4f, p.y, p.z, p.s, p.s, p.s, p.seed * 90f, p.pal, fog, roll = sway * 8f, onLand = false,
-            alpha = (p.life / 2f).coerceAtMost(1f))
+            alpha = (p.life / 2f).coerceAtMost(1f), preculled = true)
     }
 
     /** Cotton-candy clouds drifting across the sky: three puffs each, pink underneath. */

@@ -8,6 +8,8 @@ import struct
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('trace', type=Path)
 parser.add_argument('--thread', default='GLThread')
+parser.add_argument('--limit', type=int, default=30)
+parser.add_argument('--inclusive', action='store_true', help='Rank complete call trees instead of self time.')
 args = parser.parse_args()
 raw = args.trace.read_bytes()
 start = raw.index(b'*end\n') + len(b'*end\n')
@@ -49,5 +51,7 @@ for pos in range(offset, len(raw) - size + 1, size):
         del stack[len(stack) - 1 - stack[::-1].index(method):]
 print(f'Thread filter: {args.thread}; sampled CPU total {sum(self_us.values()) / 1000:.1f} ms')
 print('Self ms | Inclusive ms | Method')
-for method, elapsed in self_us.most_common(30):
+ranking = inclusive_us if args.inclusive else self_us
+for method, _ in ranking.most_common(args.limit):
+    elapsed = self_us[method]
     print(f'{elapsed / 1000:8.1f} | {inclusive_us[method] / 1000:12.1f} | {methods.get(method, hex(method))}')

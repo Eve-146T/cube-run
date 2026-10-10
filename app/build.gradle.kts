@@ -8,6 +8,13 @@ plugins {
 val gdxVersion = "1.13.1"
 val natives: Configuration by configurations.creating
 
+tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
+    if (name == "compileReleaseAndroidTestKotlin") {
+        // These fixtures depend on probe activities that exist only in src/debug.
+        exclude("**/KeypadWindowTest.kt", "**/WindowGeometryTest.kt")
+    }
+}
+
 // Release signing. Local builds read keystore.properties (gitignored); CI reads
 // the equivalent environment variables. With neither present the release build
 // is produced unsigned, so the project still builds for anyone without the key.
@@ -20,6 +27,9 @@ fun signingValue(prop: String, env: String): String? =
 val releaseStoreFile: String? = signingValue("storeFile", "KEYSTORE_FILE")
 
 android {
+    // Opt-in release instrumentation uses the debug key locally; ordinary release signing is unchanged.
+    val performanceRelease = providers.gradleProperty("performanceRelease").orNull == "true"
+    testBuildType = if (performanceRelease) "release" else "debug"
     namespace = "cube.run"
     compileSdk = 35
 
@@ -68,7 +78,9 @@ android {
         }
         release {
             isMinifyEnabled = false
-            if (releaseStoreFile != null) {
+            if (performanceRelease) {
+                signingConfig = signingConfigs.getByName("debug")
+            } else if (releaseStoreFile != null) {
                 signingConfig = signingConfigs.getByName("release")
             }
         }

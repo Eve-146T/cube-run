@@ -196,7 +196,9 @@ class CityLook(world: Worlds.World) : BiomeLook(world) {
     override fun moveMote(p: Piece, dt: Float): Boolean = super.moveMote(p, dt) && p.z > -125f
 
     override fun drawMote(d: BiomeDraw, p: Piece, fog: Float, time: Float) {
-        d.add(car, p.x, p.y + sin(time * 2f + p.seed * 7f) * 0.2f, p.z, p.s, p.yaw, p.pal, fog, glow = 0.35f, onLand = false)
+        val radius = car.radius * p.s
+        if (!d.visible(p.x, p.y, p.z, radius, radius + .2f, radius)) return
+        d.add(car, p.x, p.y + sin(time * 2f + p.seed * 7f) * 0.2f, p.z, p.s, p.yaw, p.pal, fog, glow = 0.35f, onLand = false, preculled = true)
     }
 
     override fun drawSky(d: BiomeDraw, alpha: Float, time: Float) {
@@ -204,11 +206,13 @@ class CityLook(world: Worlds.World) : BiomeLook(world) {
     }
 
     override fun paintSky(sky: SkyPainter, alpha: Float, time: Float) {
+        if (sky.stars(stars, star, alpha, time, .55f, .45f, 1.7f, .8f)) return
         for (i in 0 until STARS) {
             val tw = 0.55f + 0.45f * sin(time * 1.7f + stars[i * 4 + 3])
             sky.glow(stars[i * 4], stars[i * 4 + 1], stars[i * 4 + 2] * 2f, star, alpha * tw * 0.8f)
         }
     }
+    override fun prepareSky(sky: SkyPainter) = sky.prepareStars(stars, star, .55f, .45f, .8f)
 
     override val kerb = KERB_STRIPES
     override fun kerbColors(a: Color, b: Color) { hsvInto(a, 315f, 0.75f, 1f); hsvInto(b, 185f, 0.75f, 1f) }

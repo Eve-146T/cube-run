@@ -1,5 +1,7 @@
 package cube.run.game
 
+import android.content.Intent
+import androidx.test.core.app.ApplicationProvider
 import androidx.test.core.app.ActivityScenario
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.badlogic.gdx.Gdx
@@ -32,7 +34,8 @@ import org.junit.runner.RunWith
 class SpaceRenderingTest {
     /** Fixed heavy fixture, synchronized with the GPU; this is not a vsync/FPS benchmark. */
     @Test fun comparePlanetGeometryThroughput() {
-        ActivityScenario.launch(GameActivity::class.java).use { scenario ->
+        ActivityScenario.launch<GameActivity>(Intent(ApplicationProvider.getApplicationContext(), GameActivity::class.java)
+            .putExtra("autostart", true)).use { scenario ->
             scenario.onActivity { it.setShowWhenLocked(true); it.setTurnScreenOn(true) }
             val done = CountDownLatch(1)
             var failure: Throwable? = null
@@ -80,7 +83,8 @@ class SpaceRenderingTest {
     }
 
     @Test fun staticBackdropPreservesOriginalTwinklesAndSparkles() {
-        ActivityScenario.launch(GameActivity::class.java).use { scenario ->
+        ActivityScenario.launch<GameActivity>(Intent(ApplicationProvider.getApplicationContext(), GameActivity::class.java)
+            .putExtra("autostart", true)).use { scenario ->
             scenario.onActivity { it.setShowWhenLocked(true); it.setTurnScreenOn(true) }
             val done = CountDownLatch(1)
             var failure: Throwable? = null
@@ -159,7 +163,8 @@ class SpaceRenderingTest {
     }
 
     @Test fun gpuAndCpuPreserveVoxelLightingBandsBendsAndSmoothFades() {
-        ActivityScenario.launch(GameActivity::class.java).use { scenario ->
+        ActivityScenario.launch<GameActivity>(Intent(ApplicationProvider.getApplicationContext(), GameActivity::class.java)
+            .putExtra("autostart", true)).use { scenario ->
             scenario.onActivity { it.setShowWhenLocked(true); it.setTurnScreenOn(true) }
             val done = CountDownLatch(1)
             var failure: Throwable? = null

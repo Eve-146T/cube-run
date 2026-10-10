@@ -58,18 +58,18 @@ fun toy(f: Toy.() -> Unit): FacetShape = Toy().apply(f).build()
 
 object BiomeToys {
     /** A cube, half-size 1 (centred, unlike the toys). */
-    val cube: FacetShape get() = FacetShapes.cube()
+    @JvmField val cube: FacetShape = FacetShapes.cube()
 
     // The same cube again, as shapes of their own: the facet batch takes 128 of one shape a frame,
     // and rivers and weather come in the dozens.
     /** River steps. */
-    val slab: FacetShape by lazy { FacetShapes.model(listOf(FacetShapes.Box(0f, 0f, 0f, 1f, 1f, 1f))) }
+    @JvmField val slab: FacetShape = FacetShapes.model(listOf(FacetShapes.Box(0f, 0f, 0f, 1f, 1f, 1f)))
     /** Weather: snowflakes, embers. */
-    val speck: FacetShape by lazy { FacetShapes.model(listOf(FacetShapes.Box(0f, 0f, 0f, 1f, 1f, 1f))) }
+    @JvmField val speck: FacetShape = FacetShapes.model(listOf(FacetShapes.Box(0f, 0f, 0f, 1f, 1f, 1f)))
 
     /** A round lump of boxes, radius 1, centred: dunes, domes, scoops, hills (sink it into the land). */
-    val ball: FacetShape get() = FacetShapes.voxelBall(6)
-    val bigBall: FacetShape get() = FacetShapes.voxelBall(9)
+    @JvmField val ball: FacetShape = FacetShapes.voxelBall(6)
+    @JvmField val bigBall: FacetShape = FacetShapes.voxelBall(9)
 
     /** A stepped mountain, 1 wide at its foot and 1 tall; slot 1 is its cap (snow, frosting, glowing crater). */
     fun peak(steps: Int, cap: Int): FacetShape = toy {
