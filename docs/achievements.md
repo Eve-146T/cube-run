@@ -19,36 +19,43 @@ The page is a bright candy page like the other menus (pink-to-sky backdrop, whit
 cards, ink text), with the title in the back button's row beside the coin bank; only when the
 title cannot fit there (a huge balance, a narrow pane, large text) does it take its own line.
 At the top is the medal case: one slot each for bronze, silver, gold and diamond and one for
-challenge stickers, each counting what has been *claimed* out of what exists (`3/10`, `6/28`).
+challenge plaques, each counting what has been *claimed* out of what exists (`3/10`, `6/28`).
 Claiming is what fills the case. The case and the first screenful of cards are built at once
 and the rest a few cards a frame, so the page opens without a pause (about 50 ms to the first
 frame on the Moto).
 
+Every medal is the same object: a ribbon over a chunky metal disc on a darker lip, with an
+engraved ring and a gloss. Metal and emblem say which: bronze with one star (grape ribbon),
+silver with two (sky), gold with three (berry), diamond a cut gem on crystal blue (pink). A
+challenge pays a square mint plaque with a star on an orange ribbon. Not yet won, the same
+silhouette is a recessed pale slot. `MedalArt`, `PlaqueArt` and `AchievementTile` live in
+`AchievementMedals.kt`; `AchievementArtSheetTest` (`-e captureArt true`) renders all of it on one
+sheet for review.
+
 Below the case, four labelled groups in one column: READY (every card with a reward waiting,
 medal families first), MEDALS, CHALLENGES and DONE, the open ones sorted by how close they are
-to their next goal. Every achievement is a white card with its badge on the left: the
-achievement's picture on a white face inside a chunky frame on a darker lip. The frame is what
-you collect. A medal family's frame is round and follows the highest medal claimed (a plain
-bronze ring, a scalloped silver rosette, a gold sunburst, a cut diamond); a challenge's frame is
-a rounded square in its own colour. Nothing claimed yet is a plain grey frame. Medal families
-show their four medals as small level markers under the badge. On the right: the name, what
-counts, and either a bar in the colour of the frame it earns next with the count beside it
-(`31200 / 100K`), or, when something is waiting, a gold CLAIM button with everything the card
-pays. Yes-or-no dares (target 1) show nothing below their description until they are done.
-DONE collects everything fully claimed as slim rows showing the final badge. What a reward pays
-stays a surprise until it can be claimed. The list clips below the header and coin bank. The
-last card invites players to suggest an achievement as a GitHub issue.
+to their next goal. Every achievement is a white card in three parts. On the left its picture on
+its own candy tile, a saturated rounded square chosen to contrast with the picture (the
+pictures use white, so they need a coloured ground). In the middle the name, what counts, and
+either a bar in the achievement's colour with the count beside it (`31200 / 100K`) or, when
+something is waiting, a gold CLAIM button with everything the card pays. Yes-or-no dares
+(target 1) show nothing below their description until they are done. On the right the reward:
+the medal waiting to be collected on a still sunburst, else the empty slot of the one being
+worked towards, or the last one won once everything is paid; medal families have four tier dots
+under it. When the text would be squeezed narrower than a few words of the title (a split pane,
+large text) the reward column folds away. DONE collects everything fully claimed as slim rows
+with the tile, the name and the medals won. What a reward pays stays a surprise until it can be
+claimed. The list clips below the header and coin bank. The last card invites players to suggest
+an achievement as a GitHub issue.
 
-A card with a reward waiting has a gold edge, and its badge sits on a glow of the frame it is
-about to get. One tap on CLAIM collects every medal that card has waiting (there is still no
-claim-all across cards). Each medal is struck in turn, about half a second apart: the badge
-winds up, turns edge-on and comes back round in its new frame, big, settling with a bounce; a
-ring of the new colour bursts out of it, a soft thump plays a little higher for every medal in
-the chain, the level marker lights, a copy of the medal hops into its slot in the case (which
-pops and counts it; with the case scrolled away it just counts), and the coins pour out of the
-badge into the bank. When the last coins land the card settles into its next state: the button
-gives way to the bar towards the next medal, and the cards below ease up instead of jumping.
-The in-run unlock toast shows the same badge in the frame just earned.
+A card with a reward waiting has a gold edge. One tap on CLAIM collects every medal that card
+has waiting (there is still no claim-all across cards), about half a second apart: the medal
+winds up and springs off the card with a soft thump (a little higher for every medal in the
+chain) and a ring of its colour, flies into its slot in the case (which pops and counts it;
+with the case scrolled away it just counts), its tier dot lights, and the coins pour out into
+the bank; then the next medal, or the empty slot of the next goal, pops into its place. When the
+last coins land the card settles into its next state, and the cards below ease up instead of
+jumping. The in-run unlock toast shows the medal (or plaque) just earned.
 
 Bronze/silver/gold/diamond pay 250/750/2,000/5,000 coins per family. Big Bubble and
 Haptic Taps each pay 2,000; Bouncer, Stay Centered, Homeress, and Gambliphobic each
