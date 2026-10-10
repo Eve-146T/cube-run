@@ -722,3 +722,22 @@ Pixel/Motorola checks, Pixel captures and the new performance log are in
 Startup/memory, sustained thermal behavior, GPU timer validation and the strict
 216 MHz GPU performance gap remain open. The Pixel's saved preferences were
 restored after testing.
+
+### Follow-up review, 2026-10-10
+
+The final build (after the Mali fix and the `main` merge) was re-measured on the
+Motorola against `81d135a`, with the same caps, seeds and Lava Caves phases,
+two alternating pairs of 20 measured seconds. Before optimization:
+45.2–48.1 FPS, GL CPU p50 18.7–20.3 ms, 167–269 frames over 25 ms per phase.
+Final build: 59.84–59.85 FPS, GL CPU p50 11.7–13.1 ms, 0–1 frames over 25 ms.
+This matches the earlier three-way figures.
+
+Running all of `BiomeSceneryTest` exposed a leak. libGDX releases its static
+per-application shader, mesh and texture lists only when the activity is
+already finishing at `onPause`. An activity paused first and destroyed later
+(test scenarios, a backgrounded game the system reclaims or recreates) stayed
+reachable through `ShaderProgram`'s list, with its whole game. With the atlas
+chunks preallocated each leaked game holds about 14 MB of float arrays: the
+Pixel reached 252/256 MB with 14 retained games and fell to seconds per frame.
+`GameActivity.onDestroy` now clears those lists itself; the same test ran at
+about 30 MB.

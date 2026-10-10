@@ -12,12 +12,17 @@ import cube.run.data.Progress
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import org.junit.Assert.*
+import org.junit.Before
 import org.junit.Test
 
 /** Measures painted page reuse and live results resets, including fresh GL frames. */
 class MenuReturnTimingTest {
     private val instrumentation get() = InstrumentationRegistry.getInstrumentation()
     private fun ui(action: () -> Unit) = instrumentation.runOnMainSync(action)
+    /** Earlier tests in the same process may have left developer mode (950 starting score, dev bank) on. */
+    @Before fun leaveDeveloperMode() {
+        if (cube.run.data.Settings.devMode) { cube.run.data.Progress.leaveDev(); cube.run.data.Settings.setDevMode(false) }
+    }
     @Suppress("UNCHECKED_CAST")
     private fun <T> field(owner: Any, name: String): T {
         var type: Class<*>? = owner.javaClass

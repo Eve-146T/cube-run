@@ -90,6 +90,7 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false, retu
     private var runPauseResumes = 0
     private var page: Page? = null
     private var preparedShop: ShopView? = null
+    private var closedShop: ShopView? = null
     private data class CachedPage(val view: Page, val key: List<Any>, var painted: Boolean = false)
     private val cachedPages = LinkedHashMap<String, CachedPage>()
     private val cachePreferences = listOf("progress", "settings", "scores").map {
@@ -136,16 +137,22 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false, retu
             if (width == 0 || height == 0) { postOnAnimation(this); return }
             if (preparedShop?.isCurrent() != true) {
                 preparedShop?.let { removeView(it) }
-                preparedShop = newShop().also { shop ->
-                    shop.prepareAnimatedNavigation()
-                    addView(shop, 0, LayoutParams(-1, -1))
-                    rootWindowInsets?.let { shop.dispatchApplyWindowInsets(it) }
-                    shop.measure(MeasureSpec.makeMeasureSpec(width, MeasureSpec.EXACTLY), MeasureSpec.makeMeasureSpec(height, MeasureSpec.EXACTLY))
-                    shop.layout(0, 0, width, height)
-                    shop.warmNavigation()
-                }
+                // Reuse the card tree a short visit just closed instead of rebuilding it.
+                val reused = closedShop?.takeIf { it.isCurrent() }
+                closedShop = null
+                preparedShop = (reused ?: newShop()).also(::attachPrepared)
             }
         }
+    }
+
+    /** Park a shop hidden behind the menu, laid out and painted for an animated entrance. */
+    private fun attachPrepared(shop: ShopView) {
+        shop.prepareAnimatedNavigation()
+        addView(shop, 0, LayoutParams(-1, -1))
+        rootWindowInsets?.let { shop.dispatchApplyWindowInsets(it) }
+        shop.measure(MeasureSpec.makeMeasureSpec(width, MeasureSpec.EXACTLY), MeasureSpec.makeMeasureSpec(height, MeasureSpec.EXACTLY))
+        shop.layout(0, 0, width, height)
+        shop.warmNavigation()
     }
     private var languageSheet: LanguageSheet? = null
     private var preparedLanguages: LanguageSheet? = null
@@ -262,7 +269,7 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false, retu
         cachePreferences.forEach { it.unregisterOnSharedPreferenceChangeListener(cacheChanges) }
         cachedPages.values.forEach { it.painted = false }
         removeCallbacks(pollAchievements)
-        preparedShop?.let { removeView(it) }; preparedShop = null
+        preparedShop?.let { removeView(it) }; preparedShop = null; closedShop = null
         voidPurchase = null
         giftReturnGeneration++
         giftReturnCover?.let { cover ->
@@ -422,15 +429,10 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false, retu
             Progress.shopClosed()
             Stage.homeScreen = true
             setBubbles(Progress.bubbles)
-            // Keep the expensive card tree ready across short runs. Purchases and
-            // changes to progress still invalidate it through isCurrent().
-            if (isAttachedToWindow && shop.isCurrent()) {
-                preparedShop?.let { removeView(it) }
-                shop.prepareAnimatedNavigation()
-                preparedShop = shop
-                addView(shop, 0, LayoutParams(-1, -1))
-                shop.warmNavigation()
-            }
+            // Keep the expensive card tree for the next visit, but re-attach it in the
+            // delayed preparation so Back does not pay for it. Purchases and changes
+            // to progress still invalidate it through isCurrent().
+            closedShop = shop.takeIf { it.isCurrent() }
             scheduleShopPreparation()
         }
         return shop
@@ -439,7 +441,7 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false, retu
     /** Reset the visible caches too, so closing the developer shop shows a fresh game. */
     private fun refreshAfterProgressReset() {
         removeCallbacks(prepareShop)
-        preparedShop?.let { removeView(it) }; preparedShop = null
+        preparedShop?.let { removeView(it) }; preparedShop = null; closedShop = null
         achievementToast.reset()
         jackpotCounter.reset()
         bonusVisited.clear()
@@ -483,7 +485,10 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false, retu
         Progress.shopOpened()
         Stage.homeScreen = false
         removeCallbacks(prepareShop)
+        // A shop closed moments ago may not be re-attached yet; attaching it still beats a rebuild.
         val ready = preparedShop?.takeIf { it.isCurrent() }
+            ?: closedShop?.takeIf { it.isCurrent() }?.also { preparedShop?.let(::removeView); attachPrepared(it) }
+        closedShop = null
         if (ready == null) preparedShop?.let { removeView(it) }
         val shop = ready ?: newShop()
         preparedShop = null

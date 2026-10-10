@@ -13,12 +13,17 @@ import cube.run.game.CubeRun
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import org.junit.Assert.*
+import org.junit.Before
 import org.junit.Test
 
 /** Time the real pause RESTART action through a complete submitted game frame. */
 class PauseRestartTimingTest {
     private val inst get() = InstrumentationRegistry.getInstrumentation()
     private fun ui(action: () -> Unit) = inst.runOnMainSync(action)
+    /** Earlier tests in the same process may have left developer mode (950 starting score, dev bank) on. */
+    @Before fun leaveDeveloperMode() {
+        if (cube.run.data.Settings.devMode) { cube.run.data.Progress.leaveDev(); cube.run.data.Settings.setDevMode(false) }
+    }
     @Suppress("UNCHECKED_CAST")
     private fun <T> field(owner: Any, name: String): T {
         var type: Class<*>? = owner.javaClass

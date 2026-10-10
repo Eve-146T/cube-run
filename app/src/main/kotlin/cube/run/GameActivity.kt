@@ -363,6 +363,10 @@ open class GameActivity : AndroidApplication() {
     override fun onDestroy() {
         openingSplash?.dispose()
         if (android.os.Build.VERSION.SDK_INT >= 33) backCallback?.let { onBackInvokedDispatcher.unregisterOnBackInvokedCallback(it) }
+        // libGDX only releases its static per-app shader/mesh/texture lists when the activity is
+        // already finishing at onPause. One paused first and destroyed later (backgrounded, then
+        // reclaimed or recreated) would otherwise stay reachable through them with the whole game.
+        graphics?.clearManagedCaches()
         super.onDestroy()
     }
 

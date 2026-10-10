@@ -101,7 +101,13 @@ complete scene swap. The new HUD appears without the old run's delayed
 entrance animations. Leaving the foreground during that handoff pauses the
 new run. Results-screen restart continues to use its existing launch path.
 Closed shop cards are retained when progress is unchanged, so the shorter
-restart does not make the next shop visit pay for rebuilding them.
+restart does not make the next shop visit pay for rebuilding them. The closed
+shop is re-attached by the delayed shop preparation, not inside Back; opening
+the shop before that has run attaches it then. Re-attaching inside Back made
+Back from the shop about 40–60 ms slower and the wardrobe about 30 ms slower
+(Moto, 2026-10-10 follow-up: Back from shop 502 → 443 ms, wardrobe open
+133 → 100 ms, wardrobe Back 100 → 67 ms; opening the shop immediately after
+returning to the menu 398 → 429 ms).
 
 ## Recorded comparison: 2026-10-10
 
