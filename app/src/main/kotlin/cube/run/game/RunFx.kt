@@ -128,10 +128,12 @@ class RunFx(private val game: Gdx3DGame, private val rnd: Random) {
     /** Outer Space: coins ring as stardust, climbing a pentatonic scale with the streak. */
     var stardust = false
 
-    fun coin(x: Float, y: Float, z: Float, pitch: Int, gold: Color) {
-        if (stardust) SoundFx.play("stardust", rate = stardustNote(pitch), vol = 0.6f)
-        else SoundFx.play("coin", rate = (1f + 0.04f * minOf(pitch, 12)).coerceAtMost(1.5f), vol = 0.7f)
-        Haptics.tick()
+    fun coin(x: Float, y: Float, z: Float, pitch: Int, gold: Color, quiet: Boolean = false) {
+        if (!quiet) {
+            if (stardust) SoundFx.play("stardust", rate = stardustNote(pitch), vol = 0.6f)
+            else SoundFx.play("coin", rate = (1f + 0.04f * minOf(pitch, 12)).coerceAtMost(1.5f), vol = 0.7f)
+            Haptics.tick()
+        }
         game.burst3d(tmp.set(x, y, z), gold, n = 6, speed = 3.2f, size = 0.09f, life = 0.4f)
         game.burst3d(tmp, Color.WHITE, n = 2, speed = 4f, size = 0.06f, life = 0.25f)
     }
@@ -143,9 +145,11 @@ class RunFx(private val game: Gdx3DGame, private val rnd: Random) {
     }
 
     /** Coin streak milestone: a chime + a gold flash, no text. */
-    fun coinMilestone(gold: Color) {
-        SoundFx.play("perfect", rate = 1.1f)
-        Haptics.success()
+    fun coinMilestone(gold: Color, quiet: Boolean = false) {
+        if (!quiet) {
+            SoundFx.play("perfect", rate = 1.1f)
+            Haptics.success()
+        }
         game.flash(gold, 0.15f)
     }
 

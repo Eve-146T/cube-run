@@ -17,6 +17,7 @@ import com.badlogic.gdx.utils.ScreenUtils
 import cube.run.GameActivity
 import cube.run.core.gfx.BoxMeshKit
 import cube.run.core.gfx.PrismBatch
+import cube.run.core.gfx.CrystalBatch
 import cube.run.core.gfx.ShardSystem
 import com.badlogic.gdx.math.Vector3
 import com.badlogic.gdx.math.Matrix4
@@ -33,6 +34,50 @@ import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
 class BatchVisibilityTest {
+    @Test fun faintCoinColorsBlendInBothCoinRenderersAndCoal() {
+        ActivityScenario.launch(GameActivity::class.java).use {
+            val done = CountDownLatch(1)
+            var failure: Throwable? = null
+            Gdx.app.postRunnable {
+                try {
+                    val kit = BoxMeshKit(ModelBuilder())
+                    val coins = PrismBatch(kit)
+                    val crystals = CrystalBatch(kit)
+                    val target = FrameBuffer(Pixmap.Format.RGBA8888, 96, 96, true)
+                    val camera = PerspectiveCamera(67f, 96f, 96f).apply {
+                        position.set(0f, 0f, 4f); lookAt(0f, 0f, 0f); near = .1f; far = 10f; update()
+                    }
+                    try {
+                        for (shape in listOf("cpu", "gpu", "coal", "gem")) {
+                            fun draw(alpha: Float): ByteArray {
+                                val color = Color(Color.GOLD).apply { a = alpha }
+                                coins.begin(camera, instanced = shape == "gpu"); crystals.begin()
+                                when (shape) {
+                                    "coal" -> crystals.coal(0f, 0f, 0f, 3f, 10f, 0, color, 0f, Color.BLACK)
+                                    "gem" -> crystals.gem(0f, 0f, 0f, 3f, 10f, color, 0f, Color.BLACK)
+                                    else -> coins.coin(0f, 0f, 0f, 1f, .2f, 10f, color)
+                                }
+                                target.begin()
+                                return try {
+                                    Gdx.gl.glClearColor(0f, 0f, 0f, 1f)
+                                    Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT or GL20.GL_DEPTH_BUFFER_BIT)
+                                    coins.render(camera); crystals.render(camera)
+                                    ScreenUtils.getFrameBufferPixels(0, 0, 96, 96, false)
+                                } finally { target.end() }
+                            }
+                            fun light(pixels: ByteArray) = pixels.indices.filter { it % 4 != 3 }.sumOf { pixels[it].toInt() and 255 }
+                            val normal = light(draw(1f)); val faint = light(draw(.12f))
+                            assertTrue("$shape fixture is visible", normal > 0)
+                            assertTrue("$shape coins remain visible but are much fainter: $faint / $normal",
+                                faint > 0 && faint < normal * .25f)
+                        }
+                    } finally { target.dispose(); crystals.dispose(); coins.dispose(); kit.dispose() }
+                } catch (t: Throwable) { failure = t } finally { done.countDown() }
+            }
+            assertTrue(done.await(30, TimeUnit.SECONDS)); failure?.let { throw it }
+        }
+    }
+
     @Test fun particleCullingPreservesBlendingAndTumblingPixels() {
         ActivityScenario.launch<GameActivity>(Intent(ApplicationProvider.getApplicationContext(), GameActivity::class.java)
             .putExtra("autostart", true)).use { scenario ->

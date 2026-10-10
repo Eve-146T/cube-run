@@ -64,12 +64,12 @@ class MenuReturnTimingTest {
         while (!ready && SystemClock.uptimeMillis() < deadline) {
             ui {
                 val hud = field<Hud>(activity, "hud")
-                val current = hud.javaClass.getDeclaredMethod("pageCacheKey").apply { isAccessible = true }.invoke(hud)
+                fun current(name: String) = hud.javaClass.getDeclaredMethod("pageCacheKey", String::class.java).apply { isAccessible = true }.invoke(hud, name)
                 val entries = field<Map<String, Any>>(hud, "cachedPages")
-                ready = entries.size == 3 && entries.values.all { field<Boolean>(it, "painted") && field<List<Any>>(it, "key") == current }
+                ready = entries.size == 4 && entries.all { (name, entry) -> field<Boolean>(entry, "painted") && field<List<Any>>(entry, "key") == current(name) }
                 diagnostic = entries.entries.joinToString { (name, entry) ->
                     val view = field<Page>(entry, "view")
-                    "$name: painted=${field<Boolean>(entry, "painted")}, key=${field<List<Any>>(entry, "key") == current}, size=${view.width}x${view.height}, layout=${view.isLayoutRequested}, attached=${view.isAttachedToWindow}, ready=${(view as? AchievementsView)?.contentReady}"
+                    "$name: painted=${field<Boolean>(entry, "painted")}, key=${field<List<Any>>(entry, "key") == current(name)}, size=${view.width}x${view.height}, layout=${view.isLayoutRequested}, attached=${view.isAttachedToWindow}, ready=${(view as? AchievementsView)?.contentReady}"
                 }
                 if (ready) pages = entries.mapValues { field<Page>(it.value, "view") }
             }
@@ -104,7 +104,8 @@ class MenuReturnTimingTest {
                         val method = when (name) {
                             "achievements" -> "openAchievements"
                             "wardrobe" -> "openWardrobe"
-                            else -> "openSections"
+                            "settings" -> "openSettings"
+                            else -> "openSectionsFromSettings"
                         }
                         startedAt = SystemClock.uptimeMillis()
                         hud.javaClass.getDeclaredMethod(method).apply { isAccessible = true }.invoke(hud)
@@ -145,7 +146,7 @@ class MenuReturnTimingTest {
                     awaitMenu(activity)
                 }
             }
-            assertEquals(3, field<Map<String, Any>>(field<Hud>(activity, "hud"), "cachedPages").size)
+            assertEquals(4, field<Map<String, Any>>(field<Hud>(activity, "hud"), "cachedPages").size)
         } finally { ui { unlockField.setBoolean(null, unlocked); activity.finish() } }
     }
 
@@ -167,6 +168,8 @@ class MenuReturnTimingTest {
             val after = awaitCaches(activity)
             assertNotSame(before["achievements"], after["achievements"])
             assertNotSame(before["wardrobe"], after["wardrobe"])
+            assertSame("Settings survives balance changes", before["settings"], after["settings"])
+            assertSame("Section thumbnails survive balance changes", before["sections"], after["sections"])
             ui {
                 val hud = field<Hud>(activity, "hud")
                 hud.javaClass.getDeclaredMethod("openAchievements").apply { isAccessible = true }.invoke(hud)
@@ -233,6 +236,61 @@ class MenuReturnTimingTest {
         } finally { ui { activity.finish() } }
     }
 
+    @Test fun settingsSubmenusStayWarmAfterControlChangesAndRapidReopening() {
+        val activity = launch()
+        val haptics = cube.run.data.Settings.hapticsEnabled
+        val volume = cube.run.data.Settings.volume
+        try {
+            awaitMenu(activity); awaitScene()
+            val settings = awaitCaches(activity).getValue("settings")
+            var languages: LanguageSheet? = null
+            repeat(6) { cycle ->
+                val drawn = CountDownLatch(1)
+                var elapsed = 0L
+                ui {
+                    val hud = field<Hud>(activity, "hud")
+                    hud.javaClass.getDeclaredMethod("openSettings").apply { isAccessible = true }.invoke(hud)
+                    assertSame("Control changes must reuse settings", settings, field<Page>(hud, "page"))
+                    val slider = field<VolumeSteps>(settings, "volume")
+                    slider.performAccessibilityAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD, null)
+                    val hapticSwitch = field<CandySwitch>(settings, "hapticsSwitch")
+                    val row = hapticSwitch.parent as View
+                    val before = cube.run.data.Progress.totalHapticTaps
+                    row.performClick()
+                    assertEquals(before + 1, cube.run.data.Progress.totalHapticTaps)
+                    assertEquals(cube.run.data.Settings.hapticsEnabled, row.createAccessibilityNodeInfo().isChecked)
+                    val started = SystemClock.uptimeMillis()
+                    hud.javaClass.getDeclaredMethod("openLanguages").apply { isAccessible = true }.invoke(hud)
+                    val sheet = field<LanguageSheet>(hud, "languageSheet")
+                    if (languages == null) languages = sheet else assertSame("Language rows are reused", languages, sheet)
+                    assertTrue(sheet.isShown)
+                    assertEquals(1f, sheet.alpha, .001f)
+                    assertTrue("Warm language menu needs no new layout", !sheet.isLayoutRequested)
+                    if (Build.VERSION.SDK_INT >= 29) sheet.viewTreeObserver.registerFrameCommitCallback {
+                        elapsed = SystemClock.uptimeMillis() - started; drawn.countDown()
+                    } else sheet.postOnAnimation { elapsed = SystemClock.uptimeMillis() - started; drawn.countDown() }
+                    sheet.rootView.invalidate()
+                }
+                assertTrue("Language menu painted", drawn.await(2, TimeUnit.SECONDS))
+                android.util.Log.i("InstantMenu", "languages cycle $cycle: submitted frame in $elapsed ms")
+                assertTrue("Language menu took $elapsed ms", elapsed < 80)
+                ui {
+                    languages!!.dismiss()
+                    val hud = field<Hud>(activity, "hud")
+                    assertNull(field<LanguageSheet?>(hud, "languageSheet"))
+                    assertTrue(settings.isShown)
+                    settings.navigateBack()
+                    assertNull(field<Page?>(hud, "page"))
+                }
+                awaitMenu(activity)
+            }
+        } finally { ui {
+            cube.run.data.Settings.setHapticsEnabled(haptics)
+            cube.run.data.Settings.setVolume(volume)
+            activity.finish()
+        } }
+    }
+
     @Test fun achievementsBackRestoresMenuControlsQuickly() {
         val activity = launch()
         val unlocked = Progress.achievementsUnlocked
@@ -277,8 +335,8 @@ class MenuReturnTimingTest {
                 val hud = field<Hud>(activity, "hud")
                 hud.pause(animate = false)
                 val sheet = field<PauseSheet>(hud, "pauseSheet")
-                // Actual MENU button, after header, RESUME and RESTART.
-                field<android.widget.LinearLayout>(sheet, "card").getChildAt(3).performClick()
+                // Use the actual action instead of depending on the card child order.
+                field<CandyButton>(sheet, "menu").performClick()
             }
             awaitMenu(activity); awaitScene()
             assertSame(game, Gdx.app.applicationListener)
@@ -354,7 +412,7 @@ class MenuReturnTimingTest {
                 ui {
                     val hud = field<Hud>(previous, "hud")
                     hud.pause(animate = false)
-                    field<android.widget.LinearLayout>(field<PauseSheet>(hud, "pauseSheet"), "card").getChildAt(2).performClick()
+                    field<CandyButton>(field<PauseSheet>(hud, "pauseSheet"), "restart").performClick()
                 }
                 val deadline = SystemClock.uptimeMillis() + 8000
                 var restarted: GameActivity? = null
@@ -373,7 +431,7 @@ class MenuReturnTimingTest {
                 ui {
                     val hud = field<Hud>(activity, "hud")
                     hud.pause(animate = false)
-                    field<android.widget.LinearLayout>(field<PauseSheet>(hud, "pauseSheet"), "card").getChildAt(3).performClick()
+                    field<CandyButton>(field<PauseSheet>(hud, "pauseSheet"), "menu").performClick()
                 }
                 awaitMenu(activity); awaitScene()
                 // Run-start hide callbacks used to be able to fire after MENU restored the controls.

@@ -125,6 +125,24 @@ class EquippedAbilitiesTest {
         assertEquals(1, Progress.totalPowerups)
     }
 
+    @Test fun faintRoadCoinsStillCollectAndAwardTheirFullValue() = fixture(0) { game ->
+        val saved = Settings.roadCoins
+        try {
+            val player = read<Player>(game, "player")
+            val track = read<Track>(game, "track")
+            for (visible in listOf(false, true)) {
+                Settings.setRoadCoins(visible)
+                val coin = Coin(player.px, player.py, 0f)
+                track.rows.clear()
+                track.rows.add(Row(0f, arrayListOf()).apply { coins = arrayListOf(coin) })
+                val before = read<Int>(game, "coinsRun")
+                call(game, "collide", 0f)
+                assertTrue("Faint coins remain collectible", coin.taken)
+                assertEquals("Appearance never reduces the payout", before + Progress.coinValue.toInt(), read<Int>(game, "coinsRun"))
+            }
+        } finally { Settings.setRoadCoins(saved) }
+    }
+
     @Test fun developerRunsUseTheEasierLotteryOdds() = fixture(1, dev = true) { game ->
         assertEquals("Dev runs begin just before Coal discovery", 950, game.session.score)
         val lottery = read<Lottery>(game, "lottery")

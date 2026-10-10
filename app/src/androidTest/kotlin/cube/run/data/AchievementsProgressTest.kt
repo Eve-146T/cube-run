@@ -223,27 +223,27 @@ class AchievementsProgressTest {
         assertEquals(0, Achievements.claim("gambliphobic"))
     }
 
-    @Test fun cookieCountsOnlyExplicitUserToggleEventsAndPersistsAt1000() {
+    @Test fun hapticTapsCountsOnlyExplicitUserEventsAndPersistsAt1000() {
         seed("total_mute_toggles" to 998, unlocked = true)
-        val initialSound = Settings.soundEnabled
+        val initialHaptics = Settings.hapticsEnabled
         try {
-            Settings.setSoundEnabled(!initialSound); Settings.init(context)
-            Settings.setSoundEnabled(initialSound)
-            assertEquals(998, Progress.totalMuteToggles)
-            Progress.recordMuteToggle()
+            Settings.setHapticsEnabled(!initialHaptics); Settings.init(context)
+            Settings.setHapticsEnabled(initialHaptics)
+            assertEquals(998, Progress.totalHapticTaps)
+            Progress.recordHapticTap()
             assertEquals(999, state("cookie").value)
             assertEquals(0, state("cookie").earnedTiers)
             Progress.init(context)
-            assertEquals(999, Progress.totalMuteToggles)
-            Progress.recordMuteToggle()
+            assertEquals(999, Progress.totalHapticTaps)
+            Progress.recordHapticTap()
             assertEquals("cookie", Achievements.drainUnlocks().single().definition.id)
-            repeat(10) { Progress.recordMuteToggle() }
+            repeat(10) { Progress.recordHapticTap() }
             assertTrue(Achievements.drainUnlocks().isEmpty())
             Progress.init(context)
-            assertEquals(1010, Progress.totalMuteToggles)
+            assertEquals(1010, Progress.totalHapticTaps)
             assertEquals(2000, Achievements.claim("cookie"))
             assertEquals(0, Achievements.claim("cookie"))
-        } finally { Settings.setSoundEnabled(initialSound) }
+        } finally { Settings.setHapticsEnabled(initialHaptics) }
     }
 
     @Test fun newChallengesTrackInDevButStayQuietAndUnclaimableBeforePurchase() {
@@ -254,7 +254,7 @@ class AchievementsProgressTest {
             session.runStarted(); session.setScore(60)
             repeat(10) { session.mysteryBoxMissed() }
         }
-        Progress.recordMuteToggle()
+        Progress.recordHapticTap()
         for (id in listOf("homeress", "gambliphobic", "cookie")) {
             assertEquals(1, state(id).earnedTiers)
             assertEquals(0, Achievements.claim(id))
@@ -269,6 +269,19 @@ class AchievementsProgressTest {
         assertEquals(5000, Progress.coins)
         assertEquals(0, Progress.totalCoins)
         for (id in listOf("homeress", "gambliphobic", "cookie")) assertTrue(state(id).allClaimed)
+    }
+
+    @Test fun hapticReplacementPreservesClaimsAndPrefersItsNewCounter() {
+        seed("total_mute_toggles" to 1500, "total_haptic_taps" to 1001,
+            "achievement_cookie" to 1, "achievement_claimed_cookie" to 1, unlocked = true)
+        assertEquals(1001, Progress.totalHapticTaps)
+        assertEquals("Haptic Taps", state("cookie").definition.title)
+        assertTrue(state("cookie").allClaimed)
+        assertEquals(0, Achievements.claim("cookie"))
+        Progress.recordHapticTap()
+        Progress.init(context)
+        assertEquals(1002, Progress.totalHapticTaps)
+        assertTrue(Achievements.drainUnlocks().isEmpty())
     }
 
     @Test fun lockedProgressIsRetainedAndPurchaseAwardsItQuietlyExactlyOnce() {

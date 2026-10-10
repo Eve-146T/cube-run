@@ -35,8 +35,8 @@ object Progress {
     val JET = Upgrade("jet_time", "Jetpack", 5f, 0.6f)
     val upgrades = listOf(BUBBLE, MAGNET, MULT, JET)
     // ---- perks: each level changes a rule of the run (see CubeRun)
-    /** Every run starts under a bubble for a few seconds (3 s + 1.5 s per level; 0 = none). */
-    val SAFESTART = Upgrade("perk_safestart", "Safe start", 0f, 1f, max = 5, basePrice = 1500)
+    /** Each level removes half a second from cooldown; the old key preserves purchases. */
+    val FASTBUBBLES = Upgrade("perk_safestart", "Faster bubbles", 5f, -0.5f, max = 5, basePrice = 1500)
     /** Coins are worth +20% per level. */
     val COINVALUE = Upgrade("perk_coinvalue", "Rich coins", 1f, 0.2f, max = 10, basePrice = 2400)
     /** Portals open more often. */
@@ -44,11 +44,11 @@ object Progress {
     /** Mystery boxes turn up more often. */
     val LUCKYBOX = Upgrade("perk_luckybox", "Lucky boxes", 0f, 1f, max = 5, basePrice = 1500)
     val FASTERSTART = Upgrade("perk_fasterstart", "Even faster starts", 5f, 1f, max = 5, basePrice = 1500)
-    val perks = listOf(SAFESTART, COINVALUE, PORTALS, LUCKYBOX, FASTERSTART)
+    val perks = listOf(FASTBUBBLES, COINVALUE, PORTALS, LUCKYBOX, FASTERSTART)
     val maxStartPresses: Int get() = 5 + level(FASTERSTART).coerceIn(0, 5)
 
-    /** Seconds of free bubble at the start of a run. */
-    val safeStartSeconds: Float get() = level(SAFESTART).let { if (it == 0) 0f else 3f + 1.5f * it }
+    /** Cooldown before applying the equipped cube ability. */
+    val bubbleCooldownSeconds: Float get() = FASTBUBBLES.duration(level(FASTBUBBLES))
 
     /**
      * What a mystery box held. [amount] is coins for [COINS], count for
@@ -189,7 +189,7 @@ object Progress {
         private set
     @Volatile var maxRunMissedBoxes = 0
         private set
-    @Volatile var totalMuteToggles = 0
+    @Volatile var totalHapticTaps = 0
         private set
     @Volatile var voidPurchases = 0
         private set
@@ -325,11 +325,11 @@ object Progress {
         prefs.edit().putInt("max_run_missed_boxes", progress).apply()
         Achievements.evaluate()
     }
-    /** Call only for a user changing the mute toggle, never settings initialization. */
-    @Synchronized fun recordMuteToggle() {
-        if (zenRun || totalMuteToggles == Int.MAX_VALUE) return
-        totalMuteToggles++
-        prefs.edit().putInt("total_mute_toggles", totalMuteToggles).apply()
+    /** Call only for an explicit haptics toggle tap, never settings initialization. */
+    @Synchronized fun recordHapticTap() {
+        if (zenRun || totalHapticTaps == Int.MAX_VALUE) return
+        totalHapticTaps++
+        prefs.edit().putInt("total_haptic_taps", totalHapticTaps).apply()
         Achievements.evaluate()
     }
     private fun recordBubbles() {
@@ -375,7 +375,8 @@ object Progress {
         bestCenteredScore = prefs.getInt("best_centered_score", 0).coerceIn(0, 100)
         bestCoinlessScore = prefs.getInt("best_coinless_score", 0).coerceIn(0, 60)
         maxRunMissedBoxes = prefs.getInt("max_run_missed_boxes", 0).coerceIn(0, 10)
-        totalMuteToggles = prefs.getInt("total_mute_toggles", 0).coerceAtLeast(0)
+        // Retain old progress and rewards when replacing Cookie Clicker.
+        totalHapticTaps = prefs.getInt("total_haptic_taps", prefs.getInt("total_mute_toggles", 0)).coerceAtLeast(0)
         voidPurchases = prefs.getInt("void_purchases", 0).coerceAtLeast(0)
         achievementMetrics.clear()
         for (definition in Achievements.tracked) achievementMetrics[definition.id] = prefs.getInt("metric_${definition.id}", 0).coerceAtLeast(0)
@@ -465,6 +466,47 @@ object Progress {
         prefs.edit().putInt("coins", coins).putInt("total_coins", totalCoins).apply()
         Achievements.evaluate()
     }
+
+    /** Code rewards and their used marker commit together, under the bank's purchase lock.
+     * Bonus coins do not count as earned gameplay coins. Call from a worker: commit writes to disk.
+     */
+    @Synchronized internal fun redeemCode(code: RedeemCodes.Definition): RedeemCodes.Result {
+        if (!::prefs.isInitialized) return RedeemCodes.Result.Unavailable
+        val marker = "code_redeemed_${code.id}"
+        if (prefs.getBoolean(marker, false)) return RedeemCodes.Result.AlreadyUsed
+        val edit = prefs.edit().putBoolean(marker, true)
+        val rollback = prefs.edit().remove(marker)
+        var balance = coins
+        when (val effect = code.effect) {
+            is RedeemCodes.Effect.Coins -> {
+                val realBank = if (prefs.contains(DEV_BANK)) prefs.getInt(DEV_BANK, 0) else null
+                if (effect.amount <= 0 || coins.toLong() + effect.amount > Int.MAX_VALUE ||
+                    (realBank != null && realBank.toLong() + effect.amount > Int.MAX_VALUE)) return RedeemCodes.Result.Unavailable
+                balance += effect.amount
+                edit.putInt("coins", balance)
+                rollback.putInt("coins", coins)
+                if (realBank != null) {
+                    edit.putInt(DEV_BANK, realBank + effect.amount)
+                    rollback.putInt(DEV_BANK, realBank)
+                }
+            }
+            is RedeemCodes.Effect.Unlock -> {
+                val key = "code_unlock_${effect.key}"
+                edit.putBoolean(key, true)
+                if (prefs.contains(key)) rollback.putBoolean(key, prefs.getBoolean(key, false)) else rollback.remove(key)
+            }
+        }
+        if (!edit.commit()) {
+            rollback.commit() // commit can change memory even if its disk write fails.
+            return RedeemCodes.Result.Unavailable
+        }
+        coins = balance
+        return RedeemCodes.Result.Granted(code.effect)
+    }
+
+    /** Future secret settings can reveal themselves using a code's persistent unlock flag. */
+    @Synchronized fun isCodeUnlocked(key: String): Boolean =
+        ::prefs.isInitialized && prefs.getBoolean("code_unlock_$key", false)
 
     /** One more run finished (for the stats). */
     @Synchronized fun countRun() {

@@ -1,5 +1,6 @@
 package cube.run.game.track
 
+import cube.run.data.Settings
 import com.badlogic.gdx.graphics.Color
 import cube.run.core.Gdx3DGame
 import cube.run.core.hsvInto
@@ -29,6 +30,8 @@ class TrackRenderer(private val game: Gdx3DGame) {
     private val toxicCoinCol = Color(.18f, 1f, .03f, 1f)
     private val toxicCoinFace = Color(.55f, 1f, .12f, 1f)
     private val coinFace = Color()
+    private val pickupColor = Color()
+    private val pickupFace = Color()
     private val coalBody = Color(0.13f, 0.14f, 0.16f, 1f)
     private val coalFacet = Color(0.235f, 0.255f, 0.295f, 1f)
 
@@ -103,6 +106,7 @@ class TrackRenderer(private val game: Gdx3DGame) {
             for (ob in r.obs) cues.render(ob, r.z, fog, r.pop)
         }
         // Coins and coal share pickup positions, magnet motion, fog and stream-in animation.
+        val opacity = Settings.roadCoinOpacity
         for (r in track.rows) {
             val coins = r.coins ?: continue
             val p = r.pop
@@ -114,13 +118,17 @@ class TrackRenderer(private val game: Gdx3DGame) {
                 val fog = Fog.at(cz)
                 val yaw = coinYaw + (r.visualPhase + c.dz) * 14f
                 if (coalCoins && c.gem) {
-                    game.worldGem(c.x, y, cz, 1.05f * p, yaw, gem, fog)
+                    pickupColor.set(gem); pickupColor.a = opacity
+                    game.worldGem(c.x, y, cz, 1.05f * p, yaw, pickupColor, fog)
                 } else if (coalCoins) {
                     val variant = r.visualPhase.toBits() xor c.dz.toBits() xor c.restY.toBits()
-                    game.worldCoal(c.x, y, cz, 1.05f * p, time * 65f + (r.visualPhase + c.dz) * 23f, variant, coalBody, fog)
+                    pickupColor.set(coalBody); pickupColor.a = opacity
+                    game.worldCoal(c.x, y, cz, 1.05f * p, time * 65f + (r.visualPhase + c.dz) * 23f, variant, pickupColor, fog)
                 } else {
-                    game.worldCoin(c.x, y, cz, 0.36f * p, 0.14f, yaw, if (c.toxic) toxicCoinCol else coinCol, fog)
-                    game.worldCoin(c.x, y, cz, 0.23f * p, 0.2f, yaw, if (c.toxic) toxicCoinFace else coinFace, fog)
+                    pickupColor.set(if (c.toxic) toxicCoinCol else coinCol); pickupColor.a = opacity
+                    pickupFace.set(if (c.toxic) toxicCoinFace else coinFace); pickupFace.a = opacity
+                    game.worldCoin(c.x, y, cz, 0.36f * p, 0.14f, yaw, pickupColor, fog)
+                    game.worldCoin(c.x, y, cz, 0.23f * p, 0.2f, yaw, pickupFace, fog)
                 }
             }
         }

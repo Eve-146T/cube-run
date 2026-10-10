@@ -218,6 +218,11 @@ abstract class Page(
         closing = false
         onNavigationShown()
         visibility = VISIBLE
+        // All controls are visible immediately; a tiny settle gives navigation life
+        // without withholding input or waiting for a fade/stagger to finish.
+        val motion = content.move()
+        content.scaleX = .99f; content.scaleY = .99f
+        motion.scaleX(1f).scaleY(1f).setDuration(120).setInterpolator(Anim.springSoft).start()
         rootView.invalidate() // Recompose the warm layer without re-rasterizing its text.
     }
 
@@ -293,6 +298,7 @@ abstract class Sheet(
         setPadding(dp(22f), dp(20f), dp(22f), dp(24f))
     }
     private var closing = false
+    private var cachedNavigation = false
     protected val cardScroll = android.widget.ScrollView(activity).apply {
         isFillViewport = false
         clipChildren = false; clipToPadding = false
@@ -323,8 +329,30 @@ abstract class Sheet(
         Anim.reset(card)
     }
 
+    internal fun prepareNavigation() {
+        cachedNavigation = true
+        settleEntrance()
+        visibility = INVISIBLE
+    }
+
+    internal fun showPrepared() {
+        closing = false
+        visibility = VISIBLE
+        alpha = 1f
+        card.scaleX = .98f; card.scaleY = .98f
+        card.move().scaleX(1f).scaleY(1f).setDuration(120).setInterpolator(Anim.springSoft).start()
+        rootView.invalidate()
+    }
+
     fun dismiss() {
         if (closing) return
+        if (cachedNavigation) {
+            if (visibility != VISIBLE) return
+            Anim.cancelTree(this)
+            visibility = INVISIBLE
+            onDismissed()
+            return
+        }
         closing = true
         Anim.cancelTree(this)
         card.move().alpha(0f).scaleX(0.9f).scaleY(0.9f).translationY(dpf(16f)).setDuration(90).start()

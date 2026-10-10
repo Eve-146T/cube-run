@@ -477,7 +477,7 @@ class AchievementsHardwareFlowTest {
                         File(output, "$name.png").outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
                         bitmap.recycle()
                     }
-                    val menu = MainMenu(activity, kit, {}, {}, {}, {}, {})
+                    val menu = MainMenu(activity, kit, {}, {}, {}, {})
                     measure(menu)
                     val left = field(menu, "leftChips").get(menu) as View
                     val right = field(menu, "rightChips").get(menu) as View

@@ -114,6 +114,7 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
     private var started = false
     private var dead = false
     private var spd = 4.5f
+    private var launchSpeed = 4.5f
     private var dist = 0f
     private var rowsPassed = 0
     private var curTier = 0          // last tier reached (a chime marks each unlock)
@@ -171,7 +172,7 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
 
     /**
      * Count the same edge contact that plays the visible bonk. Classic input
-     * already emits once per touch; smooth input calls this only on wall entry.
+     * emits once per swipe segment; smooth input calls this only on wall entry.
      * Do not debounce using simulation time: Android can queue several separate
      * flicks before one GL frame, and slow motion must not discard real touches.
      */
@@ -284,7 +285,7 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
         scenery.release() // the start gate comes at you
         fx.launch(player.px, player.py, player.trailCol())
         player.squashForLaunch()
-        fire.reset(); styleCombo = 0
+        styleCombo = 0
         coinsRun = 0; coinsRunF = 0.0; boxesRun = 0; coinStreak = 0
         if (Settings.devMode && Settings.testBoxes > 0) { boxesRun = Settings.testBoxes; session.setBoxes(boxesRun) } // dev: boxes to open
         track.portalPool = when {
@@ -301,10 +302,15 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
             powerUps.magnet.start(3600f)
         }
         bubble.reset(); shownBubbleCooldown = 0; session.setBubbleCooldown(0)
-        bubble.cooldownDuration = 5f * runSkin.bubbleCooldownMultiplier
+        bubble.cooldownDuration = Progress.bubbleCooldownSeconds * runSkin.bubbleCooldownMultiplier
         bubble.duration = bubbleDuration()
         difficulty.ceiling = if (zen) zenCeiling else 1f
         difficulty.reset()
+        // Reset first: resetting after the preset erased its boost before the first frame.
+        fire.reset()
+        launchSpeed = if (Settings.effectiveStartSpeed > 0) difficulty.speed() * runSkin.speedMultiplier else 4.5f
+        spd = launchSpeed
+        track.speed = difficulty.speed() * runSkin.speedMultiplier
         curTier = difficulty.tier()
         track.tier = curTier
         val oldCount = Lanes.count
@@ -502,13 +508,13 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
             (if (bubble.active && Skins.Ability.GOLD_BUBBLE in runBubble.abilities) 1.6f else 1f)
         if (Skins.Ability.COAL in runSkin.abilities && !coin.gem) {
             session.coalCollected()
-            SoundFx.play("tap", rate = .75f, vol = .35f)
+            if (Settings.roadCoins) SoundFx.play("tap", rate = .75f, vol = .35f)
             burst3d(phasePosition.set(coin.x, coin.y, cz), trackArt.coal, n = 6, speed = 2.5f, size = .12f, life = .35f)
             return
         }
         if (Skins.Ability.LOTTERY in runSkin.abilities) {
             awardJackpot(lottery.collectCoin(value))
-            SoundFx.play("tap", rate = 1.25f, vol = .25f)
+            if (Settings.roadCoins) SoundFx.play("tap", rate = 1.25f, vol = .25f)
             burst3d(phasePosition.set(coin.x, coin.y, cz), Color.RED, n = 3, speed = 2f, size = .07f, life = .2f)
             return
         }
@@ -528,8 +534,8 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
         if (time - lastCoinT > 0.4f) coinPitch = 0 // the pitch climbs coin after coin and falls back as soon as the line breaks
         lastCoinT = time
         coinPitch++
-        fx.coin(coin.x, coin.y, cz, coinPitch, if (coin.gem) trackArt.gem else trackArt.gold)
-        if (coinStreak == 20 || coinStreak == 50 || coinStreak % 100 == 0) fx.coinMilestone(trackArt.gold)
+        fx.coin(coin.x, coin.y, cz, coinPitch, if (coin.gem) trackArt.gem else trackArt.gold, quiet = !Settings.roadCoins)
+        if (coinStreak == 20 || coinStreak == 50 || coinStreak % 100 == 0) fx.coinMilestone(trackArt.gold, quiet = !Settings.roadCoins)
     }
 
     private fun collectPickup(row: Row, cz: Float) {
@@ -707,6 +713,7 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
     }
 
     override fun smoothSwipeEnabled(): Boolean = Settings.smoothControl
+    override fun multiSwipeEnabled(): Boolean = Settings.multiSwipe
 
     override fun onSwipe(dir: Int) {
         if (session.isOver || dead || jackpot.active || Stage.paused || gift.active || showcase.active) return
@@ -819,7 +826,7 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
             session.runSeconds(runT.toInt())
             val ease = min(1f, runT / 1.5f).let { it * it * it * (it * (it * 6f - 15f) + 10f) } // the start: the road winds up, the camera drops in
             rig.intro = introAtStart + (1f - introAtStart) * ease
-            spd = 4.5f + (difficulty.speed() * runSkin.speedMultiplier * (1f + jetSpeedUp * jetBoost) - 4.5f) * ease
+            spd = launchSpeed + (difficulty.speed() * runSkin.speedMultiplier * (1f + jetSpeedUp * jetBoost) - launchSpeed) * ease
             if (fire.tick(dt, player.px, player.py) > 0) rig.punch(0.45f)
             difficulty.ramp(dt)
         } else if (!started) {
@@ -873,11 +880,7 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
                 startGateRunT = runT
                 fx.startGate(player.trailCol())
                 rig.punch(0.9f)
-                if (Progress.safeStartSeconds > 0f) { // the Safe start perk: a bubble is already up
-                    bubble.duration = Progress.safeStartSeconds * bubbleDurationMultiplier()
-                    bubble.activate(player.px, player.py, quiet = true)
-                    bubble.duration = bubbleDuration()
-                }
+
             }
         }
         scenery.tick(dt, mv)

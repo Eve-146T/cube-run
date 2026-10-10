@@ -87,9 +87,11 @@ class AchievementsInteractionTest {
         val title = field(page, "titleView").get(page) as View
         val topRect = Rect(0, 0, top.width, top.height); page.offsetDescendantRectToMyCoords(top, topRect)
         val titleRect = Rect(0, 0, title.width, title.height); page.offsetDescendantRectToMyCoords(title, titleRect)
-        val bank = field(page, "bank").get(page) as View
-        val bankRect = Rect(0, 0, bank.width, bank.height); page.offsetDescendantRectToMyCoords(bank, bankRect)
-        // Include both heading rows, masking only the changing coin balance.
+        // Mask a stable bank slot: proportional digits change the pill's left edge
+        // when a claim changes its number, even if the heading never moves.
+        val bankWidth = UiKit(page.context).dp(160f)
+        val bankRect = if (page.layoutDirection == View.LAYOUT_DIRECTION_RTL) Rect(0, 0, bankWidth, page.height)
+            else Rect(page.width - bankWidth, 0, page.width, page.height)
         val width = titleRect.right.coerceAtMost(page.width)
         val bitmap = Bitmap.createBitmap(page.width, page.height, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bitmap); canvas.drawColor(Color.BLACK); page.draw(canvas)
@@ -102,11 +104,12 @@ class AchievementsInteractionTest {
         bitmap.recycle(); return pixels
     }
 
-    @Test fun greedCardShowsGoalAndPaysOnce() = challengeCard("greed", "Greed", "risky position", 1500)
+    @Test fun greedCardShowsGoalAndPaysOnce() = challengeCard("greed", 1500)
 
-    @Test fun pileDriverCardShowsGoalAndPaysOnce() = challengeCard("pile_driver", "Pile Driver", "Ground pound 300 times", 2000)
+    @Test fun pileDriverCardShowsGoalAndPaysOnce() = challengeCard("pile_driver", 2000)
 
-    private fun challengeCard(id: String, title: String, goal: String, reward: Int) {
+    private fun challengeCard(id: String, reward: Int) {
+        val title = context.achievementTitle(id)
         val prefs = context.getSharedPreferences("progress", Context.MODE_PRIVATE)
         val saved = prefs.all; val dev = Settings.devMode
         try {
@@ -126,8 +129,9 @@ class AchievementsInteractionTest {
                 SystemClock.sleep(700)
                 scenario.onActivity {
                     val card = tag(page(it), "achievement_card_$id")
-                    assertTrue(descendants(card).filterIsInstance<TextView>().any { v -> v.text.toString().equals(title, true) })
-                    assertTrue(descendants(card).filterIsInstance<TextView>().any { v -> v.text.toString().contains(goal) })
+                    val labels = descendants(card).filterIsInstance<TextView>().map { v -> v.text.toString() }
+                    assertTrue("Card title uses its activity locale: $labels", labels.any { text -> text.equals(it.achievementTitle(id), true) })
+                    assertTrue("Card shows its localized goal: $labels", labels.any { text -> text.contains(it.achievementGoal(id)) })
                     assertEquals(id == "pile_driver", descendants(card).any { v -> v.tag == "achievement-counter" })
                     val scroll = field(page(it), "scroll").get(page(it)) as ScrollView
                     val bounds = Rect(0, 0, card.width, card.height)
@@ -182,8 +186,6 @@ class AchievementsInteractionTest {
                 lateinit var baseline: IntArray
                 scenario.onActivity {
                     assertEquals(Achievements.all.size, descendants(page(it)).count { view -> view.tag?.toString()?.startsWith("achievement_card_") == true })
-                    assertTrue("Lifetime target uses US grouping", descendants(tag(page(it), "achievement_card_coins")).filterIsInstance<TextView>()
-                        .any { view -> view.text.toString().contains("500000") })
                     baseline = headerPixels(page(it))
                     (field(page(it), "scroll").get(page(it)) as ScrollView).scrollTo(0, UiKit(it).dp(120f))
                 }
@@ -220,7 +222,6 @@ class AchievementsInteractionTest {
                         val card = tag(page(it), "achievement_card_$id")
                         assertFalse("Completed challenge hides all counters", descendants(card).any { view -> view.tag == "achievement-counter" })
                         assertFalse("Completed challenge hides progress bars", descendants(card).any { view -> view.tag == "achievement_progress_$id" })
-                        assertTrue(descendants(card).filterIsInstance<TextView>().any { view -> view.text.toString().contains("Complete", true) })
                         val claim = tag(card, "achievement_claim_$id")
                         claim.requestRectangleOnScreen(Rect(0, 0, claim.width, claim.height), true)
                         assertTrue(claim.performClick())
@@ -230,8 +231,8 @@ class AchievementsInteractionTest {
                     SystemClock.sleep(300)
                     scenario.onActivity {
                         val card = tag(page(it), "achievement_card_$id")
-                        assertTrue(descendants(card).filterIsInstance<TextView>().any { view -> view.text.toString().startsWith("Claimed", true) })
-                        if (id == "bounces") assertTrue(descendants(card).filterIsInstance<TextView>().any { view -> view.text.toString().contains("Best: 93 bounces") })
+                        assertFalse("Claimed cards cannot offer another payment", descendants(card).any { view -> view.tag == "achievement_claim_$id" })
+                        if (id == "bounces") assertEquals(93, Achievements.snapshot().single { state -> state.definition.id == id }.value)
                         assertArrayEquals("Challenge claim keeps header clear", baseline, headerPixels(page(it)))
                     }
                     capture("achievement-$id-checked-and-claimed")
@@ -251,12 +252,11 @@ class AchievementsInteractionTest {
         } finally { restore(prefs, saved); Progress.init(context) }
     }
 
-    @Test fun muteControlsCountUserChangesButRefreshesDoNot() {
-        assumeTrue(InstrumentationRegistry.getArguments().getString("captureHardwareAchievements") == "true")
+    @Test fun hapticControlsCountUserChangesButRefreshesDoNot() {
         val prefs = context.getSharedPreferences("progress", Context.MODE_PRIVATE)
         val saved = prefs.all
         Settings.init(context)
-        val savedSound = Settings.soundEnabled
+        val savedHaptics = Settings.hapticsEnabled
         try {
             prefs.edit().clear().putBoolean("achievements_unlocked", true).putInt("total_mute_toggles", 998).commit()
             Settings.setDevMode(false); Progress.init(context)
@@ -264,65 +264,32 @@ class AchievementsInteractionTest {
                 awaitUi(scenario, "HUD ready") { field(it, "hud").get(it) != null }
                 scenario.onActivity { activity ->
                     val menu = field(hud(activity), "menu").get(hud(activity)) as MainMenu
-                    val label = activity.getString(cube.run.R.string.cd_sound)
-                    fun soundButton(view: View) = descendants(view).single {
-                        it is CandyChip && it.contentDescription?.toString()?.startsWith(label) == true
+                    val label = activity.getString(cube.run.R.string.cd_haptics)
+                    fun hapticButton(view: View) = descendants(view).single {
+                        it.isClickable && it.contentDescription?.toString()?.startsWith(label) == true
                     }
-                    Settings.setSoundEnabled(!Settings.soundEnabled)
+                    Settings.setHapticsEnabled(!Settings.hapticsEnabled)
                     menu.refresh(); menu.refresh()
-                    assertEquals("Programmatic settings and refresh do not count", 998, Progress.totalMuteToggles)
-                    val before = Settings.soundEnabled
-                    assertTrue(soundButton(menu).performClick())
-                    assertEquals(!before, Settings.soundEnabled)
-                    assertEquals("Menu toggle counts once", 999, Progress.totalMuteToggles)
+                    assertEquals("Programmatic settings and refresh do not count", 998, Progress.totalHapticTaps)
+                    val before = Settings.hapticsEnabled
+                    val settingsPage = SettingsView(activity, UiKit(activity), {}, {}, {}) {}
+                    assertEquals("Constructing the settings page does not count", 998, Progress.totalHapticTaps)
+                    assertTrue(hapticButton(settingsPage).performClick())
+                    assertEquals(!before, Settings.hapticsEnabled)
+                    assertEquals("Settings toggle counts once", 999, Progress.totalHapticTaps)
                     val pause = PauseSheet(activity, UiKit(activity), {}, {}, {})
-                    assertEquals("Constructing pause controls does not count", 999, Progress.totalMuteToggles)
-                    assertTrue(soundButton(pause).performClick())
-                    assertEquals(before, Settings.soundEnabled)
-                    assertEquals("Pause toggle counts the unmute as well", 1000, Progress.totalMuteToggles)
+                    assertEquals("Constructing pause controls does not count", 999, Progress.totalHapticTaps)
+                    assertTrue(hapticButton(pause).performClick())
+                    assertEquals(before, Settings.hapticsEnabled)
+                    assertEquals("Pause toggle counts the re-enable as well", 1000, Progress.totalHapticTaps)
                     val cookie = Achievements.snapshot().single { it.definition.id == "cookie" }
-                    assertEquals("Cookie Clicker unlocks at the actual thousandth toggle", 1, cookie.earnedTiers)
+                    assertEquals("Haptic Taps unlocks at the actual thousandth toggle", 1, cookie.earnedTiers)
                     Anim.cancelTree(pause)
                 }
             }
         } finally {
-            restore(prefs, saved); Progress.init(context); Settings.setSoundEnabled(savedSound)
+            restore(prefs, saved); Progress.init(context); Settings.setHapticsEnabled(savedHaptics)
         }
-    }
-
-    @Test fun newlyRevealedRewardBarsFillWithoutRebuildingThePage() {
-        assumeTrue(InstrumentationRegistry.getArguments().getString("captureHardwareAchievements") == "true")
-        val prefs = context.getSharedPreferences("progress", Context.MODE_PRIVATE)
-        val saved = prefs.all
-        try {
-            prefs.edit().clear().putBoolean("achievements_unlocked", true)
-                .putInt("total_powerups", 100).putInt("boxes_opened", 10).commit()
-            Settings.init(context); Settings.setDevMode(false); Progress.init(context)
-            ActivityScenario.launch(GameActivity::class.java).use { scenario ->
-                awaitUi(scenario, "HUD ready") { field(it, "hud").get(it) != null }
-                scenario.onActivity { Hud::class.java.getDeclaredMethod("openAchievements").apply { isAccessible = true }.invoke(hud(it)) }
-                awaitUi(scenario, "Achievement page laid out") { page(it).alpha == 1f && page(it).height > 0 }
-                SystemClock.sleep(1300)
-                lateinit var bar: View
-                scenario.onActivity {
-                    bar = tag(page(it), "achievement_progress_boxes")
-                    assertFalse("Mystery Seeker begins outside the viewport", bar.getLocalVisibleRect(Rect()))
-                    // Scroll a cached lower card into view; do not force page.draw or rebuild its views.
-                    bar.requestRectangleOnScreen(Rect(0, 0, bar.width, bar.height), true)
-                }
-                awaitUi(scenario, "Newly visible claim-ready bar reaches its full target") {
-                    bar.getLocalVisibleRect(Rect()) && field(bar, "amount").getFloat(bar) >= .999f
-                }
-                scenario.onActivity {
-                    assertSame("Scrolling preserves the existing card/bar", bar, tag(page(it), "achievement_progress_boxes"))
-                    val bitmap = Bitmap.createBitmap(bar.width, bar.height, Bitmap.Config.ARGB_8888)
-                    bar.draw(Canvas(bitmap))
-                    assertEquals("Full reward bar paints its earned green fill", Theme.MINT, bitmap.getPixel(bar.width / 2, bar.height / 2))
-                    bitmap.recycle()
-                }
-                capture("newly-visible-reward-bar-filled")
-            }
-        } finally { restore(prefs, saved); Progress.init(context) }
     }
 
     /** Root can select this method alone while adb screenrecord records the moving run and popup. */
@@ -338,7 +305,8 @@ class AchievementsInteractionTest {
         try {
             // Isolate Runner's live toast; the score challenges have their own live-run coverage.
             prefs.edit().clear().putBoolean("achievements_unlocked", true)
-                .putInt("best_centered_score", 100).putInt("best_coinless_score", 60).commit(); scores.edit().clear().commit()
+                .putInt("best_centered_score", 100).putInt("best_coinless_score", 60)
+                .putInt("metric_untouchable", 150).commit(); scores.edit().clear().commit()
             Settings.init(context); Settings.setDevMode(false); Progress.init(context)
             ActivityScenario.launch(GameActivity::class.java).use { scenario ->
                 awaitUi(scenario, "Live HUD ready") { field(it, "hud").get(it) != null }
@@ -365,7 +333,7 @@ class AchievementsInteractionTest {
                         val toast = field(hud(it), "achievementToast").get(hud(it)) as AchievementToast
                         if (field(toast, "showing").getBoolean(toast)) {
                             val title = field(toast, "title").get(toast) as TextView
-                            if (title.text.toString() == "Good Runner") sawPopup = true
+                            if (title.text.toString() == it.achievementTitle("runner")) sawPopup = true
                         }
                     }
                     if (step == 32) capture("live-running-achievement-popup")

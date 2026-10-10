@@ -15,7 +15,7 @@ internal fun achievementIcon(id: String): android.graphics.drawable.Drawable = w
     "center" -> AchievementCenterIcon()
     "homeress" -> AchievementCoinlessIcon()
     "gambliphobic" -> AchievementBoxAvoidanceIcon()
-    "cookie" -> AchievementCookieIcon()
+    "cookie" -> AchievementHapticIcon()
     "greed" -> ChallengeIcon(id)
     "pile_driver" -> ChallengeIcon(id)
     "globetrotter", "long_hauler", "shardsmith", "regular", "bubble_popper", "near_miss",
@@ -138,25 +138,28 @@ private class AchievementBoxAvoidanceIcon : Icon() {
     }
 }
 
-/** A chunky chocolate-chip cookie and a small pointer, with no font glyph dependencies. */
-private class AchievementCookieIcon : Icon() {
-    private val pointer = Path()
+/** A little phone vibrating around a fingertip's tap. */
+private class AchievementHapticIcon : Icon() {
+    private val waves = Path()
     override fun draw(canvas: Canvas) {
         val saved = canvas.save()
         val scale = minOf(bounds.width(), bounds.height()) / 48f
         canvas.translate(bounds.exactCenterX() - 24f * scale, bounds.exactCenterY() - 24f * scale)
         canvas.scale(scale, scale)
-        paint.style = Paint.Style.FILL; paint.color = 0xFF9D552D.toInt()
-        canvas.drawCircle(24f, 24f, 21f, paint)
-        paint.color = 0xFFF2BE75.toInt(); canvas.drawCircle(24f, 24f, 18f, paint)
-        paint.color = 0xFF74422C.toInt()
-        for ((x, y) in arrayOf(13f to 15f, 28f to 11f, 35f to 21f, 12f to 29f, 21f to 36f))
-            canvas.drawCircle(x, y, 2.7f, paint)
-        pointer.reset(); pointer.moveTo(21f, 19f); pointer.lineTo(37f, 29f)
-        pointer.lineTo(30f, 31f); pointer.lineTo(27f, 39f); pointer.close()
-        paint.style = Paint.Style.STROKE; paint.strokeWidth = 3f; paint.strokeJoin = Paint.Join.ROUND
-        paint.color = Theme.INK; canvas.drawPath(pointer, paint)
-        paint.style = Paint.Style.FILL; paint.color = Theme.WHITE; canvas.drawPath(pointer, paint)
+        paint.style = Paint.Style.FILL; paint.color = Theme.darken(Theme.SKY, .3f)
+        rect.set(13f, 6f, 35f, 44f); canvas.drawRoundRect(rect, 5f, 5f, paint)
+        paint.color = Theme.SKY
+        rect.set(13f, 3f, 35f, 41f); canvas.drawRoundRect(rect, 5f, 5f, paint)
+        paint.color = Theme.WHITE
+        rect.set(17f, 8f, 31f, 34f); canvas.drawRoundRect(rect, 2f, 2f, paint)
+        paint.color = Theme.SKY; canvas.drawCircle(24f, 21f, 4f, paint)
+        paint.style = Paint.Style.STROKE; paint.strokeWidth = 3f; paint.strokeCap = Paint.Cap.ROUND
+        paint.color = Theme.INK
+        waves.reset(); waves.moveTo(8f, 14f); waves.lineTo(5f, 19f); waves.lineTo(8f, 24f); waves.lineTo(5f, 29f)
+        waves.moveTo(40f, 14f); waves.lineTo(43f, 19f); waves.lineTo(40f, 24f); waves.lineTo(43f, 29f)
+        canvas.drawPath(waves, paint)
+        paint.style = Paint.Style.FILL; paint.color = Theme.GOLD
+        rect.set(23f, 23f, 29f, 39f); canvas.drawRoundRect(rect, 3f, 3f, paint)
         canvas.restoreToCount(saved)
     }
 }

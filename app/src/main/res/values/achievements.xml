@@ -11,7 +11,7 @@
     <string name="achievement_stay_centered">Stay Centered</string>
     <string name="achievement_homeress">Homeress</string>
     <string name="achievement_gambliphobic">Gambliphobic</string>
-    <string name="achievement_cookie_clicker">Cookie Clicker</string>
+    <string name="achievement_haptic_taps">Haptic Taps</string>
     <string name="achievement_single_run_score">Single-run score</string>
     <string name="achievement_collected_over_time">Collected over time</string>
     <string name="achievement_cube_collection">Cube collection</string>
@@ -22,7 +22,7 @@
     <string name="achievement_stay_middle">Reach 100 without leaving the middle lane</string>
     <string name="achievement_no_coins">Score 60 without picking up a coin</string>
     <string name="achievement_miss_boxes">Miss 10 mystery boxes in one run</string>
-    <string name="achievement_toggle_sound">Toggle sound 1000 times</string>
+    <string name="achievement_toggle_haptics">Toggle haptics 1000 times</string>
     <string name="achievement_claimed">Claimed</string>
     <string name="achievement_claimed_with_best">Claimed · %1$s</string>
     <string name="achievement_best_bounces">Best: %1$s bounces</string>

@@ -8,18 +8,16 @@ import android.view.View
 import android.view.MotionEvent
 import android.widget.FrameLayout
 import android.widget.LinearLayout
-import cube.run.BuildConfig
 import cube.run.R
 import cube.run.ui.Anim.move
 import cube.run.data.Progress
-import cube.run.data.Settings
 
 /**
  * The main menu, drawn over the idling 3D world: the logo, your best score
- * under a trophy, the coin bank (tap: shop) and bubble stock (tap: shop) in
- * the corners, "TAP TO START" breathing in the middle, and the chips along
- * the bottom — sound / vibration with dev / explorer above on the left,
- * achievements, wardrobe and shop on the right. Everything pops in staggered; [hide] drops it all when
+ * beside an ink-outlined trophy, the coin bank (tap: shop) and bubble stock
+ * (tap: shop) in the corners, "TAP TO START" breathing in the middle, and the
+ * chips along the bottom — settings on the left, achievements, wardrobe and
+ * shop on the right. Everything pops in staggered; [hide] drops it all when
  * a run begins.
  */
 @SuppressLint("ViewConstructor", "SetTextI18n")
@@ -28,10 +26,8 @@ class MainMenu(
     private val kit: UiKit,
     private val openShop: () -> Unit,
     private val openWardrobe: () -> Unit,
-    private val openSections: () -> Unit,
-    private val onDevToggled: () -> Unit,
+    private val openSettings: () -> Unit,
     private val openAchievements: () -> Unit = {},
-    private val openLanguages: () -> Unit = {},
     private var openingEntrance: Boolean = false,
     returningToMenu: Boolean = false,
 ) : FrameLayout(activity) {
@@ -91,7 +87,7 @@ class MainMenu(
         }
         start()
     }
-    private val bestRow = kit.iconText(TrophyIcon(), "", 22f, Theme.WHITE, stage = true, iconDp = 28f).apply { visibility = GONE }
+    private val bestRow = kit.iconText(BestTrophyIcon(), "", 30f, Theme.WHITE, stage = true, iconDp = 38f, stroke = 6.5f).apply { visibility = GONE }
     private val bank = kit.coinBank("0").apply { setOnClickListener { openShop() } }
     private val bubbles = kit.iconPill(BubbleIcon(), "", Theme.INK, 16f, Theme.lighten(Theme.CYAN, 0.55f)).apply { visibility = GONE; setOnClickListener { openShop() } }
     private val tapHint = kit.stageText(activity.getString(R.string.tap_to_start), 22f, Theme.WHITE, stroke = 3f).apply {
@@ -99,39 +95,16 @@ class MainMenu(
     }
     val startControl: android.view.View get() = tapHint
 
-    private val languageChip = kit.chip(R.drawable.ic_language, Theme.SKY, Theme.INK,
-        activity.getString(R.string.cd_languages)) { openLanguages() }
+    private val settings = kit.chip(R.drawable.ic_settings, Theme.SETTINGS_BLUE, Theme.INK, activity.getString(R.string.settings_title)) { openSettings() }.apply {
+        val p = dp(13f); setPadding(p, p, p, p)
+    }
 
+    /** The left group: settings alone (sound, vibration, language and the debug tools live in it). */
     private val leftChips = LinearLayout(activity).apply {
         orientation = LinearLayout.HORIZONTAL
         gravity = Gravity.BOTTOM
         clipChildren = false; clipToPadding = false
-        val size = dp(44f)
-        for (column in 0..2) {
-            addView(LinearLayout(activity).apply {
-                orientation = LinearLayout.VERTICAL
-                clipChildren = false; clipToPadding = false
-                if (BuildConfig.DEBUG && column < 2) {
-                    val debug = if (column == 0) kit.toggle(R.drawable.ic_dev_on, R.drawable.ic_dev_off, activity.getString(R.string.cd_dev), Theme.ORANGE,
-                        { Settings.devMode }, { Settings.setDevMode(it); if (it) Progress.enterDev() else Progress.leaveDev(); onDevToggled() })
-                    else kit.chip(R.drawable.ic_sections, Theme.WHITE, Theme.INK, activity.getString(R.string.cd_sections)) { openSections() }
-                    addView(debug, LinearLayout.LayoutParams(size, size + dp(4f)).apply { bottomMargin = dp(10f) })
-                }
-                val toggle = when (column) {
-                    0 -> kit.toggle(R.drawable.ic_sound_on, R.drawable.ic_sound_off, activity.getString(R.string.cd_sound), Theme.SKY,
-                        { Settings.soundEnabled }, { enabled ->
-                            if (Settings.soundEnabled != enabled) {
-                                Settings.setSoundEnabled(enabled)
-                                Progress.recordMuteToggle()
-                            }
-                        })
-                    1 -> kit.toggle(R.drawable.ic_haptic_on, R.drawable.ic_haptic_off, activity.getString(R.string.cd_haptics), Theme.SKY,
-                        { Settings.hapticsEnabled }, { Settings.setHapticsEnabled(it) })
-                    else -> languageChip
-                }
-                addView(toggle, LinearLayout.LayoutParams(size, size + dp(4f)))
-            }, LinearLayout.LayoutParams(size, LinearLayout.LayoutParams.WRAP_CONTENT).apply { if (column > 0) marginStart = dp(8f) })
-        }
+        addView(settings, LinearLayout.LayoutParams(dp(58f), dp(62f)))
     }
 
     private val achievements = kit.chip(R.drawable.ic_achievements, Theme.ORANGE, Theme.WHITE, activity.getString(R.string.achievements_title)) { openAchievements() }.apply {
@@ -179,8 +152,8 @@ class MainMenu(
             topMargin = if (compact) 0 else dp(2f)
             marginEnd = 0
         }
-        kit.labelOf(bestRow).textSize = if (compact) 14f else 22f
-        bestRow.getChildAt(0).layoutParams.apply { width = dp(if (compact) 22f else 28f); height = width }
+        kit.labelOf(bestRow).textSize = if (compact) 18f else 30f
+        bestRow.getChildAt(0).layoutParams.apply { width = dp(if (compact) 26f else 38f); height = width }
         val singleLine = compact
         logo.gravity = Gravity.CENTER_HORIZONTAL
         logo.orientation = if (singleLine) LinearLayout.HORIZONTAL else LinearLayout.VERTICAL
@@ -200,24 +173,6 @@ class MainMenu(
         // Too short even for that, they fall back to centred rows under the prompt.
         val columns = compactRows && usableHeight >= dp(400f)
         val rows = compactRows && !columns
-        leftChips.orientation = if (columns) LinearLayout.VERTICAL else LinearLayout.HORIZONTAL
-        leftChips.gravity = if (columns) Gravity.START else Gravity.BOTTOM
-        for (i in 0 until leftChips.childCount) {
-            val column = leftChips.getChildAt(i) as LinearLayout
-            column.orientation = if (compactRows) LinearLayout.HORIZONTAL else LinearLayout.VERTICAL
-            (column.layoutParams as LinearLayout.LayoutParams).apply {
-                width = if (compactRows) LinearLayout.LayoutParams.WRAP_CONTENT else dp(44f)
-                marginStart = if (!columns && i > 0) dp(8f) else 0
-                topMargin = if (columns && i > 0) dp(8f) else 0
-                resolveLayoutDirection(layoutDirection)
-            }
-            for (j in 0 until column.childCount) {
-                val params = column.getChildAt(j).layoutParams as LinearLayout.LayoutParams
-                params.bottomMargin = if (!compactRows && j < column.childCount - 1) dp(10f) else 0
-                params.marginEnd = if (compactRows && j < column.childCount - 1) dp(8f) else 0
-                params.resolveLayoutDirection(layoutDirection)
-            }
-        }
         rightChips.orientation = if (columns) LinearLayout.VERTICAL else LinearLayout.HORIZONTAL
         for (i in 0 until rightChips.childCount) (rightChips.getChildAt(i).layoutParams as LinearLayout.LayoutParams).apply {
             marginEnd = if (!columns && i == 0) dp(10f) else 0
@@ -242,13 +197,12 @@ class MainMenu(
             resolveLayoutDirection(layoutDirection)
         }
         val count = if (Progress.achievementsUnlocked) 3 else 2
-        val separateRows = rows || !compactRows && available < dp(28f + 132f + 16f + 12f) + dp(48f) * count + dp(10f) * (count - 1)
-        val settingsWidth = if (separateRows) 0 else dp(132f + 16f)
-        val chipSize = ((available - dp(28f) - settingsWidth - dp(10f) * (count - 1)) / count)
+        // The settings chip and the right group share the row while a gutter remains between them.
+        val separateRows = rows || !compactRows && available < dp(28f + 16f) + dp(48f) * (count + 1) + dp(10f) * (count - 1)
+        val shared = if (separateRows) count else count + 1
+        val chipSize = ((available - dp(28f) - (if (separateRows) 0 else dp(16f)) - dp(10f) * (count - 1)) / shared)
             .coerceIn(dp(48f), dp(if (compact) 48f else 58f))
-        for (i in 0 until rightChips.childCount) {
-            rightChips.getChildAt(i).layoutParams.apply { width = chipSize; height = chipSize + dp(4f) }
-        }
+        for (chip in toolbarChips()) chip.layoutParams.apply { width = chipSize; height = chipSize + dp(4f) }
         // Large display-size settings can leave less than 300dp. Keep real touch targets and
         // move the settings columns above the actions instead of letting the rows overlap.
         (leftChips.layoutParams as LayoutParams).bottomMargin = dp(if (compact) 12f else 28f) + (cutouts?.get(3) ?: 0) +
@@ -418,10 +372,7 @@ class MainMenu(
 
     /** Animate actual controls together, including the nested utility/debug rows. */
     private fun toolbarChips(): List<View> = buildList {
-        for (i in 0 until leftChips.childCount) {
-            val row = leftChips.getChildAt(i) as LinearLayout
-            for (j in 0 until row.childCount) add(row.getChildAt(j))
-        }
+        for (i in 0 until leftChips.childCount) add(leftChips.getChildAt(i))
         for (i in 0 until rightChips.childCount) add(rightChips.getChildAt(i))
     }
 
