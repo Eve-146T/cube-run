@@ -14,9 +14,9 @@ Latest APK: [GitHub releases](https://github.com/Eve-146T/cube-run/releases/late
 
 <p align="center">
   <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/1.png" width="22%" alt="Cube Run main menu in Candy Fields">
-  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/2.png" width="22%" alt="Weave between block rows in Neon City">
+  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/2.png" width="22%" alt="Lollipops and a giant donut line the road in Candy Fields">
   <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/3.png" width="22%" alt="Grab coins under the Neon City skyline">
-  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/4.png" width="22%" alt="Follow the coin trail through Sunset Dunes">
+  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/4.png" width="22%" alt="A long road through the crystal fields of Lava Caves">
 </p>
 
 <p align="center">
