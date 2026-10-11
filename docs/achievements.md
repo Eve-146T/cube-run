@@ -38,22 +38,23 @@ to their next goal. Every achievement is the same white card. On top its picture
 candy tile, a saturated rounded square chosen to contrast with the picture (the pictures use
 white, so they need a coloured ground), beside the name and what counts, and one badge on the
 right: the one waiting to be collected (on a pale hexagonal glow of its colour), else the best
-one won so far, else an empty slot. The badges still to come are never shown. Below, the bar in
-the achievement's colour and the count towards the next goal (`31400 / 100K`); yes-or-no dares
-(target 1) show nothing below their description until they are done. When something is
-waiting, a gold CLAIM button with everything the card pays closes the card. When the text would
+one won so far, else an empty slot. The badges still to come are never shown. Below, one row
+as tall as a CLAIM button: the bar in the achievement's colour and the count towards the next
+goal (`31400 / 100K`), or, while something is waiting, a slim gold CLAIM button with everything
+the card pays lying over that bar. Yes-or-no dares (target 1) have no row until they are done. When the text would
 be squeezed narrower than a few words of the title (a split pane, large text) the badge folds
 away. DONE collects everything fully claimed as slim rows with the tile, the name and the last
 badge. What a reward pays stays a surprise until it can be claimed. The list clips below the
 header and coin bank. The last card invites players to suggest an achievement as a GitHub issue.
 
 A card with a reward waiting has a gold edge. One tap on CLAIM collects every badge that card
-has waiting (there is still no claim-all across cards), about half a second apart. Nothing
-leaves the card: the badge is stamped in place. It squashes, then slams down from big in its won
-colours, without its glow, with a soft thump (a little higher for every badge in the chain) and
-a ring of its colour; the case above pops and counts it, and the coins pour out into the bank.
-When the last coins land the card settles into its next state, and the cards below ease up
-instead of jumping. The in-run unlock toast shows the badge just earned.
+has waiting (there is still no claim-all across cards), about half a second apart. The button
+melts back into the bar beneath it and the gold edge fades, so the card keeps its height; only
+when no bar comes back (the last badge, a dare) does the row fold away, at the same moment.
+Nothing leaves the card: the badge is stamped in place. It dips, lands in its won colours
+without its glow and springs back with a small wobble, with a soft thump (a little higher for
+every badge in the chain); the case above gives that slot a small bump, and three to six coins
+hop out into the bank. When the last coins land the card is rebuilt in its next state. The in-run unlock toast shows the badge just earned.
 
 Bronze/silver/gold/diamond pay 250/750/2,000/5,000 coins per family. Big Bubble and
 Haptic Taps each pay 2,000; Bouncer, Stay Centered, Homeress, and Gambliphobic each

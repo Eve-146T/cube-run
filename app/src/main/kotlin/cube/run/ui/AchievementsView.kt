@@ -5,8 +5,6 @@ import android.annotation.SuppressLint
 import android.app.Activity
 import android.os.SystemClock
 import android.graphics.Canvas
-import android.graphics.Paint
-import android.graphics.drawable.Drawable
 import android.view.Gravity
 import android.view.MotionEvent
 import android.view.View
@@ -20,16 +18,16 @@ import cube.run.core.Haptics
 import cube.run.core.SoundFx
 import cube.run.data.Achievements
 import cube.run.data.Progress
-import cube.run.ui.Anim.move
+import kotlin.math.sin
 
 /**
  * The trophy room, on the bright candy backdrop like the other menus. The medal case up top
  * counts everything collected; below it whatever has a reward waiting, then the medal families,
  * the challenges and the finished ones, one card per row.
  *
- * Claiming is collecting: the badge waiting on the card is stamped into place where you tapped. It squashes, slams back down in its won colours with a
- * thump and a ring of its colour, the case above counts it, and the coins pour out of it into
- * the bank. Every badge the card has waiting is stamped in one go, each a little higher in pitch.
+ * Claiming is collecting: the CLAIM button melts back into the card's bar and the waiting badge
+ * is stamped into place where you tapped. It dips, lands in its won colours with a thump and a
+ * little wobble, the case above counts it, and a few coins hop out of it into the bank. Every badge the card has waiting is stamped in one go, each a little higher in pitch.
  * The first screenful is built at once and the rest a few cards a frame, so the page opens
  * without a pause.
  */
@@ -207,11 +205,9 @@ class AchievementsView(activity: Activity, kit: UiKit, private val preparing: Bo
         val definition = state.definition
         val card = rows.findViewWithTag<View>("achievement_card_${definition.id}") ?: return
         paying = true
-        button.isEnabled = false
         Haptics.click()
-        // The button is spent: it sinks into the card.
-        button.pivotY = 0f
-        button.move().scaleY(0f).alpha(0f).setDuration(170).start()
+        // The button is spent: it melts back into the bar under it.
+        cards.settleClaimed(card, button)
         collect(definition, card, 0)
     }
 
@@ -231,9 +227,8 @@ class AchievementsView(activity: Activity, kit: UiKit, private val preparing: Bo
             SoundFx.play("place", rate = .8f + .12f * step, vol = .8f)
             if (tier == 3 && definition.tiered) SoundFx.play("perfect", rate = 1f, vol = .45f)
             Haptics.success()
-            ring(at, AchievementCards.frameColor(definition, tier))
             hero.bind(Achievements.snapshot(), animate = true)
-            val coins = PayFx.fly(this, kit, at, bank, n = 4 + 2 * tier.coerceAtMost(3), onDone = { if (!more && isAttachedToWindow) finish(definition) })
+            val coins = PayFx.fly(this, kit, at, bank, n = 3 + tier.coerceIn(0, 3), onDone = { if (!more && isAttachedToWindow) finish(definition) })
             countBank(before, coins)
             if (more) postDelayed({ collect(definition, card, step + 1) }, 560L)
         }
@@ -275,68 +270,36 @@ class AchievementsView(activity: Activity, kit: UiKit, private val preparing: Bo
     }
 
     /**
-     * The reward is pressed into the card: a quick squash, then [refill] swaps in its won state,
-     * which slams down from big to its place while [struck] plays the landing.
+     * The badge is pressed into the card where you tapped: it dips, [refill] swaps in its won
+     * state and [struck] plays the landing, then it springs back to size with a little wobble.
      */
     private fun stamp(reward: ImageView, refill: () -> Unit, struck: () -> Unit) {
+        val press = .2f
+        val spring = android.view.animation.OvershootInterpolator(2.6f)
+        var landed = false
         ValueAnimator.ofFloat(0f, 1f).apply {
-            duration = 130
+            duration = 440
             addUpdateListener {
                 val t = it.animatedValue as Float
-                reward.scaleX = 1f + .14f * t; reward.scaleY = 1f - .2f * t
+                if (t < press) {
+                    val s = 1f - .14f * Anim.ease.getInterpolation(t / press)
+                    reward.scaleX = s; reward.scaleY = s
+                } else {
+                    if (!landed) { landed = true; refill(); struck() }
+                    val k = (t - press) / (1f - press)
+                    val s = .86f + .14f * spring.getInterpolation(k)
+                    reward.scaleX = s; reward.scaleY = s
+                    reward.rotation = 6f * sin(k * 3f * Math.PI.toFloat()) * (1f - k)
+                }
                 Anim.repaint(reward)
             }
             addListener(object : android.animation.AnimatorListenerAdapter() {
-                private var cancelled = false
-                override fun onAnimationCancel(animation: android.animation.Animator) { cancelled = true }
                 override fun onAnimationEnd(animation: android.animation.Animator) {
-                    refill()
-                    if (cancelled) { reward.scaleX = 1f; reward.scaleY = 1f; return }
-                    // From big down onto the card, landing a touch flat before it settles.
-                    reward.scaleX = 1.45f; reward.scaleY = 1.45f
-                    reward.move().scaleX(1f).scaleY(1f).setDuration(280).setInterpolator(Anim.spring).start()
-                    reward.postDelayed(struck, 110L)
+                    if (!landed) { landed = true; refill() }
+                    reward.scaleX = 1f; reward.scaleY = 1f; reward.rotation = 0f
                 }
             })
             Anim.cancelOnDetach(reward, this)
-            start()
-        }
-    }
-
-    /** Where [v] sits in the sheet's coordinates: its laid-out box, not its drawn one. */
-    private fun inSheet(v: View): android.graphics.RectF {
-        val box = android.graphics.Rect(0, 0, v.width, v.height)
-        sheet.offsetDescendantRectToMyCoords(v, box)
-        return android.graphics.RectF(box)
-    }
-
-    /** A ring of the reward's colour bursts out where it left the card, and fades. */
-    private fun ring(at: View, color: Int) {
-        val box = inSheet(at)
-        val size = (maxOf(box.width(), box.height()) * 2.6f).toInt()
-        val wave = View(activity).apply {
-            background = RingWave(Theme.lighten(color, .1f), dpf(10f))
-            importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO
-        }
-        sheet.addView(wave, FrameLayout.LayoutParams(size, size))
-        wave.x = box.centerX() - size / 2f
-        wave.y = box.centerY() - size / 2f
-        ValueAnimator.ofFloat(0f, 1f).apply {
-            duration = 520
-            interpolator = android.view.animation.DecelerateInterpolator(1.8f)
-            addUpdateListener {
-                val t = it.animatedValue as Float
-                wave.scaleX = .38f + .62f * t; wave.scaleY = wave.scaleX
-                wave.alpha = 1f - t
-                Anim.repaint(wave)
-            }
-            addListener(object : android.animation.AnimatorListenerAdapter() {
-                private var cancelled = false
-                override fun onAnimationCancel(animation: android.animation.Animator) { cancelled = true }
-                // Removing it inside a detach walk would leave a hole in the sheet's children.
-                override fun onAnimationEnd(animation: android.animation.Animator) { if (!cancelled) sheet.removeView(wave) }
-            })
-            Anim.cancelOnDetach(wave, this)
             start()
         }
     }
@@ -376,24 +339,4 @@ class AchievementsView(activity: Activity, kit: UiKit, private val preparing: Bo
         const val READY_COUNT = "achievement_ready_count"
         const val SUGGEST_URL = "https://github.com/Eve-146T/cube-run/issues/new"
     }
-}
-
-/** A thick ring of one colour with a white inner edge: the shock of a medal being struck. */
-private class RingWave(private val color: Int, private val thickness: Float) : Drawable() {
-    private val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE }
-
-    override fun draw(canvas: Canvas) {
-        val cx = bounds.exactCenterX(); val cy = bounds.exactCenterY()
-        val r = bounds.width() / 2f - thickness
-        if (r < 2f) return
-        paint.strokeWidth = thickness; paint.color = color
-        canvas.drawCircle(cx, cy, r, paint)
-        paint.strokeWidth = thickness * .35f; paint.color = Theme.alpha(Theme.WHITE, 200)
-        canvas.drawCircle(cx, cy, r - thickness * .5f, paint)
-    }
-
-    override fun setAlpha(alpha: Int) {}
-    override fun setColorFilter(colorFilter: android.graphics.ColorFilter?) {}
-    @Deprecated("Deprecated in Java")
-    override fun getOpacity(): Int = android.graphics.PixelFormat.TRANSLUCENT
 }

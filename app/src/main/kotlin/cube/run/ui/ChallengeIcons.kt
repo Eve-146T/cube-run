@@ -81,20 +81,22 @@ internal class ChallengeIcon(private val id: String) : Icon() {
                 lippedCube(12f, 2f, 24f, Theme.GRAPE)
             }
             "powerups" -> {
-                lastCanvas!!.save(); lastCanvas!!.rotate(-24f, 19f, 19f); icon(MagnetIcon(), 1f, 1f, 36f); lastCanvas!!.restore()
-                icon(MultIcon(), 25f, 25f, 21f)
-                sparkle(41f, 8f, 4.5f)
+                // Power: one chunky lightning bolt.
+                lipped(Theme.YELLOW) { shape(25f, 3f, 37f, 3f, 30f, 18f, 39f, 18f, 17f, 45f, 21.5f, 27f, 12f, 27f) }
+                fill(Theme.alpha(Theme.WHITE, 200)); shape(26.5f, 5f, 33f, 5f, 24.5f, 18f, 21f, 18f)
+                sparkle(41f, 30f, 4.5f); sparkle(9f, 12f, 3.5f)
             }
             "boxes" -> {
-                // A mystery box popping open: the lid jumps off and light fans out.
-                fill(Theme.lighten(Theme.YELLOW, .25f))
-                shape(19f, 23f, 4f, 7f, 13f, 4f); shape(22f, 23f, 19f, 2f, 29f, 2f); shape(29f, 23f, 35f, 4f, 44f, 7f)
-                lipped(Theme.GRAPE) { round(8f, 22f, 40f, 44f, 5f) }
-                fill(Theme.GOLD); lastCanvas!!.drawRect(20.5f, 22f, 27.5f, 44f, paint)
-                lastCanvas!!.save(); lastCanvas!!.rotate(-12f, 24f, 12f)
-                lipped(Theme.lighten(Theme.GRAPE, .12f)) { round(5f, 8f, 43f, 16f, 3.5f) }
-                fill(Theme.GOLD); lastCanvas!!.drawRect(20.5f, 8f, 27.5f, 16f, paint)
-                lastCanvas!!.restore()
+                // A mystery box: lid and bow on top, a big question mark on its front.
+                fill(Theme.darken(Theme.GOLD, .3f))
+                for (side in listOf(-1f, 1f)) shape(24f, 12f, 24f + side * 13f, 2f, 24f + side * 14f, 13f)
+                fill(Theme.GOLD)
+                for (side in listOf(-1f, 1f)) shape(24f, 11f, 24f + side * 12.5f, 1f, 24f + side * 13.5f, 11.5f)
+                lipped(Theme.GRAPE) { round(6f, 20f, 42f, 45f, 5f) }
+                lipped(Theme.lighten(Theme.GRAPE, .15f)) { round(3f, 11f, 45f, 21f, 4f) }
+                fill(Theme.GOLD); lastCanvas!!.drawRect(20.5f, 11f, 27.5f, 21f, paint)
+                fill(Theme.YELLOW); lastCanvas!!.drawCircle(24f, 11f, 4f, paint)
+                question(24f, 42f, 24f)
             }
             "shardsmith" -> {
                 icon(ShardIcon(Theme.LAVENDER), 7f, 5f, 41f)
@@ -346,6 +348,14 @@ internal class ChallengeIcon(private val id: String) : Icon() {
         fill(Theme.darken(color, .3f)); lastCanvas!!.save(); lastCanvas!!.translate(0f, 2f); lastCanvas!!.drawPath(path, paint); lastCanvas!!.restore()
         fill(color); lastCanvas!!.drawPath(path, paint)
         fill(Theme.YELLOW); lastCanvas!!.drawCircle(x, y, 3.5f, paint)
+    }
+
+    /** A bold white question mark on a darker lip, its baseline at [y]. */
+    private fun question(x: Float, y: Float, size: Float) {
+        paint.typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD); paint.textSize = size; paint.textAlign = Paint.Align.CENTER
+        fill(Theme.darken(Theme.GRAPE, .45f)); lastCanvas!!.drawText("?", x, y + 2f, paint)
+        fill(Theme.WHITE); lastCanvas!!.drawText("?", x, y, paint)
+        paint.textAlign = Paint.Align.LEFT
     }
 
     /** The cube on a darker lip, like every other shape. */

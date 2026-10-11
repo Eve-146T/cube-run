@@ -15,6 +15,7 @@ import android.view.Gravity
 import android.view.View
 import android.view.ViewTreeObserver
 import android.view.animation.PathInterpolator
+import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
 import cube.run.R
@@ -55,8 +56,72 @@ internal class AchievementCards(
                 addView(reward(state).also { rewardColumn = it },
                     LinearLayout.LayoutParams(dp(BADGE), dp(BADGE)).apply { marginStart = dp(8f) })
             }, LinearLayout.LayoutParams(-1, -2))
-            slot(state, index, animateFill)?.let { addView(it, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(12f) }) }
-            if (ready) addView(claimButton(state), LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(14f) })
+            bottom(state, index, animateFill)?.let { addView(it, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(8f) }) }
+        }
+    }
+
+    /**
+     * The card's last row, always the same height: the bar and count towards the next goal, and
+     * while a badge is waiting the CLAIM button lying over it. Claiming hands the row back to the
+     * bar in place, so the card never grows or shrinks around it.
+     */
+    private fun bottom(state: Achievements.Snapshot, index: Int, animateFill: Boolean): View? {
+        val ready = state.claimableTier != null
+        val progress = slot(state, index, animateFill)
+        if (!ready && progress == null) return null
+        return FrameLayout(activity).apply {
+            tag = "achievement_bottom_${state.definition.id}"
+            clipChildren = false; clipToPadding = false
+            // Large text may need more; the row then grows for bar and button alike.
+            minimumHeight = dp(BOTTOM)
+            progress?.let {
+                if (ready) it.alpha = 0f
+                addView(it, FrameLayout.LayoutParams(-1, -2, Gravity.CENTER_VERTICAL))
+            }
+            if (ready) addView(claimButton(state), FrameLayout.LayoutParams(-1, -1))
+        }
+    }
+
+    /**
+     * The card after its CLAIM is tapped: the button melts into the bar beneath it and the gold
+     * edge fades. With no bar to come back (the last badge, a one-off dare) the row folds away
+     * at the same time instead, so the card never holds an empty gap.
+     */
+    fun settleClaimed(card: View, button: View) {
+        val row = button.parent as? FrameLayout ?: return
+        val progress = (0 until row.childCount).map { row.getChildAt(it) }.firstOrNull { it !== button }
+        button.isEnabled = false
+        button.pivotY = button.height / 2f
+        button.animate().alpha(0f).scaleX(.96f).scaleY(.8f).setDuration(200).setInterpolator(Anim.ease).start()
+        progress?.animate()?.alpha(1f)?.setStartDelay(80)?.setDuration(220)?.start()
+        // Only the gold edge and lip fade to the plain card's; the white body stays solid.
+        val radius = dpf(RADIUS)
+        val lip = GradientDrawable().apply { cornerRadius = radius; setColor(LIP_READY) }
+        val body = GradientDrawable().apply { cornerRadius = radius; setColor(Theme.CARD); setStroke(dp(3f), Theme.GOLD) }
+        card.background = LayerDrawable(arrayOf(lip, body)).apply { setLayerInset(1, 0, 0, 0, kit.CARD_LIP) }
+        val blend = android.animation.ArgbEvaluator()
+        ValueAnimator.ofFloat(0f, 1f).apply {
+            duration = 260; interpolator = Anim.ease
+            addUpdateListener {
+                val k = it.animatedValue as Float
+                lip.setColor(blend.evaluate(k, LIP_READY, LIP) as Int)
+                body.setStroke(dp(3f), Theme.alpha(Theme.GOLD, (255 * (1f - k)).toInt()))
+            }
+            Anim.cancelOnDetach(card, this)
+            start()
+        }
+        if (progress != null) return
+        val params = row.layoutParams as LinearLayout.LayoutParams
+        val height = row.height; val margin = params.topMargin
+        ValueAnimator.ofFloat(1f, 0f).apply {
+            duration = 260; interpolator = Anim.ease
+            addUpdateListener {
+                val k = it.animatedValue as Float
+                params.height = (height * k).toInt(); params.topMargin = (margin * k).toInt()
+                row.requestLayout(); Anim.repaint(card)
+            }
+            Anim.cancelOnDetach(row, this)
+            start()
         }
     }
 
@@ -210,12 +275,14 @@ internal class AchievementCards(
     private fun claimButton(state: Achievements.Snapshot): View {
         val amount = (state.claimedTiers until state.earnedTiers).sumOf { Achievements.reward(state.definition, it) }
         lateinit var button: CandyButton
-        button = kit.button(android.text.SpannableStringBuilder(activity.getString(R.string.achievement_claim)).append("  ").append(kit.coins(number(amount), 17f)), Theme.GOLD, UiKit.Size.SMALL) {
+        button = kit.button(android.text.SpannableStringBuilder(activity.getString(R.string.achievement_claim)).append("  ").append(kit.coins(number(amount), 16f)), Theme.GOLD, UiKit.Size.SMALL) {
             onClaim(state, button)
         }.apply {
+            // It fills the bar's row exactly, so its text centres in the row rather than padding it out.
+            setPadding(dp(16f), 0, dp(16f), 0)
             tag = "achievement_claim_${state.definition.id}"
             maxLines = 1
-            textSize = 17f
+            textSize = 16f
             contentDescription = activity.getString(R.string.achievement_claim_description, number(amount), activity.achievementTitle(state.definition.id))
         }
         return button
@@ -225,30 +292,30 @@ internal class AchievementCards(
     private fun surface(ready: Boolean): Drawable {
         val radius = dpf(RADIUS)
         return LayerDrawable(arrayOf(
-            GradientDrawable().apply { cornerRadius = radius; setColor(if (ready) Theme.darken(Theme.GOLD, .2f) else Theme.alpha(Theme.INK, 26)) },
+            GradientDrawable().apply { cornerRadius = radius; setColor(if (ready) LIP_READY else LIP) },
             GradientDrawable().apply { cornerRadius = radius; setColor(Theme.CARD); if (ready) setStroke(dp(3f), Theme.GOLD) },
         )).apply { setLayerInset(1, 0, 0, 0, kit.CARD_LIP) }
     }
 
     companion object {
         private const val RADIUS = 22f
+        private val LIP_READY = Theme.darken(Theme.GOLD, .2f)
+        private val LIP = Theme.alpha(Theme.INK, 26)
         private const val PAD = 14f
         const val TILE = 64f
         const val BADGE = 56f
-
-        /** The colour of the badge a claim of [tier] gives. */
-        fun frameColor(definition: Achievements.Definition, tier: Int): Int =
-            BadgeArt.colorOf(if (definition.tiered) tier.coerceIn(0, 3) else BadgeArt.CHALLENGE)
+        /** The bar's row: as tall as the CLAIM button, whether or not one is waiting. */
+        const val BOTTOM = 40f
 
         /** The achievement's tile colour, picked to stand apart from the picture on it. */
         fun accent(id: String): Int = when (id) {
             "runner", "bounces", "long_con", "stage_fright", "silent_treatment", "voidwalker", "boxes" -> Theme.SKY
-            "bubbles", "untouchable", "greed", "scenic_route", "two_ez", "bubble_popper" -> Theme.GRAPE
+            "bubbles", "untouchable", "greed", "scenic_route", "two_ez", "bubble_popper", "powerups" -> Theme.GRAPE
             "cubes", "cookie", "exactly_67" -> Theme.PINK
             "long_hauler" -> Theme.ORANGE
             "center", "bankrupt", "monk", "neo", "near_miss" -> Theme.MINT
             "coins", "homeress", "magpie", "house_loses", "nervous_tic" -> Theme.BERRY
-            "gambliphobic", "powerups" -> Theme.LIME
+            "gambliphobic" -> Theme.LIME
             "greedy", "coal_miner", "full_kit", "regular" -> Theme.YELLOW
             "just_browsing" -> Theme.GOLD
             "shard_hunter", "insomniac", "globetrotter", "shardsmith" -> DEEP

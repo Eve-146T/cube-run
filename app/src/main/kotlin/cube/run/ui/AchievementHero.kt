@@ -48,7 +48,7 @@ internal class AchievementHero(context: Context, private val kit: UiKit) : Linea
     /** The case slot a claim of [tier] of [definition] lands in. */
     fun slotFor(definition: Achievements.Definition, tier: Int): View = icons[if (definition.tiered) tier.coerceIn(0, 3) else CHALLENGES]
 
-    /** Show [states]; [animate] pops every slot whose count went up. */
+    /** Show [states]; [animate] gives every slot whose count went up a small bump. */
     fun bind(states: List<Achievements.Snapshot>, animate: Boolean, delay: Long = 0L) {
         val medals = states.filter { it.definition.tiered }
         val challenges = states.filterNot { it.definition.tiered }
@@ -58,7 +58,7 @@ internal class AchievementHero(context: Context, private val kit: UiKit) : Linea
             icons[slot].setImageDrawable(rewardArt(slot != CHALLENGES, slot, have > 0))
             counts[slot].text = "$have/$of"
             counts[slot].setTextColor(if (have > 0) Theme.INK else Theme.MUTED)
-            if (animate && shown[slot] in 0 until have) postDelayed({ Anim.popIn(icons[slot], 0, 1.5f, 380) }, delay)
+            if (animate && shown[slot] in 0 until have) postDelayed({ Anim.pulse(icons[slot], 1.16f, 240) }, delay)
             shown[slot] = have
         }
         val max = states.sumOf { it.definition.thresholds.size }
