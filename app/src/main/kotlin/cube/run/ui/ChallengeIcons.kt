@@ -204,32 +204,23 @@ internal class ChallengeIcon(private val id: String) : Icon() {
                 sparkle(41f, 8f, 5f); sparkle(6f, 40f, 3.8f)
             }
             "coal_miner" -> {
-                // A pickaxe over a big lump of coal.
-                lastCanvas!!.save(); lastCanvas!!.rotate(-40f, 24f, 20f)
-                lipped(0xFFB07A4A.toInt()) { round(22f, 4f, 26f, 34f, 2f) }
-                lipped(0xFFD5DCEC.toInt()) { shape(9f, 9f, 24f, 3f, 39f, 9f, 37f, 11.5f, 24f, 7f, 11f, 11.5f) }
-                lastCanvas!!.restore()
-                lipped(0xFF3C4258.toInt()) { shape(8f, 33f, 15f, 22f, 29f, 19f, 40f, 27f, 38f, 41f, 14f, 43f) }
-                fill(0xFF5F6886.toInt()); shape(15f, 22f, 29f, 19f, 25f, 30f, 12f, 32f)
-                fill(0xFF4A5170.toInt()); shape(29f, 19f, 40f, 27f, 25f, 30f)
-                fill(Theme.alpha(Theme.WHITE, 170)); shape(17f, 23f, 23f, 21.5f, 18f, 26f)
+                lipped(0xFF3C4258.toInt()) { shape(8f, 32f, 16f, 22f, 29f, 20f, 40f, 30f, 36f, 42f, 13f, 43f) }
+                fill(0xFF5B6380.toInt()); shape(16f, 22f, 29f, 20f, 26f, 30f, 14f, 31f)
+                line(13f, 6f, 30f, 25f, 0xFFB07A4A.toInt(), 4.5f)
+                paint.style = Paint.Style.STROKE; paint.strokeWidth = 5f; paint.color = 0xFFD5DCEC.toInt()
+                path.reset(); path.moveTo(5f, 14f); path.quadTo(13f, 3f, 24f, 4f); canvas.drawPath(path, paint)
             }
             "magpie" -> {
                 icon(CoinIcon(), 4f, 18f, 24f); icon(CoinIcon(), 18f, 20f, 24f); icon(CoinIcon(), 11f, 4f, 26f)
                 sparkle(40f, 9f, 5f)
             }
             "shard_hunter" -> {
-                // All three shard kinds, fanned out.
-                val kinds = Shards.all
-                icon(ShardIcon(Theme.hsv(kinds[0].hue, .6f, 1f)), 1f, 10f, 26f)
-                icon(ShardIcon(Theme.hsv(kinds[2].hue, .6f, 1f)), 21f, 10f, 26f)
-                icon(ShardIcon(Theme.hsv(kinds[1].hue, .6f, 1f)), 9f, 3f, 30f)
+                for ((i, kind) in Shards.all.withIndex()) icon(ShardIcon(Theme.hsv(kind.hue, .6f, 1f)),
+                    listOf(2f, 25f, 13.5f)[i], listOf(4f, 4f, 22f)[i], 21f)
             }
             "full_kit" -> {
-                // Every power-up at once: the magnet and 2× held inside a bubble.
-                bubble(22f, 25f, 20f)
-                lastCanvas!!.save(); lastCanvas!!.rotate(-18f, 22f, 25f); icon(MagnetIcon(), 11f, 14f, 21f); lastCanvas!!.restore()
-                icon(MultIcon(), 27f, 27f, 19f)
+                val kit = listOf<Drawable>(BubbleIcon(), MagnetIcon(), MultIcon(), JetIcon())
+                for ((i, icon) in kit.withIndex()) icon(icon, 2f + (i % 2) * 23f, 2f + (i / 2) * 23f, 21f)
             }
             "long_con" -> {
                 fill(Theme.darken(Theme.ORANGE, .3f)); round(20f, 3f, 28f, 9f, 2f)
@@ -250,9 +241,10 @@ internal class ChallengeIcon(private val id: String) : Icon() {
                 line(9f, 9f, 13f, 5f, Theme.WHITE, 2.4f); line(20f, 8f, 20f, 3f, Theme.WHITE, 2.4f); line(31f, 9f, 27f, 5f, Theme.WHITE, 2.4f)
             }
             "exactly_67" -> {
-                paint.typeface = Fonts.cached(700); paint.textSize = 31f; paint.textAlign = Paint.Align.CENTER
-                fill(Theme.darken(Theme.PINK, .45f)); lastCanvas!!.drawText("67", 24f, 37f, paint)
-                fill(Theme.WHITE); lastCanvas!!.drawText("67", 24f, 34.5f, paint)
+                paint.typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD); paint.textSize = 30f; paint.textAlign = Paint.Align.CENTER
+                paint.style = Paint.Style.STROKE; paint.strokeWidth = 5f; paint.color = Theme.INK
+                canvas.drawText("67", 24f, 35f, paint)
+                fill(Theme.WHITE); canvas.drawText("67", 24f, 35f, paint)
                 paint.textAlign = Paint.Align.LEFT
             }
             "just_browsing" -> {
