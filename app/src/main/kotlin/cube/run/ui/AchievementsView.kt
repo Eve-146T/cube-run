@@ -25,13 +25,12 @@ import kotlin.math.sin
 
 /**
  * The trophy room, on the bright candy backdrop like the other menus. The medal case up top
- * counts everything collected; below it the medal wall, every medal family's own medal two to a
- * row (the ones with a medal waiting first), then the challenges, one card per row, and the
- * finished challenges.
+ * counts everything collected; below it whatever has a reward waiting, then the medal families,
+ * the challenges and the finished ones, one card per row.
  *
- * Claiming is collecting: the medal (or a challenge's plaque) winds up and springs off with a
- * thump and a ring of its colour, a copy flies into its slot in the case, and the coins pour out
- * of it into the bank; in its place comes the next medal waiting, or the one just collected.
+ * Claiming is collecting: the medal waiting on the card's ladder (or a challenge's plaque) winds
+ * up and springs off with a thump and a ring of its colour, flies into its slot in the case, and
+ * the coins pour out of it into the bank; it pops back onto the ladder as collected.
  * Every medal the card has waiting is handed over in one go, each a little higher in pitch.
  * The first screenful is built at once and the rest a few cards a frame, so the page opens
  * without a pause.
@@ -95,30 +94,33 @@ class AchievementsView(activity: Activity, kit: UiKit, private val preparing: Bo
             addView(scroll, LinearLayout.LayoutParams(-1, 0, 1f))
         }, FrameLayout.LayoutParams(-1, -1))
         val states = Achievements.snapshot()
-        // Medals waiting first, then whatever is closest to its next medal, the finished ones last.
-        val families = states.filter { it.definition.tiered }.sortedWith(
-            compareBy<Achievements.Snapshot> { if (it.claimableTier != null) 0 else if (it.allClaimed) 2 else 1 }
-                .thenByDescending { it.claimableTier ?: -1 }.thenByDescending { it.fraction })
+        // Rewards waiting first, then whatever is closest to its next medal; finished ones go to the shelf.
+        val ready = states.filter { it.claimableTier != null }
+            .sortedWith(compareBy<Achievements.Snapshot> { if (it.definition.tiered) 0 else 1 }.thenByDescending { it.claimableTier })
+        val open = states.filter { !it.allClaimed && it.claimableTier == null }.sortedByDescending { it.fraction }
+        val medals = open.filter { it.definition.tiered }
+        val challenges = open.filterNot { it.definition.tiered }
+        val done = states.filter { it.allClaimed }
+        val allMedals = states.filter { it.definition.tiered }
         val allChallenges = states.filterNot { it.definition.tiered }
-        val challenges = allChallenges.filter { it.claimableTier != null } +
-            allChallenges.filter { !it.allClaimed && it.claimableTier == null }.sortedByDescending { it.fraction }
-        val done = allChallenges.filter { it.allClaimed }
         rows.addView(hero, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(6f) })
         // Everything below the case, in order; each entry makes its view when its turn comes.
-        if (families.isNotEmpty()) {
-            later += { rows.addView(section(activity.getString(R.string.achievement_section_medals), "${families.sumOf { it.earnedTiers }} / ${families.sumOf { it.definition.thresholds.size }}"), sectionParams()) }
-            for ((row, pair) in families.chunked(2).withIndex()) later += {
-                rows.addView(wallRow(pair, row * 2), LinearLayout.LayoutParams(-1, -2).apply { if (row > 0) topMargin = dp(12f) })
-            }
-        }
         fun list(states: List<Achievements.Snapshot>, first: Int, row: (Achievements.Snapshot, Int) -> View) {
             for ((index, state) in states.withIndex()) later += {
                 rows.addView(row(state, first + index), LinearLayout.LayoutParams(-1, -2).apply { if (index > 0) topMargin = dp(if (state.allClaimed) 8f else 12f) })
             }
         }
+        if (ready.isNotEmpty()) {
+            later += { rows.addView(section(activity.getString(R.string.achievement_section_ready), "${ready.size}", READY_COUNT), sectionParams()) }
+            list(ready, 0) { state, i -> cards.card(state, i, animateFill = !preparing) }
+        }
+        if (medals.isNotEmpty()) {
+            later += { rows.addView(section(activity.getString(R.string.achievement_section_medals), "${allMedals.sumOf { it.earnedTiers }} / ${allMedals.sumOf { it.definition.thresholds.size }}"), sectionParams()) }
+            list(medals, ready.size) { state, i -> cards.card(state, i, animateFill = !preparing) }
+        }
         if (challenges.isNotEmpty()) {
             later += { rows.addView(section(activity.getString(R.string.achievement_section_challenges), "${allChallenges.count { it.earnedTiers > 0 }} / ${allChallenges.size}"), sectionParams()) }
-            list(challenges, families.size) { state, i -> cards.card(state, i, animateFill = !preparing) }
+            list(challenges, ready.size + medals.size) { state, i -> cards.card(state, i, animateFill = !preparing) }
         }
         if (done.isNotEmpty()) {
             later += { rows.addView(section(activity.getString(R.string.achievement_section_done), "${done.size}"), sectionParams()) }
@@ -164,16 +166,6 @@ class AchievementsView(activity: Activity, kit: UiKit, private val preparing: Bo
         else topBar.addView(titleView, 1, LinearLayout.LayoutParams(0, -2, 1f).apply { marginStart = dp(12f) })
         titleRow.visibility = if (ownRow) View.VISIBLE else View.GONE
         super.onMeasure(widthMeasureSpec, heightMeasureSpec)
-    }
-
-    /** Two medal families side by side, as tall as the taller one. */
-    private fun wallRow(pair: List<Achievements.Snapshot>, first: Int): View = LinearLayout(activity).apply {
-        orientation = LinearLayout.HORIZONTAL
-        isBaselineAligned = false
-        clipChildren = false; clipToPadding = false
-        for ((k, state) in pair.withIndex()) addView(cards.medalCard(state, first + k, animateFill = !preparing),
-            LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 1f).apply { if (k > 0) marginStart = dp(12f) })
-        if (pair.size == 1) addView(View(activity), LinearLayout.LayoutParams(0, 0, 1f).apply { marginStart = dp(12f) })
     }
 
     /** The last card: an invitation to suggest the next achievement. */
@@ -233,7 +225,7 @@ class AchievementsView(activity: Activity, kit: UiKit, private val preparing: Bo
         if (Achievements.claim(definition.id) <= 0) return finish(definition)
         val after = Achievements.snapshot(definition)
         val more = after.claimableTier != null
-        val reward = card.findViewWithTag<ImageView>(if (definition.tiered) "achievement_icon_${definition.id}" else "achievement_reward_${definition.id}")
+        val reward = card.findViewWithTag<ImageView>(if (definition.tiered) "achievement_medal_${definition.id}_$tier" else "achievement_reward_${definition.id}")
         // A narrow card folds a challenge's plaque away: it then leaves from the tile.
         val from: View = reward?.takeIf { it.isShown } ?: card.findViewWithTag("achievement_icon_${definition.id}") ?: card
         val launched = {
@@ -248,7 +240,7 @@ class AchievementsView(activity: Activity, kit: UiKit, private val preparing: Bo
             if (more) postDelayed({ collect(definition, card, step + 1) }, 560L)
         }
         if (reward == null) launched()
-        else lift(reward, refill = { if (definition.tiered) cards.bindMedal(reward, after) else cards.bindPlaque(reward, after) }, launched)
+        else lift(reward, refill = { if (definition.tiered) cards.bindNode(reward, after, tier) else cards.bindPlaque(reward, after) }, launched)
     }
 
     /** Every medal is in: the card settles into its new state. */
@@ -256,10 +248,10 @@ class AchievementsView(activity: Activity, kit: UiKit, private val preparing: Bo
         SoundFx.play("success", rate = 1.2f, vol = .5f)
         val states = Achievements.snapshot()
         hero.bind(states, animate = false)
+        rows.findViewWithTag<android.widget.TextView>(READY_COUNT)?.text = "${states.count { it.claimableTier != null }}"
         val held = scroll.scrollY
         val from = rows.findViewWithTag<View>("achievement_card_${definition.id}")?.height ?: 0
-        // A wall row is as tall as its taller medal: it simply takes its new height.
-        rebuild(definition)?.let { if (!definition.tiered) settle(it, from) }
+        rebuild(definition)?.let { settle(it, from) }
         scroll.scrollTo(0, held)
         paying = false
     }
@@ -374,7 +366,7 @@ class AchievementsView(activity: Activity, kit: UiKit, private val preparing: Bo
         val sx = b[0] - a[0] + from.width / 2f; val sy = b[1] - a[1] + from.height / 2f
         val ex = c[0] - a[0] + slot.width / 2f; val ey = c[1] - a[1] + slot.height / 2f
         val medal = ImageView(activity).apply {
-            setImageDrawable(if (definition.tiered) AchievementMedal(definition.id, AchievementCards.accent(definition.id), tier) else rewardArt(false, tier, true))
+            setImageDrawable(rewardArt(definition.tiered, tier, true))
             importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO
         }
         addView(medal, FrameLayout.LayoutParams(size, size))
@@ -418,8 +410,7 @@ class AchievementsView(activity: Activity, kit: UiKit, private val preparing: Bo
         val params = old.layoutParams
         parent.removeViewAt(index)
         // Claiming moves no bar: the new card starts filled where the old one was.
-        val state = Achievements.snapshot(definition)
-        return (if (definition.tiered) cards.medalCard(state, index, animateFill = false) else cards.card(state, index, animateFill = false)).also { parent.addView(it, index, params) }
+        return cards.card(Achievements.snapshot(definition), index, animateFill = false).also { parent.addView(it, index, params) }
     }
 
     override fun onDetachedFromWindow() {
@@ -438,6 +429,7 @@ class AchievementsView(activity: Activity, kit: UiKit, private val preparing: Bo
         const val PER_FRAME = 3
         const val BUILD_BUDGET_MS = 4L
         const val MIN_TITLE_SP = 16f
+        const val READY_COUNT = "achievement_ready_count"
         const val SUGGEST_URL = "https://github.com/Eve-146T/cube-run/issues/new"
     }
 }
