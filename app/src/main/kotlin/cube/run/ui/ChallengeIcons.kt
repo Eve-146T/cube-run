@@ -63,6 +63,61 @@ internal class ChallengeIcon(private val id: String) : Icon() {
                 line(35f, 4f, 35f, 16f, Theme.WHITE, 2.4f)
                 fill(Theme.BERRY); shape(35f, 4f, 43f, 7f, 35f, 10f)
             }
+            "bounces" -> {
+                // Off the side wall and back: one chunky V with a spark where it hits.
+                lipped(Theme.PINK) { round(36f, 3f, 45f, 45f, 3.5f) }
+                paint.style = Paint.Style.STROKE; paint.strokeWidth = 5.5f; paint.strokeCap = Paint.Cap.ROUND; paint.strokeJoin = Paint.Join.ROUND
+                for (pass in 0..1) {
+                    val dy = if (pass == 0) 2.2f else 0f
+                    paint.color = if (pass == 0) Theme.alpha(Theme.INK, 70) else Theme.WHITE
+                    path.reset(); path.moveTo(4f, 8f + dy); path.lineTo(30f, 24f + dy); path.lineTo(12f, 35.3f + dy)
+                    lastCanvas!!.drawPath(path, paint)
+                    fill(paint.color); shape(4.6f, 39.9f + dy, 14.6f, 39.5f + dy, 9.4f, 31.1f + dy)
+                    paint.style = Paint.Style.STROKE
+                }
+                sparkle(32.5f, 24f, 5f, Theme.YELLOW)
+            }
+            "bubbles" -> {
+                // One big bubble and two small ones rising beside it.
+                bubble(21f, 27f, 17f); bubble(39f, 11f, 6.5f); bubble(41f, 28f, 4f)
+            }
+            "center" -> {
+                // The road running away from you, the cube in the middle of its three lanes.
+                lipped(Theme.darken(Theme.INK, -.2f)) { shape(16f, 4f, 32f, 4f, 46f, 44f, 2f, 44f) }
+                for (side in listOf(-1f, 1f)) for ((from, to) in listOf(.04f to .16f, .3f to .44f)) {
+                    fun at(t: Float) = floatArrayOf(24f + side * (2.7f + 4.6f * t), 4f + 40f * t)
+                    val p = at(from); val q = at(to)
+                    line(p[0], p[1], q[0], q[1], Theme.WHITE, 2.4f)
+                }
+                lippedCube(16.5f, 25f, 15f, Theme.ORANGE)
+            }
+            "gambliphobic" -> {
+                // Steering clear: a detour arcs over the mystery box.
+                mysteryBox(9f, 17f, 30f)
+                paint.style = Paint.Style.STROKE; paint.strokeWidth = 5f; paint.strokeCap = Paint.Cap.ROUND
+                rect.set(4f, 4f, 44f, 40f)
+                for (pass in 0..1) {
+                    paint.color = if (pass == 0) Theme.darken(Theme.LIME, .45f) else Theme.WHITE
+                    lastCanvas!!.save(); if (pass == 0) lastCanvas!!.translate(0f, 2f)
+                    lastCanvas!!.drawArc(rect, 200f, 118f, false, paint)
+                    fill(paint.color); shape(45f, 8.6f, 36f, 14.8f, 44.4f, 17.6f)
+                    paint.style = Paint.Style.STROKE
+                    lastCanvas!!.restore()
+                }
+            }
+            "cookie" -> {
+                // A phone buzzing in your hand.
+                lipped(Theme.WHITE) { round(14f, 4f, 34f, 44f, 6f) }
+                fill(Theme.SKY); round(17.5f, 9f, 30.5f, 34f, 2.5f)
+                fill(Theme.darken(Theme.WHITE, .2f)); lastCanvas!!.drawCircle(24f, 39f, 2f, paint)
+                for (side in listOf(-1f, 1f)) {
+                    val x = 24f + side * 17f
+                    paint.style = Paint.Style.STROKE; paint.strokeWidth = 3f; paint.strokeCap = Paint.Cap.ROUND; paint.strokeJoin = Paint.Join.ROUND
+                    paint.color = Theme.WHITE
+                    path.reset(); path.moveTo(x, 13f); path.lineTo(x + side * 3.5f, 18f); path.lineTo(x, 23f); path.lineTo(x + side * 3.5f, 28f); path.lineTo(x, 33f)
+                    lastCanvas!!.drawPath(path, paint)
+                }
+            }
             "runner" -> {
                 // The cube on a dash: thick streaks behind it, a twinkle for the best run.
                 for ((y, from) in listOf(15f to 5f, 25f to 2f, 35f to 7f)) {
@@ -86,18 +141,7 @@ internal class ChallengeIcon(private val id: String) : Icon() {
                 fill(Theme.alpha(Theme.WHITE, 200)); shape(26.5f, 5f, 33f, 5f, 24.5f, 18f, 21f, 18f)
                 sparkle(41f, 30f, 4.5f); sparkle(9f, 12f, 3.5f)
             }
-            "boxes" -> {
-                // A mystery box: lid and bow on top, a big question mark on its front.
-                fill(Theme.darken(Theme.GOLD, .3f))
-                for (side in listOf(-1f, 1f)) shape(24f, 12f, 24f + side * 13f, 2f, 24f + side * 14f, 13f)
-                fill(Theme.GOLD)
-                for (side in listOf(-1f, 1f)) shape(24f, 11f, 24f + side * 12.5f, 1f, 24f + side * 13.5f, 11.5f)
-                lipped(Theme.GRAPE) { round(6f, 20f, 42f, 45f, 5f) }
-                lipped(Theme.lighten(Theme.GRAPE, .15f)) { round(3f, 11f, 45f, 21f, 4f) }
-                fill(Theme.GOLD); lastCanvas!!.drawRect(20.5f, 11f, 27.5f, 21f, paint)
-                fill(Theme.YELLOW); lastCanvas!!.drawCircle(24f, 11f, 4f, paint)
-                question(24f, 42f, 24f)
-            }
+            "boxes" -> mysteryBox(0f, 0f, 48f)
             "shardsmith" -> {
                 icon(ShardIcon(Theme.LAVENDER), 7f, 5f, 41f)
                 sparkle(38f, 9f, 5f)
@@ -114,20 +158,20 @@ internal class ChallengeIcon(private val id: String) : Icon() {
                 line(15f, 5f, 15f, 13f, Theme.INK, 3.4f); line(33f, 5f, 33f, 13f, Theme.INK, 3.4f)
             }
             "bubble_popper" -> {
-                // A bubble the moment it pops: its skin breaks into arcs and droplets fly.
-                paint.style = Paint.Style.STROKE; paint.strokeWidth = 5f; paint.strokeCap = Paint.Cap.ROUND
-                rect.set(10f, 10f, 38f, 38f)
-                for (k in 0 until 5) {
+                // A bubble the moment it pops: its skin breaks into arcs and droplets fly off.
+                rect.set(9f, 9f, 39f, 39f)
+                for (k in 0 until 4) {
+                    paint.style = Paint.Style.STROKE; paint.strokeWidth = 5f; paint.strokeCap = Paint.Cap.ROUND
                     paint.color = Theme.darken(Theme.CYAN, .3f); lastCanvas!!.save(); lastCanvas!!.translate(0f, 2f)
-                    lastCanvas!!.drawArc(rect, k * 72f - 70f, 40f, false, paint); lastCanvas!!.restore()
-                    paint.color = Theme.CYAN; lastCanvas!!.drawArc(rect, k * 72f - 70f, 40f, false, paint)
+                    lastCanvas!!.drawArc(rect, k * 90f + 22f, 46f, false, paint); lastCanvas!!.restore()
+                    paint.color = Theme.CYAN; lastCanvas!!.drawArc(rect, k * 90f + 22f, 46f, false, paint)
                 }
                 fill(Theme.WHITE)
-                for (k in 0 until 5) {
-                    val a = Math.toRadians(k * 72.0 - 14.0)
-                    lastCanvas!!.drawCircle(24f + 20.5f * kotlin.math.cos(a).toFloat(), 24f + 20.5f * kotlin.math.sin(a).toFloat(), 2.6f, paint)
+                for (k in 0 until 4) {
+                    val a = Math.toRadians(k * 90.0 + 0.0)
+                    lastCanvas!!.drawCircle(24f + 21f * kotlin.math.cos(a).toFloat(), 24f + 21f * kotlin.math.sin(a).toFloat(), 3f, paint)
                 }
-                burst(24f, 24f, Theme.YELLOW)
+                sparkle(24f, 24f, 8f)
             }
             "near_miss" -> {
                 // Brushing past a block: a spark where the cube grazes it.
@@ -157,14 +201,14 @@ internal class ChallengeIcon(private val id: String) : Icon() {
                 paint.strokeWidth = 5f; paint.color = Theme.YELLOW; rect.set(3f, 16f, 45f, 32f); canvas.drawArc(rect, 20f, 140f, false, paint)
             }
             "greedy" -> {
-                icon(BoxIcon(Theme.BERRY), 18f, 2f, 28f)
-                icon(BoxIcon(Theme.GRAPE), 3f, 17f, 30f)
-                sparkle(40f, 36f, 4.5f)
+                mysteryBox(18f, 0f, 28f)
+                mysteryBox(2f, 13f, 34f)
+                sparkle(42f, 38f, 4.5f)
             }
             "greed" -> {
-                icon(BoxIcon(Theme.GOLD), 8f, 12f, 32f)
-                line(6f, 6f, 42f, 42f, Theme.BERRY, 5f)
-                sparkle(40f, 7f, 4f)
+                // Grabbing a box at the wrong moment: it lands in a crash.
+                burst(31f, 15f, Theme.BERRY, 15f, Theme.WHITE)
+                mysteryBox(2f, 12f, 34f)
             }
             "pile_driver" -> {
                 cube(12f, 3f, 24f, Theme.ORANGE)
@@ -336,10 +380,10 @@ internal class ChallengeIcon(private val id: String) : Icon() {
         }
     }
 
-    private fun burst(x: Float, y: Float, color: Int) {
+    private fun burst(x: Float, y: Float, color: Int, size: Float = 10f, core: Int = Theme.YELLOW) {
         path.reset()
         for (k in 0 until 16) {
-            val r = if (k % 2 == 0) 10f else 5f
+            val r = if (k % 2 == 0) size else size / 2f
             val a = Math.toRadians(k * 22.5 - 90.0)
             val px = x + (r * Math.cos(a)).toFloat(); val py = y + (r * Math.sin(a)).toFloat()
             if (k == 0) path.moveTo(px, py) else path.lineTo(px, py)
@@ -347,7 +391,36 @@ internal class ChallengeIcon(private val id: String) : Icon() {
         path.close()
         fill(Theme.darken(color, .3f)); lastCanvas!!.save(); lastCanvas!!.translate(0f, 2f); lastCanvas!!.drawPath(path, paint); lastCanvas!!.restore()
         fill(color); lastCanvas!!.drawPath(path, paint)
-        fill(Theme.YELLOW); lastCanvas!!.drawCircle(x, y, 3.5f, paint)
+        fill(core); lastCanvas!!.drawCircle(x, y, size * .3f, paint)
+    }
+
+    /**
+     * The mystery box, filling a [size] square at ([x], [y]): lid and bow on top, a big question
+     * mark on its front.
+     */
+    private fun mysteryBox(x: Float, y: Float, size: Float) {
+        val c = lastCanvas!!
+        c.save(); c.translate(x, y); c.scale(size / 48f, size / 48f)
+        fill(Theme.darken(Theme.GOLD, .3f))
+        for (side in listOf(-1f, 1f)) shape(24f, 12f, 24f + side * 13f, 2f, 24f + side * 14f, 13f)
+        fill(Theme.GOLD)
+        for (side in listOf(-1f, 1f)) shape(24f, 11f, 24f + side * 12.5f, 1f, 24f + side * 13.5f, 11.5f)
+        lipped(Theme.GRAPE) { round(6f, 20f, 42f, 45f, 5f) }
+        lipped(Theme.lighten(Theme.GRAPE, .15f)) { round(3f, 11f, 45f, 21f, 4f) }
+        fill(Theme.GOLD); c.drawRect(20.5f, 11f, 27.5f, 21f, paint)
+        fill(Theme.YELLOW); c.drawCircle(24f, 11f, 4f, paint)
+        question(24f, 42f, 24f)
+        c.restore()
+    }
+
+    /** A soap bubble: a clear skin with a cyan rim on a darker lip and a white glint. */
+    private fun bubble(x: Float, y: Float, r: Float) {
+        val c = lastCanvas!!
+        fill(Theme.alpha(Theme.WHITE, 70)); c.drawCircle(x, y, r, paint)
+        paint.style = Paint.Style.STROKE; paint.strokeWidth = maxOf(2f, r * .24f)
+        paint.color = Theme.darken(Theme.CYAN, .3f); c.drawCircle(x, y + 1.6f, r - paint.strokeWidth / 2f, paint)
+        paint.color = Theme.CYAN; c.drawCircle(x, y, r - paint.strokeWidth / 2f, paint)
+        fill(Theme.alpha(Theme.WHITE, 230)); rect.set(x - r * .58f, y - r * .62f, x - r * .08f, y - r * .3f); c.drawOval(rect, paint)
     }
 
     /** A bold white question mark on a darker lip, its baseline at [y]. */

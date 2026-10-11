@@ -310,13 +310,13 @@ internal class AchievementCards(
         /** The achievement's tile colour, picked to stand apart from the picture on it. */
         fun accent(id: String): Int = when (id) {
             "runner", "bounces", "long_con", "stage_fright", "silent_treatment", "voidwalker", "boxes" -> Theme.SKY
-            "bubbles", "untouchable", "greed", "scenic_route", "two_ez", "bubble_popper", "powerups" -> Theme.GRAPE
+            "bubbles", "untouchable", "scenic_route", "two_ez", "bubble_popper", "powerups" -> Theme.GRAPE
             "cubes", "cookie", "exactly_67" -> Theme.PINK
-            "long_hauler" -> Theme.ORANGE
-            "center", "bankrupt", "monk", "neo", "near_miss" -> Theme.MINT
+            "long_hauler", "greedy" -> Theme.ORANGE
+            "center", "bankrupt", "monk", "neo", "near_miss", "greed" -> Theme.MINT
             "coins", "homeress", "magpie", "house_loses", "nervous_tic" -> Theme.BERRY
             "gambliphobic" -> Theme.LIME
-            "greedy", "coal_miner", "full_kit", "regular" -> Theme.YELLOW
+            "coal_miner", "full_kit", "regular" -> Theme.YELLOW
             "just_browsing" -> Theme.GOLD
             "shard_hunter", "insomniac", "globetrotter", "shardsmith" -> DEEP
             else -> Theme.PINK
