@@ -19,7 +19,6 @@ import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
 import cube.run.R
-import cube.run.core.Haptics
 import cube.run.data.Achievements
 
 /**
@@ -111,6 +110,10 @@ internal class AchievementCards(
             start()
         }
         if (progress != null) return
+        // The button keeps its own height while the row closes over it: squeezed flat, a candy
+        // button would paint garbage across the card.
+        row.clipChildren = true
+        button.layoutParams = (button.layoutParams as FrameLayout.LayoutParams).apply { height = button.height; gravity = Gravity.TOP }
         val params = row.layoutParams as LinearLayout.LayoutParams
         val height = row.height; val margin = params.topMargin
         ValueAnimator.ofFloat(1f, 0f).apply {
@@ -140,16 +143,21 @@ internal class AchievementCards(
             maxLines = 2
             hyphenationFrequency = android.text.Layout.HYPHENATION_FREQUENCY_FULL
         }, LinearLayout.LayoutParams(0, -2, 1f).apply { marginStart = dp(12f) })
-        // Bouncer keeps its personal best on show after it is done.
-        if (definition.id == "bounces") addView(kit.text(number(state.value), 17f, Theme.INK_SOFT, 700).apply {
-            tag = "achievement_best_${definition.id}"
-        }, LinearLayout.LayoutParams(-2, -2).apply { marginStart = dp(8f); marginEnd = dp(4f) })
-        addView(ImageView(activity).apply {
+        // A record-keeping achievement keeps its best on show after it is done.
+        record(state)?.let { best ->
+            addView(kit.text(best, 15f, Theme.INK_SOFT, 700).apply {
+                tag = "achievement_best_${definition.id}"
+                maxLines = 1
+            }, LinearLayout.LayoutParams(-2, -2).apply { marginStart = dp(8f); marginEnd = dp(6f) })
+        }
+        val badge = ImageView(activity).apply {
             setImageDrawable(rewardArt(definition.tiered, definition.thresholds.lastIndex, true))
             importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
-        }, LinearLayout.LayoutParams(dp(36f), dp(36f)))
+        }
+        addView(badge, LinearLayout.LayoutParams(dp(36f), dp(36f)))
         contentDescription = activity.getString(R.string.achievement_done_description, activity.achievementTitle(definition.id))
-        setOnClickListener { Anim.popIn(icon, 0, 1.15f, 320); Haptics.tick() }
+        // Nothing left to do here but play: the tile squishes and the badge hops after it.
+        setOnClickListener { Pokes.jelly(icon); postDelayed({ Pokes.wobble(badge) }, 70L) }
     }
 
     /** The picture on its tile; it says when there is nothing left to do. */
@@ -158,6 +166,7 @@ internal class AchievementCards(
         tag = "achievement_icon_${definition.id}"
         setImageDrawable(AchievementTile(definition.id, accent(definition.id)))
         scaleType = ImageView.ScaleType.FIT_CENTER
+        setOnClickListener { Pokes.jelly(this) }
         val finished = state.allClaimed || (!definition.tiered && state.nextTarget == null)
         if (finished) contentDescription = activity.getString(if (definition.tiered) R.string.achievement_all_rewards_claimed else R.string.achievement_challenge_complete)
         else importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
@@ -168,6 +177,8 @@ internal class AchievementCards(
         tag = "achievement_reward_${state.definition.id}"
         scaleType = ImageView.ScaleType.FIT_CENTER
         bindReward(this, state)
+        // A badge you have hops; an empty slot shakes its head.
+        setOnClickListener { if (isActivated) Pokes.wobble(this) else Pokes.nudge(this) }
     }
 
     /**
@@ -179,6 +190,7 @@ internal class AchievementCards(
         val waiting = state.claimableTier
         val tier = waiting ?: (state.claimedTiers - 1).coerceAtLeast(0)
         val owned = waiting != null || state.claimedTiers > 0
+        view.isActivated = owned
         view.setImageDrawable(rewardArt(definition.tiered, tier, owned))
         view.background = if (waiting != null) WaitingGlow(BadgeArt.colorOf(if (definition.tiered) tier else BadgeArt.CHALLENGE)) else null
         // A waiting badge gives a little of its room to the glow.
@@ -194,6 +206,7 @@ internal class AchievementCards(
 
     /** The badge just collected, stamped in: won, without its glow. */
     fun bindWon(view: ImageView, definition: Achievements.Definition, tier: Int) {
+        view.isActivated = true
         view.setImageDrawable(rewardArt(definition.tiered, tier, true))
         view.background = null
         view.setPadding(dp(2f), dp(2f), dp(2f), dp(2f))
@@ -202,15 +215,22 @@ internal class AchievementCards(
     private fun badgeName(definition: Achievements.Definition, tier: Int): String =
         if (definition.tiered) activity.achievementTierName(tier) else activity.achievementTitle(definition.id)
 
-    /** Name, and what counts (or "Claimed" once it is all paid out). */
+    /** "Best: 6120" for an achievement that keeps an uncapped personal best, else null. */
+    private fun record(state: Achievements.Snapshot): String? = when (state.definition.id) {
+        "bounces" -> activity.getString(R.string.achievement_best_bounces, number(state.value))
+        in RECORDS -> activity.getString(R.string.achievement_best, number(state.value))
+        else -> null
+    }
+
+    /** Name, and what counts; once there is nothing left to aim for, the record if it keeps one. */
     private fun header(state: Achievements.Snapshot): View = LinearLayout(activity).apply {
         val definition = state.definition
         orientation = LinearLayout.VERTICAL
         val complete = state.nextTarget == null
-        val best = if (definition.id == "bounces") activity.getString(R.string.achievement_best_bounces, number(state.value)) else null
+        // Claiming changes none of this, so a claimed card keeps its height.
+        val best = if (complete) record(state) else null
         val subtitle = when {
-            state.allClaimed -> best?.let { activity.getString(R.string.achievement_claimed_with_best, it) } ?: activity.getString(R.string.achievement_claimed)
-            definition.id == "bounces" && complete -> best.orEmpty()
+            best != null -> best
             // A finished one-off dare needs no reminder of what it asked.
             !definition.tiered && complete -> ""
             else -> activity.achievementGoal(definition.id)
@@ -223,7 +243,7 @@ internal class AchievementCards(
         }, LinearLayout.LayoutParams(-1, -2))
         if (subtitle.isNotEmpty()) addView(kit.text(subtitle, 15f, Theme.INK_SOFT, 500, Gravity.START).apply {
             maxLines = 5
-            tag = if (best != null && complete) "achievement_best_${definition.id}" else "achievement_subtitle_${definition.id}"
+            tag = if (best != null) "achievement_best_${definition.id}" else "achievement_subtitle_${definition.id}"
         }, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(1f) })
     }
 
@@ -304,6 +324,8 @@ internal class AchievementCards(
         private const val PAD = 14f
         const val TILE = 64f
         const val BADGE = 56f
+        /** Achievements that keep an uncapped personal best worth showing ("Best: 6120"). */
+        private val RECORDS = setOf("runner", "bubbles", "pile_driver")
         /** The bar's row: as tall as the CLAIM button, whether or not one is waiting. */
         const val BOTTOM = 40f
 

@@ -32,7 +32,11 @@ internal class AchievementHero(context: Context, private val kit: UiKit) : Linea
             gravity = Gravity.CENTER_HORIZONTAL
             clipChildren = false; clipToPadding = false
             importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS
-            val icon = ImageView(context).apply { tag = "achievement_case_$slot" }
+            clipChildren = false
+            val icon = ImageView(context).apply {
+                tag = "achievement_case_$slot"
+                setOnClickListener { Pokes.wobble(this) }
+            }
             icons += icon
             addView(icon, LayoutParams(kit.dp(48f), kit.dp(48f)))
             val count = kit.text("", 15f, Theme.INK, 700).apply {

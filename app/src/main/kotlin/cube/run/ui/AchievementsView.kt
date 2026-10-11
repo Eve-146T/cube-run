@@ -274,6 +274,7 @@ class AchievementsView(activity: Activity, kit: UiKit, private val preparing: Bo
      * state and [struck] plays the landing, then it springs back to size with a little wobble.
      */
     private fun stamp(reward: ImageView, refill: () -> Unit, struck: () -> Unit) {
+        Pokes.stop(reward)
         val press = .2f
         val spring = android.view.animation.OvershootInterpolator(2.6f)
         var landed = false

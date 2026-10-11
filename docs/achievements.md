@@ -44,8 +44,11 @@ as tall as a CLAIM button: the bar in the achievement's colour and the count tow
 goal (`31400 / 100K`), or, while something is waiting, a slim gold CLAIM button with everything
 the card pays lying over that bar. Yes-or-no dares (target 1) have no row until they are done. When the text would
 be squeezed narrower than a few words of the title (a split pane, large text) the badge folds
-away. DONE collects everything fully claimed as slim rows with the tile, the name and the last
-badge. What a reward pays stays a surprise until it can be claimed. The list clips below the
+away. Once there is nothing left to aim for, Good Runner, Big Bubble, Bouncer and Pile Driver
+show their personal best ("Best: 6000") instead of the goal; the other one-run records are
+stored capped at their goal, so they show none. A claimed card keeps the same text it had while
+waiting, so claiming never changes its height. DONE collects everything fully claimed as slim
+rows with the tile, the name, the record if there is one, and the last badge. What a reward pays stays a surprise until it can be claimed. The list clips below the
 header and coin bank. The last card invites players to suggest an achievement as a GitHub issue.
 
 A card with a reward waiting has a gold edge. One tap on CLAIM collects every badge that card
@@ -55,10 +58,15 @@ when no bar comes back (the last badge, a dare) does the row fold away, at the s
 Nothing leaves the card: the badge is stamped in place. It dips, lands in its won colours
 without its glow and springs back with a small wobble, with a soft thump (a little higher for
 every badge in the chain); the case above gives that slot a small bump, and three to six coins
-hop out into the bank. When the last coins land the card is rebuilt in its next state. The in-run unlock toast shows the badge just earned.
+hop out into the bank. When the last coins land the card is rebuilt in its next state.
+
+Everything on the page can be poked just for the feel of it (`Pokes`): tiles squish like jelly,
+badges you own hop with a wobble, empty slots shake their head, the case's badges hop, and a
+done row squishes its tile and then hops its badge. Each poke ticks and plays a soft blip that
+climbs in pitch over a quick run of taps. The in-run unlock toast shows the badge just earned.
 
 Bronze/silver/gold/diamond pay 250/750/2,000/5,000 coins per family. Big Bubble and
-Haptic Taps each pay 2,000; Bouncer, Stay Centered, Homeress, and Gambliphobic each
+Cookie Clicker each pay 2,000; Bouncer, Stay Centered, Homeress, and Gambliphobic each
 pay 1,500. Previously earned tiers remain claimable. The claim marker and coin balance
 persist together, and each tier pays once. Claim bonuses enter the bank without advancing
 the lifetime-coin counter. Completed challenges show a green check and their claim status.
@@ -116,7 +124,7 @@ counts once after it passes the player. Collected boxes, including forfeited
 Gambler lottery boxes, do not count as missed. Run counters reset on restart;
 the best missed-box count persists, capped at 10.
 
-Haptic Taps requires **1,000 lifetime haptics-toggle taps**. Each deliberate tap
+Cookie Clicker requires **1,000 lifetime haptics-toggle taps**. Each deliberate tap
 on the vibration row in settings or the vibration chip in pause counts once,
 in either direction. Loading settings, refreshing controls, muting sound, and
 programmatic changes do not count. Existing Cookie Clicker progress and earned

@@ -3,6 +3,7 @@ package cube.run.ui
 import android.graphics.Canvas
 import android.graphics.Paint
 import android.graphics.Path
+import android.graphics.RectF
 import android.graphics.Typeface
 import android.graphics.drawable.Drawable
 import cube.run.data.Shards
@@ -91,15 +92,16 @@ internal class ChallengeIcon(private val id: String) : Icon() {
                 toyCube(12f, 10f, 24f, Theme.ORANGE)
             }
             "gambliphobic" -> {
-                // No mysteries, thank you.
-                mystery(24f, 36f, 30f, Theme.YELLOW)
-                paint.style = Paint.Style.STROKE; paint.strokeWidth = 6f; paint.strokeCap = Paint.Cap.BUTT
+                // No gambling, thank you: one bold no sign.
+                paint.style = Paint.Style.STROKE; paint.strokeWidth = 7.5f; paint.strokeCap = Paint.Cap.BUTT
                 for (pass in 0..1) {
-                    val dy = if (pass == 0) 2.5f else 0f
+                    val dy = if (pass == 0) 2.8f else 0f
                     paint.color = if (pass == 0) Theme.darken(Theme.BERRY, .3f) else Theme.BERRY
-                    lastCanvas!!.drawCircle(24f, 24f + dy, 20f, paint)
-                    lastCanvas!!.drawLine(10.5f, 10.5f + dy, 37.5f, 37.5f + dy, paint)
+                    lastCanvas!!.drawCircle(24f, 24f + dy, 18.5f, paint)
+                    lastCanvas!!.drawLine(11.5f, 11.5f + dy, 36.5f, 36.5f + dy, paint)
                 }
+                paint.strokeWidth = 2.6f; paint.strokeCap = Paint.Cap.ROUND; paint.color = Theme.alpha(Theme.WHITE, 200)
+                rect.set(9f, 9f, 39f, 39f); lastCanvas!!.drawArc(rect, 200f, 50f, false, paint)
             }
             "runner" -> {
                 // The cube on a dash: thick streaks behind it, a twinkle for the best run.
@@ -125,9 +127,11 @@ internal class ChallengeIcon(private val id: String) : Icon() {
                 sparkle(41f, 30f, 4.5f); sparkle(9f, 12f, 3.5f)
             }
             "boxes" -> {
-                // The mystery itself: one big glossy question mark.
-                mystery(24f, 41f, 44f, Theme.YELLOW)
-                sparkle(41f, 9f, 5f); sparkle(8f, 30f, 3.8f)
+                // The mystery itself: one big glossy question mark, leaning in.
+                lastCanvas!!.save(); lastCanvas!!.rotate(-8f, 24f, 24f)
+                mystery(24f, 42f, 46f, Theme.YELLOW)
+                lastCanvas!!.restore()
+                sparkle(41f, 9f, 5f); sparkle(8f, 32f, 3.8f)
             }
             "shardsmith" -> {
                 icon(ShardIcon(Theme.LAVENDER), 7f, 5f, 41f)
@@ -390,13 +394,24 @@ internal class ChallengeIcon(private val id: String) : Icon() {
         fill(core); lastCanvas!!.drawCircle(x, y, size * .3f, paint)
     }
 
-    /** A chunky glossy question mark on a darker lip, its baseline at ([x], [y]), [size] high. */
+    /**
+     * A chunky glossy question mark in the game's rounded font, its baseline at ([x], [y]),
+     * [size] high: a darker lip under it, a paler top and a white glint on the hook.
+     */
     private fun mystery(x: Float, y: Float, size: Float, color: Int) {
         val c = lastCanvas!!
-        paint.typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD); paint.textSize = size; paint.textAlign = Paint.Align.CENTER
-        fill(Theme.darken(color, .38f)); c.drawText("?", x, y + size * .07f, paint)
-        fill(color); c.drawText("?", x, y, paint)
+        paint.typeface = Fonts.cached(700); paint.textSize = size; paint.textAlign = Paint.Align.CENTER
+        val glyph = Path(); paint.getTextPath("?", 0, 1, x, y, glyph)
         paint.textAlign = Paint.Align.LEFT
+        val box = RectF(); glyph.computeBounds(box, true)
+        fill(Theme.darken(color, .38f)); c.save(); c.translate(0f, size * .07f); c.drawPath(glyph, paint); c.restore()
+        fill(color); c.drawPath(glyph, paint)
+        c.save(); c.clipPath(glyph)
+        fill(Theme.lighten(color, .4f)); c.drawRect(box.left, box.top, box.right, box.top + box.height() * .22f, paint)
+        fill(Theme.alpha(Theme.WHITE, 230))
+        rect.set(box.left + box.width() * .12f, box.top + box.height() * .08f, box.left + box.width() * .4f, box.top + box.height() * .17f)
+        c.drawRoundRect(rect, rect.height() / 2f, rect.height() / 2f, paint)
+        c.restore()
     }
 
     /** A pointy polygon with every corner rounded off by [radius]. */

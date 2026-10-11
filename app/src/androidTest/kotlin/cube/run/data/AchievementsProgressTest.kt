@@ -275,7 +275,7 @@ class AchievementsProgressTest {
         seed("total_mute_toggles" to 1500, "total_haptic_taps" to 1001,
             "achievement_cookie" to 1, "achievement_claimed_cookie" to 1, unlocked = true)
         assertEquals(1001, Progress.totalHapticTaps)
-        assertEquals("Haptic Taps", state("cookie").definition.title)
+        assertEquals("Cookie Clicker", state("cookie").definition.title)
         assertTrue(state("cookie").allClaimed)
         assertEquals(0, Achievements.claim("cookie"))
         Progress.recordHapticTap()

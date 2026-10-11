@@ -193,7 +193,7 @@ fun Context.gameText(stableLabel: String): String = when (stableLabel) {
     "Stay Centered" -> getString(R.string.achievement_center)
     "Homeress" -> getString(R.string.achievement_homeress)
     "Gambliphobic" -> getString(R.string.achievement_gambliphobic)
-    "Haptic Taps" -> getString(R.string.achievement_haptic_taps)
+    "Cookie Clicker" -> getString(R.string.achievement_cookie_clicker)
     "Bronze" -> getString(R.string.medal_bronze)
     "Silver" -> getString(R.string.medal_silver)
     "Diamond" -> getString(R.string.medal_diamond)
@@ -261,7 +261,7 @@ fun Context.achievementTitle(id: String): String = getString(when (id) {
     "stage_fright" -> R.string.achievement_stage_fright
     "monk" -> R.string.achievement_monk
     "neo" -> R.string.achievement_neo
-    else -> R.string.achievement_haptic_taps
+    else -> R.string.achievement_cookie_clicker
 })
 
 /** A medal family's short "what counts" line, or a challenge's goal. */

@@ -83,6 +83,9 @@ object Theme {
 object Fonts {
     private val cache = HashMap<Int, Typeface>()
 
+    /** The face already loaded at [weight], for drawing that has no context; plain bold until then. */
+    fun cached(weight: Int): Typeface = cache[weight] ?: if (weight >= 600) Typeface.DEFAULT_BOLD else Typeface.DEFAULT
+
     /** [weight] 300..700. */
     fun get(ctx: Context, weight: Int): Typeface = cache.getOrPut(weight) {
         runCatching {
