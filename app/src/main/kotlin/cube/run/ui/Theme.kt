@@ -1,8 +1,6 @@
 package cube.run.ui
 
-import android.content.Context
 import android.graphics.Color
-import android.graphics.Typeface
 
 /**
  * The candy-arcade look, in one place: colour tokens, the display font and
@@ -77,18 +75,4 @@ object Theme {
 
     fun hsv(h: Float, s: Float = 0.78f, v: Float = 1f): Int =
         Color.HSVToColor(floatArrayOf(((h % 360f) + 360f) % 360f, s, v))
-}
-
-/** The bundled display font (Fredoka, OFL) at a few weights, cached. */
-object Fonts {
-    private val cache = HashMap<Int, Typeface>()
-
-    /** [weight] 300..700. */
-    fun get(ctx: Context, weight: Int): Typeface = cache.getOrPut(weight) {
-        runCatching {
-            Typeface.Builder(ctx.assets, "fonts/Fredoka.ttf")
-                .setFontVariationSettings("'wght' $weight, 'wdth' 100")
-                .build()
-        }.getOrNull() ?: if (weight >= 600) Typeface.DEFAULT_BOLD else Typeface.DEFAULT
-    }
 }

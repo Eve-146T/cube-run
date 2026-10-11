@@ -1,0 +1,5 @@
+<resources>
+    <string name="performance_test_title">ТЕСТ ПРОДУКТИВНОСТІ</string>
+    <string name="performance_test_start">ЩІЛЬНИЙ ЗАЇЗД З МОНЕТАМИ</string>
+    <string name="performance_test_description">Щільні монети · фіксований світ · повна графіка</string>
+</resources>

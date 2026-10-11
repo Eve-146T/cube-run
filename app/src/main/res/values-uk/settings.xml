@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="settings_title">Налаштування</string>
+    <string name="settings_language">Мова</string>
+    <string name="settings_codes">Коди</string>
+    <string name="codes_enter">Введіть код</string>
+    <string name="codes_redeem">Активувати</string>
+    <string name="codes_coins">%1$d монет додано до вашого банку.\nБаланс: %2$d монет.</string>
+    <string name="codes_unlocked">Розблоковано: %1$s</string>
+    <string name="codes_invalid">Код не знайдено.</string>
+    <string name="codes_used">Код уже використано.</string>
+    <string name="codes_retry">Не вдалося активувати. Спробуйте знову.</string>
+    <string name="settings_volume">Гучність</string>
+    <string name="settings_start_speed">Початкова швидкість</string>
+    <string name="settings_coins">Тихі монети</string>
+    <string name="settings_multiswipe">Мультисвайп</string>
+    <string name="codes_redeeming">Активація…</string>
+</resources>

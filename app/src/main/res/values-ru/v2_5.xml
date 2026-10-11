@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ability_coal_alchemy">СЕКРЕТНАЯ СПОСОБНОСТЬ: Под давлением</string>
+    <string name="ability_coal_alchemy_detail">После счета 1000 уголь начинает превращаться в драгоценные камни стоимостью по 3 монеты каждый. К счету 3000 весь уголь становится драгоценными камнями!</string>
+</resources>

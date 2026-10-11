@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="languages_title">Языки</string>
+    <string name="cd_languages">Выбрать язык</string>
+    <string name="language_option">%1$s, %2$s</string>
+    <string name="language_name">Русский</string>
+    <string name="language_country">Россия</string>
+    <item type="drawable" name="language_flag">@drawable/flag_ru</item>
+    <string name="tap_to_start">КОСНИТЕСЬ ДЛЯ СТАРТА</string>
+</resources>

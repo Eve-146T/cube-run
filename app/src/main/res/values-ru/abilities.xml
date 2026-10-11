@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="game_gambler">Игрок</string><string name="game_cloud">Облако</string><string name="game_black_void">Черная пустота</string><string name="game_event_horizon">Горизонт событий</string><string name="game_afterimage">Остаточное изображение</string>
+    <string name="ability_phase_detail">Проходите сквозь одно препятствие в каждом заезде!</string><string name="ability_speed_detail" formatted="false">Ваш куб бежит на 30% быстрее!</string>
+    <string name="ability_bubble_saver_detail" formatted="false">Шанс 35% сохранить пузырь при его использовании!</string>
+    <string name="ability_midas">Мизинец ноги Мидаса</string><string name="ability_midas_detail" formatted="false">Собранные монеты стоят на 20% дороже!</string>
+    <string name="ability_zappy">Электрик</string><string name="ability_zappy_detail">Мгновенно телепортируйтесь между полосами!</string>
+    <string name="ability_power_stretch">Усиленный заряд</string><string name="ability_power_stretch_detail" formatted="false">Ваши усиления длятся на 25% дольше!</string>
+    <string name="ability_quick_bubble">Быстрый пузырь</string><string name="ability_quick_bubble_detail" formatted="false">Используйте следующий пузырь на 30% раньше!</string>
+    <string name="ability_coal_detail">Превращает каждую монету в уголь. Уголь ничего не стоит.</string>
+    <string name="ability_lottery">Лотерея</string><string name="ability_lottery_detail">Все собранные монеты и подарочные коробки тратятся на лотерею.</string>
+    <string name="ability_floaty">Парящий</string><string name="ability_floaty_detail">Ваш куб становится невесомым!</string>
+    <string name="ability_double_jump">Двойной прыжок</string><string name="ability_double_jump_detail">Прыгайте дважды, пока активен пузырь!</string>
+    <string name="ability_long_bubble">Долгий пузырь</string><string name="ability_long_bubble_detail" formatted="false">Ваш пузырь длится на 30% дольше!</string>
+    <string name="lottery_explanation">Все собранные монеты и подарочные коробки тратятся на лотерею!\n\nДжекпот составляет 250 тыс.%1$s, вот шансы:</string>
+    <string name="lottery_one_in">1 из 100000</string><string name="lottery_per_coin">за каждую единицу стоимости монет</string><string name="lottery_per_box">за подарочную коробку</string>
+    <string name="game_zen">Дзен</string><string name="ability_zen">Дзен</string><string name="ability_zen_detail">Препятствия исчезают. Прогрессирует только испытание монаха. Просто катитесь.</string>
+    <string name="ability_calm">Спокойствие</string><string name="ability_calm_detail">Мягкая дымка опускается на мир и приглушает его цвета.</string>
+</resources>

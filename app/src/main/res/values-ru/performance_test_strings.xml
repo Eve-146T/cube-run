@@ -1,0 +1,5 @@
+<resources>
+    <string name="performance_test_title">ТЕСТ ПРОИЗВОДИТЕЛЬНОСТИ</string>
+    <string name="performance_test_start">ПЛОТНЫЙ ЗАЕЗД С МОНЕТАМИ</string>
+    <string name="performance_test_description">Плотные монеты · фиксированный мир · полная графика</string>
+</resources>

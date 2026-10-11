@@ -261,7 +261,7 @@ class SettingsView(
         val language = Languages.current(context)
         if (shownLanguage != language) {
             shownLanguage = language
-            val option = Languages.options.single { it.code == language }
+            val option = Languages.options(context).single { it.code == language }
             flag.setImageResource(option.flag)
             languageName.text = option.nativeName
         }

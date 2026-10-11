@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="languages_title">Мови</string>
+    <string name="cd_languages">Вибрати мову</string>
+    <string name="language_option">%1$s, %2$s</string>
+    <string name="language_name">Українська</string>
+    <string name="language_country">Україна</string>
+    <item type="drawable" name="language_flag">@drawable/flag_uk</item>
+    <string name="tap_to_start">ТОРКНІТЬСЯ ДЛЯ СТАРТУ</string>
+</resources>

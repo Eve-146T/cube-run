@@ -36,7 +36,7 @@ open class GameActivity : AndroidApplication() {
     fun changeLanguage(code: String) {
         if (changingLanguage || code == cube.run.data.Languages.current(this)) return
         val parent = hud.parent as? FrameLayout ?: return
-        require(cube.run.data.Languages.options.any { it.code == code })
+        require(cube.run.data.Languages.options(this).any { it.code == code })
         changingLanguage = true
         cube.run.data.Languages.select(this, code)
         val previous = hud

@@ -79,7 +79,8 @@ class LanguageSheet(
         }, LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT).apply { bottomMargin = dp(20f) })
 
         val current = Languages.current(activity)
-        for (option in Languages.options) {
+        val options = Languages.options(activity)
+        for (option in options) {
             val selected = option.code == current
             val row = LinearLayout(activity).apply {
                 orientation = LinearLayout.HORIZONTAL
@@ -92,7 +93,7 @@ class LanguageSheet(
                     GradientDrawable().apply { cornerRadius = dpf(20f); setColor(Theme.WHITE) })
                 isSelected = selected
                 isFocusable = true
-                contentDescription = activity.getString(R.string.language_option, option.nativeName, activity.getString(option.country))
+                contentDescription = activity.getString(R.string.language_option, option.nativeName, option.country)
                 accessibilityDelegate = object : View.AccessibilityDelegate() {
                     override fun onInitializeAccessibilityNodeInfo(host: View, info: AccessibilityNodeInfo) {
                         super.onInitializeAccessibilityNodeInfo(host, info)
@@ -117,13 +118,14 @@ class LanguageSheet(
                 orientation = LinearLayout.VERTICAL
                 importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS
                 addView(kit.text(option.nativeName, 21f, Theme.INK, 600, Gravity.START).apply {
+                    typeface = Fonts.get(activity, 600, option.code)
                     textDirection = View.TEXT_DIRECTION_FIRST_STRONG
                     textAlignment = View.TEXT_ALIGNMENT_VIEW_START
                 }, LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT))
             }, LinearLayout.LayoutParams(0, LayoutParams.WRAP_CONTENT, 1f).apply { marginStart = dp(12f); marginEnd = dp(8f) })
             row.addView(SelectionMark(activity, kit, selected), LinearLayout.LayoutParams(dp(24f), dp(24f)))
             card.addView(row, LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT).apply {
-                if (option != Languages.options.first()) topMargin = dp(12f)
+                if (option != options.first()) topMargin = dp(12f)
             })
         }
     }

@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="game_gambler">Гравець</string><string name="game_cloud">Хмара</string><string name="game_black_void">Чорна порожнеча</string><string name="game_event_horizon">Горизонт подій</string><string name="game_afterimage">Залишкове зображення</string>
+    <string name="ability_phase_detail">Проходьте крізь одну перешкоду в кожному заїзді!</string><string name="ability_speed_detail" formatted="false">Ваш куб біжить на 30% швидше!</string>
+    <string name="ability_bubble_saver_detail" formatted="false">Шанс 35% зберегти бульбашку під час її використання!</string>
+    <string name="ability_midas">Мізинець ноги Мідаса</string><string name="ability_midas_detail" formatted="false">Зібрані монети коштують на 20% дорожче!</string>
+    <string name="ability_zappy">Електрик</string><string name="ability_zappy_detail">Миттєво телепортуйтеся між смугами!</string>
+    <string name="ability_power_stretch">Тривалі підсилення</string><string name="ability_power_stretch_detail" formatted="false">Ваші підсилення тривають на 25% довше!</string>
+    <string name="ability_quick_bubble">Швидка бульбашка</string><string name="ability_quick_bubble_detail" formatted="false">Використовуйте наступну бульбашку на 30% раніше!</string>
+    <string name="ability_coal_detail">Перетворює кожну монету на вугілля. Вугілля нічого не варте.</string>
+    <string name="ability_lottery">Лотерея</string><string name="ability_lottery_detail">Усі зібрані монети та таємничі коробки витрачаються на лотерею.</string>
+    <string name="ability_floaty">Невагомість</string><string name="ability_floaty_detail">Ваш куб стає невагомим!</string>
+    <string name="ability_double_jump">Подвійний стрибок</string><string name="ability_double_jump_detail">Стрибайте двічі, поки активна бульбашка!</string>
+    <string name="ability_long_bubble">Довга бульбашка</string><string name="ability_long_bubble_detail" formatted="false">Ваша бульбашка триває на 30% довше!</string>
+    <string name="lottery_explanation">Усі зібрані монети та таємничі коробки витрачаються на лотерею!\n\nДжекпот становить 250 тис.%1$s, ось шанси:</string>
+    <string name="lottery_one_in">1 з 100000</string><string name="lottery_per_coin">за кожну одиницю вартості монет</string><string name="lottery_per_box">за таємничу коробку</string>
+    <string name="game_zen">Дзен</string><string name="ability_zen">Дзен</string><string name="ability_zen_detail">Перешкоди зникають. Прогресує лише випробування монаха. Просто котіться.</string>
+    <string name="ability_calm">Спокій</string><string name="ability_calm_detail">М\'яка димка опускається на світ і приглушує його кольори.</string>
+</resources>

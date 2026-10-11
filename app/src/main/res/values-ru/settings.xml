@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="settings_title">Настройки</string>
+    <string name="settings_language">Язык</string>
+    <string name="settings_codes">Коды</string>
+    <string name="codes_enter">Введите код</string>
+    <string name="codes_redeem">Активировать</string>
+    <string name="codes_coins">%1$d монет добавлено в ваш банк.\nБаланс: %2$d монет.</string>
+    <string name="codes_unlocked">Разблокировано: %1$s</string>
+    <string name="codes_invalid">Код не найден.</string>
+    <string name="codes_used">Код уже использован.</string>
+    <string name="codes_retry">Не удалось активировать. Попробуйте снова.</string>
+    <string name="settings_volume">Громкость</string>
+    <string name="settings_start_speed">Начальная скорость</string>
+    <string name="settings_coins">Тихие монеты</string>
+    <string name="settings_multiswipe">Мультисвайп</string>
+    <string name="codes_redeeming">Активация…</string>
+</resources>
