@@ -31,7 +31,6 @@ A challenge's badge is mint with a check mark. Not yet won, the same hexagon is 
 slot. `BadgeArt` and `AchievementTile` live in `AchievementBadges.kt`. Every picture except
 Homeress's crossed coin is drawn in `ChallengeIcons.kt` in one lipped candy language, with one
 shared mystery box and one shared bubble.
-`AchievementArtSheetTest` (`-e captureArt true`) renders all of it on one sheet for review.
 
 Below the case, four labelled groups in one column: READY (every card with a reward waiting,
 medal families first), BADGES, CHALLENGES and DONE, the open ones sorted by how close they are
