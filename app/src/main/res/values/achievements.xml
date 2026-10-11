@@ -23,9 +23,6 @@
     <string name="achievement_no_coins">Score 60 without picking up a coin</string>
     <string name="achievement_miss_boxes">Miss 10 mystery boxes in one run</string>
     <string name="achievement_toggle_haptics">Toggle haptics 1000 times</string>
-    <string name="achievement_best">Best: %1$s</string>
-    <string name="achievement_best_bounces">Best: %1$s bounces</string>
-    <string name="achievement_best_progress">Best: %1$s / %2$s</string>
     <string name="achievement_claim">CLAIM</string>
     <string name="achievement_challenge_complete">Challenge complete</string>
     <string name="achievement_all_rewards_claimed">All rewards claimed</string>

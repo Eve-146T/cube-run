@@ -23,9 +23,6 @@
     <string name="achievement_no_coins">להגיע ל־60 בלי לאסוף מטבע</string>
     <string name="achievement_miss_boxes">להחמיץ 10 תיבות הפתעה בריצה אחת</string>
     <string name="achievement_toggle_haptics">להחליף את מצב הרטט 1000 פעמים</string>
-    <string name="achievement_best">שיא: %1$s</string>
-    <string name="achievement_best_bounces">שיא: %1$s קפיצות</string>
-    <string name="achievement_best_progress">שיא: %1$s / %2$s</string>
     <string name="achievement_claim">איסוף</string>
     <string name="achievement_challenge_complete">האתגר הושלם</string>
     <string name="achievement_all_rewards_claimed">כל הפרסים נאספו</string>

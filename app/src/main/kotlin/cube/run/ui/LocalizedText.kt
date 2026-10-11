@@ -258,6 +258,7 @@ fun Context.achievementTitle(id: String): String = getString(when (id) {
     "two_ez" -> R.string.achievement_two_ez
     "nervous_tic" -> R.string.achievement_nervous_tic
     "silent_treatment" -> R.string.achievement_silent_treatment
+    "very_silent_treatment" -> R.string.achievement_very_silent_treatment
     "stage_fright" -> R.string.achievement_stage_fright
     "monk" -> R.string.achievement_monk
     "neo" -> R.string.achievement_neo
@@ -301,6 +302,7 @@ fun Context.achievementGoal(id: String): String = getString(when (id) {
     "two_ez" -> R.string.achievement_goal_two_ez
     "nervous_tic" -> R.string.achievement_goal_nervous_tic
     "silent_treatment" -> R.string.achievement_goal_silent_treatment
+    "very_silent_treatment" -> R.string.achievement_goal_very_silent_treatment
     "stage_fright" -> R.string.achievement_goal_stage_fright
     "monk" -> R.string.achievement_goal_monk
     "neo" -> R.string.achievement_goal_neo

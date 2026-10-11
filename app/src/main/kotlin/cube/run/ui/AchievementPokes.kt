@@ -12,65 +12,47 @@ import kotlin.math.PI
 import kotlin.math.sin
 
 /**
- * Idle taps on the achievement page: tiles, badges and the case can be poked just for the feel
- * of it. Each poke answers right where you tap with a little squash, hop or shake, a tick and a
- * soft blip that climbs in pitch while you keep tapping, so a run of taps feels like playing
- * with a toy rather than pressing a button.
+ * Idle taps on the achievement page. A tap on a card presses the whole card like a button: it
+ * dips and springs back with a tap and a tick. Tapping the same card again quickly adds a wiggle
+ * that grows the faster you keep at it, so the wiggle is something you work up, not something a
+ * single tap sets off.
  */
 internal object Pokes {
     private val running = WeakHashMap<View, ValueAnimator>()
-    private var streak = 0
+    private var last: View? = null
     private var lastAt = 0L
+    private var streak = 0
 
-    /** Squash and stretch, like pressing a jelly sweet: for tiles. */
-    fun jelly(v: View) {
-        feel(1f)
-        run(v, 460, { t ->
-            val k = sin(t * PI.toFloat() * 3f) * (1f - t)
-            v.scaleX = 1f + .16f * k; v.scaleY = 1f - .16f * k
-        }) { v.scaleX = 1f; v.scaleY = 1f }
-    }
-
-    /** A hop with a wobble, like flicking a pin: for badges you own. */
-    fun wobble(v: View) {
-        feel(1.15f)
-        val hop = 8f * v.resources.displayMetrics.density
-        run(v, 520, { t ->
-            v.rotation = 12f * sin(t * PI.toFloat() * 4f) * (1f - t)
-            v.translationY = -hop * sin(t * PI.toFloat()).coerceAtLeast(0f) * (1f - t * .5f)
-        }) { v.rotation = 0f; v.translationY = 0f }
-    }
-
-    /** A quick head-shake, "not yet": for empty slots. */
-    fun nudge(v: View) {
-        feel(.8f)
-        val reach = 5f * v.resources.displayMetrics.density
-        run(v, 320, { t -> v.translationX = reach * sin(t * PI.toFloat() * 5f) * (1f - t) }) { v.translationX = 0f }
-    }
-
-    /** Stop any poke on [v] and put it back, before something else animates it. */
-    fun stop(v: View) { running.remove(v)?.cancel() }
-
-    /** A tick, and a blip a little higher for every tap in a quick run of them. */
-    private fun feel(pitch: Float) {
+    /** Press [card]; repeated quick presses on it wiggle it more and more. */
+    fun press(card: View) {
         val now = SystemClock.uptimeMillis()
-        streak = if (now - lastAt < 650L) (streak + 1).coerceAtMost(8) else 0
-        lastAt = now
-        SoundFx.play("blip", rate = pitch + .06f * streak, vol = .45f)
+        streak = if (card === last && now - lastAt < 380L) (streak + 1).coerceAtMost(6) else 0
+        last = card; lastAt = now
+        SoundFx.play("tap", rate = 1f + .03f * streak, vol = .5f)
         Haptics.tick()
-    }
-
-    private fun run(v: View, ms: Long, frame: (Float) -> Unit, reset: () -> Unit) {
-        stop(v)
+        val wiggle = 1.1f * streak
+        running.remove(card)?.cancel()
         ValueAnimator.ofFloat(0f, 1f).apply {
-            duration = ms
-            addUpdateListener { frame(it.animatedValue as Float); Anim.repaint(v) }
+            duration = if (streak == 0) 220L else 360L
+            addUpdateListener {
+                val t = it.animatedValue as Float
+                val dip = if (t < .25f) t / .25f else 1f - Anim.ease.getInterpolation((t - .25f) / .75f)
+                card.scaleX = 1f - .035f * dip; card.scaleY = card.scaleX
+                card.rotation = wiggle * sin(t * PI.toFloat() * 4f) * (1f - t)
+                Anim.repaint(card)
+            }
             addListener(object : AnimatorListenerAdapter() {
-                override fun onAnimationEnd(animation: Animator) { reset(); if (running[v] === animation) running.remove(v) }
+                override fun onAnimationEnd(animation: Animator) {
+                    card.scaleX = 1f; card.scaleY = 1f; card.rotation = 0f
+                    if (running[card] === animation) running.remove(card)
+                }
             })
-            Anim.cancelOnDetach(v, this)
-            running[v] = this
+            Anim.cancelOnDetach(card, this)
+            running[card] = this
             start()
         }
     }
+
+    /** Stop any press on [v] and put it back, before something else animates it. */
+    fun stop(v: View) { running.remove(v)?.cancel() }
 }

@@ -27,16 +27,13 @@ internal class AchievementHero(context: Context, private val kit: UiKit) : Linea
         background = kit.cardDrawable(Theme.CARD, null, 22f)
         setPadding(kit.dp(6f), kit.dp(12f), kit.dp(6f), kit.dp(10f) + kit.CARD_LIP)
         importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_YES
+        setOnClickListener { Pokes.press(this) }
         for (slot in 0 until SLOTS) addView(LinearLayout(context).apply {
             orientation = VERTICAL
             gravity = Gravity.CENTER_HORIZONTAL
             clipChildren = false; clipToPadding = false
             importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS
-            clipChildren = false
-            val icon = ImageView(context).apply {
-                tag = "achievement_case_$slot"
-                setOnClickListener { Pokes.wobble(this) }
-            }
+            val icon = ImageView(context).apply { tag = "achievement_case_$slot" }
             icons += icon
             addView(icon, LayoutParams(kit.dp(48f), kit.dp(48f)))
             val count = kit.text("", 15f, Theme.INK, 700).apply {

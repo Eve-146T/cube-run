@@ -423,6 +423,8 @@ class AchievementsProgressTest {
     @Test fun devSessionAndClaimsRemainConsistentWhenReturningToTheRealBank() {
         seed("coins" to 80, unlocked = true)
         Scores.init(context)
+        // With sound and haptics off, this free-cube run would also earn Silent Treatment.
+        Settings.setSoundEnabled(true); Settings.setHapticsEnabled(true)
         Settings.setDevMode(true); Progress.enterDev()
         InstrumentationRegistry.getInstrumentation().runOnMainSync {
             val session = GameHostSession(Activity(), "cuberun")

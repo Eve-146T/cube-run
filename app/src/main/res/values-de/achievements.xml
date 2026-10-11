@@ -23,9 +23,6 @@
     <string name="achievement_no_coins">Erreiche 60, ohne eine Münze einzusammeln</string>
     <string name="achievement_miss_boxes">Verpasse 10 Geschenke in einem Lauf</string>
     <string name="achievement_toggle_haptics">Schalte die Vibration 1000-mal um</string>
-    <string name="achievement_best">Rekord: %1$s</string>
-    <string name="achievement_best_bounces">Bestwert: %1$s Abpraller</string>
-    <string name="achievement_best_progress">Bestwert: %1$s / %2$s</string>
     <string name="achievement_claim">ABHOLEN</string>
     <string name="achievement_challenge_complete">Herausforderung geschafft</string>
     <string name="achievement_all_rewards_claimed">Alle Belohnungen abgeholt</string>

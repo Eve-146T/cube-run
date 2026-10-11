@@ -45,6 +45,7 @@ internal class AchievementCards(
             tag = "achievement_card_${definition.id}"
             clipChildren = false; clipToPadding = false
             background = surface(ready)
+            setOnClickListener { Pokes.press(this) }
             setPadding(dp(PAD), dp(PAD), dp(PAD), dp(PAD) + kit.CARD_LIP)
             addView(LinearLayout(activity).apply {
                 orientation = LinearLayout.HORIZONTAL
@@ -128,6 +129,37 @@ internal class AchievementCards(
         }
     }
 
+    /**
+     * A secret not found yet: a locked tile, "Secret achievement", a hint to keep playing and an
+     * empty badge slot. Nothing about what it asks.
+     */
+    fun secretCard(): View = LinearLayout(activity).apply {
+        tag = "achievement_secret"
+        orientation = LinearLayout.HORIZONTAL
+        gravity = Gravity.CENTER_VERTICAL
+        clipChildren = false; clipToPadding = false
+        background = surface(false)
+        setPadding(dp(PAD), dp(PAD), dp(PAD), dp(PAD) + kit.CARD_LIP)
+        addView(ImageView(activity).apply {
+            setImageDrawable(AchievementTile("secret", accent("secret")))
+            importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
+        }, LinearLayout.LayoutParams(dp(TILE), dp(TILE)))
+        addView(LinearLayout(activity).apply {
+            orientation = LinearLayout.VERTICAL
+            addView(kit.text(activity.getString(R.string.achievement_secret_title), 20f, Theme.INK, 700, Gravity.START).apply {
+                maxLines = 2; setAutoSizeTextTypeUniformWithConfiguration(16, 20, 1, TypedValue.COMPLEX_UNIT_SP)
+            }, LinearLayout.LayoutParams(-1, -2))
+            addView(kit.text(activity.getString(R.string.achievement_secret_hint), 15f, Theme.INK_SOFT, 500, Gravity.START),
+                LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(1f) })
+        }, LinearLayout.LayoutParams(0, -2, 1f).apply { marginStart = dp(12f) })
+        addView(ImageView(activity).apply {
+            setImageDrawable(rewardArt(false, 0, false))
+            importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
+            val inset = dp(2f); setPadding(inset, inset, inset, inset)
+        }, LinearLayout.LayoutParams(dp(BADGE), dp(BADGE)).apply { marginStart = dp(8f) })
+        setOnClickListener { Pokes.press(this) }
+    }
+
     /** A finished achievement on the DONE shelf: its tile, its name and its last badge. */
     fun doneChip(state: Achievements.Snapshot): View = LinearLayout(activity).apply {
         val definition = state.definition
@@ -143,21 +175,19 @@ internal class AchievementCards(
             maxLines = 2
             hyphenationFrequency = android.text.Layout.HYPHENATION_FREQUENCY_FULL
         }, LinearLayout.LayoutParams(0, -2, 1f).apply { marginStart = dp(12f) })
-        // A record-keeping achievement keeps its best on show after it is done.
-        record(state)?.let { best ->
-            addView(kit.text(best, 15f, Theme.INK_SOFT, 700).apply {
+        // Anything that counted keeps its number on show after it is done: its best, or its total.
+        if (counts(definition)) number(state.value).let { best ->
+            addView(kit.text(best, 17f, Theme.INK_SOFT, 700).apply {
                 tag = "achievement_best_${definition.id}"
                 maxLines = 1
             }, LinearLayout.LayoutParams(-2, -2).apply { marginStart = dp(8f); marginEnd = dp(6f) })
         }
-        val badge = ImageView(activity).apply {
+        addView(ImageView(activity).apply {
             setImageDrawable(rewardArt(definition.tiered, definition.thresholds.lastIndex, true))
             importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
-        }
-        addView(badge, LinearLayout.LayoutParams(dp(36f), dp(36f)))
+        }, LinearLayout.LayoutParams(dp(36f), dp(36f)))
         contentDescription = activity.getString(R.string.achievement_done_description, activity.achievementTitle(definition.id))
-        // Nothing left to do here but play: the tile squishes and the badge hops after it.
-        setOnClickListener { Pokes.jelly(icon); postDelayed({ Pokes.wobble(badge) }, 70L) }
+        setOnClickListener { Pokes.press(this) }
     }
 
     /** The picture on its tile; it says when there is nothing left to do. */
@@ -166,7 +196,6 @@ internal class AchievementCards(
         tag = "achievement_icon_${definition.id}"
         setImageDrawable(AchievementTile(definition.id, accent(definition.id)))
         scaleType = ImageView.ScaleType.FIT_CENTER
-        setOnClickListener { Pokes.jelly(this) }
         val finished = state.allClaimed || (!definition.tiered && state.nextTarget == null)
         if (finished) contentDescription = activity.getString(if (definition.tiered) R.string.achievement_all_rewards_claimed else R.string.achievement_challenge_complete)
         else importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
@@ -177,8 +206,6 @@ internal class AchievementCards(
         tag = "achievement_reward_${state.definition.id}"
         scaleType = ImageView.ScaleType.FIT_CENTER
         bindReward(this, state)
-        // A badge you have hops; an empty slot shakes its head.
-        setOnClickListener { if (isActivated) Pokes.wobble(this) else Pokes.nudge(this) }
     }
 
     /**
@@ -190,7 +217,6 @@ internal class AchievementCards(
         val waiting = state.claimableTier
         val tier = waiting ?: (state.claimedTiers - 1).coerceAtLeast(0)
         val owned = waiting != null || state.claimedTiers > 0
-        view.isActivated = owned
         view.setImageDrawable(rewardArt(definition.tiered, tier, owned))
         view.background = if (waiting != null) WaitingGlow(BadgeArt.colorOf(if (definition.tiered) tier else BadgeArt.CHALLENGE)) else null
         // A waiting badge gives a little of its room to the glow.
@@ -206,7 +232,6 @@ internal class AchievementCards(
 
     /** The badge just collected, stamped in: won, without its glow. */
     fun bindWon(view: ImageView, definition: Achievements.Definition, tier: Int) {
-        view.isActivated = true
         view.setImageDrawable(rewardArt(definition.tiered, tier, true))
         view.background = null
         view.setPadding(dp(2f), dp(2f), dp(2f), dp(2f))
@@ -215,26 +240,17 @@ internal class AchievementCards(
     private fun badgeName(definition: Achievements.Definition, tier: Int): String =
         if (definition.tiered) activity.achievementTierName(tier) else activity.achievementTitle(definition.id)
 
-    /** "Best: 6120" for an achievement that keeps an uncapped personal best, else null. */
-    private fun record(state: Achievements.Snapshot): String? = when (state.definition.id) {
-        "bounces" -> activity.getString(R.string.achievement_best_bounces, number(state.value))
-        in RECORDS -> activity.getString(R.string.achievement_best, number(state.value))
-        else -> null
-    }
+    /** Whether [definition] counts towards a number (and so has a bar), rather than being a one-off dare. */
+    private fun counts(definition: Achievements.Definition) = definition.tiered || definition.thresholds.single() != 1
 
-    /** Name, and what counts; once there is nothing left to aim for, the record if it keeps one. */
+    /** Name, and what counts. */
     private fun header(state: Achievements.Snapshot): View = LinearLayout(activity).apply {
         val definition = state.definition
         orientation = LinearLayout.VERTICAL
         val complete = state.nextTarget == null
-        // Claiming changes none of this, so a claimed card keeps its height.
-        val best = if (complete) record(state) else null
-        val subtitle = when {
-            best != null -> best
-            // A finished one-off dare needs no reminder of what it asked.
-            !definition.tiered && complete -> ""
-            else -> activity.achievementGoal(definition.id)
-        }
+        // A finished one-off dare needs no reminder of what it asked. Claiming changes none of this,
+        // so a claimed card keeps its height.
+        val subtitle = if (!counts(definition) && complete) "" else activity.achievementGoal(definition.id)
         addView(kit.text(activity.achievementTitle(definition.id), 20f, Theme.INK, 700, Gravity.START).apply {
             maxLines = 2
             // Long single words (German compounds) shrink, then hyphenate, never split at random.
@@ -243,7 +259,7 @@ internal class AchievementCards(
         }, LinearLayout.LayoutParams(-1, -2))
         if (subtitle.isNotEmpty()) addView(kit.text(subtitle, 15f, Theme.INK_SOFT, 500, Gravity.START).apply {
             maxLines = 5
-            tag = if (best != null) "achievement_best_${definition.id}" else "achievement_subtitle_${definition.id}"
+            tag = "achievement_subtitle_${definition.id}"
         }, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(1f) })
     }
 
@@ -251,9 +267,8 @@ internal class AchievementCards(
     private fun slot(state: Achievements.Snapshot, index: Int, animateFill: Boolean): View? {
         val definition = state.definition
         return when {
-            state.nextTarget == null -> null
             // A one-off dare is done or not: a "0 / 1" count would only ever read 0.
-            !definition.tiered && definition.thresholds.single() == 1 -> null
+            !counts(definition) -> null
             else -> progress(state, state.earnedTiers, index, animateFill)
         }
     }
@@ -276,11 +291,12 @@ internal class AchievementCards(
      */
     private fun counter(state: Achievements.Snapshot, tier: Int): String {
         val definition = state.definition
+        // Nothing left to aim for: a full bar and the number itself, the best (or total) so far.
+        if (state.nextTarget == null) return number(state.value)
         val target = definition.thresholds[tier]
         val beat = definition.id == "runner" && state.value >= target
         // Non-breaking around the slash: a narrow column must never split the count over two lines.
-        return if (definition.id == "bounces") activity.getString(R.string.achievement_best_progress, number(state.value), number(target)).replace(" / ", " / ")
-            else "${number(minOf(state.value, target))} / ${compact(if (beat) target + 1 else target)}"
+        return "${number(minOf(state.value, target))} / ${compact(if (beat) target + 1 else target)}"
     }
 
     /** How far towards the next goal, filled in the achievement's own colour. */
@@ -324,8 +340,6 @@ internal class AchievementCards(
         private const val PAD = 14f
         const val TILE = 64f
         const val BADGE = 56f
-        /** Achievements that keep an uncapped personal best worth showing ("Best: 6120"). */
-        private val RECORDS = setOf("runner", "bubbles", "pile_driver")
         /** The bar's row: as tall as the CLAIM button, whether or not one is waiting. */
         const val BOTTOM = 40f
 
@@ -340,7 +354,7 @@ internal class AchievementCards(
             "gambliphobic" -> Theme.LIME
             "coal_miner", "full_kit", "regular" -> Theme.YELLOW
             "just_browsing" -> Theme.GOLD
-            "shard_hunter", "insomniac", "globetrotter", "shardsmith" -> DEEP
+            "shard_hunter", "insomniac", "globetrotter", "shardsmith", "very_silent_treatment", "secret" -> DEEP
             else -> Theme.PINK
         }
 

@@ -123,7 +123,7 @@ object Progress {
     /** Only Zen destruction may record Monk; ordinary metrics remain blocked. */
     @Synchronized fun recordZenStreak(value: Int) {
         if (!zenRun || value <= metric("monk")) return
-        saveBestMetric("monk", value.coerceIn(0, 100))
+        saveBestMetric("monk", value.coerceAtLeast(0))
     }
 
     private fun saveBestMetric(id: String, value: Int) {
@@ -303,7 +303,7 @@ object Progress {
     /** Only the live session, with an unbroken middle-lane history, may call this. */
     @Synchronized fun recordCenteredScore(score: Int) {
         if (zenRun) return
-        val progress = score.coerceIn(0, 100)
+        val progress = score.coerceAtLeast(0)
         if (progress <= bestCenteredScore) return
         bestCenteredScore = progress
         prefs.edit().putInt("best_centered_score", progress).apply()
@@ -311,7 +311,7 @@ object Progress {
     }
     @Synchronized fun recordCoinlessScore(score: Int) {
         if (zenRun) return
-        val progress = score.coerceIn(0, 60)
+        val progress = score.coerceAtLeast(0)
         if (progress <= bestCoinlessScore) return
         bestCoinlessScore = progress
         prefs.edit().putInt("best_coinless_score", progress).apply()
@@ -319,7 +319,7 @@ object Progress {
     }
     @Synchronized fun recordMissedBoxes(count: Int) {
         if (zenRun) return
-        val progress = count.coerceIn(0, 10)
+        val progress = count.coerceAtLeast(0)
         if (progress <= maxRunMissedBoxes) return
         maxRunMissedBoxes = progress
         prefs.edit().putInt("max_run_missed_boxes", progress).apply()

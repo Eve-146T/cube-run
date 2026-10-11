@@ -44,11 +44,12 @@ as tall as a CLAIM button: the bar in the achievement's colour and the count tow
 goal (`31400 / 100K`), or, while something is waiting, a slim gold CLAIM button with everything
 the card pays lying over that bar. Yes-or-no dares (target 1) have no row until they are done. When the text would
 be squeezed narrower than a few words of the title (a split pane, large text) the badge folds
-away. Once there is nothing left to aim for, Good Runner, Big Bubble, Bouncer and Pile Driver
-show their personal best ("Best: 6000") instead of the goal; the other one-run records are
-stored capped at their goal, so they show none. A claimed card keeps the same text it had while
-waiting, so claiming never changes its height. DONE collects everything fully claimed as slim
-rows with the tile, the name, the record if there is one, and the last badge. What a reward pays stays a surprise until it can be claimed. The list clips below the
+away. Once there is nothing left to aim for, anything with a bar keeps it, full, with its number
+beside it: the best a one-run record has reached, or a lifetime total. One-run records are
+stored uncapped for this (Untouchable's full-run score is saved when the run ends). A claimed
+card keeps the same text it had while waiting, so claiming never changes its height. DONE
+collects everything fully claimed as slim rows with the tile, the name, the number if it counted
+one, and the last badge. What a reward pays stays a surprise until it can be claimed. The list clips below the
 header and coin bank. The last card invites players to suggest an achievement as a GitHub issue.
 
 A card with a reward waiting has a gold edge. One tap on CLAIM collects every badge that card
@@ -60,10 +61,15 @@ without its glow and springs back with a small wobble, with a soft thump (a litt
 every badge in the chain); the case above gives that slot a small bump, and three to six coins
 hop out into the bank. When the last coins land the card is rebuilt in its next state.
 
-Everything on the page can be poked just for the feel of it (`Pokes`): tiles squish like jelly,
-badges you own hop with a wobble, empty slots shake their head, the case's badges hop, and a
-done row squishes its tile and then hops its badge. Each poke ticks and plays a soft blip that
-climbs in pitch over a quick run of taps. The in-run unlock toast shows the badge just earned.
+Every card, DONE row and the case can be tapped just for the feel of it (`Pokes`): the whole
+card dips and springs back like a button, with a tap and a tick. Tapping the same card again
+quickly adds a wiggle that grows the faster you keep at it.
+
+Secret achievements (`Definition.secret`) stay off the page until earned. A SECRETS section says
+how many are found and shows a locked card for each one still hidden; once earned, a secret
+appears like any other challenge. The first is Very Silent Treatment: a 1,000-point run with
+sound, haptics and coin sounds off, no trail, the free cube and bubble, and no starting speed
+(5,000 coins). The in-run unlock toast shows the badge just earned.
 
 Bronze/silver/gold/diamond pay 250/750/2,000/5,000 coins per family. Big Bubble and
 Cookie Clicker each pay 2,000; Bouncer, Stay Centered, Homeress, and Gambliphobic each

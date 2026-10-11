@@ -286,6 +286,29 @@ internal class ChallengeIcon(private val id: String) : Icon() {
                     lastCanvas!!.drawPath(path, paint)
                 }
             }
+            "very_silent_treatment" -> {
+                // Silence all the way down: the muted speaker, asleep.
+                lipped(Theme.WHITE) { shape(4f, 20f, 12f, 20f, 23f, 10f, 23f, 40f, 12f, 31f, 4f, 31f) }
+                line(29f, 22f, 39f, 32f, Theme.BERRY, 4.5f); line(39f, 22f, 29f, 32f, Theme.BERRY, 4.5f)
+                paint.typeface = Fonts.cached(700); paint.textAlign = Paint.Align.CENTER
+                for ((x, y, size) in listOf(Triple(33f, 14f, 10f), Triple(41f, 7f, 8f))) {
+                    paint.textSize = size; fill(Theme.LAVENDER); lastCanvas!!.drawText("z", x, y, paint)
+                }
+                paint.textAlign = Paint.Align.LEFT
+            }
+            "secret" -> {
+                // Locked away until you find it.
+                paint.style = Paint.Style.STROKE; paint.strokeWidth = 5f; paint.strokeCap = Paint.Cap.BUTT
+                for (pass in 0..1) {
+                    paint.color = if (pass == 0) Theme.darken(Theme.GOLD, .35f) else Theme.lighten(Theme.GOLD, .1f)
+                    rect.set(15f, 5f + (if (pass == 0) 2f else 0f), 33f, 29f + (if (pass == 0) 2f else 0f))
+                    lastCanvas!!.drawArc(rect, 180f, 180f, false, paint)
+                    lastCanvas!!.drawLine(15f, 17f + (if (pass == 0) 2f else 0f), 15f, 22f, paint); lastCanvas!!.drawLine(33f, 17f + (if (pass == 0) 2f else 0f), 33f, 22f, paint)
+                }
+                lipped(Theme.GOLD) { round(9f, 21f, 39f, 44f, 5f) }
+                fill(Theme.alpha(Theme.WHITE, 150)); round(13f, 24f, 28f, 26.5f, 1.2f)
+                fill(Theme.darken(Theme.GOLD, .5f)); lastCanvas!!.drawCircle(24f, 31f, 3f, paint); round(22.5f, 31f, 25.5f, 38f, 1.5f)
+            }
             "silent_treatment" -> {
                 lipped(Theme.WHITE) { shape(5f, 18f, 13f, 18f, 24f, 8f, 24f, 38f, 13f, 29f, 5f, 29f) }
                 line(30f, 17f, 42f, 30f, Theme.BERRY, 4.5f); line(42f, 17f, 30f, 30f, Theme.BERRY, 4.5f)

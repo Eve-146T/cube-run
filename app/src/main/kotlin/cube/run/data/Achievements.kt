@@ -4,7 +4,8 @@ import android.content.SharedPreferences
 
 /** Calm, evolving cards. Earlier tiers stay earned; only the next goal is presented. */
 object Achievements {
-    data class Definition(val id: String, val title: String, val description: String, val thresholds: IntArray, val tiered: Boolean = true) {
+    /** A [secret] achievement stays hidden on the page until it is earned. */
+    data class Definition(val id: String, val title: String, val description: String, val thresholds: IntArray, val tiered: Boolean = true, val secret: Boolean = false) {
         internal val earnedKey = "achievement_$id"
         internal val claimedKey = "achievement_claimed_$id"
     }
@@ -34,6 +35,7 @@ object Achievements {
         definition.id == "cookie" -> 2000
         definition.id in setOf("greed", "greedy", "coal_miner", "full_kit", "insomniac", "bankrupt", "exactly_67", "nervous_tic", "silent_treatment", "stage_fright") -> 1500
         definition.id in setOf("scenic_route") -> 2500
+        definition.id == "very_silent_treatment" -> 5000
         definition.id in setOf("pile_driver", "just_browsing", "two_ez", "untouchable", "house_loses", "voidwalker", "magpie", "shard_hunter", "long_con", "neo", "monk") -> 2000
         else -> 0
     }
@@ -80,6 +82,7 @@ object Achievements {
         Definition("two_ez", "2EZ", "Swipe to a lane and straight back 50 times in one run.", intArrayOf(50), false),
         Definition("nervous_tic", "Nervous Tic", "Pause and resume 50 times in one run.", intArrayOf(50), false),
         Definition("silent_treatment", "Silent Treatment", "Finish a 100-point run with sound and haptics off using the free cube.", intArrayOf(1), false),
+        Definition("very_silent_treatment", "Very Silent Treatment", "Finish a 1000-point run with sound, haptics and coin sounds off, no trail, the free cube and bubble, and no starting speed.", intArrayOf(1), false, secret = true),
         Definition("stage_fright", "Stage Fright", "Crash within two seconds of the start gate in 25 runs.", intArrayOf(25), false),
         Definition("monk", "Monk", "Destroy 100 consecutive obstacles with the Zen cube in one run. You can skip stairs.", intArrayOf(100), false),
         Definition("neo", "Neo", "???", intArrayOf(1), false),

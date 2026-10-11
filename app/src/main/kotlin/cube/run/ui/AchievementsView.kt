@@ -89,7 +89,11 @@ class AchievementsView(activity: Activity, kit: UiKit, private val preparing: Bo
             addView(titleRow, LinearLayout.LayoutParams(-1, -2).apply { marginStart = dp(16f); marginEnd = dp(16f); bottomMargin = dp(4f) })
             addView(scroll, LinearLayout.LayoutParams(-1, 0, 1f))
         }, FrameLayout.LayoutParams(-1, -1))
-        val states = Achievements.snapshot()
+        val everything = Achievements.snapshot()
+        // A secret stays off the page until it is earned; SECRETS only says how many are left to find.
+        val secrets = everything.filter { it.definition.secret }
+        val hidden = secrets.filter { it.earnedTiers == 0 }
+        val states = everything.filterNot { it in hidden }
         // Rewards waiting first, then whatever is closest to its next medal; finished ones go to the shelf.
         val ready = states.filter { it.claimableTier != null }
             .sortedWith(compareBy<Achievements.Snapshot> { if (it.definition.tiered) 0 else 1 }.thenByDescending { it.claimableTier })
@@ -98,7 +102,7 @@ class AchievementsView(activity: Activity, kit: UiKit, private val preparing: Bo
         val challenges = open.filterNot { it.definition.tiered }
         val done = states.filter { it.allClaimed }
         val allMedals = states.filter { it.definition.tiered }
-        val allChallenges = states.filterNot { it.definition.tiered }
+        val allChallenges = states.filterNot { it.definition.tiered || it.definition.secret }
         rows.addView(hero, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(6f) })
         // Everything below the case, in order; each entry makes its view when its turn comes.
         fun list(states: List<Achievements.Snapshot>, first: Int, row: (Achievements.Snapshot, Int) -> View) {
@@ -117,6 +121,12 @@ class AchievementsView(activity: Activity, kit: UiKit, private val preparing: Bo
         if (challenges.isNotEmpty()) {
             later += { rows.addView(section(activity.getString(R.string.achievement_section_challenges), "${allChallenges.count { it.earnedTiers > 0 }} / ${allChallenges.size}"), sectionParams()) }
             list(challenges, ready.size + medals.size) { state, i -> cards.card(state, i, animateFill = !preparing) }
+        }
+        if (hidden.isNotEmpty()) {
+            later += { rows.addView(section(activity.getString(R.string.achievement_section_secrets), "${secrets.size - hidden.size} / ${secrets.size}"), sectionParams()) }
+            for ((index, _) in hidden.withIndex()) later += {
+                rows.addView(cards.secretCard(), LinearLayout.LayoutParams(-1, -2).apply { if (index > 0) topMargin = dp(12f) })
+            }
         }
         if (done.isNotEmpty()) {
             later += { rows.addView(section(activity.getString(R.string.achievement_section_done), "${done.size}"), sectionParams()) }
@@ -140,7 +150,7 @@ class AchievementsView(activity: Activity, kit: UiKit, private val preparing: Bo
         }
         if (later.isNotEmpty()) postOnAnimation(::more)
         contentReady = later.isEmpty()
-        hero.bind(states, animate = false)
+        hero.bind(everything, animate = false)
     }
 
     /** Build every card still waiting its turn now, for a page measured off screen (a layout review). */
@@ -205,6 +215,7 @@ class AchievementsView(activity: Activity, kit: UiKit, private val preparing: Bo
         val definition = state.definition
         val card = rows.findViewWithTag<View>("achievement_card_${definition.id}") ?: return
         paying = true
+        Pokes.stop(card)
         Haptics.click()
         // The button is spent: it melts back into the bar under it.
         cards.settleClaimed(card, button)
@@ -274,7 +285,6 @@ class AchievementsView(activity: Activity, kit: UiKit, private val preparing: Bo
      * state and [struck] plays the landing, then it springs back to size with a little wobble.
      */
     private fun stamp(reward: ImageView, refill: () -> Unit, struck: () -> Unit) {
-        Pokes.stop(reward)
         val press = .2f
         val spring = android.view.animation.OvershootInterpolator(2.6f)
         var landed = false
