@@ -32,7 +32,7 @@ class AchievementArtSheetTest {
             canvas.drawText(id, x + cell / 2f, y + cell - kit.dpf(8f), label)
         }
         val medal = kit.dp(60f); val top = rows * cell + kit.dp(10f)
-        val rewards = (0..3).map { MedalArt(it, true) } + PlaqueArt(true) + (0..3).map { MedalArt(it, false) } + PlaqueArt(false)
+        val rewards = (0..3).map { BadgeArt(it, true) } + PlaqueArt(true) + (0..3).map { BadgeArt(it, false) } + PlaqueArt(false)
         for ((i, art) in rewards.withIndex()) {
             val x = (i % 5) * (medal + kit.dp(12f)) + kit.dp(12f) + if (i >= 5) 0 else 0
             val y = top + (i / 5) * (medal + kit.dp(8f))

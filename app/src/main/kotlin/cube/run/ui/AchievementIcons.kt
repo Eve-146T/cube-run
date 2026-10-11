@@ -6,56 +6,17 @@ import android.graphics.Path
 
 /** The achievement page's drawn artwork: one icon per family, the medals, and the shared number formats. */
 internal fun achievementIcon(id: String): android.graphics.drawable.Drawable = when (id) {
-    "coins" -> CoinIcon()
-    "powerups" -> JetIcon(Theme.SKY)
-    "boxes" -> BoxIcon()
     "bubbles" -> BubbleIcon()
-    "cubes" -> AchievementCubeIcon(collection = true)
     "bounces" -> AchievementWallIcon()
     "center" -> AchievementCenterIcon()
     "homeress" -> AchievementCoinlessIcon()
     "gambliphobic" -> AchievementBoxAvoidanceIcon()
     "cookie" -> AchievementHapticIcon()
-    "greed" -> ChallengeIcon(id)
-    "pile_driver" -> ChallengeIcon(id)
-    "globetrotter", "long_hauler", "shardsmith", "regular", "bubble_popper", "near_miss",
+    "runner", "coins", "cubes", "powerups", "boxes", "greed", "pile_driver", "globetrotter", "long_hauler", "shardsmith", "regular", "bubble_popper", "near_miss",
     "untouchable", "house_loses", "voidwalker", "greedy", "scenic_route", "coal_miner",
     "magpie", "shard_hunter", "full_kit", "long_con", "insomniac", "bankrupt",
     "exactly_67", "just_browsing", "two_ez", "nervous_tic", "silent_treatment", "stage_fright", "neo", "monk" -> ChallengeIcon(id)
-    else -> AchievementCubeIcon(collection = false)
-}
-
-/** Isometric cubes reuse the game's bevelled candy language, with speed lines for running. */
-private class AchievementCubeIcon(private val collection: Boolean) : Icon() {
-    private val path = Path()
-    override fun draw(canvas: Canvas) {
-        val save = canvas.save()
-        canvas.translate(bounds.left.toFloat(), bounds.top.toFloat())
-        canvas.scale(bounds.width() / 48f, bounds.height() / 48f)
-        fun cube(x: Float, y: Float, size: Float, color: Int) {
-            paint.style = Paint.Style.FILL
-            fun face(c: Int, vararg points: Float) {
-                path.reset(); path.moveTo(points[0], points[1])
-                for (i in 2 until points.size step 2) path.lineTo(points[i], points[i + 1])
-                path.close(); paint.color = c; canvas.drawPath(path, paint)
-            }
-            val half = size / 2f; val rise = size / 4f
-            face(Theme.lighten(color, .4f), x, y + rise, x + half, y, x + size, y + rise, x + half, y + 2 * rise)
-            face(color, x, y + rise, x + half, y + 2 * rise, x + half, y + size, x, y + size - rise)
-            face(Theme.darken(color, .2f), x + half, y + 2 * rise, x + size, y + rise, x + size, y + size - rise, x + half, y + size)
-        }
-        if (collection) {
-            cube(1f, 21f, 24f, Theme.LAVENDER)
-            cube(23f, 21f, 24f, Theme.GRAPE)
-            cube(12f, 3f, 24f, Theme.SKY)
-        } else {
-            paint.style = Paint.Style.STROKE; paint.strokeWidth = 3.5f; paint.strokeCap = Paint.Cap.ROUND
-            paint.color = Theme.WHITE
-            canvas.drawLine(3f, 20f, 12f, 20f, paint); canvas.drawLine(6f, 29f, 10f, 29f, paint); canvas.drawLine(3f, 38f, 9f, 38f, paint)
-            cube(13f, 7f, 34f, Theme.ORANGE)
-        }
-        canvas.restoreToCount(save)
-    }
+    else -> ChallengeIcon("runner")
 }
 
 /** Three straight lanes with the cube held in the centre; every edge shares a common centre. */

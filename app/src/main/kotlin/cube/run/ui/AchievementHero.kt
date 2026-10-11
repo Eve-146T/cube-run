@@ -10,7 +10,7 @@ import android.widget.TextView
 import cube.run.data.Achievements
 
 /**
- * The top of the achievement page: the medal case. One slot per medal (bronze, silver, gold,
+ * The top of the achievement page: the trophy case. One slot per badge (bronze, silver, gold,
  * diamond) and one for challenge plaques, each with how many of them you have collected out
  * of how many there are. Only claimed rewards count: claiming is what fills the case.
  */

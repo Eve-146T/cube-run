@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- The achievement page as rebuilt: section labels and the newer goals. -->
 <resources>
-    <string name="achievement_section_medals">מדליות</string>
+    <string name="achievement_section_medals">תגים</string>
     <string name="achievement_section_challenges">אתגרים</string>
     <string name="achievement_section_done">הושלמו</string>
     <string name="achievement_section_ready">מוכנים לאיסוף</string>

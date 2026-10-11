@@ -21,17 +21,16 @@ import cube.run.core.SoundFx
 import cube.run.data.Achievements
 import cube.run.data.Progress
 import cube.run.ui.Anim.move
-import kotlin.math.sin
 
 /**
  * The trophy room, on the bright candy backdrop like the other menus. The medal case up top
  * counts everything collected; below it whatever has a reward waiting, then the medal families,
  * the challenges and the finished ones, one card per row.
  *
- * Claiming is collecting: the medal waiting on the card's ladder (or a challenge's plaque) winds
- * up and springs off with a thump and a ring of its colour, flies into its slot in the case, and
- * the coins pour out of it into the bank; it pops back onto the ladder as collected.
- * Every medal the card has waiting is handed over in one go, each a little higher in pitch.
+ * Claiming is collecting: the badge waiting on the card's ladder (or a challenge's plaque) is
+ * stamped into place where you tapped. It squashes, slams back down in its won colours with a
+ * thump and a ring of its colour, the case above counts it, and the coins pour out of it into
+ * the bank. Every badge the card has waiting is stamped in one go, each a little higher in pitch.
  * The first screenful is built at once and the rest a few cards a frame, so the page opens
  * without a pause.
  */
@@ -217,7 +216,7 @@ class AchievementsView(activity: Activity, kit: UiKit, private val preparing: Bo
         collect(definition, card, 0)
     }
 
-    /** Hand over the next waiting medal of [definition]: into the case, coins into the bank; then the one after, or finish. */
+    /** Stamp the next waiting badge of [definition], coins into the bank; then the one after, or finish. */
     private fun collect(definition: Achievements.Definition, card: View, step: Int) {
         if (closing || !isAttachedToWindow) return
         val tier = Achievements.snapshot(definition).claimableTier ?: return finish(definition)
@@ -225,25 +224,25 @@ class AchievementsView(activity: Activity, kit: UiKit, private val preparing: Bo
         if (Achievements.claim(definition.id) <= 0) return finish(definition)
         val after = Achievements.snapshot(definition)
         val more = after.claimableTier != null
-        val reward = card.findViewWithTag<ImageView>(if (definition.tiered) "achievement_medal_${definition.id}_$tier" else "achievement_reward_${definition.id}")
-        // A narrow card folds a challenge's plaque away: it then leaves from the tile.
-        val from: View = reward?.takeIf { it.isShown } ?: card.findViewWithTag("achievement_icon_${definition.id}") ?: card
-        val launched = {
-            // The moment the medal leaves the card.
+        val reward = card.findViewWithTag<ImageView>(if (definition.tiered) "achievement_badge_${definition.id}_$tier" else "achievement_reward_${definition.id}")
+        // A narrow card folds a challenge's plaque away: it is then stamped on the tile.
+        val at: View = reward?.takeIf { it.isShown } ?: card.findViewWithTag("achievement_icon_${definition.id}") ?: card
+        val struck = {
+            // The moment the badge lands in its won colours.
             SoundFx.play("place", rate = .8f + .12f * step, vol = .8f)
             if (tier == 3 && definition.tiered) SoundFx.play("perfect", rate = 1f, vol = .45f)
             Haptics.success()
-            ring(from, AchievementCards.frameColor(definition, tier))
-            toCase(from, definition, tier)
-            val coins = PayFx.fly(this, kit, from, bank, n = 4 + 2 * tier.coerceAtMost(3), onDone = { if (!more && isAttachedToWindow) finish(definition) })
+            ring(at, AchievementCards.frameColor(definition, tier))
+            hero.bind(Achievements.snapshot(), animate = true)
+            val coins = PayFx.fly(this, kit, at, bank, n = 4 + 2 * tier.coerceAtMost(3), onDone = { if (!more && isAttachedToWindow) finish(definition) })
             countBank(before, coins)
             if (more) postDelayed({ collect(definition, card, step + 1) }, 560L)
         }
-        if (reward == null) launched()
-        else lift(reward, refill = { if (definition.tiered) cards.bindNode(reward, after, tier) else cards.bindPlaque(reward, after) }, launched)
+        if (reward == null || reward !== at) struck()
+        else stamp(reward, refill = { if (definition.tiered) cards.bindNode(reward, after, tier) else cards.bindPlaque(reward, after) }, struck)
     }
 
-    /** Every medal is in: the card settles into its new state. */
+    /** Every badge is in: the card settles into its new state. */
     private fun finish(definition: Achievements.Definition) {
         SoundFx.play("success", rate = 1.2f, vol = .5f)
         val states = Achievements.snapshot()
@@ -277,33 +276,27 @@ class AchievementsView(activity: Activity, kit: UiKit, private val preparing: Bo
     }
 
     /**
-     * The reward winds up (a squash) and springs off the card, big; [launched] runs as it leaves.
-     * Its place stays empty a moment, then [refill] puts in what comes next, popping in.
+     * The reward is pressed into the card: a quick squash, then [refill] swaps in its won state,
+     * which slams down from big to its place while [struck] plays the landing.
      */
-    private fun lift(reward: ImageView, refill: () -> Unit, launched: () -> Unit) {
-        var fired = false
+    private fun stamp(reward: ImageView, refill: () -> Unit, struck: () -> Unit) {
         ValueAnimator.ofFloat(0f, 1f).apply {
-            duration = 300
+            duration = 130
             addUpdateListener {
                 val t = it.animatedValue as Float
-                if (t < .4f) {
-                    val k = t / .4f
-                    reward.scaleX = 1f + .16f * k; reward.scaleY = 1f - .18f * k
-                } else {
-                    if (!fired) { fired = true; launched() }
-                    val k = (t - .4f) / .6f
-                    val s = (1.16f + .2f * k) * (1f - k)
-                    reward.scaleX = s; reward.scaleY = s * (1f + .3f * (1f - k))
-                }
+                reward.scaleX = 1f + .14f * t; reward.scaleY = 1f - .2f * t
                 Anim.repaint(reward)
             }
             addListener(object : android.animation.AnimatorListenerAdapter() {
                 private var cancelled = false
                 override fun onAnimationCancel(animation: android.animation.Animator) { cancelled = true }
                 override fun onAnimationEnd(animation: android.animation.Animator) {
-                    if (!fired && !cancelled) launched()
                     refill()
-                    if (cancelled) { reward.scaleX = 1f; reward.scaleY = 1f } else Anim.popIn(reward, 160L, .2f, 360)
+                    if (cancelled) { reward.scaleX = 1f; reward.scaleY = 1f; return }
+                    // From big down onto the card, landing a touch flat before it settles.
+                    reward.scaleX = 1.45f; reward.scaleY = 1.45f
+                    reward.move().scaleX(1f).scaleY(1f).setDuration(280).setInterpolator(Anim.spring).start()
+                    reward.postDelayed(struck, 110L)
                 }
             })
             Anim.cancelOnDetach(reward, this)
@@ -345,54 +338,6 @@ class AchievementsView(activity: Activity, kit: UiKit, private val preparing: Bo
                 override fun onAnimationEnd(animation: android.animation.Animator) { if (!cancelled) sheet.removeView(wave) }
             })
             Anim.cancelOnDetach(wave, this)
-            start()
-        }
-    }
-
-    /**
-     * The medal just handed over hops from the card into its slot in the case, which
-     * counts it as it lands. With the case scrolled away it simply counts.
-     */
-    private fun toCase(from: View, definition: Achievements.Definition, tier: Int) {
-        val slot = hero.slotFor(definition, tier)
-        val seen = android.graphics.Rect()
-        if (hero.visibility != View.VISIBLE || !slot.getGlobalVisibleRect(seen) || seen.height() < slot.height / 2) {
-            hero.bind(Achievements.snapshot(), animate = true)
-            return
-        }
-        val a = IntArray(2); val b = IntArray(2); val c = IntArray(2)
-        getLocationInWindow(a); from.getLocationInWindow(b); slot.getLocationInWindow(c)
-        val size = slot.width
-        val sx = b[0] - a[0] + from.width / 2f; val sy = b[1] - a[1] + from.height / 2f
-        val ex = c[0] - a[0] + slot.width / 2f; val ey = c[1] - a[1] + slot.height / 2f
-        val medal = ImageView(activity).apply {
-            setImageDrawable(rewardArt(definition.tiered, tier, true))
-            importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO
-        }
-        addView(medal, FrameLayout.LayoutParams(size, size))
-        ValueAnimator.ofFloat(0f, 1f).apply {
-            duration = 460
-            interpolator = android.view.animation.AccelerateDecelerateInterpolator()
-            addUpdateListener {
-                val t = it.animatedValue as Float
-                val arc = sin(t * Math.PI).toFloat()
-                medal.x = sx + (ex - sx) * t - size / 2f - arc * dpf(30f)
-                medal.y = sy + (ey - sy) * t - size / 2f
-                val s = 1.5f - .5f * t + .25f * arc
-                medal.scaleX = s; medal.scaleY = s
-                Anim.repaint(medal)
-            }
-            addListener(object : android.animation.AnimatorListenerAdapter() {
-                private var cancelled = false
-                override fun onAnimationCancel(animation: android.animation.Animator) { cancelled = true }
-                override fun onAnimationEnd(animation: android.animation.Animator) {
-                    if (cancelled) return
-                    removeView(medal)
-                    hero.bind(Achievements.snapshot(), animate = true)
-                    Haptics.tick()
-                }
-            })
-            Anim.cancelOnDetach(medal, this)
             start()
         }
     }

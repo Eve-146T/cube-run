@@ -71,7 +71,7 @@ class AchievementAlignmentTest {
         assertEquals("$label painted vertical center", expectedY, painted.centerY(), tolerance)
     }
 
-    @Test fun allTilesCenterInTheirSlotsAndMedalsSitEvenlyOnTheLadder() {
+    @Test fun allTilesCenterInTheirSlotsAndBadgesSitEvenlyOnTheLadder() {
         val prefs = context.getSharedPreferences("progress", Context.MODE_PRIVATE)
         val scores = context.getSharedPreferences("scores", Context.MODE_PRIVATE)
         val saved = prefs.all; val savedScores = scores.all
@@ -122,23 +122,23 @@ class AchievementAlignmentTest {
                             }
                         }
                         for (definition in Achievements.all.filter { it.tiered }) {
-                            // The four medals sit on the ladder's bar as evenly spaced checkpoints, the last at its end.
+                            // The four badges sit on the ladder's bar as evenly spaced checkpoints, the last at its end.
                             val track = descendants(page).single { it.tag == "achievement_track_${definition.id}" } as ViewGroup
                             val bar = descendants(track).single { it.tag == "achievement_progress_${definition.id}" }
-                            val medals = (0..3).map { tier -> images.single { it.tag == "achievement_medal_${definition.id}_$tier" } }
-                            val centres = medals.map { it.left + it.width / 2f }
+                            val badges = (0..3).map { tier -> images.single { it.tag == "achievement_badge_${definition.id}_$tier" } }
+                            val centres = badges.map { it.left + it.width / 2f }
                             val step = centres[1] - centres[0]
-                            assertTrue("${definition.id} medals run left to right", step > 0f)
-                            for (i in 1..3) assertEquals("${definition.id} medal $i evenly spaced", step, centres[i] - centres[i - 1], tolerance * 2)
-                            assertEquals("${definition.id} diamond ends the ladder", track.width.toFloat(), medals.last().right.toFloat(), tolerance * 2)
+                            assertTrue("${definition.id} badges run left to right", step > 0f)
+                            for (i in 1..3) assertEquals("${definition.id} badge $i evenly spaced", step, centres[i] - centres[i - 1], tolerance * 2)
+                            assertEquals("${definition.id} diamond ends the ladder", track.width.toFloat(), badges.last().right.toFloat(), tolerance * 2)
                             assertEquals("${definition.id} bar ends under the diamond", centres.last(), bar.right.toFloat(), tolerance * 2)
-                            for ((tier, medal) in medals.withIndex()) {
-                                assertEquals("${definition.id} tier $tier shares the row", medals.first().top, medal.top)
-                                assertEquals("${definition.id} tier $tier sits on the bar", (bar.top + bar.bottom) / 2f, (medal.top + medal.bottom) / 2f, tolerance)
-                                // The lip under a medal (or over an empty slot) shifts its paint a little off centre on purpose.
-                                val artwork = artBounds(medal)
-                                assertEquals("${definition.id} tier $tier painted horizontal center", medal.width / 2f, artwork.centerX(), tolerance)
-                                assertEquals("${definition.id} tier $tier painted vertical center", medal.height / 2f, artwork.centerY(), tolerance * 1.6f)
+                            for ((tier, badge) in badges.withIndex()) {
+                                assertEquals("${definition.id} tier $tier shares the row", badges.first().top, badge.top)
+                                assertEquals("${definition.id} tier $tier sits on the bar", (bar.top + bar.bottom) / 2f, (badge.top + badge.bottom) / 2f, tolerance)
+                                // The lip under a badge (or over an empty slot) shifts its paint a little off centre on purpose.
+                                val artwork = artBounds(badge)
+                                assertEquals("${definition.id} tier $tier painted horizontal center", badge.width / 2f, artwork.centerX(), tolerance)
+                                assertEquals("${definition.id} tier $tier painted vertical center", badge.height / 2f, artwork.centerY(), tolerance * 1.6f)
                             }
                         }
                         // A compact native-rendered diagnostic strip preserves the actual background/foreground relationship.

@@ -18,48 +18,49 @@ quietly rather than replaying notifications.
 The page is a bright candy page like the other menus (pink-to-sky backdrop, white lipped
 cards, ink text), with the title in the back button's row beside the coin bank; only when the
 title cannot fit there (a huge balance, a narrow pane, large text) does it take its own line.
-At the top is the medal case: one slot each for bronze, silver, gold and diamond and one for
+At the top is the trophy case: one slot each for bronze, silver, gold and diamond badges and one for
 challenge plaques, each counting what has been *claimed* out of what exists (`3/10`, `6/28`).
 Claiming is what fills the case. The case and the first screenful of cards are built at once
 and the rest a few cards a frame, so the page opens without a pause (about 50 ms to the first
 frame on the Moto).
 
-Every medal is the same object: a ribbon over a chunky metal disc on a darker lip, with an
-engraved ring and a gloss. Metal and emblem say which: bronze with one star (grape ribbon),
-silver with two (sky), gold with three (berry), diamond a cut gem on crystal blue (pink). A
-challenge pays a square mint plaque with a star on an orange ribbon. Not yet won, the same
-silhouette is a recessed pale slot. `MedalArt`, `PlaqueArt` and `AchievementTile` live in
-`AchievementMedals.kt`; `AchievementArtSheetTest` (`-e captureArt true`) renders all of it on one
-sheet for review.
+A medal family pays badges. Every badge is the same chunky hexagon: a metal frame on a darker
+lip, a sunk face, a gloss along the top edge and white rank chevrons stamped on it. Bronze has
+one chevron, silver two, gold three; diamond is crystal blue with a cut gem. A challenge pays a
+square mint plaque with a star on an orange ribbon. Not yet won, the same silhouette is a
+recessed pale slot. `BadgeArt`, `PlaqueArt` and `AchievementTile` live in
+`AchievementBadges.kt`. Every picture except the five oldest challenges is drawn in
+`ChallengeIcons.kt` in one lipped candy language. `AchievementArtSheetTest` (`-e captureArt true`)
+renders all of it on one sheet for review.
 
 Below the case, four labelled groups in one column: READY (every card with a reward waiting,
-medal families first), MEDALS, CHALLENGES and DONE, the open ones sorted by how close they are
+medal families first), BADGES, CHALLENGES and DONE, the open ones sorted by how close they are
 to their next goal. Every achievement is a white card. On top its picture on its own candy
 tile, a saturated rounded square chosen to contrast with the picture (the pictures use white, so
 they need a coloured ground), beside the name and what counts; the tile is as tall as that text,
 so it never floats in empty space. A medal family adds its count (`31200 / 100K`) under the
 description and runs its ladder across the card below (`AchievementTrack`): one bar in the
-achievement's colour with the four medals sitting on it as evenly spaced checkpoints, the last
-at its end. Each stretch between two medals is one tier, so a medal is reached exactly when the
-fill arrives under it. Collected medals show in their metal, one waiting to be collected sits on
-a pale glow of its metal, and the ones still to win are recessed slots of the same size. A
+achievement's colour with the four badges sitting on it as evenly spaced checkpoints, the last
+at its end. Each stretch between two badges is one tier, so a badge is reached exactly when the
+fill arrives under it. Won badges show in their metal, one waiting to be collected sits on
+a pale hexagonal glow of its metal, and the ones still to win are recessed slots of the same size. A
 challenge shows its plaque (or the plaque's empty slot) beside its name and, if it counts, its
 bar and count below; yes-or-no dares (target 1) show nothing below their description until they
 are done. When something is waiting, a gold CLAIM button with everything the card pays closes
 the card. When a challenge's text would be squeezed narrower than a few words of the title (a
 split pane, large text) its plaque folds away. DONE collects everything fully claimed as slim
-rows with the tile, the name and the medals won. What a reward pays stays a surprise until it can
+rows with the tile, the name and the badges won. What a reward pays stays a surprise until it can
 be claimed. The list clips below the header and coin bank. The last card invites players to suggest
 an achievement as a GitHub issue.
 
-A card with a reward waiting has a gold edge. One tap on CLAIM collects every medal that card
-has waiting (there is still no claim-all across cards), about half a second apart: the medal
-on the ladder (or the plaque) winds up and springs off the card with a soft thump (a little higher for every medal in the
-chain) and a ring of its colour, flies into its slot in the case (which pops and counts it;
-with the case scrolled away it just counts) and the coins pour out into the bank; it pops back
-onto the ladder as collected, without its glow. When the
+A card with a reward waiting has a gold edge. One tap on CLAIM collects every badge that card
+has waiting (there is still no claim-all across cards), about half a second apart. Nothing
+leaves the card: the badge on the ladder (or the plaque) is stamped in place. It squashes, then
+slams down from big in its won colours, without its glow, with a soft thump (a little higher for
+every badge in the chain) and a ring of its colour; the case above pops and counts it, and the
+coins pour out into the bank. When the
 last coins land the card settles into its next state, and the cards below ease up instead of
-jumping. The in-run unlock toast shows the medal (or plaque) just earned.
+jumping. The in-run unlock toast shows the badge (or plaque) just earned.
 
 Bronze/silver/gold/diamond pay 250/750/2,000/5,000 coins per family. Big Bubble and
 Haptic Taps each pay 2,000; Bouncer, Stay Centered, Homeress, and Gambliphobic each
@@ -130,12 +131,12 @@ stable so the replacement cannot pay out an already claimed reward again.
 These challenges use the same unlock gate, quiet discovery, claim flow,
 completed checkmarks, and dev-mode support as the other challenges.
 
-Run notifications are silent, show one medal at a time for 2.8 seconds, and start
+Run notifications are silent, show one badge at a time for 2.8 seconds, and start
 at least 10 seconds apart. Pending tiers from the same achievement coalesce into
-the highest tier. The compact white candy popup shows a medal/check, the achievement
+the highest tier. The compact white candy popup shows a badge or plaque, the achievement
 name, and its coin reward. A new run gets a 2.2-second grace period. Pausing hides
 and preserves an interrupted popup;
-results and store awards never spill into the next run. Earned medals persist even
+results and store awards never spill into the next run. Earned badges persist even
 if a run is interrupted or stocked bubbles are later consumed.
 
 ## Mystery-box pricing

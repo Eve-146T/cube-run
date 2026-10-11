@@ -8,7 +8,7 @@ import android.graphics.drawable.Drawable
 import cube.run.data.Shards
 
 /**
- * The newer goals' artwork, in the same filled candy language as the original families: flat
+ * Every achievement's artwork except the few original ones, in one filled candy language: flat
  * saturated shapes on a darker lip, a white gloss, and the shop's own coin, box, bubble, magnet,
  * 2×, jetpack, shard and portal icons wherever the goal is about them. Drawn on a 48-unit grid;
  * the card supplies the round badge behind it.
@@ -63,29 +63,76 @@ internal class ChallengeIcon(private val id: String) : Icon() {
                 line(35f, 4f, 35f, 16f, Theme.WHITE, 2.4f)
                 fill(Theme.BERRY); shape(35f, 4f, 43f, 7f, 35f, 10f)
             }
+            "runner" -> {
+                // The cube on a dash: thick streaks behind it, a twinkle for the best run.
+                for ((y, from) in listOf(15f to 5f, 25f to 2f, 35f to 7f)) {
+                    line(from, y + 2.5f, 15f, y + 2.5f, Theme.alpha(Theme.INK, 70), 5f); line(from, y, 15f, y, Theme.WHITE, 5f)
+                }
+                lippedCube(14f, 8f, 31f, Theme.ORANGE)
+                sparkle(42f, 7f, 4.5f)
+            }
+            "coins" -> {
+                coinStack(15f, 41f, 4); coinStack(32f, 41f, 6)
+                sparkle(41f, 9f, 4.5f)
+            }
+            "cubes" -> {
+                lippedCube(1f, 20f, 24f, Theme.SKY)
+                lippedCube(23f, 20f, 24f, Theme.YELLOW)
+                lippedCube(12f, 2f, 24f, Theme.GRAPE)
+            }
+            "powerups" -> {
+                lastCanvas!!.save(); lastCanvas!!.rotate(-24f, 19f, 19f); icon(MagnetIcon(), 1f, 1f, 36f); lastCanvas!!.restore()
+                icon(MultIcon(), 25f, 25f, 21f)
+                sparkle(41f, 8f, 4.5f)
+            }
+            "boxes" -> {
+                // A mystery box popping open: the lid jumps off and light fans out.
+                fill(Theme.lighten(Theme.YELLOW, .25f))
+                shape(19f, 23f, 4f, 7f, 13f, 4f); shape(22f, 23f, 19f, 2f, 29f, 2f); shape(29f, 23f, 35f, 4f, 44f, 7f)
+                lipped(Theme.GRAPE) { round(8f, 22f, 40f, 44f, 5f) }
+                fill(Theme.GOLD); lastCanvas!!.drawRect(20.5f, 22f, 27.5f, 44f, paint)
+                lastCanvas!!.save(); lastCanvas!!.rotate(-12f, 24f, 12f)
+                lipped(Theme.lighten(Theme.GRAPE, .12f)) { round(5f, 8f, 43f, 16f, 3.5f) }
+                fill(Theme.GOLD); lastCanvas!!.drawRect(20.5f, 8f, 27.5f, 16f, paint)
+                lastCanvas!!.restore()
+            }
             "shardsmith" -> {
                 icon(ShardIcon(Theme.LAVENDER), 7f, 5f, 41f)
                 sparkle(38f, 9f, 5f)
             }
             "regular" -> {
-                lipped(Theme.WHITE) { round(7f, 10f, 41f, 42f, 6f) }
-                fill(Theme.BERRY); round(7f, 10f, 41f, 19f, 6f); canvas.drawRect(7f, 15f, 41f, 19f, paint)
-                for ((x, y) in listOf(14f to 24f, 24f to 24f, 34f to 24f, 14f to 33f, 24f to 33f)) {
-                    fill(Theme.LAVENDER); round(x - 3.5f, y - 3f, x + 3.5f, y + 4f, 1.5f)
+                // A month of runs: most days ticked off.
+                lipped(Theme.WHITE) { round(5f, 9f, 43f, 44f, 6f) }
+                fill(Theme.BERRY); round(5f, 9f, 43f, 20f, 6f); lastCanvas!!.drawRect(5f, 15f, 43f, 20f, paint)
+                for ((i, at) in listOf(14.5f to 27.5f, 24f to 27.5f, 33.5f to 27.5f, 14.5f to 37f, 24f to 37f, 33.5f to 37f).withIndex()) {
+                    val (x, y) = at
+                    fill(if (i < 5) Theme.MINT else Theme.LAVENDER); round(x - 4f, y - 3.5f, x + 4f, y + 3.5f, 2f)
+                    if (i < 5) { line(x - 2f, y, x - .5f, y + 1.6f, Theme.WHITE, 1.8f); line(x - .5f, y + 1.6f, x + 2.2f, y - 1.8f, Theme.WHITE, 1.8f) }
                 }
-                fill(Theme.MINT); round(30.5f, 30f, 37.5f, 37f, 1.5f)
-                line(15f, 6f, 15f, 13f, Theme.INK, 3f); line(33f, 6f, 33f, 13f, Theme.INK, 3f)
+                line(15f, 5f, 15f, 13f, Theme.INK, 3.4f); line(33f, 5f, 33f, 13f, Theme.INK, 3.4f)
             }
             "bubble_popper" -> {
-                icon(BubbleIcon(), 3f, 9f, 33f)
-                for ((x, y, xx, yy) in listOf(floatArrayOf(36f, 12f, 42f, 6f), floatArrayOf(38f, 23f, 46f, 23f), floatArrayOf(35f, 33f, 41f, 39f)))
-                    line(x, y, xx, yy, Theme.YELLOW, 3.2f)
-                fill(Theme.WHITE); canvas.drawCircle(30f, 7f, 2f, paint); canvas.drawCircle(44f, 31f, 1.6f, paint)
+                // A bubble the moment it pops: its skin breaks into arcs and droplets fly.
+                paint.style = Paint.Style.STROKE; paint.strokeWidth = 5f; paint.strokeCap = Paint.Cap.ROUND
+                rect.set(10f, 10f, 38f, 38f)
+                for (k in 0 until 5) {
+                    paint.color = Theme.darken(Theme.CYAN, .3f); lastCanvas!!.save(); lastCanvas!!.translate(0f, 2f)
+                    lastCanvas!!.drawArc(rect, k * 72f - 70f, 40f, false, paint); lastCanvas!!.restore()
+                    paint.color = Theme.CYAN; lastCanvas!!.drawArc(rect, k * 72f - 70f, 40f, false, paint)
+                }
+                fill(Theme.WHITE)
+                for (k in 0 until 5) {
+                    val a = Math.toRadians(k * 72.0 - 14.0)
+                    lastCanvas!!.drawCircle(24f + 20.5f * kotlin.math.cos(a).toFloat(), 24f + 20.5f * kotlin.math.sin(a).toFloat(), 2.6f, paint)
+                }
+                burst(24f, 24f, Theme.YELLOW)
             }
             "near_miss" -> {
-                lipped(Theme.BERRY) { round(33f, 5f, 43f, 43f, 4f) }
-                line(3f, 17f, 11f, 17f, Theme.WHITE, 3f); line(5f, 26f, 11f, 26f, Theme.WHITE, 3f); line(3f, 35f, 10f, 35f, Theme.WHITE, 3f)
-                cube(12f, 12f, 21f, Theme.ORANGE)
+                // Brushing past a block: a spark where the cube grazes it.
+                lipped(Theme.BERRY) { round(32f, 4f, 44f, 44f, 4f) }
+                line(2f, 21f, 8f, 21f, Theme.WHITE, 4f); line(4f, 30f, 8f, 30f, Theme.WHITE, 4f)
+                lippedCube(8f, 11f, 23f, Theme.ORANGE)
+                sparkle(31f, 9f, 6f, Theme.YELLOW); sparkle(29f, 39f, 4f, Theme.YELLOW)
             }
             "untouchable" -> {
                 lipped(Theme.LIME) { shape(24f, 4f, 40f, 10f, 38f, 28f, 24f, 42f, 10f, 28f, 8f, 10f) }
@@ -269,8 +316,8 @@ internal class ChallengeIcon(private val id: String) : Icon() {
     }
 
     /** A four-point twinkle. */
-    private fun sparkle(x: Float, y: Float, r: Float) {
-        fill(Theme.WHITE)
+    private fun sparkle(x: Float, y: Float, r: Float, color: Int = Theme.WHITE) {
+        fill(color)
         shape(x, y - r, x + r * .28f, y - r * .28f, x + r, y, x + r * .28f, y + r * .28f, x, y + r, x - r * .28f, y + r * .28f, x - r, y, x - r * .28f, y - r * .28f)
     }
 
@@ -299,6 +346,26 @@ internal class ChallengeIcon(private val id: String) : Icon() {
         fill(Theme.darken(color, .3f)); lastCanvas!!.save(); lastCanvas!!.translate(0f, 2f); lastCanvas!!.drawPath(path, paint); lastCanvas!!.restore()
         fill(color); lastCanvas!!.drawPath(path, paint)
         fill(Theme.YELLOW); lastCanvas!!.drawCircle(x, y, 3.5f, paint)
+    }
+
+    /** The cube on a darker lip, like every other shape. */
+    private fun lippedCube(x: Float, y: Float, size: Float, color: Int) {
+        val half = size / 2f; val rise = size / 4f
+        fill(Theme.darken(color, .45f)); shape(x, y + rise + 2.5f, x + half, y + 2.5f, x + size, y + rise + 2.5f, x + size, y + size - rise + 2.5f, x + half, y + size + 2.5f, x, y + size - rise + 2.5f)
+        cube(x, y, size, color)
+    }
+
+    /** [n] coins seen edge-on, stacked from [bottom] up, the top one face-up. */
+    private fun coinStack(cx: Float, bottom: Float, n: Int) {
+        val w = 17f
+        for (i in 0 until n) {
+            val y = bottom - i * 4.6f
+            fill(Theme.darken(Theme.GOLD, .38f)); rect.set(cx - w / 2f, y - 7f, cx + w / 2f, y + 1.5f); lastCanvas!!.drawRoundRect(rect, w / 2f, 3.5f, paint)
+            fill(Theme.darken(Theme.GOLD, .12f)); rect.set(cx - w / 2f, y - 7f, cx + w / 2f, y - .5f); lastCanvas!!.drawRoundRect(rect, w / 2f, 3.2f, paint)
+            fill(Theme.GOLD); rect.set(cx - w / 2f, y - 9f, cx + w / 2f, y - 3f); lastCanvas!!.drawOval(rect, paint)
+        }
+        val top = bottom - (n - 1) * 4.6f
+        fill(Theme.lighten(Theme.GOLD, .35f)); rect.set(cx - w * .3f, top - 7.5f, cx + w * .3f, top - 4.5f); lastCanvas!!.drawOval(rect, paint)
     }
 
     /** The game's bevelled isometric cube. */

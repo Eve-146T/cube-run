@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- The achievement page as rebuilt: section labels and the newer goals. -->
 <resources>
-    <string name="achievement_section_medals">MEDALS</string>
+    <string name="achievement_section_medals">BADGES</string>
     <string name="achievement_section_challenges">CHALLENGES</string>
     <string name="achievement_section_done">DONE</string>
     <string name="achievement_section_ready">READY</string>

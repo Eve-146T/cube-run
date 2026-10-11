@@ -24,8 +24,8 @@ import cube.run.data.Achievements
 /**
  * The achievement page's cards: one white card per achievement, in a single column. On top the
  * achievement's picture on its candy tile beside its name and what counts. A medal family runs
- * its ladder across the card underneath: the bar with its four medals sitting on it, collected
- * ones in their metal, one waiting to be collected on a glow, the rest empty slots. A challenge
+ * its ladder across the card underneath: the bar with its four badges sitting on it, won ones
+ * in their metal, one waiting to be collected on a glow, the rest empty slots. A challenge
  * shows the plaque it pays beside its name, and its bar underneath if it counts. When a reward is
  * waiting, a gold CLAIM button with everything it pays closes the card. What a reward pays stays a
  * surprise until it can be claimed.
@@ -81,7 +81,7 @@ internal class AchievementCards(
         if (definition.id == "bounces") addView(kit.text(number(state.value), 17f, Theme.INK_SOFT, 700).apply {
             tag = "achievement_best_${definition.id}"
         }, LinearLayout.LayoutParams(-2, -2).apply { marginStart = dp(8f); marginEnd = dp(4f) })
-        val won = if (definition.tiered) (0..3).map { MedalArt(it, true, strap = false) } else listOf(PlaqueArt(true))
+        val won = if (definition.tiered) (0..3).map { BadgeArt(it, true) } else listOf(PlaqueArt(true))
         for ((i, art) in won.withIndex()) addView(ImageView(activity).apply {
             setImageDrawable(art)
             importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
@@ -112,16 +112,16 @@ internal class AchievementCards(
     fun bindPlaque(view: ImageView, state: Achievements.Snapshot) {
         val waiting = state.claimableTier != null
         view.setImageDrawable(PlaqueArt(waiting || state.claimedTiers > 0))
-        view.background = if (waiting) WaitingGlow(MedalArt.PLAQUE) else null
+        view.background = if (waiting) WaitingGlow(BadgeArt.PLAQUE) else null
         val inset = if (waiting) dp(5f) else 0
         view.setPadding(inset, inset, inset, inset)
     }
 
-    /** A medal family's ladder: how far along, and its four medals on the way. */
+    /** A medal family's ladder: how far along, and its four badges on the way. */
     private fun track(state: Achievements.Snapshot, index: Int, animateFill: Boolean): View {
         val definition = state.definition
         val thresholds = definition.thresholds
-        // Each stretch between two medals is one tier: how far into the current one it has got.
+        // Each stretch between two badges is one tier: how far into the current one it has got.
         val into = state.nextTarget?.let { target ->
             val from = thresholds.getOrNull(state.earnedTiers - 1) ?: 0
             val to = target + if (definition.id == "runner") 1 else 0
@@ -135,7 +135,7 @@ internal class AchievementCards(
         }
         val nodes = thresholds.indices.map { tier ->
             ImageView(activity).apply {
-                tag = "achievement_medal_${definition.id}_$tier"
+                tag = "achievement_badge_${definition.id}_$tier"
                 scaleType = ImageView.ScaleType.FIT_CENTER
                 bindNode(this, state, tier)
             }
@@ -143,13 +143,13 @@ internal class AchievementCards(
         return AchievementTrack(activity, bar, nodes, dp(NODE), dp(12f)).apply { tag = "achievement_track_${definition.id}" }
     }
 
-    /** One medal on the ladder: collected in its metal, waiting on a glow, or an empty slot. */
+    /** One badge on the ladder: won in its metal, waiting on a glow, or an empty slot. */
     fun bindNode(node: ImageView, state: Achievements.Snapshot, tier: Int) {
         val waiting = tier in state.claimedTiers until state.earnedTiers
-        node.setImageDrawable(MedalArt(tier, tier < state.earnedTiers, strap = false))
-        node.background = if (waiting) WaitingGlow(MedalArt.METALS[tier]) else null
-        // Every checkpoint is the same size; a waiting medal gives a little of its room to the glow.
-        val inset = dp(if (waiting) 5f else 3f)
+        node.setImageDrawable(BadgeArt(tier, tier < state.earnedTiers))
+        node.background = if (waiting) WaitingGlow(BadgeArt.METALS[tier], hexagon = true) else null
+        // Every checkpoint is the same size; a waiting badge gives a little of its room to the glow.
+        val inset = dp(if (waiting) 6f else 2f)
         node.setPadding(inset, inset, inset, inset)
         node.contentDescription = activity.getString(R.string.achievement_medal_status, activity.achievementTierName(tier), activity.getString(when {
             tier < state.claimedTiers -> R.string.achievement_status_claimed
@@ -233,7 +233,7 @@ internal class AchievementCards(
             contentDescription = activity.getString(R.string.achievement_percent_complete, (state.fraction * 100).toInt())
         }
 
-    /** The gold CLAIM button, with everything the card has waiting: one tap collects every medal earned. */
+    /** The gold CLAIM button, with everything the card has waiting: one tap collects every badge earned. */
     private fun claimButton(state: Achievements.Snapshot): View {
         val amount = (state.claimedTiers until state.earnedTiers).sumOf { Achievements.reward(state.definition, it) }
         lateinit var button: CandyButton
@@ -262,24 +262,24 @@ internal class AchievementCards(
         private const val PAD = 14f
         const val TILE = 64f
         const val PLAQUE = 50f
-        const val NODE = 42f
+        const val NODE = 52f
 
-        /** The colour of what a claim of [tier] gives: the medal's metal, or a challenge's own colour. */
+        /** The colour of what a claim of [tier] gives: the badge's metal, or a challenge's own colour. */
         fun frameColor(definition: Achievements.Definition, tier: Int): Int =
-            if (definition.tiered) MedalArt.METALS[tier.coerceIn(0, 3)] else accent(definition.id)
+            if (definition.tiered) BadgeArt.METALS[tier.coerceIn(0, 3)] else accent(definition.id)
 
         /** The achievement's tile colour, picked to stand apart from the picture on it. */
         fun accent(id: String): Int = when (id) {
-            "runner", "bounces", "near_miss", "pile_driver", "long_con", "stage_fright", "silent_treatment", "shardsmith", "voidwalker" -> Theme.SKY
-            "coins", "bubbles", "regular", "untouchable", "greed", "scenic_route", "two_ez" -> Theme.GRAPE
+            "runner", "bounces", "long_con", "stage_fright", "silent_treatment", "voidwalker", "boxes" -> Theme.SKY
+            "bubbles", "untouchable", "greed", "scenic_route", "two_ez", "bubble_popper" -> Theme.GRAPE
             "cubes", "cookie", "exactly_67" -> Theme.PINK
-            "powerups", "long_hauler" -> Theme.ORANGE
-            "boxes", "center", "bankrupt", "monk", "neo" -> Theme.MINT
-            "homeress", "magpie", "bubble_popper", "house_loses", "nervous_tic" -> Theme.BERRY
-            "gambliphobic" -> Theme.LIME
-            "greedy", "coal_miner", "full_kit" -> Theme.YELLOW
+            "long_hauler" -> Theme.ORANGE
+            "center", "bankrupt", "monk", "neo", "near_miss" -> Theme.MINT
+            "coins", "homeress", "magpie", "house_loses", "nervous_tic" -> Theme.BERRY
+            "gambliphobic", "powerups" -> Theme.LIME
+            "greedy", "coal_miner", "full_kit", "regular" -> Theme.YELLOW
             "just_browsing" -> Theme.GOLD
-            "shard_hunter", "insomniac", "globetrotter" -> DEEP
+            "shard_hunter", "insomniac", "globetrotter", "shardsmith" -> DEEP
             else -> Theme.PINK
         }
 

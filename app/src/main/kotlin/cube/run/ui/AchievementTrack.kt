@@ -8,9 +8,9 @@ import kotlin.math.roundToInt
 
 /**
  * A medal family's ladder across the card: one bar from the start to the diamond, with the four
- * medals sitting on it as evenly spaced checkpoints. The bar fills in the achievement's colour as
- * far as it has got (each stretch between two medals is one tier, however big its numbers), so a
- * medal is reached exactly when the fill arrives under it.
+ * badges sitting on it as evenly spaced checkpoints. The bar fills in the achievement's colour as
+ * far as it has got (each stretch between two badges is one tier, however big its numbers), so a
+ * badge is reached exactly when the fill arrives under it.
  */
 @SuppressLint("ViewConstructor")
 internal class AchievementTrack(context: Context, private val bar: android.view.View, val nodes: List<ImageView>,
@@ -25,7 +25,7 @@ internal class AchievementTrack(context: Context, private val bar: android.view.
         val width = MeasureSpec.getSize(widthMeasureSpec)
         val exactly = { size: Int -> MeasureSpec.makeMeasureSpec(size, MeasureSpec.EXACTLY) }
         for (n in nodes) n.measure(exactly(node), exactly(node))
-        // The bar ends under the middle of the last medal: full means the last one is reached.
+        // The bar ends under the middle of the last badge: full means the last one is reached.
         bar.measure(exactly(width - node / 2), exactly(barHeight))
         setMeasuredDimension(width, node)
     }
