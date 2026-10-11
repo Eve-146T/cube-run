@@ -29,8 +29,9 @@ along the top edge and one white emblem stamped on it. A medal family's badge ha
 metal says the tier (bronze, silver, gold), with diamond a crystal-blue badge with a cut gem.
 A challenge's badge is mint with a check mark. Not yet won, the same hexagon is a recessed pale
 slot. `BadgeArt` and `AchievementTile` live in `AchievementBadges.kt`. Every picture except
-Homeress's crossed coin is drawn in `ChallengeIcons.kt` in one lipped candy language, with one
-shared mystery box and one shared bubble.
+Homeress's crossed coin and Bouncer's wall are drawn in `ChallengeIcons.kt` in one lipped candy
+language, sharing one rounded toy cube, one glossy question mark (the mystery boxes) and one
+bubble.
 
 Below the case, four labelled groups in one column: READY (every card with a reward waiting,
 medal families first), BADGES, CHALLENGES and DONE, the open ones sorted by how close they are
