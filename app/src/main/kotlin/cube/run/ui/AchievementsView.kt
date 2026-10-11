@@ -27,8 +27,7 @@ import cube.run.ui.Anim.move
  * counts everything collected; below it whatever has a reward waiting, then the medal families,
  * the challenges and the finished ones, one card per row.
  *
- * Claiming is collecting: the badge waiting on the card's ladder (or a challenge's plaque) is
- * stamped into place where you tapped. It squashes, slams back down in its won colours with a
+ * Claiming is collecting: the badge waiting on the card is stamped into place where you tapped. It squashes, slams back down in its won colours with a
  * thump and a ring of its colour, the case above counts it, and the coins pour out of it into
  * the bank. Every badge the card has waiting is stamped in one go, each a little higher in pitch.
  * The first screenful is built at once and the rest a few cards a frame, so the page opens
@@ -224,8 +223,8 @@ class AchievementsView(activity: Activity, kit: UiKit, private val preparing: Bo
         if (Achievements.claim(definition.id) <= 0) return finish(definition)
         val after = Achievements.snapshot(definition)
         val more = after.claimableTier != null
-        val reward = card.findViewWithTag<ImageView>(if (definition.tiered) "achievement_badge_${definition.id}_$tier" else "achievement_reward_${definition.id}")
-        // A narrow card folds a challenge's plaque away: it is then stamped on the tile.
+        val reward = card.findViewWithTag<ImageView>("achievement_reward_${definition.id}")
+        // A narrow card folds its badge away: it is then stamped on the tile.
         val at: View = reward?.takeIf { it.isShown } ?: card.findViewWithTag("achievement_icon_${definition.id}") ?: card
         val struck = {
             // The moment the badge lands in its won colours.
@@ -239,7 +238,7 @@ class AchievementsView(activity: Activity, kit: UiKit, private val preparing: Bo
             if (more) postDelayed({ collect(definition, card, step + 1) }, 560L)
         }
         if (reward == null || reward !== at) struck()
-        else stamp(reward, refill = { if (definition.tiered) cards.bindNode(reward, after, tier) else cards.bindPlaque(reward, after) }, struck)
+        else stamp(reward, refill = { cards.bindWon(reward, definition, tier) }, struck)
     }
 
     /** Every badge is in: the card settles into its new state. */

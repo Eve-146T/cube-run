@@ -11,7 +11,7 @@ import cube.run.data.Achievements
 
 /**
  * The top of the achievement page: the trophy case. One slot per badge (bronze, silver, gold,
- * diamond) and one for challenge plaques, each with how many of them you have collected out
+ * diamond) and one for challenge badges, each with how many of them you have collected out
  * of how many there are. Only claimed rewards count: claiming is what fills the case.
  */
 @SuppressLint("ViewConstructor")

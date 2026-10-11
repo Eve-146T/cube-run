@@ -71,7 +71,7 @@ class AchievementAlignmentTest {
         assertEquals("$label painted vertical center", expectedY, painted.centerY(), tolerance)
     }
 
-    @Test fun allTilesCenterInTheirSlotsAndBadgesSitEvenlyOnTheLadder() {
+    @Test fun allTilesAndTheOneBadgePerCardCenterInTheirSlots() {
         val prefs = context.getSharedPreferences("progress", Context.MODE_PRIVATE)
         val scores = context.getSharedPreferences("scores", Context.MODE_PRIVATE)
         val saved = prefs.all; val savedScores = scores.all
@@ -121,25 +121,18 @@ class AchievementAlignmentTest {
                                 assertTrue("${definition.id} shows no future payout", descendants(page).none { it.tag == "achievement_claim_${definition.id}" })
                             }
                         }
-                        for (definition in Achievements.all.filter { it.tiered }) {
-                            // The four badges sit on the ladder's bar as evenly spaced checkpoints, the last at its end.
-                            val track = descendants(page).single { it.tag == "achievement_track_${definition.id}" } as ViewGroup
-                            val bar = descendants(track).single { it.tag == "achievement_progress_${definition.id}" }
-                            val badges = (0..3).map { tier -> images.single { it.tag == "achievement_badge_${definition.id}_$tier" } }
-                            val centres = badges.map { it.left + it.width / 2f }
-                            val step = centres[1] - centres[0]
-                            assertTrue("${definition.id} badges run left to right", step > 0f)
-                            for (i in 1..3) assertEquals("${definition.id} badge $i evenly spaced", step, centres[i] - centres[i - 1], tolerance * 2)
-                            assertEquals("${definition.id} diamond ends the ladder", track.width.toFloat(), badges.last().right.toFloat(), tolerance * 2)
-                            assertEquals("${definition.id} bar ends under the diamond", centres.last(), bar.right.toFloat(), tolerance * 2)
-                            for ((tier, badge) in badges.withIndex()) {
-                                assertEquals("${definition.id} tier $tier shares the row", badges.first().top, badge.top)
-                                assertEquals("${definition.id} tier $tier sits on the bar", (bar.top + bar.bottom) / 2f, (badge.top + badge.bottom) / 2f, tolerance)
-                                // The lip under a badge (or over an empty slot) shifts its paint a little off centre on purpose.
-                                val artwork = artBounds(badge)
-                                assertEquals("${definition.id} tier $tier painted horizontal center", badge.width / 2f, artwork.centerX(), tolerance)
-                                assertEquals("${definition.id} tier $tier painted vertical center", badge.height / 2f, artwork.centerY(), tolerance * 1.6f)
-                            }
+                        for (definition in Achievements.all) {
+                            // One badge per card, on the right, centred in its square box: the best won, the one waiting, or an empty slot.
+                            val badges = images.filter { it.tag == "achievement_reward_${definition.id}" }
+                            assertEquals("${definition.id} shows exactly one badge", 1, badges.size)
+                            val badge = badges.single()
+                            assertEquals("${definition.id} badge box is square", badge.width, badge.height)
+                            if (definition.tiered) assertTrue("${definition.id} shows no ladder of future badges",
+                                images.none { (it.tag as? String)?.startsWith("achievement_badge_${definition.id}") == true })
+                            // The lip under a badge (or over an empty slot) shifts its paint a little off centre on purpose.
+                            val artwork = artBounds(badge)
+                            assertEquals("${definition.id} badge painted horizontal center", badge.width / 2f, artwork.centerX(), tolerance)
+                            assertEquals("${definition.id} badge painted vertical center", badge.height / 2f, artwork.centerY(), tolerance * 1.6f)
                         }
                         // A compact native-rendered diagnostic strip preserves the actual background/foreground relationship.
                         val gap = kit.dp(8f); val stripWidth = categoryImages.sumOf { it.width + gap } + gap
