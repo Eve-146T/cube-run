@@ -26,12 +26,10 @@ internal class BadgeArt(private val kind: Int, private val owned: Boolean) : Ico
         paint.style = Paint.Style.FILL
         val metal = if (owned) colorOf(kind) else SLOT
         paint.pathEffect = rounded
-        // An empty slot is sunk in: its darker edge is on top instead of underneath. Either way
-        // badge and edge together sit centred in the box.
-        val frame = if (owned) 30.5f else 33.5f
+        // Won or empty, the badge sits on the same lip in the same place: only its colours change.
         paint.color = if (owned) Theme.darken(metal, .3f) else SLOT_EDGE
-        hexagon(if (owned) frame + 3f else frame - 3f, 29f); canvas.drawPath(path, paint)
-        canvas.translate(0f, frame - 31f)
+        hexagon(33.5f, 29f); canvas.drawPath(path, paint)
+        canvas.translate(0f, -.5f)
         paint.color = metal; hexagon(31f, 29f); canvas.drawPath(path, paint)
         paint.color = if (owned) Theme.darken(metal, if (kind == GOLD) .2f else .14f) else Theme.darken(SLOT, .04f)
         hexagon(31f, 21f); canvas.drawPath(path, paint)
@@ -78,13 +76,33 @@ internal class BadgeArt(private val kind: Int, private val owned: Boolean) : Ico
         path.close(); canvas.drawPath(path, paint)
     }
 
-    /** A cut gem: a flat table, a crown and a point, its lower half paler. */
+    /**
+     * A cut gem: a flat table and a faceted crown over a deep point, lit from the top left, with
+     * a twinkle. Empty, the same outline in one colour.
+     */
     private fun gem(canvas: Canvas, dy: Float, facets: Boolean) {
-        path.reset(); path.moveTo(25f, 23f + dy); path.lineTo(39f, 23f + dy); path.lineTo(45f, 29.5f + dy)
-        path.lineTo(32f, 42f + dy); path.lineTo(19f, 29.5f + dy); path.close(); canvas.drawPath(path, paint)
+        fun poly(vararg p: Float) {
+            path.reset(); path.moveTo(p[0], p[1] + dy)
+            for (i in 2 until p.size step 2) path.lineTo(p[i], p[i + 1] + dy)
+            path.close(); canvas.drawPath(path, paint)
+        }
+        poly(24f, 21f, 40f, 21f, 46f, 28f, 32f, 44f, 18f, 28f)
         if (!facets) return
-        paint.color = Theme.lighten(METALS[DIAMOND], .55f)
-        path.reset(); path.moveTo(19f, 29.5f); path.lineTo(45f, 29.5f); path.lineTo(32f, 42f); path.close(); canvas.drawPath(path, paint)
+        val ice = METALS[DIAMOND]
+        paint.color = Theme.lighten(ice, .82f); poly(24f, 21f, 40f, 21f, 36f, 28f, 28f, 28f)
+        paint.color = Theme.lighten(ice, .5f); poly(18f, 28f, 24f, 21f, 28f, 28f)
+        paint.color = Theme.lighten(ice, .62f); poly(40f, 21f, 46f, 28f, 36f, 28f)
+        paint.color = Theme.lighten(ice, .35f); poly(18f, 28f, 28f, 28f, 32f, 44f)
+        paint.color = Theme.lighten(ice, .7f); poly(28f, 28f, 36f, 28f, 32f, 44f)
+        paint.color = Theme.lighten(ice, .2f); poly(36f, 28f, 46f, 28f, 32f, 44f)
+        paint.color = Theme.WHITE
+        path.reset()
+        for (k in 0 until 8) {
+            val a = Math.toRadians(k * 45.0 - 90.0); val reach = if (k % 2 == 0) 4.2f else 1.2f
+            val x = 24.5f + reach * cos(a).toFloat(); val y = 23.5f + reach * sin(a).toFloat()
+            if (k == 0) path.moveTo(x, y) else path.lineTo(x, y)
+        }
+        path.close(); canvas.drawPath(path, paint)
     }
 
     private fun check(canvas: Canvas, dy: Float) {
