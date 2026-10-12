@@ -21,7 +21,7 @@ import cube.run.data.Progress
 import kotlin.math.sin
 
 /**
- * The trophy room, on the bright candy backdrop like the other menus. The medal case up top
+ * The trophy room: white cards on a flat candy grape. The medal case up top
  * counts everything collected; below it whatever has a reward waiting, then the medal families,
  * the challenges and the finished ones, one card per row.
  *
@@ -55,6 +55,9 @@ class AchievementsView(activity: Activity, kit: UiKit, private val preparing: Bo
         }
     }.apply {
         isVerticalScrollBarEnabled = false
+        // Cards slip away under the title row softly instead of being cut off on a hard line.
+        isVerticalFadingEdgeEnabled = true
+        setFadingEdgeLength(dp(18f))
         clipChildren = true; clipToPadding = true
         addView(sheet)
     }
@@ -81,6 +84,9 @@ class AchievementsView(activity: Activity, kit: UiKit, private val preparing: Bo
     }
 
     init {
+        // A flat grape instead of the pastel backdrop of the other bright pages: white cards on near-white were hard to tell apart.
+        setBackgroundColor(TrophyRoom.BACKDROP)
+        titleView.setTextColor(TrophyRoom.HEADING)
         titleView.maxLines = 1
         titleView.setAutoSizeTextTypeUniformWithConfiguration(12, 26, 1, android.util.TypedValue.COMPLEX_UNIT_SP)
         addRight(bank)
@@ -179,7 +185,7 @@ class AchievementsView(activity: Activity, kit: UiKit, private val preparing: Bo
         orientation = LinearLayout.VERTICAL
         gravity = Gravity.CENTER_HORIZONTAL
         setPadding(dp(18f), dp(18f), dp(18f), dp(18f) + kit.CARD_LIP)
-        background = kit.cardDrawable(Theme.CARD, null, 22f)
+        background = TrophyRoom.slab(kit, 22f)
         addView(kit.text(activity.getString(R.string.achievement_suggest_title), 21f, Theme.INK, 700))
         addView(kit.text(activity.getString(R.string.achievement_suggest_body), 15f, Theme.INK_SOFT, 500),
             LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(6f) })
@@ -195,9 +201,9 @@ class AchievementsView(activity: Activity, kit: UiKit, private val preparing: Bo
         orientation = LinearLayout.HORIZONTAL
         gravity = Gravity.CENTER_VERTICAL
         setPadding(dp(6f), 0, dp(6f), 0)
-        addView(kit.text(label, 16f, Theme.INK, 700, Gravity.START).apply { letterSpacing = kit.tracking(.08f) },
+        addView(kit.text(label, 16f, TrophyRoom.HEADING, 700, Gravity.START).apply { letterSpacing = kit.tracking(.08f) },
             LinearLayout.LayoutParams(0, -2, 1f))
-        addView(kit.text(count, 16f, Theme.INK_SOFT, 700).apply { tag = countTag })
+        addView(kit.text(count, 16f, TrophyRoom.HEADING_SOFT, 700).apply { tag = countTag })
     }
 
     private fun sectionParams() = LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(if (compactLayout) 8f else 22f); bottomMargin = dp(10f) }

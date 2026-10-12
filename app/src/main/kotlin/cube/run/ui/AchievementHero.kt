@@ -24,7 +24,7 @@ internal class AchievementHero(context: Context, private val kit: UiKit) : Linea
         orientation = HORIZONTAL
         gravity = Gravity.CENTER_VERTICAL
         clipChildren = false; clipToPadding = false
-        background = kit.cardDrawable(Theme.CARD, null, 22f)
+        background = TrophyRoom.slab(kit, 22f)
         setPadding(kit.dp(6f), kit.dp(12f), kit.dp(6f), kit.dp(10f) + kit.CARD_LIP)
         importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_YES
         setOnClickListener { Pokes.press(this) }

@@ -104,7 +104,7 @@ internal class AchievementCards(
             duration = 260; interpolator = Anim.ease
             addUpdateListener {
                 val k = it.animatedValue as Float
-                lip.setColor(blend.evaluate(k, LIP_READY, LIP) as Int)
+                lip.setColor(blend.evaluate(k, LIP_READY, TrophyRoom.LIP) as Int)
                 body.setStroke(dp(3f), Theme.alpha(Theme.GOLD, (255 * (1f - k)).toInt()))
             }
             Anim.cancelOnDetach(card, this)
@@ -167,7 +167,7 @@ internal class AchievementCards(
         orientation = LinearLayout.HORIZONTAL
         gravity = Gravity.CENTER_VERTICAL
         clipChildren = false; clipToPadding = false
-        background = kit.cardDrawable(Theme.CARD, null, 18f)
+        background = TrophyRoom.slab(kit, 18f)
         setPadding(dp(10f), dp(8f), dp(12f), dp(8f) + kit.CARD_LIP)
         val icon = tile(state)
         addView(icon, LinearLayout.LayoutParams(dp(44f), dp(44f)))
@@ -324,19 +324,13 @@ internal class AchievementCards(
         return button
     }
 
-    /** A white card with a darker lip. A waiting reward gets a gold edge. */
-    private fun surface(ready: Boolean): Drawable {
-        val radius = dpf(RADIUS)
-        return LayerDrawable(arrayOf(
-            GradientDrawable().apply { cornerRadius = radius; setColor(if (ready) LIP_READY else LIP) },
-            GradientDrawable().apply { cornerRadius = radius; setColor(Theme.CARD); if (ready) setStroke(dp(3f), Theme.GOLD) },
-        )).apply { setLayerInset(1, 0, 0, 0, kit.CARD_LIP) }
-    }
+    /** A white slab on the grape. A waiting reward gets a gold edge and lip. */
+    private fun surface(ready: Boolean): Drawable =
+        if (ready) TrophyRoom.slab(kit, RADIUS, Theme.GOLD, LIP_READY) else TrophyRoom.slab(kit, RADIUS)
 
     companion object {
         private const val RADIUS = 22f
         private val LIP_READY = Theme.darken(Theme.GOLD, .2f)
-        private val LIP = Theme.alpha(Theme.INK, 26)
         private const val PAD = 14f
         const val TILE = 64f
         const val BADGE = 56f

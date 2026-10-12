@@ -15,8 +15,10 @@ power-up pickups and wall bounces were not previously recorded, so those counter
 begin with this version. Purchasing the unlock acknowledges existing medals
 quietly rather than replaying notifications.
 
-The page is a bright candy page like the other menus (pink-to-sky backdrop, white lipped
-cards, ink text), with the title in the back button's row beside the coin bank; only when the
+The page sits on a flat candy grape (`TrophyRoom`), not the pink-to-sky backdrop of the other
+bright pages: testers found white cards on that near-white "white on white" and the gradient
+kitschy. Cards are white slabs with a solid lavender lip, section names are white, and the
+title is white, in the back button's row in the back button's row beside the coin bank; only when the
 title cannot fit there (a huge balance, a narrow pane, large text) does it take its own line.
 At the top is the trophy case: one slot each for bronze, silver, gold and diamond badges and one for
 challenge badges, each counting what has been *claimed* out of what exists (`3/10`, `6/28`).
