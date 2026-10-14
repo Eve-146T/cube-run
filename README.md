@@ -6,7 +6,7 @@ src="fastlane/metadata/android/en-US/images/icon.png" alt="Cube Run">
 Endless runner but you are cube.
 
 > [!TIP]
-> Cube run is made using agentic engineering and vibe coded pull requests welcome! 
+> Cube run is made using agentic engineering and vibe coded pull requests are welcome here! 
     
 Latest APK: [GitHub releases](https://github.com/Eve-146T/cube-run/releases/latest).
 
