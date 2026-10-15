@@ -101,6 +101,7 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false, retu
     private val preparePages = object : Runnable {
         override fun run() {
             if (!isAttachedToWindow || page != null || languageSheet != null || (runStarted && runOver == null)) return
+            if (afterUpdateNotesEntrance(this)) return
             if (width == 0 || height == 0) { postOnAnimation(this); return }
             for (name in listOf("settings", "sections", "achievements", "wardrobe")) {
                 val key = pageCacheKey(name)
@@ -135,6 +136,7 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false, retu
     private val prepareShop = object : Runnable {
         override fun run() {
             if (!isAttachedToWindow || page != null || languageSheet != null || (runStarted && runOver == null)) return
+            if (afterUpdateNotesEntrance(this)) return
             if (width == 0 || height == 0) { postOnAnimation(this); return }
             if (preparedShop?.isCurrent() != true) {
                 preparedShop?.let { removeView(it) }
@@ -198,8 +200,12 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false, retu
             if (opening) {
                 opening = false; scheduleShopPreparation()
                 // Once the menu has settled: the first launch after an update says what changed.
+                // Its tiles are painted off the main thread meanwhile, so the card's first frame stays light.
+                updateNotesDue = UpdateNotes.due(activity)
+                if (updateNotesDue) UpdateNotesArt.prepare(activity, kit.dp(UpdateNotesSheet.TILE_DP))
                 postDelayed({
                     if (isAttachedToWindow && !runStarted && page == null && languageSheet == null && UpdateNotes.takeUnseen(activity)) openUpdateNotes()
+                    updateNotesDue = false
                 }, 420)
             }
         }
@@ -300,6 +306,19 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false, retu
         }
         giftReturnCover = null
         super.onDetachedFromWindow()
+    }
+
+    /** The update card is about to open: background warm-up waits for it too. */
+    private var updateNotesDue = false
+
+    /**
+     * The update card's entrance owns the frames: warming pages before or behind it stuttered
+     * it (a 100+ ms page build just as it opened, another mid-entrance). Retries [r] once it has played.
+     */
+    private fun afterUpdateNotesEntrance(r: Runnable): Boolean {
+        val left = if (updateNotesDue) 200L else updateNotes?.entranceLeftMs() ?: 0L
+        if (left > 0L) postDelayed(r, left)
+        return left > 0L
     }
 
     private fun scheduleShopPreparation() {

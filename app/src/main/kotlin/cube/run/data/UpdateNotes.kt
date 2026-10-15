@@ -52,11 +52,17 @@ object UpdateNotes {
 
     /** True once per new set of notes after an update; also marks them seen. */
     fun takeUnseen(context: Context): Boolean {
+        val due = due(context)
         val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         val key = key(context)
-        val seen = prefs.getString(SEEN, null)
-        if (seen == key) return false
-        prefs.edit().putString(SEEN, key).apply()
+        if (prefs.getString(SEEN, null) != key) prefs.edit().putString(SEEN, key).apply()
+        return due
+    }
+
+    /** Whether [takeUnseen] would pop the notes up now, without marking them seen. */
+    fun due(context: Context): Boolean {
+        val seen = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString(SEEN, null)
+        if (seen == key(context)) return false
         // Only the usual is not worth a pop-up; Settings still shows it.
         if (news(context).isEmpty()) return false
         // No notes seen yet: an update from before this pop-up existed has played some runs.
