@@ -316,6 +316,10 @@ internal class AchievementCards(
         }.apply {
             // It fills the bar's row exactly, so its text centres in the row rather than padding it out.
             setPadding(dp(16f), 0, dp(16f), 0)
+            // The row is at least BOTTOM tall, but a FrameLayout only stretches a lone MATCH_PARENT
+            // child to its own height when it has two of them (bar and button). A one-off dare has
+            // no bar, so the button has to be BOTTOM tall itself or it shrinks to its text.
+            minimumHeight = dp(BOTTOM)
             tag = "achievement_claim_${state.definition.id}"
             maxLines = 1
             textSize = 16f
@@ -353,6 +357,7 @@ internal class AchievementCards(
             "icarus", "juggernaut" -> Theme.SKY
             "poltergeist" -> Theme.GRAPE
             "full_throttle" -> DEEP
+            "tweaks" -> Theme.MINT
             "shard_hunter", "insomniac", "globetrotter", "shardsmith", "very_silent_treatment", "secret" -> DEEP
             else -> Theme.PINK
         }

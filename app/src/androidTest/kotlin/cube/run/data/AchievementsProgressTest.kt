@@ -218,7 +218,7 @@ class AchievementsProgressTest {
             assertTrue(Achievements.drainUnlocks().isEmpty())
         }
         Progress.init(context)
-        assertEquals(10, Progress.maxRunMissedBoxes)
+        assertEquals("The run's real record, not capped at the goal", 20, Progress.maxRunMissedBoxes)
         assertEquals(1500, Achievements.claim("gambliphobic"))
         assertEquals(0, Achievements.claim("gambliphobic"))
     }

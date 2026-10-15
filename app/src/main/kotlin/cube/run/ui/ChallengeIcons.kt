@@ -365,18 +365,21 @@ internal class ChallengeIcon(private val id: String) : Icon() {
                 fill(Theme.INK); rect.set(16f, 17f, 22f, 25f); canvas.drawOval(rect, paint); rect.set(26f, 17f, 32f, 25f); canvas.drawOval(rect, paint)
                 fill(Theme.alpha(Theme.INK, 200)); rect.set(21f, 28f, 27f, 33f); canvas.drawOval(rect, paint)
                 fill(Theme.WHITE); canvas.drawCircle(18.2f, 19.5f, 1.3f, paint); canvas.drawCircle(28.2f, 19.5f, 1.3f, paint)
-                paint.style = Paint.Style.STROKE; paint.strokeWidth = 2.6f; paint.color = Theme.alpha(Theme.LAVENDER, 220)
-                rect.set(13f, 9f, 35f, 31f); canvas.drawArc(rect, 200f, 50f, false, paint)
             }
             "juggernaut" -> {
-                // A wrecking ball on a stubby chain, two chunks of wall flying off it.
-                line(24f, 2f, 24f, 14f, Theme.darken(Theme.LAVENDER, .3f), 6f)
-                line(24f, 1f, 24f, 12f, Theme.LAVENDER, 6f)
-                lipped(Theme.ORANGE) { shape(1f, 22f, 10f, 18f, 12f, 28f, 3f, 31f) }
-                lipped(Theme.YELLOW) { shape(37f, 32f, 46f, 28f, 47f, 38f, 38f, 41f) }
-                disc(24f, 29f, 15f, Theme.BERRY)
-                gloss(24f, 29f, 15f)
-                fill(Theme.alpha(Theme.WHITE, 220)); canvas.drawCircle(18f, 23.5f, 2.4f, paint)
+                // A candy steamroller (Dampfwalze, the German name): nothing in its lane stays standing.
+                val c = lastCanvas!!
+                lipped(Theme.INK) { round(19f, 9f, 24f, 21f, 1.5f) }
+                fill(Theme.WHITE); c.drawCircle(21.5f, 6f, 3.2f, paint); c.drawCircle(25.5f, 3.5f, 2.4f, paint)
+                lipped(Theme.YELLOW) { round(17f, 19f, 45f, 35f, 4f) }
+                lipped(Theme.YELLOW) { round(28f, 5f, 43f, 21f, 3.5f) }
+                fill(Theme.lighten(Theme.SKY, .45f)); round(31f, 8.5f, 40f, 16f, 2f)
+                fill(Theme.alpha(Theme.WHITE, 200)); round(33f, 23f, 42f, 25.5f, 1.25f)
+                disc(38f, 37f, 7.5f, Theme.INK); fill(Theme.LAVENDER); c.drawCircle(38f, 37f, 2.6f, paint)
+                disc(15f, 32f, 13f, Theme.BERRY)
+                fill(Theme.darken(Theme.BERRY, .2f)); c.drawCircle(15f, 32f, 5.2f, paint)
+                fill(Theme.YELLOW); c.drawCircle(15f, 32f, 2.5f, paint)
+                gloss(15f, 32f, 13f)
             }
             "full_throttle" -> {
                 // The speedometer pinned at the top of its dial.
@@ -407,6 +410,26 @@ internal class ChallengeIcon(private val id: String) : Icon() {
                 paint.style = Paint.Style.STROKE; paint.strokeWidth = 2.8f; paint.strokeCap = Paint.Cap.ROUND; paint.color = Theme.alpha(Theme.WHITE, 220)
                 canvas.drawLine(17f, 22f, 21f, 15f, paint)
                 sparkle(41f, 8f, 5f)
+            }
+            "tweaks" -> {
+                // "And the usual" on the update card: a chunky wrench, tilted, with a twinkle.
+                val c = lastCanvas!!
+                val wrench = Path().apply {
+                    addCircle(24f, 12f, 10.5f, Path.Direction.CW)
+                    addRoundRect(RectF(20f, 14f, 28f, 41f), 4f, 4f, Path.Direction.CW)
+                    addCircle(24f, 39f, 6.5f, Path.Direction.CW)
+                    op(Path().apply { addRoundRect(RectF(20.2f, -1f, 27.8f, 12.5f), 2.5f, 2.5f, Path.Direction.CW) }, Path.Op.DIFFERENCE)
+                    op(Path().apply { addCircle(24f, 39f, 2.6f, Path.Direction.CW) }, Path.Op.DIFFERENCE)
+                }
+                // The lip drops straight down, as on every other icon, so it is offset before the tilt.
+                c.save(); c.translate(0f, 2.5f); c.rotate(42f, 24f, 25f)
+                fill(Theme.darken(Theme.WHITE, .3f)); c.drawPath(wrench, paint)
+                c.restore()
+                c.save(); c.rotate(42f, 24f, 25f)
+                fill(Theme.WHITE); c.drawPath(wrench, paint)
+                fill(Theme.alpha(Theme.MINT, 120)); round(22.2f, 17f, 25.8f, 33f, 1.8f)
+                c.restore()
+                sparkle(40f, 8f, 5f, Theme.YELLOW)
             }
             "neo" -> {
                 // The red pill: a glossy capsule lying at a tilt, with its seam.

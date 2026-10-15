@@ -48,7 +48,8 @@ the card pays lying over that bar. Yes-or-no dares (target 1) have no row until 
 be squeezed narrower than a few words of the title (a split pane, large text) the badge folds
 away. Once there is nothing left to aim for, anything with a bar keeps it, full, with its number
 beside it: the best a one-run record has reached, or a lifetime total. One-run records are
-stored uncapped for this (Untouchable's full-run score is saved when the run ends). A claimed
+stored uncapped for this, and survive a restart uncapped (Untouchable's and Full Throttle's
+full-run scores and Long Con's exact time are saved when the run ends). A claimed
 card keeps the same text it had while waiting, so claiming never changes its height. DONE
 collects everything fully claimed as slim rows with the tile, the name, the number if it counted
 one, and the last badge. What a reward pays stays a surprise until it can be claimed. The list clips below the
@@ -118,7 +119,7 @@ crashes between bubbles ignored, smashes about 75 obstacles a minute without upg
 bubble) and 110 to 175 with Bubble time and Faster bubbles maxed. The goal of 300 is about four
 minutes of that with no upgrades and about 40 bubbles. Full Throttle (2,500) needs 1,500 points in a run whose boost
 presses, the start speed setting's included, reached all ten (Even faster starts maxed). Its bar
-records the best such run in steps of 50.
+follows the run in steps of 50; the run's exact score is its record.
 
 Big Bubble requires 1,000 stocked bubbles at once. Bouncer requires 67 deliberate
 side-wall hits in one run. Holding a smooth drag beyond an edge does not repeatedly
@@ -130,7 +131,7 @@ frame; there is no simulation-time filter that discards separate gestures.
 Stay Centered requires a score of **100 or higher** without leaving the middle lane
 before that score. Leaving and returning invalidates that run, even when both inputs
 arrive within one rendered frame. Portals that widen or narrow the road preserve
-the middle lane. Progress is the best eligible score, capped at 100, and starts fresh
+the middle lane. Progress is the best eligible score (the bar fills at 100) and starts fresh
 because older runs contain no lane history. Completion persists if the player later
 changes lanes. It shares the ordinary unlock gate, quiet discovery, claim flow and
 dev-mode support.
@@ -138,13 +139,13 @@ dev-mode support.
 Homeress requires a score of **60 or higher** before picking up any track coin.
 Any physical coin pickup invalidates the run, even when Coal makes it worthless
 or Gambler converts it into a losing lottery ticket. A mystery-box jackpot does
-not itself count as a coin pickup. Best eligible progress is capped at 60; after
+not itself count as a coin pickup. Progress is the best eligible score (the bar fills at 60); after
 completion, picking up a coin does not revoke the achievement.
 
 Gambliphobic requires **10 missed mystery boxes in one run**. Each uncollected box
 counts once after it passes the player. Collected boxes, including forfeited
 Gambler lottery boxes, do not count as missed. Run counters reset on restart;
-the best missed-box count persists, capped at 10.
+the best missed-box count persists.
 
 Cookie Clicker requires **1,000 lifetime haptics-toggle taps**. Each deliberate tap
 on the vibration row in settings or the vibration chip in pause counts once,

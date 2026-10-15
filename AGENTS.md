@@ -14,7 +14,15 @@ Cube Run is a hyperstimulating Android endless runner built with libGDX, created
 
 ## In this update
 
-- Every update, and every worktree, rewrites `app/src/main/res/values*/update_notes.xml` (English, German, Hebrew) to say what it changes, one `icon | title | text` line each. The icon is an achievement id or `news`. Rewriting the notes makes the "In this update" card pop up once on the next launch.
+- Every update, and every worktree, rewrites `app/src/main/res/values*/update_notes.xml` (English, German, Hebrew) from scratch to say what it changes, one `icon | title | text` line each, and sets `update_notes_for` to the versionName. The icon is an achievement id or `news`. Rewriting the notes makes the "In this update" card pop up once on the next launch.
+- Only things a player can see, try or chase get an item. Balance changes, bug fixes, performance and UI moves are never listed: the fixed last item "And the usual" covers them. The developer says when something like that deserves its own line. Details: `docs/update-notes.md`.
+
+## UI design
+
+- Candy arcade: flat saturated colours, chunky rounded slabs with a darker lip, bold glossy single silhouettes for icons, the Fredoka font. No gradient or bokeh backdrops, no drop shadows, no confetti, and very little shake.
+- Feedback happens where you tap, and every screen says as little as it can: icons, bars and numbers instead of words.
+- Idle clicks are taps on things that do nothing, like an achievement card or a row on the "In this update" card. They still answer the finger, softly: use `Pokes.press` (a small dip, the quiet `tap` sound, a tick of haptics, and a wiggle that only builds up with fast repeated taps). Never play the square-wave `blip` or any other loud or bright sound for an idle click, and never make one look like it did something.
+- Never block scrolling for an animation. While something plays out, the page can still scroll; only taps that would start something new wait.
 
 ## Devices and builds
 

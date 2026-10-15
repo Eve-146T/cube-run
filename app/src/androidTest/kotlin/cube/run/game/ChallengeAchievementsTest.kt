@@ -101,5 +101,21 @@ class ChallengeAchievementsTest {
         run.game.session.setScore(1500)
         assertEquals(1500, Progress.metric("full_throttle"))
         assertEquals(1, earned("full_throttle"))
+        run.game.session.setScore(2237)
+        assertEquals("The record keeps climbing past the goal", 2200, Progress.metric("full_throttle"))
+        run.game.session.gameOver()
+        assertEquals("Game over records the exact score", 2237, Progress.metric("full_throttle"))
+    }
+
+    @Test fun finishedChallengesKeepTheRealRecord() = playingRun(cube(0)) { run ->
+        Progress.recordCenteredScore(140); Progress.recordCoinlessScore(75)
+        repeat(12) { run.game.session.mysteryBoxMissed() }
+        run.game.session.runSeconds(613)
+        run.game.session.gameOver()
+        Progress.init(androidx.test.platform.app.InstrumentationRegistry.getInstrumentation().targetContext)
+        assertEquals("Stay Centered", 140, Progress.bestCenteredScore)
+        assertEquals("Homeress", 75, Progress.bestCoinlessScore)
+        assertEquals("Gambliphobic", 12, Progress.maxRunMissedBoxes)
+        assertEquals("Long Con: the exact time, not the last ten", 613, Progress.metric("long_con"))
     }
 }

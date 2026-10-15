@@ -44,6 +44,8 @@ class GameHostSession(
     private var runSmashed = 0
     /** Boost presses this run has made, the start speed setting's included. */
     private var runBoosts = 0
+    /** Whole seconds alive this run: Long Con's record is the exact time, not the last ten. */
+    private var runAlive = 0
     private var bonusMask = 0
     private var shardMask = 0
     private var lastDistance = 0
@@ -74,7 +76,7 @@ class GameHostSession(
         for (i in 0..2) shardsV.set(i, 0)
         runHasStarted = false; centerLaneObserved = false; stayedCentered = true; stayedCoinless = true
         missedBoxes = 0; noPowerup = true; runBoxesCollected = 0; runGroundPounds = 0; bonusMask = 0; shardMask = 0
-        runSmashed = 0; runBoosts = 0
+        runSmashed = 0; runBoosts = 0; runAlive = 0
         lastDistance = 0; observedDistance = 0; lastSwipeFrom = -1; lastSwipeTo = -1
         lastSwipeAt = 0L; reversals = 0
         Progress.clearRunCoins()
@@ -102,7 +104,7 @@ class GameHostSession(
         stayedCentered = true
         stayedCoinless = true
         missedBoxes = 0
-        noPowerup = true; runBoxesCollected = 0; runGroundPounds = 0; bonusMask = 0; shardMask = 0; runSmashed = 0
+        noPowerup = true; runBoxesCollected = 0; runGroundPounds = 0; bonusMask = 0; shardMask = 0; runSmashed = 0; runAlive = 0
         lastDistance = 0; observedDistance = 0; lastSwipeFrom = -1; lastSwipeTo = -1; reversals = 0
         runSkin = Progress.skin
         silentAtStart = runSkin == 0 && !Settings.soundEnabled && !Settings.hapticsEnabled
@@ -137,8 +139,8 @@ class GameHostSession(
         if (runHasStarted && centerLaneObserved && stayedCentered) Progress.recordCenteredScore(score)
         if (runHasStarted && stayedCoinless) Progress.recordCoinlessScore(score)
         if (runHasStarted && noPowerup) Progress.bestMetric("untouchable", score.coerceAtMost(150))
-        // In steps of 50: the bar needs no save on every point.
-        if (runHasStarted && runBoosts >= FULL_THROTTLE_BOOSTS) Progress.bestMetric("full_throttle", (score / 50 * 50).coerceAtMost(1500))
+        // Live in steps of 50 so the bar needs no save on every point; game over records the exact score.
+        if (runHasStarted && runBoosts >= FULL_THROTTLE_BOOSTS) Progress.bestMetric("full_throttle", score / 50 * 50)
     }
 
     @Synchronized override fun coinPickedUp() {
@@ -147,7 +149,7 @@ class GameHostSession(
 
     @Synchronized override fun mysteryBoxMissed() {
         if (!runHasStarted || over.get()) return
-        missedBoxes = (missedBoxes + 1).coerceAtMost(10)
+        missedBoxes = saturatedAdd(missedBoxes, 1)
         Progress.recordMissedBoxes(missedBoxes)
     }
 
@@ -189,7 +191,9 @@ class GameHostSession(
         }
     }
     override fun runSeconds(seconds: Int) {
-        if (runHasStarted && !over.get() && seconds % 10 == 0) Progress.bestMetric("long_con", seconds)
+        if (!runHasStarted || over.get()) return
+        runAlive = seconds
+        if (seconds % 10 == 0) Progress.bestMetric("long_con", seconds)
     }
     override fun runCrashed(seconds: Float) {
         if (runHasStarted && !over.get() && seconds < 2f) Progress.addMetric("stage_fright")
@@ -251,6 +255,8 @@ class GameHostSession(
         Progress.bestMetric("magpie", runCoins)
         // Untouchable is capped while it counts live; the whole run's score is its record.
         if (runHasStarted && noPowerup && !zen) Progress.bestMetric("untouchable", finalScore)
+        if (runHasStarted && runBoosts >= FULL_THROTTLE_BOOSTS && !zen) Progress.bestMetric("full_throttle", finalScore)
+        if (runHasStarted) Progress.bestMetric("long_con", runAlive)
         if (finalScore == 67) Progress.bestMetric("exactly_67", 1)
         if (finalScore >= 100 && silentAtStart && silentRevision == Settings.audioHapticRevision && !Settings.soundEnabled && !Settings.hapticsEnabled)
             Progress.bestMetric("silent_treatment", 1)

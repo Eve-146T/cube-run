@@ -15,7 +15,6 @@ import android.widget.ImageView
 import android.widget.LinearLayout
 import cube.run.BuildConfig
 import cube.run.R
-import cube.run.core.Haptics
 import cube.run.core.SoundFx
 import cube.run.data.UpdateNotes
 import cube.run.ui.Anim.move
@@ -39,9 +38,10 @@ class UpdateNotesSheet(activity: Activity, kit: UiKit, onDismissed: () -> Unit) 
 
     init {
         card.setPadding(0, 0, 0, dp(22f))
+        card.background = Back()
         // Long titles (German) may take two lines: the header grows rather than cutting them.
-        header.minimumHeight = dp(124f)
-        header.setPadding(dp(18f), dp(20f), dp(18f), dp(22f))
+        header.minimumHeight = dp(108f)
+        header.setPadding(dp(18f), dp(16f), dp(18f), dp(18f))
         header.addView(LinearLayout(activity).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER_HORIZONTAL
@@ -56,7 +56,7 @@ class UpdateNotesSheet(activity: Activity, kit: UiKit, onDismissed: () -> Unit) 
             clipChildren = false; clipToPadding = false
             setPadding(dp(18f), dp(14f), dp(18f), 0)
         }
-        for (item in UpdateNotes.items(activity)) list.addView(row(item), LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(6f) })
+        for (item in UpdateNotes.items(activity)) list.addView(row(item), LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(2f) })
         card.addView(list, LinearLayout.LayoutParams(-1, -2))
         card.addView(done, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(18f); marginStart = dp(18f); marginEnd = dp(18f) })
         choreograph()
@@ -77,17 +77,16 @@ class UpdateNotesSheet(activity: Activity, kit: UiKit, onDismissed: () -> Unit) 
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
             clipChildren = false; clipToPadding = false
-            setPadding(dp(4f), dp(7f), dp(4f), dp(7f))
+            setPadding(dp(4f), dp(5f), dp(4f), dp(5f))
             isClickable = true; isFocusable = true
             contentDescription = "${item.title}. ${item.text}"
             addView(tile, LinearLayout.LayoutParams(dp(54f), dp(54f)))
             addView(words, LinearLayout.LayoutParams(0, -2, 1f).apply { marginStart = dp(14f) })
-            Anim.pressFeedback(this)
+            // An idle tap, like a card on the achievement page: the same soft press and tick.
             setOnClickListener {
-                Anim.tap(this)
+                Pokes.press(this)
                 tile.rotation = -9f
                 tile.move().rotation(0f).setDuration(420).setInterpolator(Anim.spring).start()
-                SoundFx.play("blip", rate = 1.1f, vol = .5f); Haptics.click()
             }
             rows.add(tile to words)
         }
@@ -117,9 +116,42 @@ class UpdateNotesSheet(activity: Activity, kit: UiKit, onDismissed: () -> Unit) 
         super.onDetachedFromWindow()
     }
 
-    /** The grape top of the card: rounded like the card above, square below, with soft turning rays. */
+    /**
+     * The card itself: the grape top, the white body and the lip under it, side by side rather
+     * than stacked. Painting the grape over a white card left the white showing through the
+     * anti-aliased corner pixels as a pale fringe around the top.
+     */
+    private inner class Back : android.graphics.drawable.Drawable() {
+        private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
+        private val path = Path()
+        private val box = RectF()
+
+        override fun draw(canvas: Canvas) {
+            val b = bounds; val r = dpf(30f); val split = (b.top + header.bottom).toFloat()
+            val lip = kit.CARD_LIP.toFloat()
+            fill(canvas, GRAPE, b.top.toFloat(), split, floatArrayOf(r, r, r, r, 0f, 0f, 0f, 0f))
+            fill(canvas, Theme.alpha(Theme.INK, 26), split, b.bottom.toFloat(), floatArrayOf(0f, 0f, 0f, 0f, r, r, r, r))
+            fill(canvas, Theme.CARD, split, b.bottom - lip, floatArrayOf(0f, 0f, 0f, 0f, r, r, r, r))
+        }
+
+        private fun fill(canvas: Canvas, color: Int, top: Float, bottom: Float, radii: FloatArray) {
+            if (bottom <= top) return
+            box.set(bounds.left.toFloat(), top, bounds.right.toFloat(), bottom)
+            path.reset(); path.addRoundRect(box, radii, Path.Direction.CW)
+            paint.color = color; canvas.drawPath(path, paint)
+        }
+
+        override fun setAlpha(alpha: Int) { paint.alpha = alpha }
+        override fun setColorFilter(filter: android.graphics.ColorFilter?) { paint.colorFilter = filter }
+        @Deprecated("Deprecated in Java")
+        override fun getOpacity() = android.graphics.PixelFormat.TRANSLUCENT
+    }
+
+    /** The grape top of the card (painted by [Back]): soft turning rays and twinkles over it. */
     private inner class Header : FrameLayout(activity) {
         private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
+        private val mask = Paint(Paint.ANTI_ALIAS_FLAG).apply { xfermode = android.graphics.PorterDuffXfermode(android.graphics.PorterDuff.Mode.CLEAR) }
+        /** Everything outside the rounded top: cleared from the rays' layer. */
         private val clip = Path()
         private val rays = Path()
         private val box = RectF()
@@ -139,9 +171,11 @@ class UpdateNotesSheet(activity: Activity, kit: UiKit, onDismissed: () -> Unit) 
         override fun onDetachedFromWindow() { spin.cancel(); super.onDetachedFromWindow() }
 
         override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
+            (parent as? View)?.background?.invalidateSelf()
             val r = dpf(30f)
             box.set(0f, 0f, w.toFloat(), h.toFloat())
             clip.reset(); clip.addRoundRect(box, floatArrayOf(r, r, r, r, 0f, 0f, 0f, 0f), Path.Direction.CW)
+            clip.fillType = Path.FillType.INVERSE_WINDING
             rays.reset()
             val reach = maxOf(w, h).toFloat()
             for (k in 0 until 12) {
@@ -154,12 +188,15 @@ class UpdateNotesSheet(activity: Activity, kit: UiKit, onDismissed: () -> Unit) 
         }
 
         override fun onDraw(canvas: Canvas) {
-            val save = canvas.save()
-            canvas.clipPath(clip)
-            canvas.drawColor(GRAPE)
+            // The rays are trimmed to the rounded top by an anti-aliased mask: clipPath has hard,
+            // stepped edges that stood out on the corners.
+            val save = canvas.saveLayer(box, null)
+            canvas.save()
             canvas.translate(width / 2f, height * .52f)
             canvas.rotate(turn)
             paint.color = Theme.alpha(Theme.WHITE, 22); canvas.drawPath(rays, paint)
+            canvas.restore()
+            canvas.drawPath(clip, mask)
             canvas.restoreToCount(save)
             // The same twinkles the achievement art uses, fixed in the corners.
             twinkle(canvas, width * .12f, height * .3f, dpf(7f))

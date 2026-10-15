@@ -21,6 +21,20 @@ class UpdateNotesTest {
         assertEquals(listOf(UpdateNotes.Item("news", "A", "B | still text")), UpdateNotes.parse(arrayOf(" news | A | B | still text ", "broken", "x | | y")))
     }
 
+    /** A version bump without new notes would show last update's news as this one's. */
+    @Test fun theNotesAreWrittenForThisVersion() {
+        assertEquals("Rewrite update_notes.xml for this version (docs/update-notes.md), then set update_notes_for",
+            cube.run.BuildConfig.VERSION_NAME, context.getString(cube.run.R.string.update_notes_for))
+        assertFalse(UpdateNotes.stale(context))
+    }
+
+    @Test fun theUsualAlwaysClosesTheList() {
+        val items = UpdateNotes.items(context)
+        assertEquals(UpdateNotes.USUAL, items.last().icon)
+        assertEquals(UpdateNotes.news(context), items.dropLast(1))
+        assertTrue("The usual is never listed as news", UpdateNotes.news(context).none { it.icon == UpdateNotes.USUAL })
+    }
+
     @Test fun showsOncePerNotesAndNotesChangingShowsAgain() {
         val saved = prefs.all
         try {

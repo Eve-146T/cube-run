@@ -3,4 +3,7 @@
     <string name="update_notes_title">Neu in diesem Update</string>
     <string name="update_notes_version">Version %1$s</string>
     <string name="update_notes_done">LOS GEHT\'S</string>
+    <!-- Always the last item: never rewritten, never listed one by one. -->
+    <string name="update_notes_usual_title">Und das Übliche</string>
+    <string name="update_notes_usual_text">Balance-Änderungen, Bugfixes, moar Performance und Umräumen in der Oberfläche.</string>
 </resources>

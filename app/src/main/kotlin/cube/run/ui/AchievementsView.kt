@@ -53,6 +53,10 @@ class AchievementsView(activity: Activity, kit: UiKit, private val preparing: Bo
             super.dispatchDraw(canvas)
             canvas.restoreToCount(saved)
         }
+
+        // While the coins fly the list still scrolls, but every gesture is the list's own: no tap
+        // reaches a card or another CLAIM under the finger until the claim has settled.
+        override fun onInterceptTouchEvent(event: MotionEvent): Boolean = paying || super.onInterceptTouchEvent(event)
     }.apply {
         isVerticalScrollBarEnabled = false
         // Cards slip away under the title row softly instead of being cut off on a hard line.
@@ -342,10 +346,7 @@ class AchievementsView(activity: Activity, kit: UiKit, private val preparing: Bo
         super.onDetachedFromWindow()
     }
 
-    override fun dispatchTouchEvent(event: MotionEvent): Boolean =
-        if (paying) true else super.dispatchTouchEvent(event)
-
-    // Touches are swallowed while the coins fly, but leaving the page never is.
+    // Only the list's taps wait for a claim to settle (see [scroll]); leaving the page never does.
     override fun onBack() = close()
 
     private companion object {
