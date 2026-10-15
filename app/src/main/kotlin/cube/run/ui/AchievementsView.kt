@@ -5,18 +5,12 @@ import android.annotation.SuppressLint
 import android.app.Activity
 import android.os.SystemClock
 import android.graphics.Canvas
-import android.graphics.LinearGradient
-import android.graphics.Paint
-import android.graphics.RadialGradient
-import android.graphics.Shader
-import android.graphics.drawable.Drawable
-import android.graphics.drawable.GradientDrawable
 import android.view.Gravity
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
-import android.view.ViewTreeObserver
 import android.widget.FrameLayout
+import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import cube.run.R
@@ -24,23 +18,28 @@ import cube.run.core.Haptics
 import cube.run.core.SoundFx
 import cube.run.data.Achievements
 import cube.run.data.Progress
+import kotlin.math.sin
 
 /**
- * The trophy room. A trophy ring up top shows how much of everything is earned; below it the
- * medal families, then the challenges, one card per row. Claiming flips the card over like a
- * flap: its new face comes up with the medal just minted spinning in, and the reward pours out
- * of that medal into the bank. The first screenful is built at once and the rest a few cards a
- * frame, so the page opens without a pause.
+ * The trophy room: white cards on a flat candy grape. The medal case up top
+ * counts everything collected; below it whatever has a reward waiting, then the medal families,
+ * the challenges and the finished ones, one card per row.
+ *
+ * Claiming is collecting: the CLAIM button melts back into the card's bar and the waiting badge
+ * is stamped into place where you tapped. It dips, lands in its won colours with a thump and a
+ * little wobble, the case above counts it, and a few coins hop out of it into the bank. Every badge the card has waiting is stamped in one go, each a little higher in pitch.
+ * The first screenful is built at once and the rest a few cards a frame, so the page opens
+ * without a pause.
  */
 @SuppressLint("ViewConstructor")
 class AchievementsView(activity: Activity, kit: UiKit, private val preparing: Boolean = false, onClose: () -> Unit) :
-    Page(activity, kit, activity.getString(R.string.achievements_title), dark = true, onClosed = onClose) {
+    Page(activity, kit, activity.getString(R.string.achievements_title), dark = false, onClosed = onClose) {
     private val rows = LinearLayout(activity).apply {
         orientation = LinearLayout.VERTICAL
         setPadding(dp(14f), dp(4f), dp(14f), dp(28f))
         clipChildren = false; clipToPadding = false
     }
-    /** The scrolling sheet: the list, and the claim stamps drawn over it (clipped with it). */
+    /** The scrolling sheet: the list, and the claim effects drawn over it (clipped with it). */
     private val sheet = FrameLayout(activity).apply {
         clipChildren = false; clipToPadding = false
         addView(rows, FrameLayout.LayoutParams(-1, -2))
@@ -56,74 +55,84 @@ class AchievementsView(activity: Activity, kit: UiKit, private val preparing: Bo
         }
     }.apply {
         isVerticalScrollBarEnabled = false
+        // Cards slip away under the title row softly instead of being cut off on a hard line.
+        isVerticalFadingEdgeEnabled = true
+        setFadingEdgeLength(dp(18f))
         clipChildren = true; clipToPadding = true
         addView(sheet)
     }
+    /** Where the title goes when it cannot share the corner row with the bank (a huge balance, a narrow pane, large text). */
+    private val titleRow = FrameLayout(activity).apply { visibility = View.GONE }
     private val cards = AchievementCards(activity, kit, ::claim)
     private val hero = AchievementHero(activity, kit)
     private var paying = false
     private var bankCount: ValueAnimator? = null
     internal var contentReady = false
         private set
-
-    private val titleRow = LinearLayout(activity).apply { orientation = LinearLayout.VERTICAL }
+    /** Cards not built yet: a few are made each frame after the first screenful. */
+    private val later = ArrayList<() -> Unit>()
 
     override fun onCompactChanged(compact: Boolean) {
-        // Short panes: the title joins the back button's row like every other page,
-        // and the trophy hero gives its height to the first cards (sections keep their counts).
+        // Short panes: the medal case gives its height to the first cards (sections keep their counts).
         hero.visibility = if (compact) View.GONE else View.VISIBLE
-        (titleView.parent as? android.view.ViewGroup)?.removeView(titleView)
-        if (compact) topBar.addView(titleView, 1, LinearLayout.LayoutParams(0, -2, 1f).apply { marginStart = dp(12f) })
-        else titleRow.addView(titleView, LinearLayout.LayoutParams(-1, -2))
-        titleRow.visibility = if (compact) View.GONE else View.VISIBLE
         for (i in 0 until rows.childCount) {
             val row = rows.getChildAt(i)
             if (row.tag == "achievement_section") row.layoutParams = sectionParams().apply {
-                if (compact && i == 1) topMargin = dp(4f) // right under the hidden hero
+                if (compact && i == 1) topMargin = dp(4f) // right under the hidden case
             }
         }
     }
 
     init {
-        background = TrophyRoomBackdrop()
+        // A flat grape instead of the pastel backdrop of the other bright pages: white cards on near-white were hard to tell apart.
+        setBackgroundColor(TrophyRoom.BACKDROP)
+        titleView.setTextColor(TrophyRoom.HEADING)
         titleView.maxLines = 1
-        titleView.setAutoSizeTextTypeUniformWithConfiguration(12, 23, 1, android.util.TypedValue.COMPLEX_UNIT_SP)
+        titleView.setAutoSizeTextTypeUniformWithConfiguration(12, 26, 1, android.util.TypedValue.COMPLEX_UNIT_SP)
         addRight(bank)
-        // Give the full heading its own line; the back control and bank share the corner row.
-        topBar.removeView(titleView)
         content.addView(LinearLayout(activity).apply {
             orientation = LinearLayout.VERTICAL
-            clipChildren = true; clipToPadding = true
-            titleRow.addView(titleView, LinearLayout.LayoutParams(-1, -2))
-            addView(titleRow, LinearLayout.LayoutParams(-1, -2).apply {
-                marginStart = dp(14f); marginEnd = dp(14f); topMargin = dp(4f); bottomMargin = dp(8f)
-            })
+            addView(titleRow, LinearLayout.LayoutParams(-1, -2).apply { marginStart = dp(16f); marginEnd = dp(16f); bottomMargin = dp(4f) })
             addView(scroll, LinearLayout.LayoutParams(-1, 0, 1f))
-        })
-        val states = Achievements.snapshot()
+        }, FrameLayout.LayoutParams(-1, -1))
+        val everything = Achievements.snapshot()
+        // A secret stays off the page until it is earned; SECRETS only says how many are left to find.
+        val secrets = everything.filter { it.definition.secret }
+        val hidden = secrets.filter { it.earnedTiers == 0 }
+        val states = everything.filterNot { it in hidden }
         // Rewards waiting first, then whatever is closest to its next medal; finished ones go to the shelf.
-        val open = states.filterNot { it.allClaimed }
-            .sortedWith(compareBy<Achievements.Snapshot> { if (it.claimableTier != null) 0 else 1 }.thenByDescending { it.fraction })
+        val ready = states.filter { it.claimableTier != null }
+            .sortedWith(compareBy<Achievements.Snapshot> { if (it.definition.tiered) 0 else 1 }.thenByDescending { it.claimableTier })
+        val open = states.filter { !it.allClaimed && it.claimableTier == null }.sortedByDescending { it.fraction }
         val medals = open.filter { it.definition.tiered }
         val challenges = open.filterNot { it.definition.tiered }
         val done = states.filter { it.allClaimed }
         val allMedals = states.filter { it.definition.tiered }
-        val allChallenges = states.filterNot { it.definition.tiered }
-        rows.addView(hero, LinearLayout.LayoutParams(-1, -2))
-        // Everything below the hero, in order; each entry makes its view when its turn comes.
-        val later = ArrayList<() -> Unit>()
+        val allChallenges = states.filterNot { it.definition.tiered || it.definition.secret }
+        rows.addView(hero, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(6f) })
+        // Everything below the case, in order; each entry makes its view when its turn comes.
         fun list(states: List<Achievements.Snapshot>, first: Int, row: (Achievements.Snapshot, Int) -> View) {
             for ((index, state) in states.withIndex()) later += {
-                rows.addView(row(state, first + index), LinearLayout.LayoutParams(-1, -2).apply { if (index > 0) topMargin = dp(12f) })
+                rows.addView(row(state, first + index), LinearLayout.LayoutParams(-1, -2).apply { if (index > 0) topMargin = dp(if (state.allClaimed) 8f else 12f) })
             }
+        }
+        if (ready.isNotEmpty()) {
+            later += { rows.addView(section(activity.getString(R.string.achievement_section_ready), "${ready.size}", READY_COUNT), sectionParams()) }
+            list(ready, 0) { state, i -> cards.card(state, i, animateFill = !preparing) }
         }
         if (medals.isNotEmpty()) {
             later += { rows.addView(section(activity.getString(R.string.achievement_section_medals), "${allMedals.sumOf { it.earnedTiers }} / ${allMedals.sumOf { it.definition.thresholds.size }}"), sectionParams()) }
-            list(medals, 0) { state, i -> cards.card(state, i, animateFill = !preparing) }
+            list(medals, ready.size) { state, i -> cards.card(state, i, animateFill = !preparing) }
         }
         if (challenges.isNotEmpty()) {
             later += { rows.addView(section(activity.getString(R.string.achievement_section_challenges), "${allChallenges.count { it.earnedTiers > 0 }} / ${allChallenges.size}"), sectionParams()) }
-            list(challenges, medals.size) { state, i -> cards.card(state, i, animateFill = !preparing) }
+            list(challenges, ready.size + medals.size) { state, i -> cards.card(state, i, animateFill = !preparing) }
+        }
+        if (hidden.isNotEmpty()) {
+            later += { rows.addView(section(activity.getString(R.string.achievement_section_secrets), "${secrets.size - hidden.size} / ${secrets.size}"), sectionParams()) }
+            for ((index, _) in hidden.withIndex()) later += {
+                rows.addView(cards.secretCard(), LinearLayout.LayoutParams(-1, -2).apply { if (index > 0) topMargin = dp(12f) })
+            }
         }
         if (done.isNotEmpty()) {
             later += { rows.addView(section(activity.getString(R.string.achievement_section_done), "${done.size}"), sectionParams()) }
@@ -147,7 +156,28 @@ class AchievementsView(activity: Activity, kit: UiKit, private val preparing: Bo
         }
         if (later.isNotEmpty()) postOnAnimation(::more)
         contentReady = later.isEmpty()
-        hero.bind(states, animate = !preparing, delay = 260L)
+        hero.bind(everything, animate = false)
+    }
+
+    /** Build every card still waiting its turn now, for a page measured off screen (a layout review). */
+    internal fun buildAll() {
+        while (later.isNotEmpty()) later.removeAt(0)()
+        contentReady = true
+    }
+
+    override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
+        super.onMeasure(widthMeasureSpec, heightMeasureSpec)
+        val room = MeasureSpec.getSize(widthMeasureSpec) - dp(14f + 46f + 12f + 34f) - bank.measuredWidth
+        val paint = android.text.TextPaint(titleView.paint).apply {
+            textSize = android.util.TypedValue.applyDimension(android.util.TypedValue.COMPLEX_UNIT_SP, MIN_TITLE_SP, resources.displayMetrics)
+        }
+        val ownRow = paint.measureText(titleView.text.toString()) > room
+        if (ownRow == (titleView.parent === titleRow)) return
+        (titleView.parent as? ViewGroup)?.removeView(titleView)
+        if (ownRow) titleRow.addView(titleView, FrameLayout.LayoutParams(-1, -2))
+        else topBar.addView(titleView, 1, LinearLayout.LayoutParams(0, -2, 1f).apply { marginStart = dp(12f) })
+        titleRow.visibility = if (ownRow) View.VISIBLE else View.GONE
+        super.onMeasure(widthMeasureSpec, heightMeasureSpec)
     }
 
     /** The last card: an invitation to suggest the next achievement. */
@@ -155,174 +185,138 @@ class AchievementsView(activity: Activity, kit: UiKit, private val preparing: Bo
         orientation = LinearLayout.VERTICAL
         gravity = Gravity.CENTER_HORIZONTAL
         setPadding(dp(18f), dp(18f), dp(18f), dp(18f) + kit.CARD_LIP)
-        val radius = dpf(22f)
-        background = android.graphics.drawable.LayerDrawable(arrayOf(
-            GradientDrawable().apply { cornerRadius = radius; setColor(Theme.darken(0xFF263950.toInt(), .3f)) },
-            GradientDrawable().apply { cornerRadius = radius; setColor(0xFF263950.toInt()); setStroke(dp(2f), Theme.GOLD) },
-        )).apply { setLayerInset(1, 0, 0, 0, kit.CARD_LIP) }
-        addView(kit.stageText(activity.getString(R.string.achievement_suggest_title), 22f, Theme.WHITE, gravity = Gravity.CENTER, stroke = 2.5f))
-        addView(kit.text(activity.getString(R.string.achievement_suggest_body), 16f, Theme.alpha(Theme.WHITE, 225), 500),
-            LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(8f) })
-        addView(kit.button(activity.getString(R.string.achievement_suggest_button), Theme.GOLD) {
+        background = TrophyRoom.slab(kit, 22f)
+        addView(kit.text(activity.getString(R.string.achievement_suggest_title), 21f, Theme.INK, 700))
+        addView(kit.text(activity.getString(R.string.achievement_suggest_body), 15f, Theme.INK_SOFT, 500),
+            LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(6f) })
+        addView(kit.button(activity.getString(R.string.achievement_suggest_button), Theme.SKY) {
             activity.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(SUGGEST_URL)))
         }.apply { tag = "achievement_suggest" },
-            LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(16f) })
+            LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(14f) })
     }
 
     /** A heading between the groups, with how many are earned. */
-    private fun section(label: String, count: String): View = LinearLayout(activity).apply {
+    private fun section(label: String, count: String, countTag: String? = null): View = LinearLayout(activity).apply {
         tag = "achievement_section"
         orientation = LinearLayout.HORIZONTAL
         gravity = Gravity.CENTER_VERTICAL
-        setPadding(dp(4f), 0, dp(4f), 0)
-        addView(kit.stageText(label, 18f, Theme.WHITE, gravity = Gravity.START, stroke = 2f).apply { letterSpacing = kit.tracking(.06f) },
+        setPadding(dp(6f), 0, dp(6f), 0)
+        addView(kit.text(label, 16f, TrophyRoom.HEADING, 700, Gravity.START).apply { letterSpacing = kit.tracking(.08f) },
             LinearLayout.LayoutParams(0, -2, 1f))
-        addView(kit.stageText(count, 18f, Theme.alpha(Theme.WHITE, 220), stroke = 2f))
+        addView(kit.text(count, 16f, TrophyRoom.HEADING_SOFT, 700).apply { tag = countTag })
     }
 
-    private fun sectionParams() = LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(if (compactLayout) 8f else 26f); bottomMargin = dp(10f) }
+    private fun sectionParams() = LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(if (compactLayout) 8f else 22f); bottomMargin = dp(10f) }
 
     override fun animateEntrance() {
         super.animateEntrance()
-        // The trophy, then each card, rise in one after the other.
+        // The case, then each card, rise in one after the other.
         for (i in 0 until minOf(rows.childCount, 7)) Anim.riseIn(rows.getChildAt(i), 40L + i * 45L, dpf(26f), 320)
     }
 
-    /** One reward: the card flips to its new face, the medal is minted, and the coins pour out of it. */
+    /** Collect everything [state]'s card has waiting, one medal after the other. */
     private fun claim(state: Achievements.Snapshot, button: CandyButton) {
         if (paying || closing) return
-        val tier = state.claimableTier ?: return
-        val before = Progress.coins
-        if (Achievements.claim(state.definition.id) <= 0) return
+        if (state.claimableTier == null) return
+        val definition = state.definition
+        val card = rows.findViewWithTag<View>("achievement_card_${definition.id}") ?: return
         paying = true
-        button.isEnabled = false
+        Pokes.stop(card)
         Haptics.click()
-        flipAndPay(state.definition, tier, coins = 6, sound = 0) { ms ->
-            countBank(before, ms)
-        } then {
-            SoundFx.play("success", rate = 1.2f, vol = .5f); Haptics.success()
-            hero.bind(Achievements.snapshot(), animate = true)
-            paying = false
-        }
+        // The button is spent: it melts back into the bar under it.
+        cards.settleClaimed(card, button)
+        collect(definition, card, 0)
     }
 
-    /** A step that runs [next] when it is over. */
-    private class Then { var next: () -> Unit = {}; infix fun then(f: () -> Unit) { next = f } }
+    /** Stamp the next waiting badge of [definition], coins into the bank; then the one after, or finish. */
+    private fun collect(definition: Achievements.Definition, card: View, step: Int) {
+        if (closing || !isAttachedToWindow) return
+        val tier = Achievements.snapshot(definition).claimableTier ?: return finish(definition)
+        val before = Progress.coins
+        if (Achievements.claim(definition.id) <= 0) return finish(definition)
+        val after = Achievements.snapshot(definition)
+        val more = after.claimableTier != null
+        val reward = card.findViewWithTag<ImageView>("achievement_reward_${definition.id}")
+        // A narrow card folds its badge away: it is then stamped on the tile.
+        val at: View = reward?.takeIf { it.isShown } ?: card.findViewWithTag("achievement_icon_${definition.id}") ?: card
+        val struck = {
+            // The moment the badge lands in its won colours.
+            SoundFx.play("place", rate = .8f + .12f * step, vol = .8f)
+            if (tier == 3 && definition.tiered) SoundFx.play("perfect", rate = 1f, vol = .45f)
+            Haptics.success()
+            hero.bind(Achievements.snapshot(), animate = true)
+            val coins = PayFx.fly(this, kit, at, bank, n = 3 + tier.coerceIn(0, 3), onDone = { if (!more && isAttachedToWindow) finish(definition) })
+            countBank(before, coins)
+            if (more) postDelayed({ collect(definition, card, step + 1) }, 560L)
+        }
+        if (reward == null || reward !== at) struck()
+        else stamp(reward, refill = { cards.bindWon(reward, definition, tier) }, struck)
+    }
+
+    /** Every badge is in: the card settles into its new state. */
+    private fun finish(definition: Achievements.Definition) {
+        SoundFx.play("success", rate = 1.2f, vol = .5f)
+        val states = Achievements.snapshot()
+        hero.bind(states, animate = false)
+        rows.findViewWithTag<android.widget.TextView>(READY_COUNT)?.text = "${states.count { it.claimableTier != null }}"
+        val held = scroll.scrollY
+        val from = rows.findViewWithTag<View>("achievement_card_${definition.id}")?.height ?: 0
+        rebuild(definition)?.let { settle(it, from) }
+        scroll.scrollTo(0, held)
+        paying = false
+    }
+
+    /** The rebuilt [card] eases from the [from] height of the card it replaced to its own, so the cards below glide. */
+    private fun settle(card: View, from: Int) {
+        if (from <= 0 || rows.width == 0) return
+        card.measure(MeasureSpec.makeMeasureSpec(rows.width - rows.paddingLeft - rows.paddingRight, MeasureSpec.EXACTLY),
+            MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED))
+        val to = card.measuredHeight
+        if (to == from) return
+        val params = card.layoutParams
+        params.height = from
+        ValueAnimator.ofInt(from, to).apply {
+            duration = 260; interpolator = Anim.ease
+            addUpdateListener { params.height = it.animatedValue as Int; card.requestLayout(); Anim.repaint(card) }
+            addListener(object : android.animation.AnimatorListenerAdapter() {
+                override fun onAnimationEnd(animation: android.animation.Animator) { params.height = LinearLayout.LayoutParams.WRAP_CONTENT; card.requestLayout() }
+            })
+            Anim.cancelOnDetach(card, this)
+            start()
+        }
+    }
 
     /**
-     * Flip [definition]'s card over its top edge to its new face, mint the medal for [tier] (or the
-     * challenge's badge) with a coin spin, then pour [coins] coins from it into the bank.
-     * [onFly] hears how long the coins take; the returned step runs once they have landed.
+     * The badge is pressed into the card where you tapped: it dips, [refill] swaps in its won
+     * state and [struck] plays the landing, then it springs back to size with a little wobble.
      */
-    private fun flipAndPay(definition: Achievements.Definition, tier: Int, coins: Int, sound: Int, onFly: (Long) -> Unit): Then {
-        val step = Then()
-        val old = rows.findViewWithTag<View>("achievement_card_${definition.id}")
-        if (old == null) { post { step.next() }; return step }
-        val held = scroll.scrollY
-        flip(old, 0f, 90f, 150L, android.view.animation.AccelerateInterpolator()) {
-            if (closing || !isAttachedToWindow) return@flip
-            val fresh = rebuild(definition) ?: return@flip step.next()
-            fresh.rotationX = -90f
-            fresh.cameraDistance = old.cameraDistance
-            SoundFx.play("coin", rate = 1.1f + sound * .07f, vol = .45f); Haptics.tick()
-            val medal = (if (definition.tiered) fresh.findViewWithTag<View>("achievement_medal_${definition.id}_$tier")
-                else fresh.findViewWithTag("achievement_icon_${definition.id}")) ?: fresh
-            medal.scaleX = 0f; medal.scaleY = 0f
-            // The new face has no size until the next layout: flip it up and strike its medal after that.
-            afterLayout(fresh) {
-                scroll.scrollTo(0, held)
-                flip(fresh, -90f, 0f, 320L, android.view.animation.OvershootInterpolator(1.6f)) {}
-                rays(medal, delay = 180L)
-                mint(medal, delay = 180L) {
-                    if (closing || !isAttachedToWindow) return@mint
-                    onFly(PayFx.fly(this, kit, medal, bank, n = coins, onDone = { if (isAttachedToWindow) step.next() }))
+    private fun stamp(reward: ImageView, refill: () -> Unit, struck: () -> Unit) {
+        val press = .2f
+        val spring = android.view.animation.OvershootInterpolator(2.6f)
+        var landed = false
+        ValueAnimator.ofFloat(0f, 1f).apply {
+            duration = 440
+            addUpdateListener {
+                val t = it.animatedValue as Float
+                if (t < press) {
+                    val s = 1f - .14f * Anim.ease.getInterpolation(t / press)
+                    reward.scaleX = s; reward.scaleY = s
+                } else {
+                    if (!landed) { landed = true; refill(); struck() }
+                    val k = (t - press) / (1f - press)
+                    val s = .86f + .14f * spring.getInterpolation(k)
+                    reward.scaleX = s; reward.scaleY = s
+                    reward.rotation = 6f * sin(k * 3f * Math.PI.toFloat()) * (1f - k)
                 }
-            }
-        }
-        return step
-    }
-
-    private fun afterLayout(v: View, then: () -> Unit) {
-        v.viewTreeObserver.addOnPreDrawListener(object : ViewTreeObserver.OnPreDrawListener {
-            override fun onPreDraw(): Boolean {
-                v.viewTreeObserver.removeOnPreDrawListener(this)
-                post(then)
-                return true
-            }
-        })
-    }
-
-    /** Turn [v] about its top edge from [from] to [to] degrees, repainting every frame over the GL stage. */
-    private fun flip(v: View, from: Float, to: Float, ms: Long, curve: android.animation.TimeInterpolator, then: () -> Unit) {
-        v.cameraDistance = v.resources.displayMetrics.density * 9000f
-        v.pivotX = v.width / 2f; v.pivotY = 0f
-        ValueAnimator.ofFloat(from, to).apply {
-            duration = ms; interpolator = curve
-            addUpdateListener { v.rotationX = it.animatedValue as Float; Anim.repaint(v) }
-            addListener(object : android.animation.AnimatorListenerAdapter() {
-                private var cancelled = false
-                override fun onAnimationCancel(animation: android.animation.Animator) { cancelled = true }
-                override fun onAnimationEnd(animation: android.animation.Animator) { if (!cancelled) then() else v.rotationX = 0f }
-            })
-            Anim.cancelOnDetach(v, this)
-            start()
-        }
-    }
-
-    /** A gold sunburst opens over [at] as it is struck, turns a little and fades. */
-    private fun rays(at: View, delay: Long) {
-        // Laid-out position, not the drawn one: the card is still turning when this is placed.
-        val box = android.graphics.Rect(0, 0, at.width, at.height)
-        sheet.offsetDescendantRectToMyCoords(at, box)
-        val size = maxOf(at.width, at.height) * 4
-        val burst = View(activity).apply {
-            background = RayBurst(Theme.GOLD)
-            alpha = 0f
-            importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO
-        }
-        sheet.addView(burst, FrameLayout.LayoutParams(size, size))
-        burst.x = box.exactCenterX() - size / 2f
-        burst.y = box.exactCenterY() - size / 2f
-        ValueAnimator.ofFloat(0f, 1f).apply {
-            duration = 900; startDelay = delay
-            addUpdateListener {
-                val t = it.animatedValue as Float
-                burst.alpha = if (t < .25f) t / .25f else 1f - (t - .25f) / .75f
-                burst.rotation = 50f * t
-                burst.scaleX = .4f + .6f * Anim.ease.getInterpolation(minOf(1f, t * 1.6f)); burst.scaleY = burst.scaleX
-                Anim.repaint(burst)
+                Anim.repaint(reward)
             }
             addListener(object : android.animation.AnimatorListenerAdapter() {
-                private var cancelled = false
-                override fun onAnimationCancel(animation: android.animation.Animator) { cancelled = true }
-                // Removing it inside a detach walk would leave a hole in the sheet's children.
-                override fun onAnimationEnd(animation: android.animation.Animator) { if (!cancelled) sheet.removeView(burst) }
+                override fun onAnimationEnd(animation: android.animation.Animator) {
+                    if (!landed) { landed = true; refill() }
+                    reward.scaleX = 1f; reward.scaleY = 1f; reward.rotation = 0f
+                }
             })
-            Anim.cancelOnDetach(burst, this)
-            start()
-        }
-    }
-
-    /** The new medal is struck: it spins in edge-on like a tossed coin, lands a touch big and settles. */
-    private fun mint(v: View, delay: Long, then: () -> Unit) {
-        v.scaleX = 0f; v.scaleY = 0f
-        ValueAnimator.ofFloat(0f, 1f).apply {
-            duration = 560; startDelay = delay
-            interpolator = android.view.animation.DecelerateInterpolator(1.4f)
-            addUpdateListener {
-                val t = it.animatedValue as Float
-                // Two turns about the vertical axis, narrowing to face you; the size overshoots then settles.
-                v.rotationY = 720f * (1f - t)
-                val grow = if (t < .7f) 1.7f * (t / .7f) else 1.7f - .7f * ((t - .7f) / .3f)
-                v.scaleX = grow; v.scaleY = grow
-                Anim.repaint(v)
-            }
-            var fired = false
-            addUpdateListener { if (!fired && it.animatedFraction >= .55f) { fired = true; then() } }
-            addListener(object : android.animation.AnimatorListenerAdapter() {
-                override fun onAnimationEnd(animation: android.animation.Animator) { v.rotationY = 0f; v.scaleX = 1f; v.scaleY = 1f }
-            })
-            Anim.cancelOnDetach(v, this)
+            Anim.cancelOnDetach(reward, this)
             start()
         }
     }
@@ -339,6 +333,7 @@ class AchievementsView(activity: Activity, kit: UiKit, private val preparing: Bo
         val index = parent.indexOfChild(old)
         val params = old.layoutParams
         parent.removeViewAt(index)
+        // Claiming moves no bar: the new card starts filled where the old one was.
         return cards.card(Achievements.snapshot(definition), index, animateFill = false).also { parent.addView(it, index, params) }
     }
 
@@ -357,61 +352,8 @@ class AchievementsView(activity: Activity, kit: UiKit, private val preparing: Bo
         const val FIRST_SCREEN = 5
         const val PER_FRAME = 3
         const val BUILD_BUDGET_MS = 4L
+        const val MIN_TITLE_SP = 16f
+        const val READY_COUNT = "achievement_ready_count"
         const val SUGGEST_URL = "https://github.com/Eve-146T/cube-run/issues/new"
     }
-}
-
-/** Night indigo into deep teal, with a warm glow where the trophy stands and two cool ones lower down. */
-private class TrophyRoomBackdrop : Drawable() {
-    private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
-    private var shaders: List<Shader> = emptyList()
-
-    override fun onBoundsChange(bounds: android.graphics.Rect) {
-        val w = bounds.width().toFloat(); val h = bounds.height().toFloat()
-        fun glow(x: Float, y: Float, r: Float, color: Int, a: Int) =
-            RadialGradient(x, y, r, Theme.alpha(color, a), Theme.alpha(color, 0), Shader.TileMode.CLAMP)
-        shaders = listOf(
-            LinearGradient(0f, 0f, 0f, h, intArrayOf(0xFF2B2266.toInt(), 0xFF1E2A5C.toInt(), 0xFF123A4E.toInt()), null, Shader.TileMode.CLAMP),
-            glow(w * .5f, h * .2f, w * .75f, Theme.ORANGE, 70),
-            glow(w * .02f, h * .58f, w * .7f, Theme.GRAPE, 60),
-            glow(w * 1f, h * .88f, w * .75f, Theme.CYAN, 45),
-        )
-    }
-
-    override fun draw(canvas: Canvas) {
-        for (shader in shaders) { paint.shader = shader; canvas.drawRect(bounds, paint) }
-        paint.shader = null
-    }
-
-    override fun setAlpha(alpha: Int) {}
-    override fun setColorFilter(colorFilter: android.graphics.ColorFilter?) {}
-    @Deprecated("Deprecated in Java")
-    override fun getOpacity(): Int = android.graphics.PixelFormat.OPAQUE
-}
-
-/** Rays of one colour around a clear middle, so the medal inside stays visible: the light a freshly struck medal gives off. */
-private class RayBurst(private val color: Int) : Drawable() {
-    private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
-    private val path = android.graphics.Path()
-
-    override fun draw(canvas: Canvas) {
-        val cx = bounds.exactCenterX(); val cy = bounds.exactCenterY(); val r = bounds.width() / 2f
-        if (r < 2f) return
-        paint.shader = RadialGradient(cx, cy, r, intArrayOf(Theme.alpha(color, 0), Theme.alpha(color, 235), Theme.alpha(Theme.YELLOW, 150), Theme.alpha(Theme.YELLOW, 0)), floatArrayOf(.24f, .32f, .6f, 1f), Shader.TileMode.CLAMP)
-        path.reset()
-        for (i in 0 until 14) {
-            val a = Math.toRadians(i * 360.0 / 14); val b = Math.toRadians(i * 360.0 / 14 + 11.0)
-            path.moveTo(cx, cy)
-            path.lineTo(cx + r * Math.cos(a).toFloat(), cy + r * Math.sin(a).toFloat())
-            path.lineTo(cx + r * Math.cos(b).toFloat(), cy + r * Math.sin(b).toFloat())
-            path.close()
-        }
-        canvas.drawPath(path, paint)
-        paint.shader = null
-    }
-
-    override fun setAlpha(alpha: Int) {}
-    override fun setColorFilter(colorFilter: android.graphics.ColorFilter?) {}
-    @Deprecated("Deprecated in Java")
-    override fun getOpacity(): Int = android.graphics.PixelFormat.TRANSLUCENT
 }

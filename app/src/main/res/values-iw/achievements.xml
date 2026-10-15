@@ -11,7 +11,7 @@
     <string name="achievement_stay_centered">להישאר במרכז</string>
     <string name="achievement_homeress">בלי בית</string>
     <string name="achievement_gambliphobic">פחד מהימורים</string>
-    <string name="achievement_haptic_taps">הקשות רטט</string>
+    <string name="achievement_cookie_clicker">קוקי קליקר</string>
     <string name="achievement_single_run_score">ניקוד בריצה אחת</string>
     <string name="achievement_collected_over_time">נאספו לאורך זמן</string>
     <string name="achievement_cube_collection">אוסף הקוביות</string>
@@ -23,10 +23,6 @@
     <string name="achievement_no_coins">להגיע ל־60 בלי לאסוף מטבע</string>
     <string name="achievement_miss_boxes">להחמיץ 10 תיבות הפתעה בריצה אחת</string>
     <string name="achievement_toggle_haptics">להחליף את מצב הרטט 1000 פעמים</string>
-    <string name="achievement_claimed">נאסף</string>
-    <string name="achievement_claimed_with_best">נאסף · %1$s</string>
-    <string name="achievement_best_bounces">שיא: %1$s קפיצות</string>
-    <string name="achievement_best_progress">שיא: %1$s / %2$s</string>
     <string name="achievement_claim">איסוף</string>
     <string name="achievement_challenge_complete">האתגר הושלם</string>
     <string name="achievement_all_rewards_claimed">כל הפרסים נאספו</string>

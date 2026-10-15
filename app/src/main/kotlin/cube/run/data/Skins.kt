@@ -193,6 +193,8 @@ object BubbleSkins {
  */
 object Trails {
     const val VOID_ID = 11
+    /** "No trail": nothing behind the cube. */
+    const val NONE_ID = 10
     const val BODY = 0      // the cube's own colour
     const val FIXED = 1     // one hue
     const val RAINBOW = 2   // hue cycles over time
@@ -240,7 +242,7 @@ object Trails {
         Trail(7, "Stardust", 4_000, FIXED, hue = 48f, sat = 0.75f, size = 0.06f, life = 1.0f, rate = 18f, speed = 1.0f, gravity = 0f),
         Trail(8, "Bubbles", 3_500, FIXED, hue = 185f, sat = 0.35f, size = 0.11f, life = 0.9f, rate = 10f, speed = 1.0f, gravity = -4f),
         Trail(9, "Pixie", 5_500, DUO, hue = 300f, hue2 = 180f, sat = 0.7f, size = 0.07f, life = 0.6f, rate = 26f, speed = 2f, gravity = -2f),
-        Trail(10, "No trail", 1_500, BODY, rate = 0f, count = 0),
+        Trail(NONE_ID, "No trail", 1_500, BODY, rate = 0f, count = 0),
         Trail(VOID_ID, "Afterimage", 500_000, DUO, hue = 255f, hue2 = 280f, sat = 0.2f, value = 0.7f, size = 0.16f, life = 1.1f, rate = 13f, count = 1, speed = 0.25f, gravity = -0.4f),
     )
 

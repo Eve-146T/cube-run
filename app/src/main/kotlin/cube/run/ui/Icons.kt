@@ -88,37 +88,6 @@ class BoxIcon(private val color: Int = Theme.GRAPE) : Icon() {
     }
 }
 
-/** A trophy cup for the best score. */
-class TrophyIcon : Icon() {
-    override fun draw(canvas: Canvas) {
-        val b = bounds
-        val s = min(b.width(), b.height()).toFloat()
-        val x0 = b.exactCenterX() - s / 2f; val y0 = b.exactCenterY() - s / 2f
-        paint.style = Paint.Style.FILL
-        paint.color = Theme.darken(Theme.YELLOW, 0.25f)
-        rect.set(x0 + s * 0.2f, y0 + s * 0.08f, x0 + s * 0.8f, y0 + s * 0.62f)
-        canvas.drawRoundRect(rect, s * 0.15f, s * 0.3f, paint)
-        paint.color = Theme.YELLOW
-        rect.set(x0 + s * 0.24f, y0 + s * 0.05f, x0 + s * 0.76f, y0 + s * 0.56f)
-        canvas.drawRoundRect(rect, s * 0.14f, s * 0.28f, paint)
-        paint.style = Paint.Style.STROKE
-        paint.strokeWidth = s * 0.09f
-        paint.color = Theme.YELLOW
-        rect.set(x0 + s * 0.02f, y0 + s * 0.12f, x0 + s * 0.34f, y0 + s * 0.46f)
-        canvas.drawArc(rect, 90f, 180f, false, paint)
-        rect.set(x0 + s * 0.66f, y0 + s * 0.12f, x0 + s * 0.98f, y0 + s * 0.46f)
-        canvas.drawArc(rect, 270f, 180f, false, paint)
-        paint.style = Paint.Style.FILL
-        paint.color = Theme.darken(Theme.YELLOW, 0.3f)
-        canvas.drawRect(x0 + s * 0.42f, y0 + s * 0.55f, x0 + s * 0.58f, y0 + s * 0.78f, paint)
-        rect.set(x0 + s * 0.25f, y0 + s * 0.74f, x0 + s * 0.75f, y0 + s * 0.94f)
-        canvas.drawRoundRect(rect, s * 0.08f, s * 0.08f, paint)
-        paint.color = Theme.alpha(Theme.WHITE, 170)
-        rect.set(x0 + s * 0.3f, y0 + s * 0.1f, x0 + s * 0.42f, y0 + s * 0.34f)
-        canvas.drawOval(rect, paint)
-    }
-}
-
 /** A flame (the boost): a hot outer tongue, a bright core, a lick of white. */
 class FlameIcon(private val color: Int = Theme.YELLOW) : Icon() {
     private val path = Path()

@@ -768,7 +768,7 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false, retu
                 clearHardwareFocus()
                 if (animate) {
                     runPauseResumes++
-                    Progress.bestMetric("nervous_tic", runPauseResumes.coerceAtMost(50))
+                    Progress.bestMetric("nervous_tic", runPauseResumes)
                 }
                 pauseSheet = null
                 Stage.paused = false

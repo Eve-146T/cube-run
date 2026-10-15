@@ -15,31 +15,66 @@ power-up pickups and wall bounces were not previously recorded, so those counter
 begin with this version. Purchasing the unlock acknowledges existing medals
 quietly rather than replaying notifications.
 
-The page is a trophy room on a deep indigo-to-teal backdrop. The header puts the trophy ring
-(the share of all medals and challenges earned) beside the count. Rewards are claimed one card
-at a time; there is no claim-all button. The header and the first screenful of cards are built
-at once and the rest a few cards a frame, so the page opens without a pause (about 50 ms to
-the first frame on the Moto, down from about 300 ms).
+The page sits on a flat candy grape (`TrophyRoom`), not the pink-to-sky backdrop of the other
+bright pages: testers found white cards on that near-white "white on white" and the gradient
+kitschy. Cards are white slabs with a solid lavender lip, section names are white, and the
+title is white, in the back button's row in the back button's row beside the coin bank; only when the
+title cannot fit there (a huge balance, a narrow pane, large text) does it take its own line.
+At the top is the trophy case: one slot each for bronze, silver, gold and diamond badges and one for
+challenge badges, each counting what has been *claimed* out of what exists (`3/10`, `6/28`).
+Claiming is what fills the case. The case and the first screenful of cards are built at once
+and the rest a few cards a frame, so the page opens without a pause (about 50 ms to the first
+frame on the Moto).
 
-Below that, three labelled groups in one column, each sorted so that waiting rewards come
-first and then whatever is closest to its next goal. Every achievement is a white card: the
-icon on a disc of its colour, the name, and what counts. Under that, a waiting reward shows a
-wide gold CLAIM button with its payout; otherwise just the count towards the next goal
-(`31,200 / 100,000`). What a reward pays stays a surprise until it can be claimed. MEDALS cards end with their four medals on
-one track, the link into the next medal filling as you approach it. CHALLENGES cards end with a
-bar, and yes-or-no dares (target 1) show nothing below their description until they are done. DONE collects everything fully
-claimed as slim rows with a check (tiered families wear a diamond). Numbers always use groups of
-three, such as `500,000`, regardless of the device locale. The list clips below the header and
-coin bank. The last card invites players to suggest an achievement as a GitHub issue.
+Every reward is a badge, the same chunky hexagon: a frame on a darker lip, a sunk face, a gloss
+along the top edge and one white emblem stamped on it. A medal family's badge has a star and its
+metal says the tier (bronze, silver, gold), with diamond a crystal-blue badge with a cut gem.
+A challenge's badge is mint with a check mark. Not yet won, the same hexagon is a recessed pale
+slot. `BadgeArt` and `AchievementTile` live in `AchievementBadges.kt`. Every picture except
+Homeress's crossed coin and Bouncer's wall are drawn in `ChallengeIcons.kt` in one lipped candy
+language, sharing one rounded toy cube, one glossy question mark (the mystery boxes) and one
+bubble.
 
-A card with a reward waiting has a gold edge and a sheen that sweeps across it a few times.
-Claiming flips the card over its top edge like a flap. Its new face comes up with the claimed
-medal (or the challenge's badge) struck like a coin: it spins in, overshoots and settles inside
-a short gold sunburst, and the coins pour out of it into the bank.
-Fully claimed cards fade back with a green check.
+Below the case, four labelled groups in one column: READY (every card with a reward waiting,
+medal families first), BADGES, CHALLENGES and DONE, the open ones sorted by how close they are
+to their next goal. Every achievement is the same white card. On top its picture on its own
+candy tile, a saturated rounded square chosen to contrast with the picture (the pictures use
+white, so they need a coloured ground), beside the name and what counts, and one badge on the
+right: the one waiting to be collected (on a pale hexagonal glow of its colour), else the best
+one won so far, else an empty slot. The badges still to come are never shown. Below, one row
+as tall as a CLAIM button: the bar in the achievement's colour and the count towards the next
+goal (`31400 / 100K`), or, while something is waiting, a slim gold CLAIM button with everything
+the card pays lying over that bar. Yes-or-no dares (target 1) have no row until they are done. When the text would
+be squeezed narrower than a few words of the title (a split pane, large text) the badge folds
+away. Once there is nothing left to aim for, anything with a bar keeps it, full, with its number
+beside it: the best a one-run record has reached, or a lifetime total. One-run records are
+stored uncapped for this (Untouchable's full-run score is saved when the run ends). A claimed
+card keeps the same text it had while waiting, so claiming never changes its height. DONE
+collects everything fully claimed as slim rows with the tile, the name, the number if it counted
+one, and the last badge. What a reward pays stays a surprise until it can be claimed. The list clips below the
+header and coin bank. The last card invites players to suggest an achievement as a GitHub issue.
+
+A card with a reward waiting has a gold edge. One tap on CLAIM collects every badge that card
+has waiting (there is still no claim-all across cards), about half a second apart. The button
+melts back into the bar beneath it and the gold edge fades, so the card keeps its height; only
+when no bar comes back (the last badge, a dare) does the row fold away, at the same moment.
+Nothing leaves the card: the badge is stamped in place. It dips, lands in its won colours
+without its glow and springs back with a small wobble, with a soft thump (a little higher for
+every badge in the chain); the case above gives that slot a small bump, and three to six coins
+hop out into the bank. When the last coins land the card is rebuilt in its next state.
+
+Every card, DONE row and the case can be tapped just for the feel of it (`Pokes`): the whole
+card dips and springs back like a button, with a tap and a tick. Tapping the same card again
+quickly adds a wiggle that grows the faster you keep at it.
+
+Secret achievements (`Definition.secret`) stay off the page until earned. A SECRETS section says
+how many are found and shows a locked card for each one still hidden; once earned, a secret
+appears like any other challenge. The first is Very Silent Treatment: a 1,000-point run with
+sound, haptics and coin sounds off, no trail, the free cube and bubble, and no starting speed
+(5,000 coins). The in-run unlock toast shows the badge just earned.
 
 Bronze/silver/gold/diamond pay 250/750/2,000/5,000 coins per family. Big Bubble and
-Haptic Taps each pay 2,000; Bouncer, Stay Centered, Homeress, and Gambliphobic each
+Cookie Clicker each pay 2,000; Bouncer, Stay Centered, Homeress, and Gambliphobic each
 pay 1,500. Previously earned tiers remain claimable. The claim marker and coin balance
 persist together, and each tier pays once. Claim bonuses enter the bank without advancing
 the lifetime-coin counter. Completed challenges show a green check and their claim status.
@@ -97,7 +132,7 @@ counts once after it passes the player. Collected boxes, including forfeited
 Gambler lottery boxes, do not count as missed. Run counters reset on restart;
 the best missed-box count persists, capped at 10.
 
-Haptic Taps requires **1,000 lifetime haptics-toggle taps**. Each deliberate tap
+Cookie Clicker requires **1,000 lifetime haptics-toggle taps**. Each deliberate tap
 on the vibration row in settings or the vibration chip in pause counts once,
 in either direction. Loading settings, refreshing controls, muting sound, and
 programmatic changes do not count. Existing Cookie Clicker progress and earned
@@ -107,12 +142,12 @@ stable so the replacement cannot pay out an already claimed reward again.
 These challenges use the same unlock gate, quiet discovery, claim flow,
 completed checkmarks, and dev-mode support as the other challenges.
 
-Run notifications are silent, show one medal at a time for 2.8 seconds, and start
+Run notifications are silent, show one badge at a time for 2.8 seconds, and start
 at least 10 seconds apart. Pending tiers from the same achievement coalesce into
-the highest tier. The compact white candy popup shows a medal/check, the achievement
+the highest tier. The compact white candy popup shows a badge, the achievement
 name, and its coin reward. A new run gets a 2.2-second grace period. Pausing hides
 and preserves an interrupted popup;
-results and store awards never spill into the next run. Earned medals persist even
+results and store awards never spill into the next run. Earned badges persist even
 if a run is interrupted or stocked bubbles are later consumed.
 
 ## Mystery-box pricing

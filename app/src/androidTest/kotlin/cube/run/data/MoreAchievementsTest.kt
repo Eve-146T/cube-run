@@ -68,7 +68,8 @@ class MoreAchievementsTest {
 
     @Test fun allSelectedAchievementsHaveTargetsAndPayouts() {
         val all = Achievements.all
-        assertEquals(38, all.size)
+        assertEquals(39, all.size)
+        assertEquals(listOf("very_silent_treatment"), all.filter { it.secret }.map { it.id })
         assertEquals(all.size, all.map { it.id }.toSet().size)
         assertFalse(all.any { it.id == "portal_hopper" })
         for (definition in all) {
@@ -154,6 +155,39 @@ class MoreAchievementsTest {
             }
         } finally {
             Settings.setSoundEnabled(sound); Settings.setHapticsEnabled(haptics)
+        }
+    }
+
+    /** What is equipped, set directly (equipping normally needs the item bought). */
+    private fun equip(field: String, id: Int) =
+        Progress::class.java.getDeclaredField(field).apply { isAccessible = true }.setInt(Progress, id)
+
+    @Test fun verySilentRunNeedsEverythingStrippedAndAThousandPoints() {
+        val sound = Settings.soundEnabled; val haptics = Settings.hapticsEnabled
+        val quiet = Settings.quietCoins; val speed = Settings.startSpeed; val speedOn = Settings.startSpeedEnabled
+        val trail = Progress.trail; val bubble = Progress.bubbleSkin; val skin = Progress.skin
+        try {
+            Settings.setSoundEnabled(false); Settings.setHapticsEnabled(false)
+            Settings.setQuietCoins(true); Settings.setStartSpeed(0)
+            equip("skin", 0); equip("bubbleSkin", 0); equip("trail", Trails.NONE_ID)
+            InstrumentationRegistry.getInstrumentation().runOnMainSync {
+                val short = session(); short.setScore(999); short.gameOver()
+                assertEquals("999 is not enough", 0, value("very_silent_treatment"))
+                assertEquals("but it is plenty for the plain silent run", 1, value("silent_treatment"))
+                equip("trail", 0)
+                val trailed = session(); trailed.setScore(1000); trailed.gameOver()
+                assertEquals("a trail breaks the silence", 0, value("very_silent_treatment"))
+                equip("trail", Trails.NONE_ID); Settings.setStartSpeed(1)
+                val sped = session(); sped.setScore(1000); sped.gameOver()
+                assertEquals("a head start does too", 0, value("very_silent_treatment"))
+                Settings.setStartSpeed(0)
+                val bare = session(); bare.setScore(1000); bare.gameOver()
+                assertEquals(1, value("very_silent_treatment"))
+            }
+        } finally {
+            Settings.setSoundEnabled(sound); Settings.setHapticsEnabled(haptics)
+            Settings.setQuietCoins(quiet); Settings.setStartSpeed(speed); Settings.setStartSpeedEnabled(speedOn)
+            equip("trail", trail); equip("bubbleSkin", bubble); equip("skin", skin)
         }
     }
 

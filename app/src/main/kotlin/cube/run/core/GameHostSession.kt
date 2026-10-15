@@ -4,6 +4,7 @@ import android.app.Activity
 import cube.run.data.Skins
 import cube.run.data.Progress
 import cube.run.data.Settings
+import cube.run.data.Trails
 import cube.run.data.Scores
 import cube.run.ui.Hud
 import java.util.concurrent.atomic.AtomicBoolean
@@ -51,6 +52,8 @@ class GameHostSession(
     private var runSkin = 0
     private var silentAtStart = false
     private var silentRevision = 0
+    /** Silent, and stripped of everything else too: free bubble, no trail, quiet coins, no head start. */
+    private var barestAtStart = false
 
     init {
         // Older versions saved dev scores to the leaderboard while excluding
@@ -100,6 +103,8 @@ class GameHostSession(
         runSkin = Progress.skin
         silentAtStart = runSkin == 0 && !Settings.soundEnabled && !Settings.hapticsEnabled
         silentRevision = Settings.audioHapticRevision
+        barestAtStart = silentAtStart && Progress.bubbleSkin == 0 && Progress.trail == Trails.NONE_ID &&
+            Settings.quietCoins && Settings.effectiveStartSpeed == 0
         Progress.clearRunCoins()
         Progress.addMetric("regular")
         ui { it.hideOptions() }
@@ -118,7 +123,7 @@ class GameHostSession(
         val now = android.os.SystemClock.elapsedRealtime()
         if (from == lastSwipeTo && to == lastSwipeFrom && now - lastSwipeAt <= 1_000L) {
             reversals++
-            Progress.bestMetric("two_ez", reversals.coerceAtMost(50))
+            Progress.bestMetric("two_ez", reversals)
         }
         lastSwipeFrom = from; lastSwipeTo = to; lastSwipeAt = now
     }
@@ -151,7 +156,7 @@ class GameHostSession(
     override fun boxCollected() {
         if (!runHasStarted || over.get()) return
         runBoxesCollected++
-        Progress.bestMetric("greedy", runBoxesCollected.coerceAtMost(13))
+        Progress.bestMetric("greedy", runBoxesCollected)
     }
     override fun coalCollected() { if (runHasStarted && !over.get()) Progress.addMetric("coal_miner") }
     override fun riskyBoxDeath() { if (runHasStarted && !over.get()) Progress.bestMetric("greed", 1) }
@@ -171,7 +176,7 @@ class GameHostSession(
         }
     }
     override fun runSeconds(seconds: Int) {
-        if (runHasStarted && !over.get() && seconds % 10 == 0) Progress.bestMetric("long_con", seconds.coerceAtMost(600))
+        if (runHasStarted && !over.get() && seconds % 10 == 0) Progress.bestMetric("long_con", seconds)
     }
     override fun runCrashed(seconds: Float) {
         if (runHasStarted && !over.get() && seconds < 2f) Progress.addMetric("stage_fright")
@@ -229,10 +234,15 @@ class GameHostSession(
         val runCoins = if (zen) 0 else coinsV.get()
         val boxes = if (zen) 0 else boxesV.get()
         val runShards = IntArray(3) { if (zen) 0 else shardsV.get(it) }
-        Progress.bestMetric("magpie", runCoins.coerceAtMost(10000))
+        Progress.bestMetric("magpie", runCoins)
+        // Untouchable is capped while it counts live; the whole run's score is its record.
+        if (runHasStarted && noPowerup && !zen) Progress.bestMetric("untouchable", finalScore)
         if (finalScore == 67) Progress.bestMetric("exactly_67", 1)
         if (finalScore >= 100 && silentAtStart && silentRevision == Settings.audioHapticRevision && !Settings.soundEnabled && !Settings.hapticsEnabled)
             Progress.bestMetric("silent_treatment", 1)
+        if (finalScore >= 1000 && barestAtStart && silentRevision == Settings.audioHapticRevision && !Settings.soundEnabled &&
+            !Settings.hapticsEnabled && Settings.quietCoins)
+            Progress.bestMetric("very_silent_treatment", 1)
         if (java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY) == 3)
             Progress.bestMetric("insomniac", 1)
         for (kind in runShards.indices) if (runShards[kind] > 0) Progress.addShards(kind, runShards[kind])

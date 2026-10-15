@@ -275,7 +275,7 @@ class AchievementsProgressTest {
         seed("total_mute_toggles" to 1500, "total_haptic_taps" to 1001,
             "achievement_cookie" to 1, "achievement_claimed_cookie" to 1, unlocked = true)
         assertEquals(1001, Progress.totalHapticTaps)
-        assertEquals("Haptic Taps", state("cookie").definition.title)
+        assertEquals("Cookie Clicker", state("cookie").definition.title)
         assertTrue(state("cookie").allClaimed)
         assertEquals(0, Achievements.claim("cookie"))
         Progress.recordHapticTap()
@@ -423,6 +423,8 @@ class AchievementsProgressTest {
     @Test fun devSessionAndClaimsRemainConsistentWhenReturningToTheRealBank() {
         seed("coins" to 80, unlocked = true)
         Scores.init(context)
+        // With sound and haptics off, this free-cube run would also earn Silent Treatment.
+        Settings.setSoundEnabled(true); Settings.setHapticsEnabled(true)
         Settings.setDevMode(true); Progress.enterDev()
         InstrumentationRegistry.getInstrumentation().runOnMainSync {
             val session = GameHostSession(Activity(), "cuberun")

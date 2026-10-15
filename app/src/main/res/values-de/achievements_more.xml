@@ -1,9 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- The achievement page as rebuilt: section labels and the newer goals. -->
 <resources>
-    <string name="achievement_section_medals">MEDAILLEN</string>
+    <string name="achievement_section_medals">ABZEICHEN</string>
     <string name="achievement_section_challenges">HERAUSFORDERUNGEN</string>
     <string name="achievement_section_done">GESCHAFFT</string>
+    <string name="achievement_section_ready">ABHOLBEREIT</string>
     <string name="achievement_claim_all">ALLE EINSAMMELN</string>
     <string name="achievement_claim_all_description">Alle Belohnungen einsammeln, %1$s Münzen</string>
     <string name="achievement_done_description">%1$s: geschafft</string>
@@ -30,6 +31,7 @@
     <string name="achievement_two_ez">2EZ</string>
     <string name="achievement_nervous_tic">Nervöser Tick</string>
     <string name="achievement_silent_treatment">Funkstille</string>
+    <string name="achievement_very_silent_treatment">Totale Funkstille</string>
     <string name="achievement_stage_fright">Lampenfieber</string>
     <string name="achievement_neo">Neo</string>
     <string name="achievement_goal_globetrotter">Bonuswelten besucht</string>
@@ -55,7 +57,11 @@
     <string name="achievement_goal_two_ez">Wische 50-mal in einem Lauf auf eine Spur und sofort zurück.</string>
     <string name="achievement_goal_nervous_tic">Pausiere und setze 50-mal in einem Lauf fort.</string>
     <string name="achievement_goal_silent_treatment">Beende mit dem Gratis-Würfel einen 100-Punkte-Lauf ohne Ton und Vibration.</string>
+    <string name="achievement_goal_very_silent_treatment">Beende einen 1000-Punkte-Lauf ohne Ton, Vibration und Münzklang, ohne Spur, mit Gratis-Würfel und -Blase und ohne Startgeschwindigkeit.</string>
     <string name="achievement_goal_stage_fright">Crashe in 25 Läufen innerhalb von zwei Sekunden nach dem Starttor.</string>
     <string name="achievement_goal_neo">\???</string>
     <string name="achievement_earned_description">%1$d von %2$d Erfolgen erreicht</string>
+    <string name="achievement_section_secrets">GEHEIM</string>
+    <string name="achievement_secret_title">Geheimer Erfolg</string>
+    <string name="achievement_secret_hint">Spiel weiter, um ihn zu finden.</string>
 </resources>
