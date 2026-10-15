@@ -189,9 +189,9 @@ class ShopView(
         list.removeAllViews()
         shopCards.clear()
         fun wide() = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
-        fun gap(dp: Float) = wide().apply { topMargin = dp(dp) }
-        fun section(label: String, count: String?, first: Boolean = false) =
-            list.addView(shopCards.heading(label, count), wide().apply { topMargin = dp(if (first) 2f else 24f); bottomMargin = dp(10f) })
+        fun gap(top: Float) = wide().apply { topMargin = dp(top) }
+        fun section(label: String, count: String?) =
+            list.addView(shopCards.heading(label, count), wide().apply { topMargin = dp(24f); bottomMargin = dp(10f) })
         fun bought(items: List<Progress.Upgrade>) = "${items.sumOf { Progress.level(it) }} / ${items.sumOf { it.max }}"
         list.addView(mysteryCard(), wide())
         section(kit.ctx.getString(R.string.text_consumables), null)
