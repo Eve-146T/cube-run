@@ -213,7 +213,8 @@ replacement cannot repeat or drop a gesture because its timing moved slightly.
 The planner leaves extra clearance around obstacles and aims for the interior
 of springboards to account for variable frame timing. Timing refinement respects
 the last committed gesture's cooldown. Jet predictions follow the real acceleration,
-slowdown and existing landing grace; the model is checked against actual game
+slowdown and the drop onto the landing (`JetDescent`): the cube is only safe while
+cruising, there is no landing grace. The model is checked against actual game
 physics at 60 and 90 Hz.
 
 The opt-in `IdlePilotSoakTest` exercises this actual controller, with normal death
