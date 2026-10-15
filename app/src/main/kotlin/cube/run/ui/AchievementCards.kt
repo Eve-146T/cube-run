@@ -350,6 +350,9 @@ internal class AchievementCards(
             "just_browsing" -> Theme.GOLD
             "trailblazer" -> Theme.GRAPE
             "bubble_bath" -> Theme.PINK
+            "icarus", "juggernaut" -> Theme.SKY
+            "poltergeist" -> Theme.GRAPE
+            "full_throttle" -> DEEP
             "shard_hunter", "insomniac", "globetrotter", "shardsmith", "very_silent_treatment", "secret" -> DEEP
             else -> Theme.PINK
         }

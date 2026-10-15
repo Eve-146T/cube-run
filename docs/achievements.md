@@ -108,6 +108,18 @@ Stage Fright counts terminal crashes within two seconds of crossing the start ga
 revived crashes. Bankrupt needs a paid transaction that takes a positive balance
 to zero, so an empty new account does not qualify.
 
+Four challenges came from issue #73 and after. Icarus (Toxic cube, 2,000) is a death to a green
+coin while flying the jetpack; poison is the only way to die in the air, and other cubes never count.
+Poltergeist (Ghost cube, 2,000) counts every obstacle the Ghost slips through across runs, one a run,
+up to 100. Juggernaut (2,500) counts the solid obstacles a bubble or a second wind shatters in one
+run, the row you hit and everything in the breather zone ahead; platforms, pads and the jackpot's
+shockwave do not count. A survey that keeps a bubble up and rams the first thing in its lane, with
+crashes between bubbles ignored, smashes about 75 obstacles a minute without upgrades (7 to 8 a
+bubble) and 110 to 175 with Bubble time and Faster bubbles maxed. The goal of 300 is about four
+minutes of that with no upgrades and about 40 bubbles. Full Throttle (2,500) needs 1,500 points in a run whose boost
+presses, the start speed setting's included, reached all ten (Even faster starts maxed). Its bar
+records the best such run in steps of 50.
+
 Big Bubble requires 1,000 stocked bubbles at once. Bouncer requires 67 deliberate
 side-wall hits in one run. Holding a smooth drag beyond an edge does not repeatedly
 count as a hit. Mystery boxes do not count as power-ups; bubble, magnet, score

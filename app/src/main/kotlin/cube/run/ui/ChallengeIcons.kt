@@ -332,6 +332,69 @@ internal class ChallengeIcon(private val id: String) : Icon() {
                 rect.set(18.5f, 33.5f, 24.5f, 38.5f); canvas.drawArc(rect, 20f, 140f, false, paint)
                 sparkle(41f, 12f, 4.5f)
             }
+            "icarus" -> {
+                // A poison coin that flew too high: a skull, on white wings.
+                val c = lastCanvas!!
+                for (side in listOf(-1f, 1f)) lipped(Theme.WHITE) {
+                    path.reset()
+                    path.moveTo(24f + side * 10f, 17f)
+                    path.cubicTo(24f + side * 20f, 6f, 24f + side * 23f, 8f, 24f + side * 23f, 11f)
+                    path.quadTo(24f + side * 23.5f, 16f, 24f + side * 19f, 18f)
+                    path.quadTo(24f + side * 22f, 21f, 24f + side * 17f, 24f)
+                    path.quadTo(24f + side * 19f, 28f, 24f + side * 13f, 30f)
+                    path.close(); c.drawPath(path, paint)
+                }
+                disc(24f, 25f, 14f, TOXIC)
+                fill(Theme.darken(TOXIC, .18f)); c.drawCircle(24f, 25f, 10.5f, paint)
+                fill(Theme.WHITE); c.drawCircle(24f, 23.5f, 7f, paint); round(20f, 26f, 28f, 32.5f, 2.2f)
+                fill(Theme.darken(TOXIC, .55f)); c.drawCircle(21.3f, 23.5f, 2.2f, paint); c.drawCircle(26.7f, 23.5f, 2.2f, paint)
+                for (x in listOf(22.2f, 24.6f)) round(x, 29f, x + 1.3f, 32.5f, .65f)
+                gloss(24f, 25f, 14f)
+            }
+            "poltergeist" -> {
+                // The Ghost cube's spirit: a sheet with a wavy hem.
+                fun sheet() {
+                    path.reset(); path.moveTo(9f, 40f); path.lineTo(9f, 22f)
+                    path.cubicTo(9f, 3f, 39f, 3f, 39f, 22f); path.lineTo(39f, 40f)
+                    path.quadTo(36.5f, 44.5f, 34f, 40f); path.quadTo(31.5f, 35.5f, 29f, 40f)
+                    path.quadTo(26.5f, 44.5f, 24f, 40f); path.quadTo(21.5f, 35.5f, 19f, 40f)
+                    path.quadTo(16.5f, 44.5f, 14f, 40f); path.quadTo(11.5f, 35.5f, 9f, 40f); path.close()
+                    lastCanvas!!.drawPath(path, paint)
+                }
+                lipped(Theme.WHITE) { sheet() }
+                fill(Theme.INK); rect.set(16f, 17f, 22f, 25f); canvas.drawOval(rect, paint); rect.set(26f, 17f, 32f, 25f); canvas.drawOval(rect, paint)
+                fill(Theme.alpha(Theme.INK, 200)); rect.set(21f, 28f, 27f, 33f); canvas.drawOval(rect, paint)
+                fill(Theme.WHITE); canvas.drawCircle(18.2f, 19.5f, 1.3f, paint); canvas.drawCircle(28.2f, 19.5f, 1.3f, paint)
+                paint.style = Paint.Style.STROKE; paint.strokeWidth = 2.6f; paint.color = Theme.alpha(Theme.LAVENDER, 220)
+                rect.set(13f, 9f, 35f, 31f); canvas.drawArc(rect, 200f, 50f, false, paint)
+            }
+            "juggernaut" -> {
+                // A wrecking ball on a stubby chain, two chunks of wall flying off it.
+                line(24f, 2f, 24f, 14f, Theme.darken(Theme.LAVENDER, .3f), 6f)
+                line(24f, 1f, 24f, 12f, Theme.LAVENDER, 6f)
+                lipped(Theme.ORANGE) { shape(1f, 22f, 10f, 18f, 12f, 28f, 3f, 31f) }
+                lipped(Theme.YELLOW) { shape(37f, 32f, 46f, 28f, 47f, 38f, 38f, 41f) }
+                disc(24f, 29f, 15f, Theme.BERRY)
+                gloss(24f, 29f, 15f)
+                fill(Theme.alpha(Theme.WHITE, 220)); canvas.drawCircle(18f, 23.5f, 2.4f, paint)
+            }
+            "full_throttle" -> {
+                // The speedometer pinned at the top of its dial.
+                val c = lastCanvas!!
+                fill(Theme.darken(Theme.WHITE, .3f)); rect.set(3f, 9.5f, 45f, 51.5f); c.drawArc(rect, 180f, 180f, true, paint)
+                round(3f, 28f, 45f, 35f, 3.5f)
+                fill(Theme.WHITE); rect.set(3f, 7f, 45f, 49f); c.drawArc(rect, 180f, 180f, true, paint)
+                round(3f, 26f, 45f, 32.5f, 3.5f)
+                paint.style = Paint.Style.STROKE; paint.strokeCap = Paint.Cap.BUTT; paint.strokeWidth = 5.5f
+                rect.set(9f, 13f, 39f, 43f)
+                paint.color = Theme.MINT; c.drawArc(rect, 182f, 58f, false, paint)
+                paint.color = Theme.YELLOW; c.drawArc(rect, 241f, 58f, false, paint)
+                paint.color = Theme.BERRY; c.drawArc(rect, 300f, 58f, false, paint)
+                line(24f, 28f, 38.5f, 21.5f, Theme.INK, 4f)
+                fill(Theme.INK); c.drawCircle(24f, 28f, 4.2f, paint)
+                fill(Theme.ORANGE); c.drawCircle(24f, 28f, 2f, paint)
+                sparkle(42f, 6f, 5f, Theme.YELLOW)
+            }
             "neo" -> {
                 // The red pill: a glossy capsule lying at a tilt, with its seam.
                 canvas.rotate(-38f, 24f, 24f)
@@ -518,5 +581,7 @@ internal class ChallengeIcon(private val id: String) : Icon() {
     private companion object {
         val centering = java.util.concurrent.ConcurrentHashMap<String, android.graphics.PointF>()
         const val PILL_RED = 0xFFFF2E3F.toInt()
+        /** The Toxic cube's poison green. */
+        const val TOXIC = 0xFF5BE33A.toInt()
     }
 }

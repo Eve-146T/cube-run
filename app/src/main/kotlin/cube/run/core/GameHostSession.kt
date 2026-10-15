@@ -41,6 +41,9 @@ class GameHostSession(
     private var noPowerup = true
     private var runBoxesCollected = 0
     private var runGroundPounds = 0
+    private var runSmashed = 0
+    /** Boost presses this run has made, the start speed setting's included. */
+    private var runBoosts = 0
     private var bonusMask = 0
     private var shardMask = 0
     private var lastDistance = 0
@@ -71,6 +74,7 @@ class GameHostSession(
         for (i in 0..2) shardsV.set(i, 0)
         runHasStarted = false; centerLaneObserved = false; stayedCentered = true; stayedCoinless = true
         missedBoxes = 0; noPowerup = true; runBoxesCollected = 0; runGroundPounds = 0; bonusMask = 0; shardMask = 0
+        runSmashed = 0; runBoosts = 0
         lastDistance = 0; observedDistance = 0; lastSwipeFrom = -1; lastSwipeTo = -1
         lastSwipeAt = 0L; reversals = 0
         Progress.clearRunCoins()
@@ -98,7 +102,7 @@ class GameHostSession(
         stayedCentered = true
         stayedCoinless = true
         missedBoxes = 0
-        noPowerup = true; runBoxesCollected = 0; runGroundPounds = 0; bonusMask = 0; shardMask = 0
+        noPowerup = true; runBoxesCollected = 0; runGroundPounds = 0; bonusMask = 0; shardMask = 0; runSmashed = 0
         lastDistance = 0; observedDistance = 0; lastSwipeFrom = -1; lastSwipeTo = -1; reversals = 0
         runSkin = Progress.skin
         silentAtStart = runSkin == 0 && !Settings.soundEnabled && !Settings.hapticsEnabled
@@ -133,6 +137,8 @@ class GameHostSession(
         if (runHasStarted && centerLaneObserved && stayedCentered) Progress.recordCenteredScore(score)
         if (runHasStarted && stayedCoinless) Progress.recordCoinlessScore(score)
         if (runHasStarted && noPowerup) Progress.bestMetric("untouchable", score.coerceAtMost(150))
+        // In steps of 50: the bar needs no save on every point.
+        if (runHasStarted && runBoosts >= FULL_THROTTLE_BOOSTS) Progress.bestMetric("full_throttle", (score / 50 * 50).coerceAtMost(1500))
     }
 
     @Synchronized override fun coinPickedUp() {
@@ -165,6 +171,13 @@ class GameHostSession(
         runGroundPounds++
         Progress.bestMetric("pile_driver", runGroundPounds)
     }
+    override fun obstaclesSmashed(count: Int) {
+        if (!runHasStarted || over.get() || count <= 0) return
+        runSmashed = saturatedAdd(runSmashed, count)
+        Progress.bestMetric("juggernaut", runSmashed)
+    }
+    override fun obstaclePhased() { if (runHasStarted && !over.get()) Progress.addMetric("poltergeist") }
+    override fun diedFlying() { if (runHasStarted && !over.get() && runSkin == Skins.TOXIC_ID) Progress.bestMetric("icarus", 1) }
     override fun fullKitHeld() { if (runHasStarted && !over.get()) Progress.bestMetric("full_kit", 1) }
     override fun redPillSurvived() { if (runHasStarted && !over.get()) Progress.bestMetric("neo", 1) }
     override fun distanceCovered(metres: Int) {
@@ -209,6 +222,7 @@ class GameHostSession(
     }
 
     override fun setBoost(open: Boolean, taps: Int, max: Int) {
+        runBoosts = taps
         ui { it.setBoost(open, taps, max) }
     }
 
@@ -260,6 +274,13 @@ class GameHostSession(
             Haptics.fail()
         }
         ui { it.showRunOver(finalScore, prevBest, isNew, runCoins, boxes, runShards) }
+    }
+
+    private fun saturatedAdd(a: Int, b: Int) = (a.toLong() + b).coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
+
+    private companion object {
+        /** Full Throttle: every boost press the Even faster starts upgrade can give. */
+        const val FULL_THROTTLE_BOOSTS = 10
     }
 
     private val waiting = ArrayList<(Hud) -> Unit>()

@@ -11,7 +11,8 @@ internal fun achievementIcon(id: String): android.graphics.drawable.Drawable = w
     "cookie", "bubbles", "center", "gambliphobic", "runner", "coins", "cubes", "powerups", "boxes", "greed", "pile_driver", "globetrotter", "long_hauler", "shardsmith", "regular", "bubble_popper", "near_miss",
     "untouchable", "house_loses", "voidwalker", "greedy", "scenic_route", "coal_miner",
     "magpie", "shard_hunter", "full_kit", "long_con", "insomniac", "bankrupt",
-    "exactly_67", "just_browsing", "two_ez", "nervous_tic", "silent_treatment", "very_silent_treatment", "secret", "stage_fright", "neo", "monk" -> ChallengeIcon(id)
+    "exactly_67", "just_browsing", "two_ez", "nervous_tic", "silent_treatment", "very_silent_treatment", "secret", "stage_fright", "neo", "monk",
+    "icarus", "poltergeist", "juggernaut", "full_throttle" -> ChallengeIcon(id)
     "trailblazer", "bubble_bath" -> CollectionIcon(id)
     else -> ChallengeIcon("runner")
 }

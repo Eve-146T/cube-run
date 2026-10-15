@@ -10,6 +10,7 @@ import kotlin.math.sin
 object Skins {
     const val COAL_ID = 15
     const val MINT_ID = 8
+    const val TOXIC_ID = 11
     const val VOID_ID = 24
     const val ZEN_ID = 25
     const val SMOL_ID = 26
@@ -111,7 +112,7 @@ object Skins {
         Skin(9, "Rose", 2_000, FIXED, hue = 340f, sat = 0.5f, value = 1f, glow = 1.2f),
         Skin(10, "Ocean", 3_500, WAVE, hue = 195f, hue2 = 235f, sat = 0.8f, value = 0.95f, glow = 1.3f,
             abilities = listOf(Ability.BUBBLE_HAUL, Ability.BUBBLE_DIVIDEND)),
-        Skin(11, "Toxic", 4_500, PULSE, hue = 95f, sat = 0.95f, value = 1f, glow = 1.9f, trail = 1.4f, abilities = listOf(Ability.TOXIC_FORTUNE)),
+        Skin(TOXIC_ID, "Toxic", 4_500, PULSE, hue = 95f, sat = 0.95f, value = 1f, glow = 1.9f, trail = 1.4f, abilities = listOf(Ability.TOXIC_FORTUNE)),
         Skin(12, "Sunset", 5_500, WAVE, hue = 20f, hue2 = 320f, sat = 0.85f, value = 1f, trail = 1.4f),
         Skin(13, "Ghost", 6_500, FIXED, hue = 210f, sat = 0.015f, value = 1f, glow = 1.5f, trail = 0.6f, abilities = listOf(Ability.PHASE), opacity = .72f),
         Skin(14, "Strobe", 7_000, STROBE, hue = 55f, hue2 = 200f, sat = 0.9f, value = 1f, glow = 1.4f, trail = 1.6f, sparkle = true, abilities = listOf(Ability.CLOSE_SHAVE)),
