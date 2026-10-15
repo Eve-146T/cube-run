@@ -84,7 +84,7 @@ object Achievements {
         Definition("silent_treatment", "Silent Treatment", "Finish a 100-point run with sound and haptics off using the free cube.", intArrayOf(1), false),
         Definition("very_silent_treatment", "Very Silent Treatment", "Finish a 1000-point run with sound, haptics and coin sounds off, no trail, the free cube and bubble, and no starting speed.", intArrayOf(1), false, secret = true),
         Definition("stage_fright", "Stage Fright", "Crash within two seconds of the start gate in 25 runs.", intArrayOf(25), false),
-        Definition("monk", "Monk", "Destroy 100 consecutive obstacles with the Zen cube in one run. You can skip stairs.", intArrayOf(100), false),
+        Definition("monk", "Monk", "Destroy 100 consecutive obstacles with the Zen cube. You can skip stairs.", intArrayOf(100), false),
         Definition("neo", "Neo", "???", intArrayOf(1), false),
         Definition("icarus", "Icarus", "Die to a green coin while flying the jetpack as the Toxic cube.", intArrayOf(1), false),
         Definition("poltergeist", "Poltergeist", "Slip through 100 obstacles with the Ghost cube.", intArrayOf(100), false),
