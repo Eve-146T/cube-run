@@ -36,6 +36,8 @@ class SettingsView(
     private val openSections: () -> Unit,
     private val openUpdateNotes: () -> Unit,
     private val devChanged: () -> Unit,
+    /** Dev mode and the section explorer: debug builds only. */
+    devTools: Boolean = BuildConfig.DEBUG,
     onClosed: () -> Unit,
 ) : Page(activity, kit, activity.getString(R.string.settings_title), dark = false, onClosed = onClosed) {
 
@@ -154,7 +156,7 @@ class SettingsView(
                 }
             }) else emptyArray()),
         ))
-        if (BuildConfig.DEBUG) column.addView(card(
+        if (devTools) column.addView(card(
             switchRow(devTile, activity.getString(R.string.cd_dev), devSwitch, { Settings.devMode }) {
                 Settings.setDevMode(it); if (it) Progress.enterDev() else Progress.leaveDev(); devChanged()
             },

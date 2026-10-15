@@ -16,7 +16,7 @@ Something a player can see, try or chase:
 
 - A new achievement or challenge. Its own tile is the icon: use the achievement id.
 - A new cube, trail, bubble skin, world, biome, upgrade or other thing to buy or find.
-- A new screen or feature, like this card itself (icon `news`).
+- A new screen or feature (icon `news`). The "In this update" card itself is never an item.
 - A change big enough that a player would be confused or surprised without being told. Only add one of these when the developer says so.
 
 One line per item: a plain name as the title, then one sentence saying what it is or what to do. Use the glossary terms (road, world, wardrobe, shop, upgrade, bubble, shard and so on), and keep the tone of the game.
@@ -35,12 +35,11 @@ If a balance change or fix is big enough to deserve its own line, the developer 
 
 ## Example
 
-This worktree adds four challenges and the card itself, and also makes Faster bubbles slower, fixes the CLAIM button's height and redraws the Juggernaut icon. The list is:
+This worktree adds four challenges and the "In this update" card itself, and also makes Faster bubbles slower, fixes the CLAIM button's height and redraws the Juggernaut icon. The list is:
 
 - `icarus | Icarus | A new challenge for the Toxic cube: die to a green coin while flying the jetpack.`
 - `poltergeist | Poltergeist | ...`
 - `juggernaut | Juggernaut | ...`
 - `full_throttle | Full Throttle | ...`
-- `news | In this update | This card! ...`
 
-The bubble nerf, the button fix and the new icon are all "And the usual".
+The card is not announced on itself. The bubble nerf, the button fix and the new icon are all "And the usual".

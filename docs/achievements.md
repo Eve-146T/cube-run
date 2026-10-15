@@ -15,10 +15,11 @@ power-up pickups and wall bounces were not previously recorded, so those counter
 begin with this version. Purchasing the unlock acknowledges existing medals
 quietly rather than replaying notifications.
 
-The page sits on a flat candy grape (`TrophyRoom`), not the pink-to-sky backdrop of the other
+The page sits on a flat candy lavender (`TrophyRoom`), not the pink-to-sky backdrop of the other
 bright pages: testers found white cards on that near-white "white on white" and the gradient
-kitschy. Cards are white slabs with a solid lavender lip, section names are white, and the
-title is white, in the back button's row in the back button's row beside the coin bank; only when the
+kitschy. A grape came first; lavender was picked from nine flat backdrops tried on the real page.
+Cards are white slabs with a solid pale lip, and section names and the title are ink, the
+title in the back button's row beside the coin bank; only when the
 title cannot fit there (a huge balance, a narrow pane, large text) does it take its own line.
 At the top is the trophy case: one slot each for bronze, silver, gold and diamond badges and one for
 challenge badges, each counting what has been *claimed* out of what exists (`3/10`, `6/28`).
@@ -33,7 +34,7 @@ A challenge's badge is mint with a check mark. Not yet won, the same hexagon is 
 slot. `BadgeArt` and `AchievementTile` live in `AchievementBadges.kt`. Every picture except
 Homeress's crossed coin and Bouncer's wall are drawn in `ChallengeIcons.kt` in one lipped candy
 language, sharing one rounded toy cube, one glossy question mark (the mystery boxes) and one
-bubble.
+bubble. How to draw a new one: `docs/icons.md`.
 
 Below the case, four labelled groups in one column: READY (every card with a reward waiting,
 medal families first), BADGES, CHALLENGES and DONE, the open ones sorted by how close they are

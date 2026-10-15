@@ -5,17 +5,18 @@ import android.graphics.drawable.GradientDrawable
 import android.graphics.drawable.LayerDrawable
 
 /**
- * The achievement page's colours: one flat candy grape behind everything, and white slabs on
- * it. The grape is dark enough that a white card stands out at a glance, and every card keeps
- * a solid lavender lip, so each one reads as a chunky slab rather than a sheet of paper.
+ * The achievement page's colours: one flat candy lavender behind everything, and white slabs on
+ * it (picked from nine backdrops shown on the real page, 2026-10-15). Every card keeps a solid
+ * lip, so each one reads as a chunky slab rather than a sheet of paper. The lavender is light,
+ * so the words on it are ink.
  */
 internal object TrophyRoom {
-    const val BACKDROP = 0xFF6A35E8.toInt()
+    const val BACKDROP = Theme.LAVENDER
     /** The solid edge under every white card. */
     val LIP = Theme.lerp(Theme.WHITE, BACKDROP, .32f)
     /** Section names on the backdrop, and their counts. */
-    const val HEADING = Theme.WHITE
-    val HEADING_SOFT = Theme.alpha(Theme.WHITE, 190)
+    const val HEADING = Theme.INK
+    val HEADING_SOFT = Theme.alpha(Theme.INK, 190)
 
     /** A white card: its face, an optional coloured [edge], and the solid lip under it. */
     fun slab(kit: UiKit, radius: Float, edge: Int? = null, lip: Int = LIP): Drawable {

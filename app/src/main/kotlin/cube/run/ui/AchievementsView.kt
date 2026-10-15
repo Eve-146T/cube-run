@@ -88,7 +88,7 @@ class AchievementsView(activity: Activity, kit: UiKit, private val preparing: Bo
     }
 
     init {
-        // A flat grape instead of the pastel backdrop of the other bright pages: white cards on near-white were hard to tell apart.
+        // A flat lavender instead of the pastel gradient of the other bright pages: white cards on it were hard to tell apart.
         setBackgroundColor(TrophyRoom.BACKDROP)
         titleView.setTextColor(TrophyRoom.HEADING)
         titleView.maxLines = 1

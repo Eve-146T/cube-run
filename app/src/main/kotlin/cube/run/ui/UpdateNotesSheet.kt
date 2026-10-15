@@ -214,7 +214,7 @@ class UpdateNotesSheet(activity: Activity, kit: UiKit, onDismissed: () -> Unit) 
     }
 
     private companion object {
-        /** The achievement page's grape, so the two new-things screens match. */
+        /** A deep grape, so the white title and twinkles stand out. */
         const val GRAPE = 0xFF6A35E8.toInt()
     }
 }

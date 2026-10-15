@@ -43,8 +43,11 @@ class CompactLayoutTest {
                     for ((w, h) in sizes) {
                         measure(page, kit, w, h)
                         if (w >= 320 && h >= 720 && scale == 1f) {
-                            val scroller = all(page).filterIsInstance<ScrollView>().single()
-                            assertTrue("Full-screen settings must not have a tiny scroll range",
+                            // Only the page players get must fit: the debug card (dev mode, section explorer) may scroll.
+                            val release = SettingsView(activity, kit, {}, {}, {}, {}, devTools = false) {}.apply { layoutDirection = direction }
+                            measure(release, kit, w, h)
+                            val scroller = all(release).filterIsInstance<ScrollView>().single()
+                            assertTrue("Full-screen settings without the debug card must not scroll",
                                 scroller.getChildAt(0).height <= scroller.height - scroller.paddingTop - scroller.paddingBottom)
                         }
                         for (control in all(page).filter { it is CandySwitch || it is LevelPicker }) {
