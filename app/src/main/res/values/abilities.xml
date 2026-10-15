@@ -18,4 +18,7 @@
     <string name="ability_calm">Calm</string><string name="ability_calm_detail">A soft haze settles over the world and mutes its colours.</string>
     <string name="ability_smol">Smol</string>
     <string name="ability_smol_detail">Small enough to roll under bars without ducking!</string>
+    <string name="ability_bubble_score">Double Score</string><string name="ability_bubble_score_detail">Score twice as fast while your bubble is active!</string>
+    <string name="ability_pound_magnet">Pound Magnet</string><string name="ability_pound_magnet_detail">Ground pounds pull in nearby coins while your bubble is active!</string>
+    <string name="ability_bubble_slowmo">Slow Motion</string><string name="ability_bubble_slowmo_detail">The world slows down while your bubble is active!</string>
 </resources>

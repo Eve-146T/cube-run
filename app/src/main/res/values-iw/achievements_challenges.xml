@@ -8,4 +8,6 @@
     <string name="achievement_goal_poltergeist">חלפו דרך 100 מכשולים עם קוביית רוח הרפאים.</string>
     <string name="achievement_goal_juggernaut">נפצו 300 מכשולים עם בועות בריצה אחת.</string>
     <string name="achievement_goal_full_throttle">הגיעו ל־1500 נקודות בריצה שהתחילה עם כל 10 ההאצות.</string>
+    <string name="achievement_sky_sweeper">מטאטא השמיים</string>
+    <string name="achievement_goal_sky_sweeper">אספו כל מטבע בטיסה בתרמיל הסילון, בלי לספור את הנחיתה.</string>
 </resources>

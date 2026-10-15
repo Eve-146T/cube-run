@@ -475,7 +475,7 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false, retu
         achievementToast.reset()
         jackpotCounter.reset()
         bonusVisited.clear()
-        score = 0; scoreText.text = "0"
+        score = 0; scoreText.text = "0"; resetScoreBoost()
         runCoins = 0; kit.labelOf(haul).text = "0"
         kit.labelOf(boxes).text = "×0"; boxes.visibility = GONE
         setBest(0)
@@ -742,6 +742,24 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false, retu
         Anim.pulse(scoreText, 1.14f, 160)
     }
 
+    private var scoreBoost = false
+    private var scoreTint: android.animation.ValueAnimator? = null
+
+    /** While rows score double the score glows 2× pink, with a pop as it switches on. */
+    fun setScoreBoost(on: Boolean) {
+        if (on == scoreBoost) return
+        scoreBoost = on
+        scoreTint?.cancel()
+        scoreTint = android.animation.ValueAnimator.ofArgb(scoreText.currentTextColor, if (on) Theme.MULT else Theme.WHITE).apply {
+            duration = 220
+            addUpdateListener { scoreText.setTextColor(it.animatedValue as Int) }
+            start()
+        }
+        if (on) Anim.pulse(scoreText, 1.3f, 240)
+    }
+
+    private fun resetScoreBoost() { scoreTint?.cancel(); scoreTint = null; scoreBoost = false; scoreText.setTextColor(Theme.WHITE) }
+
     /** The boost window opened or closed (GL → UI); [taps] used so far. */
     fun setBoost(open: Boolean, taps: Int, max: Int) {
         if (open) {
@@ -885,7 +903,7 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false, retu
         achievementToast.reset(); jackpotCounter.reset(); bonusVisited.clear()
         Anim.cancelTree(topBox); topBox.visibility = GONE; pauseChip.visibility = GONE
         setBoost(false, 0, 5)
-        score = 0; scoreText.text = "0"; runCoins = 0; kit.labelOf(haul).text = "0"
+        score = 0; scoreText.text = "0"; resetScoreBoost(); runCoins = 0; kit.labelOf(haul).text = "0"
         kit.labelOf(boxes).text = "×0"; boxes.visibility = GONE
         setBest(cube.run.data.Scores.best("cuberun"))
         setBubbleCooldown(0); setBubbles(Progress.bubbles)

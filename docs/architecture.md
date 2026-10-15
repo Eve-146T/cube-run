@@ -71,6 +71,10 @@ pistons, sweepers, stompers, zappers (only while lit), pendulums and the
 windmill arm (whose sideways gap depends on where the arm is right now).
 Bounce pads are harmless triggers; platforms raise the ground.
 
+Walking off an edge keeps the jump until the cube lands (`Player.LEDGE_GRACE`), and a drop no
+bigger than a ramp step (`Player.STEP_DOWN`) is stepped down without leaving the ground, so a
+jump on the way down a staircase always registers. The bot model (`tools/bot`) mirrors both.
+
 ## Worlds
 
 A run starts in Candy Fields. Every 140 rows a gate is dropped at the
@@ -79,6 +83,8 @@ roadside, obstacle hues) is already in the new style, and when the gate
 passes the player the sky and haze cross-fade. Obstacle hues advance by 19°
 per generated row, restoring colour variety within each biome. Kind offsets
 stay consistent within a row, and colours stay fixed as obstacles approach.
+No obstacle hue comes within 50° of the road tiles it stands on
+(`ObstacleFactory.roadHue`); Outer Space paints its own road and is exempt.
 
 ## Test tools
 
@@ -118,6 +124,8 @@ boxes. Jetpacks and mystery boxes require an actual run score of at least
 100, then use only every second opportunity for that kind. Skipped slots
 stay empty and consume their spacing, reducing their frequency by half
 without increasing other pickups. The gates also apply in developer mode.
+No coin is laid within one coin slot of a pickup, ahead, behind or in the
+lanes beside it, so pickups never hide in a coin line (`Track.clearAroundPickups`).
 Coin fields and five-lane rows can carry pickups too. Five-lane roads have
 one clear lane sweeping across all five, with a rest beat every third row,
 9.5-unit spacing and a centre-lane approach before the exit. Rollercoaster

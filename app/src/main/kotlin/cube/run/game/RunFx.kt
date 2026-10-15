@@ -175,6 +175,18 @@ class RunFx(private val game: Gdx3DGame, private val rnd: Random) {
         game.burst3d(tmp, Color.WHITE, n = 6, speed = 6f, size = 0.08f, life = 0.35f)
     }
 
+    /** Pound Magnet: the slam rings out along the road in gold, and the coins answer. */
+    fun poundMagnet(px: Float, gold: Color) {
+        SoundFx.play("boom", rate = 1.7f, vol = 0.45f)
+        SoundFx.play("rise", rate = 1.9f, vol = 0.5f)
+        Haptics.heavy()
+        for (i in 0 until 8) {
+            val a = i * 0.785f
+            game.burst3d(tmp.set(px + 0.9f * kotlin.math.cos(a), 0.15f, 0.9f * kotlin.math.sin(a)), gold, n = 4, speed = 5f, size = 0.12f, life = 0.45f, gravity = 4f)
+        }
+        game.flash(gold, 0.12f)
+    }
+
     fun jetEnd() { SoundFx.play("slide", rate = 0.8f) }
 
     fun emptyStock() { SoundFx.play("tap", rate = 0.6f) }

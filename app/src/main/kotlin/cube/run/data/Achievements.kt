@@ -36,7 +36,7 @@ object Achievements {
         definition.id in setOf("greed", "greedy", "coal_miner", "full_kit", "insomniac", "bankrupt", "exactly_67", "nervous_tic", "silent_treatment", "stage_fright") -> 1500
         definition.id in setOf("scenic_route", "full_throttle", "juggernaut") -> 2500
         definition.id == "very_silent_treatment" -> 5000
-        definition.id in setOf("pile_driver", "just_browsing", "two_ez", "untouchable", "house_loses", "voidwalker", "magpie", "shard_hunter", "long_con", "neo", "monk", "icarus", "poltergeist") -> 2000
+        definition.id in setOf("pile_driver", "just_browsing", "two_ez", "untouchable", "house_loses", "voidwalker", "magpie", "shard_hunter", "long_con", "neo", "monk", "icarus", "poltergeist", "sky_sweeper") -> 2000
         else -> 0
     }
 
@@ -90,6 +90,7 @@ object Achievements {
         Definition("poltergeist", "Poltergeist", "Slip through 100 obstacles with the Ghost cube.", intArrayOf(100), false),
         Definition("juggernaut", "Juggernaut", "Smash 300 obstacles with bubbles in one run.", intArrayOf(300), false),
         Definition("full_throttle", "Full Throttle", "Reach 1500 points in a run started with all 10 boosts.", intArrayOf(1500), false),
+        Definition("sky_sweeper", "Sky Sweeper", "Collect every coin on a jetpack flight, not counting the landing.", intArrayOf(1), false),
         Definition("trailblazer", "Trailblazer", "Own trails.", intArrayOf(3, 5, 8, 11)),
         Definition("bubble_bath", "Bubble Bath", "Own bubble skins.", intArrayOf(3, 5, 7, 10)),
     )

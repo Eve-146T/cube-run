@@ -100,6 +100,12 @@ fun Context.gameText(stableLabel: String): String = when (stableLabel) {
     "Your bubble lasts 30% longer!" -> getString(R.string.ability_long_bubble_detail)
     "Smol" -> getString(R.string.ability_smol)
     "Small enough to roll under bars without ducking!" -> getString(R.string.ability_smol_detail)
+    "Double Score" -> getString(R.string.ability_bubble_score)
+    "Score twice as fast while your bubble is active!" -> getString(R.string.ability_bubble_score_detail)
+    "Pound Magnet" -> getString(R.string.ability_pound_magnet)
+    "Ground pounds pull in nearby coins while your bubble is active!" -> getString(R.string.ability_pound_magnet_detail)
+    "Slow Motion" -> getString(R.string.ability_bubble_slowmo)
+    "The world slows down while your bubble is active!" -> getString(R.string.ability_bubble_slowmo_detail)
     "35% chance to not consume a bubble." -> getString(R.string.game_35_chance_to_not_consume_a_bubble)
     "35%" -> getString(R.string.game_35)
     "Bubble" -> getString(R.string.game_bubble)
@@ -267,6 +273,7 @@ fun Context.achievementTitle(id: String): String = getString(when (id) {
     "trailblazer" -> R.string.achievement_trailblazer
     "bubble_bath" -> R.string.achievement_bubble_bath
     "icarus" -> R.string.achievement_icarus
+    "sky_sweeper" -> R.string.achievement_sky_sweeper
     "poltergeist" -> R.string.achievement_poltergeist
     "juggernaut" -> R.string.achievement_juggernaut
     "full_throttle" -> R.string.achievement_full_throttle
@@ -317,6 +324,7 @@ fun Context.achievementGoal(id: String): String = getString(when (id) {
     "trailblazer" -> R.string.achievement_goal_trailblazer
     "bubble_bath" -> R.string.achievement_goal_bubble_bath
     "icarus" -> R.string.achievement_goal_icarus
+    "sky_sweeper" -> R.string.achievement_goal_sky_sweeper
     "poltergeist" -> R.string.achievement_goal_poltergeist
     "juggernaut" -> R.string.achievement_goal_juggernaut
     "full_throttle" -> R.string.achievement_goal_full_throttle

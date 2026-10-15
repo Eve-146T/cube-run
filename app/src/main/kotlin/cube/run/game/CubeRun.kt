@@ -161,6 +161,16 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
     private var coinPitch = 0        // rising coin pitch; resets after a short gap without a coin
     private var lastCoinT = -9f
     private val nearMissBonus = 2
+    /** Pound Magnet: how far ahead a slam reaches for coins. */
+    private val poundReach = 10f
+    /** Slow Motion: the road's speed while the bubble is up. */
+    private val bubbleSlowSpeed = 0.7f
+    private var bubbleSlow = 0f      // eased 0..1: how much of Slow Motion is on
+    // ---- Sky Sweeper: every coin on one flight's line ----
+    private var sweepFlight = 0      // the flight being judged (Track.flight), 0 = none
+    private var sweepClean = false   // no coin of its line has slipped past yet
+    private var sweepTaken = 0
+    private var scoreBoostShown = false
 
     // smooth-control gesture state (positional steering within one continuous touch)
     private var smoothAnchorX = 0f
@@ -183,6 +193,9 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
 
     /** Obstacles and the cube's classic skin key off the current world's hue. */
     private fun worldHue() = worlds.hue
+
+    /** The middle of the two-tone road new rows stand on; Outer Space paints its own road. */
+    private fun roadHue(bonus: Int) = if (bonus == Bonus.SPACE) Float.NaN else worlds.spawnWorld.floorH + 7f
 
     override fun prepareSceneResources() { scenery.biome.prepareAll() }
 
@@ -228,7 +241,7 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
         autoStart = false; started = false; dead = false; gameOverShown = false
         spd = 0f; dist = 0f; rowsPassed = 0; curTier = 0; runT = 0f; deathT = 0f
         introT = 1.8f; introAtStart = 0f; skyBlend = 0f; bonus = Bonus.NONE
-        kaleido = 0f; kaleidoHue = 0f; jetBoost = 0f; jetGroundT = 0f
+        kaleido = 0f; kaleidoHue = 0f; jetBoost = 0f; jetGroundT = 0f; bubbleSlow = 0f; sweepFlight = 0
         phaseUsed = false; phasedObstacle = null; groundObstacle = null
         zen = false; zenStreak = 0; Progress.zenRun = false; difficulty.ceiling = 1f; calmWash = 0f
         styleCombo = 0; sideBounces = 0; smoothWall = 0; smoothVAccum = 0f
@@ -309,7 +322,7 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
             track.portalPool = emptyList()
             powerUps.magnet.start(3600f)
         }
-        bubble.reset(); shownBubbleCooldown = 0; session.setBubbleCooldown(0)
+        bubble.reset(); shownBubbleCooldown = 0; session.setBubbleCooldown(0); bubbleSlow = 0f; sweepFlight = 0; showScoreBoost(false)
         bubble.cooldownDuration = Progress.bubbleCooldownSeconds * runSkin.bubbleCooldownMultiplier
         bubble.duration = bubbleDuration()
         difficulty.ceiling = if (zen) zenCeiling else 1f
@@ -327,6 +340,7 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
             Settings.devMode -> Settings.testBonusNow
             else -> Bonus.NONE
         }
+        obstacles.roadHue = roadHue(startBonus)
         track.reset(coinTrailChance = 0.2f, hue = worldHue(), initialBonus = startBonus)
         prepareToxicCoins()
         space.reset()
@@ -475,20 +489,40 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
         return solids
     }
 
+    /** Rows score double: the 2× pickup or a Double Score bubble. */
+    private fun scoreBoosted() = powerUps.mult.active || (bubble.active && Skins.Ability.BUBBLE_SCORE in runBubble.abilities)
+
+    private fun showScoreBoost(on: Boolean) {
+        if (on != scoreBoostShown) { scoreBoostShown = on; session.setScoreBoost(on) }
+    }
+
     private fun scoreRow(row: Row) {
         // Stairs/platforms and empty stretches are exempt; dodging a solid breaks Monk.
         if (zen && row.obs.any { it.type == ObType.SOLID }) zenStreak = 0
         rowsPassed++
-        val x2 = powerUps.mult.active
-        session.addScore(if (x2) 2 else 1)
+        // The 2× pickup and a Double Score bubble stack.
+        val factor = (if (powerUps.mult.active) 2 else 1) *
+            (if (bubble.active && Skins.Ability.BUBBLE_SCORE in runBubble.abilities) 2 else 1)
+        session.addScore(factor)
         fx.rowPassed()
         if (row.minClear < 0.34f) { // shaved it — reward a close dodge with an air-rush
             session.nearMiss()
             val bonus = nearMissBonus * (if (Skins.Ability.CLOSE_SHAVE in runSkin.abilities) 3 else 1)
-            session.addScore(if (x2) bonus * 2 else bonus)
+            session.addScore(bonus * factor)
             fx.nearMiss(player.px, player.py)
         }
         if (!track.isPillTest) worlds.onRow(rowsPassed)
+    }
+
+    /** Pound Magnet: every coin a short way ahead, in any lane, flies to the cube (the magnet's pull does the rest). */
+    private fun poundMagnet() {
+        for (row in track.rows) for (c in row.coins.orEmpty()) {
+            if (c.taken || c.missed || c.toxic) continue
+            val cz = row.z + c.dz
+            if (cz < -poundReach || cz > 0.8f) continue
+            c.pullStarted = true
+        }
+        fx.poundMagnet(player.px, trackArt.gold)
     }
 
     private fun prepareCoalGems() {
@@ -514,6 +548,7 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
     private fun collectCoin(coin: Coin, cz: Float) {
         if (dead || coin.taken || coin.missed) return
         coin.taken = true
+        if (coin.flight != 0 && coin.flight == sweepFlight && !coin.toxic) sweepTaken++
         if (Skins.Ability.COAL !in runSkin.abilities || coin.gem) session.coinPickedUp()
         if (coin.toxic && Skins.Ability.TOXIC_FORTUNE in runSkin.abilities) {
             die()
@@ -598,6 +633,7 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
                 powerUps.jet.start(dur)
                 player.setFlying(true)
                 jetFlight.begin(dur, difficulty.speed() * runSkin.speedMultiplier, jetBoost)
+                sweepFlight = track.flight; sweepClean = true; sweepTaken = 0
                 fx.pickup(trackArt.colorOf(kind), row.pickupX, cz)
                 rig.punch(1f)
             }
@@ -829,11 +865,14 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
         calmWash += (calmTarget - calmWash) * min(1f, dt * 0.8f)
         if (started && !dead) {
             jetBoost += ((if (player.flying) 1f else 0f) - jetBoost) * min(1f, dt * 2f)
+            val slowing = bubble.active && Skins.Ability.BUBBLE_SLOWMO in runBubble.abilities
+            bubbleSlow += ((if (slowing) 1f else 0f) - bubbleSlow) * min(1f, dt * 3f)
             runT += dt
             session.runSeconds(runT.toInt())
             val ease = min(1f, runT / 1.5f).let { it * it * it * (it * (it * 6f - 15f) + 10f) } // the start: the road winds up, the camera drops in
             rig.intro = introAtStart + (1f - introAtStart) * ease
             spd = launchSpeed + (difficulty.speed() * runSkin.speedMultiplier * (1f + JetFlight.SPEED_UP * jetBoost) - launchSpeed) * ease
+            spd *= 1f - (1f - bubbleSlowSpeed) * bubbleSlow
             if (fire.tick(dt, player.px, player.py) > 0) rig.punch(0.45f)
             difficulty.ramp(dt)
         } else if (!started) {
@@ -896,6 +935,7 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
         scenery.tick(dt, mv)
         if (live()) {
             track.speed = difficulty.speed() * runSkin.speedMultiplier
+            obstacles.roadHue = roadHue(track.bonus)
             track.spawn(mv, worldHue(), session.score, dt)
             prepareToxicCoins()
             prepareCoalGems()
@@ -929,7 +969,10 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
             val gh = if (player.flying) 0f else groundAt(player.px)
             when (val event = player.update(dt, mv, time, worldHue(), trail = started, groundH = gh, stream = spd * 0.55f)) {
                 Player.EV_LANDED, Player.EV_GROUND_POUND -> {
-                    if (event == Player.EV_GROUND_POUND && live()) session.groundPounded()
+                    if (event == Player.EV_GROUND_POUND && live()) {
+                        session.groundPounded()
+                        if (bubble.active && Skins.Ability.POUND_MAGNET in runBubble.abilities) poundMagnet()
+                    }
                     if (styleCombo > 0) { fx.styleLand(styleCombo, player.px, player.py); styleCombo = 0 }
                 }
                 Player.EV_SIDE_HIT -> if (started) sideHit(gh)
@@ -937,6 +980,7 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
         }
         bubble.update(dt, time, player.px + player.nudge, player.py + Terrain.y(0f))
         refreshJumpAbility()
+        showScoreBoost(live() && scoreBoosted())
         val cooldown = kotlin.math.ceil(bubble.cooldownLeft).toInt()
         if (cooldown != shownBubbleCooldown) { shownBubbleCooldown = cooldown; session.setBubbleCooldown(cooldown) }
 
@@ -948,6 +992,7 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
         debris.update(dt, mv)
         zenDissolve.update(dt, mv)
         collide(dt)
+        judgeSweep()
 
         rig.holdHigh = player.flying && player.descending
         rig.chase(dt, player.px, player.py, player.ground, deathT, spd)
@@ -1013,6 +1058,7 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
                         } else if (cz > 1.1f) { // it's behind you — the streak breaks; the coin keeps sliding past the camera
                             c.missed = true
                             coinStreak = 0
+                            if (c.flight != 0 && c.flight == sweepFlight && !c.toxic) sweepClean = false
                         }
                     }
                 }
@@ -1022,6 +1068,21 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
                 if (started && !dead && !row.idle && !row.scoreless) scoreRow(row)
             }
         }
+    }
+
+    /**
+     * Sky Sweeper: once the flight is down and nothing of its line is left
+     * ahead, it counts if every coin on it was taken. Green Toxic coins are
+     * never asked for; the landing's checkerboard is not on the line.
+     */
+    private fun judgeSweep() {
+        if (sweepFlight == 0 || player.flying || !live()) return
+        if (!sweepClean) { sweepFlight = 0; return }
+        for (row in track.rows) for (c in row.coins.orEmpty()) {
+            if (c.flight == sweepFlight && !c.taken && !c.missed && !c.toxic) return
+        }
+        if (sweepTaken > 0) session.skySwept()
+        sweepFlight = 0
     }
 
     /** Through a portal: the world changes shape (or back). */

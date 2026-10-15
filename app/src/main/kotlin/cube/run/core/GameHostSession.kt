@@ -181,6 +181,7 @@ class GameHostSession(
     override fun obstaclePhased() { if (runHasStarted && !over.get()) Progress.addMetric("poltergeist") }
     override fun diedFlying() { if (runHasStarted && !over.get() && runSkin == Skins.TOXIC_ID) Progress.bestMetric("icarus", 1) }
     override fun fullKitHeld() { if (runHasStarted && !over.get()) Progress.bestMetric("full_kit", 1) }
+    override fun skySwept() { if (runHasStarted && !over.get()) Progress.bestMetric("sky_sweeper", 1) }
     override fun redPillSurvived() { if (runHasStarted && !over.get()) Progress.bestMetric("neo", 1) }
     override fun distanceCovered(metres: Int) {
         if (!runHasStarted || over.get() || metres <= lastDistance) return
@@ -214,6 +215,7 @@ class GameHostSession(
     }
 
     override fun setBubbleCooldown(seconds: Int) { ui { it.setBubbleCooldown(seconds) } }
+    override fun setScoreBoost(on: Boolean) { ui { it.setScoreBoost(on) } }
 
     override fun setBoxes(v: Int) {
         if (over.get()) return

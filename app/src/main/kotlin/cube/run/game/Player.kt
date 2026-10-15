@@ -54,6 +54,12 @@ class Player(private val game: Gdx3DGame, private val rnd: Random) {
         const val EV_GROUND_POUND = 3 // completed slam landing
         /** The Smol cube's size next to the others. */
         const val SMOL_SIZE = 0.62f
+        /** A drop this small (a step of a ramp) is stepped down, not fallen: the cube stays on the ground. */
+        const val STEP_DOWN = 0.5f
+        /** How fast the cube steps down it (units per second). */
+        const val STEP_RATE = 10f
+        /** A cube that walked off an edge can still take off until it lands (well past any fall on the road). */
+        const val LEDGE_GRACE = 0.6f
     }
 
     val ground = 0.45f      // resting cube center (cube = 0.9 across)
@@ -388,6 +394,7 @@ class Player(private val game: Gdx3DGame, private val rnd: Random) {
             if (py <= gy && vy <= 0f) {
                 py = gy; air = false; vy = 0f
                 airJumpAvailable = false
+                coyoteLeft = 0f
                 landed(gy)
                 event = if (slamming) EV_GROUND_POUND else EV_LANDED
                 if (slamming) { slamming = false; duckT = 0.5f } // slam → auto-crouch on landing
@@ -397,10 +404,13 @@ class Player(private val game: Gdx3DGame, private val rnd: Random) {
             // the ground rose: a ramp lifts you a little each frame; a whole platform side is a wall
             if (gy - py > 0.45f) event = EV_SIDE_HIT else py = gy
         } else if (gy < py - 0.02f) {
-            air = true; vy = 0f // walked off an edge
-            airJumpAvailable = true
-            airJumpsUsed = 0
-            coyoteLeft = 0.1f
+            if (py - gy <= STEP_DOWN) py = max(gy, py - STEP_RATE * dt) // a step down: still on the ground, so a jump always counts
+            else {
+                air = true; vy = 0f // walked off an edge
+                airJumpAvailable = true
+                airJumpsUsed = 0
+                coyoteLeft = LEDGE_GRACE
+            }
         }
         squash = max(0f, squash - dt * 5f)
         stretch = max(0f, stretch - dt * 2.2f)

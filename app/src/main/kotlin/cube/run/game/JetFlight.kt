@@ -30,6 +30,7 @@ class JetFlight(private val track: Track, private val player: Player) {
         val reach = cruise * (seconds + SPEED_UP * (seconds - easing))
         val descentLen = JetDescent.SECONDS * cruise * (1f + SPEED_UP)
         track.landing = LandingStrip(-reach, descentLen, max(14f, cruise))
+        track.flight++
         track.airCoins = true
         track.liftCoins()
         track.clearStrip()

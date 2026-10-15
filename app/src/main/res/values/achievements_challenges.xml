@@ -9,4 +9,6 @@
     <string name="achievement_goal_poltergeist">Slip through 100 obstacles with the Ghost cube.</string>
     <string name="achievement_goal_juggernaut">Smash 300 obstacles with bubbles in one run.</string>
     <string name="achievement_goal_full_throttle">Reach 1500 points in a run started with all 10 boosts.</string>
+    <string name="achievement_sky_sweeper">Sky Sweeper</string>
+    <string name="achievement_goal_sky_sweeper">Collect every coin on a jetpack flight, not counting the landing.</string>
 </resources>

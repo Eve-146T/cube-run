@@ -43,6 +43,8 @@ interface GameSession {
     /** The run ended mid jetpack flight. */
     fun diedFlying() {}
     fun fullKitHeld() {}
+    /** Every coin on a jetpack flight's line was collected (the landing's checkerboard aside). */
+    fun skySwept() {}
     /** A red pill ran its whole course without a crash. */
     fun redPillSurvived() {}
     fun distanceCovered(metres: Int) {}
@@ -55,6 +57,8 @@ interface GameSession {
     /** Bubble shields left in stock (shown as a HUD hint). */
     fun setBubbles(v: Int) {}
     fun setBubbleCooldown(seconds: Int) {}
+    /** Rows score double right now (the 2× pickup or a Double Score bubble): the HUD score turns pink. */
+    fun setScoreBoost(on: Boolean) {}
 
     /** Mystery boxes collected so far this run (opened on the run-over screens). */
     fun setBoxes(v: Int) {}

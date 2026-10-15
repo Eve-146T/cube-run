@@ -18,4 +18,7 @@
     <string name="ability_calm">Ruhe</string><string name="ability_calm_detail">Ein sanfter Dunst legt sich über die Welt und dämpft ihre Farben.</string>
     <string name="ability_smol">Winzig</string>
     <string name="ability_smol_detail">Klein genug, um ohne Ducken unter Balken durchzurollen!</string>
+    <string name="ability_bubble_score">Doppelte Punkte</string><string name="ability_bubble_score_detail">Doppelt so schnell punkten, solange deine Blase aktiv ist!</string>
+    <string name="ability_pound_magnet">Stampfmagnet</string><string name="ability_pound_magnet_detail">Bodenstampfer ziehen Münzen in der Nähe an, solange deine Blase aktiv ist!</string>
+    <string name="ability_bubble_slowmo">Zeitlupe</string><string name="ability_bubble_slowmo_detail">Die Welt wird langsamer, solange deine Blase aktiv ist!</string>
 </resources>
