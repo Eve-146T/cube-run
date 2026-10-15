@@ -102,6 +102,8 @@ class Row(var z: Float, val obs: ArrayList<Ob>, initialLaneWidth: Float = Lanes.
     /** Stable per-row phase: scrolling must never accelerate pickup animation. */
     val visualPhase = z % 6.2831855f
     var laneCount = 3            // geometry when generated, even before its portal is crossed
+    /** A wall only a launch clears (a pad or ring before it is its way over). */
+    var needsLaunch = false
     var laneWidth = initialLaneWidth
         private set
     var safeLane = 1              // the walk lane when this row spawned

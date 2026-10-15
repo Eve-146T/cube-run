@@ -89,14 +89,6 @@ class Scenery(private val game: Gdx3DGame, private val rnd: Random) {
     private val kerbB = Color()
     /** The biome around the road, beyond the roadside. */
     val biome = BiomeScene(game)
-    /** A jetpack flight's landing strip, painted over the road (null without one). */
-    var strip: cube.run.game.track.LandingStrip? = null
-    private val stripPaint = LandingStripPaint(game)
-    /** The landing strip's paint (LandingStripPaint.LOOK_*). */
-    var stripLook: Int
-        get() = stripPaint.look
-        set(value) { stripPaint.look = value }
-    private var paintTime = 0f
     private var dropY = 0f          // how far the land (and everything on it) has fallen away
 
     private val laneW: Float get() = Lanes.NORMAL_W
@@ -236,51 +228,36 @@ class Scenery(private val game: Gdx3DGame, private val rnd: Random) {
         val kerb = Lanes.halfRoadDrawn + 0.12f
         val landW = 30f
         val landX = kerb + 0.12f + landW / 2f
-        val strip = strip
         for (t in tiles) {
             val fog = Fog.at(t.z)
             val a = Fog.appear(t.z)
             val c1 = if (sp > 0f) space!!.roadTile(tileA, t.col, false) else t.col
             val c2 = if (sp > 0f) space!!.roadTile(tileB, t.col2, true) else t.col2
-            val near = t.z + tileD / 2f
-            val far = t.z - tileD / 2f
-            val sNear = if (strip == null) far else min(near, strip.startZ)
-            val sFar = if (strip == null) far else max(far, strip.endZ)
-            if (strip != null && sNear > sFar) { // the landing strip takes its share of the tile
-                if (near > sNear) roadPiece(t, sNear, near, w, u, c1, c2, fog, a, sp)
-                if (sFar > far) roadPiece(t, far, sFar, w, u, c1, c2, fog, a, sp)
-                stripPaint.paint(strip, sFar, sNear, w, if (u > 0.01f) w * u else 0f, c1, c2, t.parity, fog, a,
-                    if (sp > 0f) 1f - GLASS * sp else 0f, paintTime)
-            } else roadPiece(t, far, near, w, u, c1, c2, fog, a, sp)
+            // the three core lanes, then the two outer ones growing out from the edges as the road unfolds
+            if (sp > 0f) { // in space the road turns to glass: stars, rocks and planets show through beneath you
+                val alpha = 1f - GLASS * sp
+                // the tile, minus any rift crossing it: the gap stays open to space
+                val rifts = space!!.rifts
+                var top = t.z + tileD / 2f
+                val bottom = t.z - tileD / 2f
+                for (i in 0 until rifts.count) {
+                    val hn = rifts.near(i); val hf = rifts.far(i)
+                    if (hf >= top || hn <= bottom) continue
+                    if (hn < top) glassPiece(hn, top, w, t.parity, c1, c2, fog, alpha * a)
+                    top = min(top, hf)
+                }
+                if (top > bottom) glassPiece(bottom, top, w, t.parity, c1, c2, fog, alpha * a)
+            } else for (l in 0 until 3) game.worldGround((l - 1) * w, -0.14f, t.z, w, 0.26f, tileD, if ((l + 1 + t.parity) % 2 == 0) c1 else c2, fog, a)
+            if (u > 0.01f) {
+                val ow = w * u
+                game.worldGround(-(1.5f * w + ow / 2f), -0.14f, t.z, ow, 0.26f, tileD, if (t.parity == 0) c1 else c2, fog, a)
+                game.worldGround(1.5f * w + ow / 2f, -0.14f, t.z, ow, 0.26f, tileD, if (t.parity == 0) c1 else c2, fog, a)
+            }
             renderKerb(t, kerb, fog, sp, a)
             if (dropY < 60f) {
                 game.worldGround(-landX, -0.16f - dropY, t.z, landW, 0.3f, tileD, t.ground, fog, a)
                 game.worldGround(landX, -0.16f - dropY, t.z, landW, 0.3f, tileD, t.ground, fog, a)
             }
-        }
-    }
-
-    /** One stretch of a road tile, from [far] to [near]: the three core lanes, then the outer two growing out as the road unfolds ([u]). */
-    private fun roadPiece(t: Tile, far: Float, near: Float, w: Float, u: Float, c1: Color, c2: Color, fog: Float, a: Float, sp: Float) {
-        val zc = (far + near) / 2f
-        val len = near - far
-        if (sp > 0f) { // in space the road turns to glass: stars, rocks and planets show through beneath you
-            val alpha = 1f - GLASS * sp
-            // the tile, minus any rift crossing it: the gap stays open to space
-            val rifts = space!!.rifts
-            var top = near
-            for (i in 0 until rifts.count) {
-                val hn = rifts.near(i); val hf = rifts.far(i)
-                if (hf >= top || hn <= far) continue
-                if (hn < top) glassPiece(hn, top, w, t.parity, c1, c2, fog, alpha * a)
-                top = min(top, hf)
-            }
-            if (top > far) glassPiece(far, top, w, t.parity, c1, c2, fog, alpha * a)
-        } else for (l in 0 until 3) game.worldGround((l - 1) * w, -0.14f, zc, w, 0.26f, len, if ((l + 1 + t.parity) % 2 == 0) c1 else c2, fog, a)
-        if (u > 0.01f) {
-            val ow = w * u
-            game.worldGround(-(1.5f * w + ow / 2f), -0.14f, zc, ow, 0.26f, len, if (t.parity == 0) c1 else c2, fog, a)
-            game.worldGround(1.5f * w + ow / 2f, -0.14f, zc, ow, 0.26f, len, if (t.parity == 0) c1 else c2, fog, a)
         }
     }
 
@@ -316,7 +293,6 @@ class Scenery(private val game: Gdx3DGame, private val rnd: Random) {
 
     /** Everything beside and above the road: the roadside, the gates, the wind. [wind] 0..1 = how vivid the speed streaks are. */
     fun render(wind: Float, time: Float) {
-        paintTime = time
         if (dropY < 60f) for (p in posts) renderPost(p, time)
         game.renderProbe?.invoke("biome")
         biome.render(time, dropY)

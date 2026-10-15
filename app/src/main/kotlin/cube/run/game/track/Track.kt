@@ -155,7 +155,7 @@ class Track(private val rnd: Random, private val fx: ObstacleFactory) {
         while (true) {
             if (pendingSteps.isEmpty()) loadNextSection()
             val code = pendingSteps.first()
-            if (code != Step.PORTAL && landing?.covers(spawnZ) == true) { // the landing strip: open road, the section waits
+            if (code != Step.PORTAL && landing?.covers(spawnZ) == true) { // the landing: open road, the section (a pad with its wall) waits
                 if (spawnAcc < dodgeGap) break
                 spawnAcc -= dodgeGap
                 spawnStripRow(spawnZ)
@@ -448,6 +448,7 @@ class Track(private val rnd: Random, private val fx: ObstacleFactory) {
         }
         val row = Row(z, obs)
         row.safeLane = curSafe
+        row.needsLaunch = Step.isTall(code)
         // A rift's later slices continue the chasm: one hazard, one row of the stretch, one point.
         val continued = code == Step.RF && prevKind == Step.RF
         row.scoreless = continued
@@ -472,47 +473,79 @@ class Track(private val rnd: Random, private val fx: ObstacleFactory) {
         return restY + (Player.FLY_Y - restY) * JetDescent.height(strip.progressAt(z), jetDescent)
     }
 
-    /** The jet coin line runs from the pickup to the strip's end; rows past it get ordinary coins. */
-    private fun jetLine(z: Float): Boolean = airCoins && landing.let { it == null || z >= it.endZ }
+    /** The jet coin line runs from the pickup down to touchdown; the landing's checkerboard takes over from there. */
+    private fun jetLine(z: Float): Boolean = airCoins && landing.let { it == null || z > it.touchZ }
 
-    /** A row of the landing strip: open road, the jet coin line on the walk lane. */
+    /** The jet line's three coins for a row at [z], those that come before touchdown. */
+    private fun jetLineCoins(row: Row, z: Float, x: Float, rest: Float): ArrayList<Coin> {
+        val touch = landing?.touchZ ?: Float.NEGATIVE_INFINITY
+        val list = ArrayList<Coin>(3)
+        for (k in 0 until 3) { val dz = -1.6f - k * 1.5f; if (z + dz > touch) list.add(Coin(x, jetY(z + dz, rest), dz, restY = rest)) }
+        return list
+    }
+
+    private fun groundCoinY(): Float = 0.5f + if (bonus == Bonus.FLOAT) Player.HOVER_Y - 0.45f else 0f
+
+    /** A row of the landing strip: open road, the last of the jet line, and the checkerboard once it is due. */
     private fun spawnStripRow(z: Float) {
         val row = Row(z, ArrayList(0))
         if (bonus == Bonus.WIDE) { row.laneCount = 5; row.safeLane = wideSafe } else row.safeLane = curSafe
-        if (jetLine(z)) {
-            val rest = 0.5f + if (bonus == Bonus.FLOAT) Player.HOVER_Y - 0.45f else 0f
-            val x = row.safeX()
-            row.coins = ArrayList<Coin>(3).apply {
-                for (k in 0 until 3) { val dz = -1.6f - k * 1.5f; add(Coin(x, jetY(z + dz, rest), dz, restY = rest)) }
-            }
-        }
+        if (jetLine(z)) row.coins = jetLineCoins(row, z, row.safeX(), groundCoinY())
+        val strip = landing
+        if (strip != null && !strip.gridLaid && z - dodgeGap < strip.touchZ) layGrid(row, strip)
         row.alignLaneSpacing(Lanes.w)
         rows.add(row)
         rowsSpawned++
         prevKind = Step.EM
     }
 
-    /** A flight just began: anything already laid on its strip goes (it is still far off in the haze). */
+    /** The landing's checkerboard: coins on the ground in every other lane, alternating, from touchdown to the strip's end. */
+    private fun layGrid(row: Row, strip: LandingStrip) {
+        strip.gridLaid = true
+        val coins = row.coins ?: ArrayList<Coin>().also { row.coins = it }
+        val y = groundCoinY()
+        var k = 0
+        while (strip.gridZ(k) >= strip.endZ + 1f) {
+            for (l in 0 until row.laneCount) if (strip.coinAt(k, l)) {
+                val x = (l - (row.laneCount - 1) / 2f) * row.laneWidth
+                coins.add(Coin(x, y, strip.gridZ(k) - row.z, restY = y))
+            }
+            k++
+        }
+    }
+
+    /**
+     * A flight just began: rows already laid in its landing zone (still far off
+     * in the haze) lose their hazards and pickups, and the checkerboard goes
+     * down if it is due already. A pad cleared away takes the walls only it
+     * could carry you over with it.
+     */
     fun clearStrip() {
         val strip = landing ?: return
-        for (row in rows) if (row.portal == Bonus.NONE && strip.covers(row.z)) { row.obs.clear(); row.pickup = Pickup.NONE }
+        var nearest: Row? = null
+        var padGone = false
+        for (row in rows.sortedByDescending { it.z }) { // near to far: a pad comes before its walls
+            if (row.portal == Bonus.NONE && strip.covers(row.z)) {
+                if (row.obs.any { it.type == ObType.PAD }) padGone = true
+                row.obs.clear()
+                row.pickup = Pickup.NONE
+                row.coins?.removeAll { row.z + it.dz <= strip.touchZ }
+                if (nearest == null || row.z > nearest.z) nearest = row
+            } else if (row.obs.any { it.type == ObType.PAD }) padGone = false
+            else if (row.needsLaunch) { if (padGone) row.obs.clear() }
+            else if (row.obs.isNotEmpty() && row.z < strip.endZ) padGone = false
+        }
+        nearest?.let { if (rows.any { r -> r.z < strip.touchZ }) layGrid(it, strip) } // otherwise the spawning lays it
     }
 
     /** Jetpack on: every coin ahead rises onto the flight line (cruise, descent or runway, by where it will be met). */
     fun liftCoins() {
-        val end = landing?.endZ ?: Float.NEGATIVE_INFINITY
+        val end = landing?.touchZ ?: Float.NEGATIVE_INFINITY
         for (row in rows) {
-            if (row.z > -4f || row.z < end) continue
+            if (row.z > -4f || row.z <= end) continue
             val coins = row.coins
-            if (coins == null) {
-                val x = row.safeX()
-                val list = ArrayList<Coin>(3)
-                for (k in 0 until 3) {
-                    val dz = -1.6f - k * 1.5f
-                    list.add(Coin(x, jetY(row.z + dz, 0.5f), dz, restY = 0.5f))
-                }
-                row.coins = list
-            } else {
+            if (coins == null) row.coins = jetLineCoins(row, row.z, row.safeX(), 0.5f)
+            else {
                 for (c in coins) if (!c.taken) c.y = jetY(row.z + c.dz, c.restY)
             }
         }
@@ -541,12 +574,8 @@ class Track(private val rnd: Random, private val fx: ObstacleFactory) {
         val coins = ArrayList<Coin>(5)
         if (bonus == Bonus.SPACE && !jetLine(row.z) && SpaceCoins.lay(row, code, x, continued, speed, coins) { fx.laneX(COMET_WEAVE[cometStep++ % COMET_WEAVE.size]) }) return
         val hover = if (bonus == Bonus.FLOAT) Player.HOVER_Y - 0.45f else 0f
-        if (jetLine(row.z)) { // jetpack: a line every row — cruising, coming down, or on the runway
-            for (k in 0 until 3) {
-                val dz = -1.6f - k * 1.5f
-                coins.add(Coin(x, jetY(row.z + dz, 0.5f + hover), dz, restY = 0.5f + hover))
-            }
-            row.coins = coins
+        if (jetLine(row.z)) { // jetpack: a line every row, cruising or coming down
+            row.coins = jetLineCoins(row, row.z, x, 0.5f + hover)
             return
         }
         if (code == Step.CF) { // coin field: a long line in every lane
@@ -613,9 +642,9 @@ class Track(private val rnd: Random, private val fx: ObstacleFactory) {
         val zen = Progress.zenRun || Progress.skin == Skins.ZEN_ID
         row.pickup = if (zen && (kind == Pickup.BOX || Pickup.shardType(kind) >= 0)) Pickup.NONE else when (kind) {
             Pickup.RED_PILL -> if (runScore >= 600 && rnd.nextInt(30) == 0) kind else Pickup.NONE
-            Pickup.SHARD_EMBER -> if (runScore >= 100 && ++shardOffers % 2 == 0) Pickup.SHARD_EMBER + rnd.nextInt(3) else Pickup.NONE
-            Pickup.JET -> if (runScore >= 100 && ++jetOffers % 2 == 0) kind else Pickup.NONE
-            Pickup.BOX -> if (runScore >= 100 && ++boxOffers % 2 == 0) kind else Pickup.NONE
+            Pickup.SHARD_EMBER -> if ((galore || runScore >= 100) && ++shardOffers % 2 == 0) Pickup.SHARD_EMBER + rnd.nextInt(3) else Pickup.NONE
+            Pickup.JET -> if ((galore || runScore >= 100) && ++jetOffers % 2 == 0) kind else Pickup.NONE
+            Pickup.BOX -> if ((galore || runScore >= 100) && ++boxOffers % 2 == 0) kind else Pickup.NONE
             else -> kind
         }
         rowsSincePickup = 0

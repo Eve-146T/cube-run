@@ -144,7 +144,7 @@ class EquippedAbilitiesTest {
     }
 
     @Test fun developerRunsUseTheEasierLotteryOdds() = fixture(1, dev = true) { game ->
-        assertEquals("Dev runs begin just before Coal discovery", 950, game.session.score)
+        assertEquals("Dev runs begin from zero", 0, game.session.score)
         val lottery = read<Lottery>(game, "lottery")
         assertEquals(kotlin.math.ln1p(-Lottery.DEV_COIN_CHANCE), field(lottery, "logMiss").getDouble(lottery), 0.0)
     }

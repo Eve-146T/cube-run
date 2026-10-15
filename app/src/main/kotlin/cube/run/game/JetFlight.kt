@@ -50,10 +50,10 @@ class JetFlight(private val game: Gdx3DGame, private val track: Track, private v
         val reach = cruise * (seconds + SPEED_UP * (seconds - easing))
         val descentLen = JetDescent.seconds(descent) * cruise * (1f + SPEED_UP)
         track.jetDescent = descent
-        track.landing = LandingStrip(-reach, descentLen, max(16f, cruise * 1.5f))
+        track.landing = LandingStrip(-reach, descentLen, max(14f, cruise))
         track.airCoins = true
-        track.clearStrip()
         track.liftCoins()
+        track.clearStrip()
     }
 
     /** Seconds until the strip reaches the cube at speed [spd]: the jet's clock. */
@@ -66,9 +66,8 @@ class JetFlight(private val game: Gdx3DGame, private val track: Track, private v
         player.flyY = landingY + (Player.FLY_Y - landingY) * JetDescent.height(1f - left / d, descent)
     }
 
-    /** The flight is over: onto the strip at [y], with the landing [variant]'s weight. */
-    fun touchDown(y: Float, time: Float, trackColor: Color) {
-        val strip = track.landing
+    /** The flight is over: onto the landing at [y], with the landing [variant]'s weight. */
+    fun touchDown(y: Float, trackColor: Color) {
         track.airCoins = false
         track.dropCoins()
         val px = player.px
@@ -76,7 +75,6 @@ class JetFlight(private val game: Gdx3DGame, private val track: Track, private v
             LAND_SLAM -> {
                 player.touchDown(y, 2.2f)
                 player.rebound(4.5f) // it bounces off the strip once
-                strip?.let { it.impactAt = time; it.impactX = px; it.impactPower = 1f }
                 SoundFx.play("boom", rate = 0.75f)
                 SoundFx.play("place", rate = 0.6f)
                 Haptics.heavy()
@@ -90,7 +88,6 @@ class JetFlight(private val game: Gdx3DGame, private val track: Track, private v
             }
             LAND_FALL -> {
                 player.touchDown(y, 1.6f)
-                strip?.let { it.impactAt = time; it.impactX = px; it.impactPower = 0.3f }
                 SoundFx.play("place", rate = 0.7f)
                 SoundFx.play("pop", rate = 0.7f)
                 Haptics.heavy()

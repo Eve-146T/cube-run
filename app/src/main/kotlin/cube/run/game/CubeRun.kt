@@ -338,7 +338,6 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
             session.setBonus(bonus)
         }
         session.runStarted()
-        if (Settings.devMode) session.setScore(950)
         if (bonus >= 0) session.setBonus(bonus)
         session.laneChanged(player.lane, Lanes.count)
         refreshJumpAbility()
@@ -657,7 +656,7 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
 
     private fun endJet() {
         if (!player.flying) { track.airCoins = false; track.dropCoins(); return }
-        jetFlight.touchDown(jetLandingY() + if (bonus == Bonus.FLOAT) 0f else groundAt(player.px), time, trackArt.colorOf(Pickup.NONE))
+        jetFlight.touchDown(jetLandingY() + if (bonus == Bonus.FLOAT) 0f else groundAt(player.px), trackArt.colorOf(Pickup.NONE))
         fx.jetEnd()
     }
 
@@ -1081,8 +1080,6 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
         space.rifts.update(track.rows)
         trackArt.glassRifts = space.blend > 0f
         renderProbe?.invoke("road")
-        scenery.strip = track.landing
-        scenery.stripLook = Settings.testJetStrip.coerceAtLeast(0)
         scenery.renderRoad()
         renderProbe?.invoke("course")
         trackArt.render(track, time, kaleido, kaleidoHue)

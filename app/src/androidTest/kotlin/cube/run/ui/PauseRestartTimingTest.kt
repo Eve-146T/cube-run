@@ -20,7 +20,7 @@ import org.junit.Test
 class PauseRestartTimingTest {
     private val inst get() = InstrumentationRegistry.getInstrumentation()
     private fun ui(action: () -> Unit) = inst.runOnMainSync(action)
-    /** Earlier tests in the same process may have left developer mode (950 starting score, dev bank) on. */
+    /** Earlier tests in the same process may have left developer mode (dev bank) on. */
     @Before fun leaveDeveloperMode() {
         if (cube.run.data.Settings.devMode) { cube.run.data.Progress.leaveDev(); cube.run.data.Settings.setDevMode(false) }
     }

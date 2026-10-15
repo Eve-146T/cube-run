@@ -6,7 +6,9 @@ import cube.run.bot.JetDescent
 import cube.run.bot.LiveBotDriver.Companion.gl
 import cube.run.core.Stage
 import cube.run.data.Settings
+import cube.run.game.track.LandingStrip
 import cube.run.game.track.ObType
+import cube.run.game.track.ObstacleFactory
 import cube.run.game.track.Pickup
 import cube.run.game.track.Row
 import cube.run.game.track.Track
@@ -37,18 +39,35 @@ class JetLandingStripTest {
                     val strip = track.landing
                     assertNotNull("variant $variant laid no strip", strip); strip!!
                     assertTrue(player.flying)
+                    // it opens up only for the low end of the descent
+                    assertFalse(strip.covers(strip.touchZ + strip.descentLen * 0.5f))
                     var descendingFrames = 0
                     var frames = 0
                     while (player.flying && frames < 60 * 30) {
-                        // nothing solid (tar included), no platform and no pad is ever laid on the strip
-                        for (row in track.rows) if (strip.covers(row.z)) assertTrue("variant $variant: hazard on the strip at ${row.z}",
-                            row.obs.none { it.type == ObType.SOLID || it.type == ObType.PLAT || it.type == ObType.PAD })
+                        // nothing solid (tar included) and no platform is ever laid on the landing
+                        for (row in track.rows) if (strip.covers(row.z)) assertTrue("variant $variant: hazard on the landing at ${row.z}",
+                            row.obs.none { it.type == ObType.SOLID || it.type == ObType.PLAT })
                         val before = strip.touchZ
                         game.tick(1f / 60f); frames++
                         if (player.flying && player.descending) descendingFrames++
                         if (!player.flying) assertTrue("variant $variant touched down off the line: $before", before > -2f && before <= 0.5f)
                     }
                     assertFalse("variant $variant never landed", player.flying)
+                    // the checkerboard of coins lies on the ground past touchdown
+                    val grid = track.rows.sumOf { row -> row.coins?.count { c -> !c.taken && row.z + c.dz < strip.touchZ && row.z + c.dz > strip.endZ && c.y < 0.6f } ?: 0 }
+                    assertTrue("variant $variant: only $grid checkerboard coins", grid >= 8)
+                    // a pad cleared off the landing takes the wall only it could clear with it; later walls stay
+                    val factory: ObstacleFactory = value(game, "obstacles")
+                    val zone = LandingStrip(-60f, 10f, 20f).also { track.landing = it }
+                    val pad = Row(zone.endZ + 2f, arrayListOf(factory.pad(1, 0f)))
+                    val tall = Row(zone.endZ - 4f, arrayListOf(factory.wall(0f))).apply { needsLaunch = true }
+                    val wall = Row(zone.endZ - 12f, arrayListOf(factory.wall(0f)))
+                    val laterTall = Row(zone.endZ - 20f, arrayListOf(factory.wall(0f))).apply { needsLaunch = true }
+                    val laid = listOf(pad, tall, wall, laterTall)
+                    track.rows.clear(); track.rows.addAll(laid); track.clearStrip()
+                    assertTrue(pad.obs.isEmpty()); assertTrue(tall.obs.isEmpty())
+                    assertEquals(1, wall.obs.size); assertEquals(1, laterTall.obs.size)
+                    track.rows.removeAll(laid)
                     assertEquals("variant $variant: descent length", JetDescent.seconds(flight.descent) * 60f, descendingFrames.toFloat(), 6f)
                     assertFalse(value<Boolean>(game, "dead"))
                 } finally {
