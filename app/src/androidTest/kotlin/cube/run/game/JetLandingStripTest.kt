@@ -21,23 +21,20 @@ class JetLandingStripTest {
     @Suppress("UNCHECKED_CAST") private fun <T> value(owner: Any, name: String): T = field(owner, name).get(owner) as T
 
     @Test fun flightLandsOnAClearStripWithNoHiddenSafeTime() {
-        for (variant in 0 until JetFlight.LANDS) ActivityScenario.launch(GameActivity::class.java).use { scenario ->
+        ActivityScenario.launch(GameActivity::class.java).use { scenario ->
             scenario.onActivity { it.setShowWhenLocked(true); it.setTurnScreenOn(true) }
             gl { game ->
                 val sound = Settings.soundEnabled; val haptics = Settings.hapticsEnabled
-                val land = Settings.testJetLand
                 try {
                     Settings.setSoundEnabled(false); Settings.setHapticsEnabled(false)
-                    Settings.testJetLand = variant
                     Stage.paused = false; game.onTap(360f, 760f)
                     val player: Player = value(game, "player")
                     val track: Track = value(game, "track")
-                    val flight: JetFlight = value(game, "jetFlight")
                     repeat(120) { game.tick(1f / 60f) } // up to speed
                     val pickup = CubeRun::class.java.getDeclaredMethod("collectPickup", Row::class.java, Float::class.javaPrimitiveType).apply { isAccessible = true }
                     pickup.invoke(game, Row(-0.5f, arrayListOf()).apply { this.pickup = Pickup.JET }, -0.5f)
                     val strip = track.landing
-                    assertNotNull("variant $variant laid no strip", strip); strip!!
+                    assertNotNull("laid no strip", strip); strip!!
                     assertTrue(player.flying)
                     // it opens up only for the low end of the descent
                     assertFalse(strip.covers(strip.touchZ + strip.descentLen * 0.5f))
@@ -45,17 +42,17 @@ class JetLandingStripTest {
                     var frames = 0
                     while (player.flying && frames < 60 * 30) {
                         // nothing solid (tar included) and no platform is ever laid on the landing
-                        for (row in track.rows) if (strip.covers(row.z)) assertTrue("variant $variant: hazard on the landing at ${row.z}",
+                        for (row in track.rows) if (strip.covers(row.z)) assertTrue("hazard on the landing at ${row.z}",
                             row.obs.none { it.type == ObType.SOLID || it.type == ObType.PLAT })
                         val before = strip.touchZ
                         game.tick(1f / 60f); frames++
                         if (player.flying && player.descending) descendingFrames++
-                        if (!player.flying) assertTrue("variant $variant touched down off the line: $before", before > -2f && before <= 0.5f)
+                        if (!player.flying) assertTrue("touched down off the line: $before", before > -2f && before <= 0.5f)
                     }
-                    assertFalse("variant $variant never landed", player.flying)
+                    assertFalse("never landed", player.flying)
                     // the checkerboard of coins lies on the ground past touchdown
                     val grid = track.rows.sumOf { row -> row.coins?.count { c -> !c.taken && row.z + c.dz < strip.touchZ && row.z + c.dz > strip.endZ && c.y < 0.6f } ?: 0 }
-                    assertTrue("variant $variant: only $grid checkerboard coins", grid >= 8)
+                    assertTrue("only $grid checkerboard coins", grid >= 8)
                     // a pad cleared off the landing takes the wall only it could clear with it; later walls stay
                     val factory: ObstacleFactory = value(game, "obstacles")
                     val zone = LandingStrip(-60f, 10f, 20f).also { track.landing = it }
@@ -68,10 +65,9 @@ class JetLandingStripTest {
                     assertTrue(pad.obs.isEmpty()); assertTrue(tall.obs.isEmpty())
                     assertEquals(1, wall.obs.size); assertEquals(1, laterTall.obs.size)
                     track.rows.removeAll(laid)
-                    assertEquals("variant $variant: descent length", JetDescent.seconds(flight.descent) * 60f, descendingFrames.toFloat(), 6f)
+                    assertEquals("descent length", JetDescent.SECONDS * 60f, descendingFrames.toFloat(), 6f)
                     assertFalse(value<Boolean>(game, "dead"))
                 } finally {
-                    Settings.testJetLand = land
                     Settings.setSoundEnabled(sound); Settings.setHapticsEnabled(haptics)
                 }
             }

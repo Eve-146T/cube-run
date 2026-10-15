@@ -11,15 +11,13 @@ data class Body(var lane: Int = 1, var x: Float = 0f, var y: Float = .45f,
     var flyY: Float = 5.2f, var hover: Boolean = false, var pads: Long = 0L,
     var flightLeft: Float = Float.POSITIVE_INFINITY,
     var coyoteLeft: Float = 0f, var jumpBuffer: Float = 0f,
-    /** How the flight comes down ([JetDescent.FALL] or [JetDescent.GLIDE]); [flightLeft] counts to touchdown. */
-    var descent: Int = JetDescent.FALL,
     /** Outer Space: weaker gravity, slower launches, softer lane changes (mirrors Player.LOW_G*). */
     var lowG: Boolean = false) {
     val gravity: Float get() = if (lowG) 26f * LOW_G else 26f
     val launchScale: Float get() = if (lowG) LOW_G_LAUNCH else 1f
     val laneRate: Float get() = if (hover) 4.5f else if (lowG) LOW_G_LANE_RATE else 13f
     /** Cruising high above everything: only here does nothing on the road reach the cube. */
-    val cruising: Boolean get() = flying && flightLeft > JetDescent.seconds(descent)
+    val cruising: Boolean get() = flying && flightLeft > JetDescent.SECONDS
     companion object {
         const val LOW_G = .52f
         const val LOW_G_LAUNCH = .786f
@@ -143,7 +141,7 @@ class Timeline(val course: Course, val speed: Float, val dt: Float = 1f / 60f,
                 b.coyoteLeft = 0f; b.jumpBuffer = 0f
                 touchdown = true
             }
-            else b.flyY = landingY + (5.2f - landingY) * JetDescent.height(1f - b.flightLeft / JetDescent.seconds(b.descent), b.descent)
+            else b.flyY = landingY + (5.2f - landingY) * JetDescent.height(1f - b.flightLeft / JetDescent.SECONDS)
         }
         val f = frames[frame]
         var ground = 0f

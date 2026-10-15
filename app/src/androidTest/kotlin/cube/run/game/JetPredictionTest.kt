@@ -36,7 +36,7 @@ class JetPredictionTest {
                         powers.reset(); powers.jet.start(.3f)
                         field(game, "runT").setFloat(game, 10f)
                         field(game, "jetBoost").setFloat(game, 1f)
-                        val body = player.pilotBody(.3f, value<JetFlight>(game, "jetFlight").descent)
+                        val body = player.pilotBody(.3f)
                         val timeline = Timeline(Course(0, "jet landing", 0, 0, false, player.lane, emptyList()),
                             68.25f, dt = 1f/hz, seconds = 2f, motion = JetMotion(39f, 1f, .3f))
                         for (frame in timeline.frames.indices) {

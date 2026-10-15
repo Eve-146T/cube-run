@@ -137,9 +137,9 @@ class Player(private val game: Gdx3DGame, private val rnd: Random) {
     private val tmp = Vector3()
     private val tmpCol = Color()
 
-    internal fun pilotBody(flightLeft: Float, descent: Int) = cube.run.bot.Body(lane, px, py, vy, air, duck,
+    internal fun pilotBody(flightLeft: Float) = cube.run.bot.Body(lane, px, py, vy, air, duck,
         duckT, slamming, flying, flyY, hover, flightLeft = flightLeft, lowG = lowGravity,
-        coyoteLeft = coyoteLeft, jumpBuffer = jumpBuffer, descent = descent)
+        coyoteLeft = coyoteLeft, jumpBuffer = jumpBuffer)
 
     fun laneX(l: Int) = Lanes.x(l)
 
@@ -254,11 +254,23 @@ class Player(private val game: Gdx3DGame, private val rnd: Random) {
         if (on) { air = false; vy = 0f } else { air = true; vy = 0f } // ends with a fall + normal landing
     }
 
-    /** The flight ends on the landing strip at height [y]: straight onto the ground, squashed by [impact]. */
-    fun touchDown(y: Float, impact: Float) {
+    /** The flight ends on its landing at height [y]: onto the ground like any other landing. */
+    fun touchDown(y: Float) {
         setFlying(false)
         py = y; air = false; vy = 0f
-        squash = impact
+        landed(y)
+    }
+
+    /** A landing's pop, click, dust and squash. */
+    private fun landed(gy: Float) {
+        if (!quietLanding) {
+            if (lowGravity) SoundFx.play("moonland", rate = 0.95f + Random.nextFloat() * 0.1f)
+            else SoundFx.play("pop", rate = 0.95f + rnd.nextFloat() * 0.12f)
+            Haptics.click()
+        }
+        quietLanding = false
+        game.burst3d(tmp.set(px, gy - 0.39f, 0.4f), trailCol(), n = 8, speed = 3.2f, size = 0.09f, life = 0.4f)
+        squash = 1f
     }
 
     /** Put the cube on a platform of height [h] (bubble save after a side hit). */
@@ -323,11 +335,6 @@ class Player(private val game: Gdx3DGame, private val rnd: Random) {
         stretch = 1f
     }
 
-    /** Knocked back up off a hard landing: a short hop, still squashed, no air jump. */
-    fun rebound(v: Float) {
-        air = true; vy = v * launchScale
-    }
-
     /** Context-sensitive DOWN: slam when airborne, roll under when grounded. */
     fun downAction() {
         clearJumpInput() // a newer DOWN replaces a pending UP
@@ -381,14 +388,7 @@ class Player(private val game: Gdx3DGame, private val rnd: Random) {
             if (py <= gy && vy <= 0f) {
                 py = gy; air = false; vy = 0f
                 airJumpAvailable = false
-                if (!quietLanding) {
-                    if (lowGravity) SoundFx.play("moonland", rate = 0.95f + Random.nextFloat() * 0.1f)
-                    else SoundFx.play("pop", rate = 0.95f + rnd.nextFloat() * 0.12f)
-                    Haptics.click()
-                }
-                quietLanding = false
-                game.burst3d(tmp.set(px, gy - 0.39f, 0.4f), trailCol(), n = 8, speed = 3.2f, size = 0.09f, life = 0.4f)
-                squash = 1f
+                landed(gy)
                 event = if (slamming) EV_GROUND_POUND else EV_LANDED
                 if (slamming) { slamming = false; duckT = 0.5f } // slam → auto-crouch on landing
                 if (jumpBuffer > 0f) takeOff()

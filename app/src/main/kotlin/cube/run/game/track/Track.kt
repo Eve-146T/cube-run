@@ -84,8 +84,6 @@ class Track(private val rnd: Random, private val fx: ObstacleFactory) {
      * coins on the runway lie on it, and the line ends with the strip.
      */
     var landing: LandingStrip? = null
-    /** How the flight comes down ([JetDescent.FALL] / [JetDescent.GLIDE]): the coin line follows it. */
-    var jetDescent = JetDescent.FALL
 
     // ---- portals / bonus worlds ----
     /** The bonus world the road is currently in (Bonus.NONE outside one). */
@@ -470,7 +468,7 @@ class Track(private val rnd: Random, private val fx: ObstacleFactory) {
      */
     private fun jetY(z: Float, restY: Float): Float {
         val strip = landing ?: return Player.FLY_Y
-        return restY + (Player.FLY_Y - restY) * JetDescent.height(strip.progressAt(z), jetDescent)
+        return restY + (Player.FLY_Y - restY) * JetDescent.height(strip.progressAt(z))
     }
 
     /** The jet coin line runs from the pickup down to touchdown; the landing's checkerboard takes over from there. */

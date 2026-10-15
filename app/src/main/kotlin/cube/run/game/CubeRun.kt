@@ -200,7 +200,7 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
         bubble.init()
         scenery.spawnStartGate(hsvInto(tmpCol, worldHue() + 180f, 0.7f, 1f))
         rig = RunCamera(cam)
-        jetFlight = JetFlight(this, track, player, rig)
+        jetFlight = JetFlight(track, player)
         if (hasLaunchOpening) { introT = 1.8f; rig.intro = 0f }
         cam.position.set(0f, 3.7f, 6.4f)
         cam.lookAt(0f, 1.0f, -8f)
@@ -656,7 +656,7 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
 
     private fun endJet() {
         if (!player.flying) { track.airCoins = false; track.dropCoins(); return }
-        jetFlight.touchDown(jetLandingY() + if (bonus == Bonus.FLOAT) 0f else groundAt(player.px), trackArt.colorOf(Pickup.NONE))
+        jetFlight.touchDown(jetLandingY() + if (bonus == Bonus.FLOAT) 0f else groundAt(player.px))
         fx.jetEnd()
     }
 
@@ -818,7 +818,7 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
         }
         // Player/track still describe the start of this simulation slice.
         if (idlePilot.active && live()) idlePilot.drive(time - dt, spd, timeScale, track,
-            player.pilotBody(powerUps.jet.left, jetFlight.descent),
+            player.pilotBody(powerUps.jet.left),
             if (runT >= 1.5f) cube.run.bot.JetMotion(difficulty.speed() * runSkin.speedMultiplier,
                 jetBoost, if (player.flying) powerUps.jet.left else 0f) else null, ::onSwipe)
         if (jackpot.active) { tickJackpot(dt); if (jackpot.active) return }
