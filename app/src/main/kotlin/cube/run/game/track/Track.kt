@@ -113,9 +113,11 @@ class Track(private val rnd: Random, private val fx: ObstacleFactory) {
 
     private fun ml(l: Int) = if (mirror) 2 - l else l
 
-    private companion object {
+    companion object {
         /** The comet wake's path across the lanes: two coins in each lane it visits. */
-        val COMET_WEAVE = intArrayOf(1, 1, 2, 2, 1, 1, 0, 0)
+        private val COMET_WEAVE = intArrayOf(1, 1, 2, 2, 1, 1, 0, 0)
+        /** Coins this close to a pickup along the road are left out (lines are laid 1.5–1.7 apart). */
+        const val PICKUP_AIR = 1.8f
     }
 
     /** Start a run: wipe the walk and prefill the track. */
@@ -365,6 +367,7 @@ class Track(private val rnd: Random, private val fx: ObstacleFactory) {
             row.coins = list
             layPickup(row, code)
             rows.add(row)
+            clearAroundPickups()
             rowsSpawned++; rowsSincePickup++
             bonusRowsLeft--
             prevKind = code
@@ -455,11 +458,32 @@ class Track(private val rnd: Random, private val fx: ObstacleFactory) {
         row.alignLaneSpacing(Lanes.w)
         prevPlatLane = platLane
         rows.add(row)
+        clearAroundPickups()
         rowsSpawned++
         rowsSincePickup++
         rowsSincePortal++
         if (bonus != Bonus.NONE && !continued) bonusRowsLeft--
         prevKind = code
+    }
+
+    /**
+     * Leave the air around a pickup empty so it never hides in a coin line:
+     * no coin within one coin slot of it, ahead, behind or in a lane beside it.
+     * Its neighbours' coins can reach it too, so the newest rows are checked
+     * against each other as each one is laid.
+     */
+    private fun clearAroundPickups() {
+        val from = max(0, rows.size - 3)
+        for (i in from until rows.size) {
+            val p = rows[i]
+            if (p.pickup == Pickup.NONE) continue
+            val pz = p.z + Row.PICKUP_DZ
+            val reachX = p.laneWidth * 1.5f
+            for (j in from until rows.size) {
+                val r = rows[j]
+                r.coins?.removeAll { kotlin.math.abs(r.z + it.dz - pz) < PICKUP_AIR && kotlin.math.abs(it.x - p.pickupX) < reachX }
+            }
+        }
     }
 
     /**

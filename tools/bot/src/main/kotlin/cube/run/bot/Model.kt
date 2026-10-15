@@ -22,6 +22,10 @@ data class Body(var lane: Int = 1, var x: Float = 0f, var y: Float = .45f,
         const val LOW_G = .52f
         const val LOW_G_LAUNCH = .786f
         const val LOW_G_LANE_RATE = 10f
+        /** Mirrors Player.STEP_DOWN, STEP_RATE and LEDGE_GRACE. */
+        const val STEP_DOWN = .5f
+        const val STEP_RATE = 10f
+        const val LEDGE_GRACE = .6f
     }
 }
 
@@ -162,13 +166,14 @@ class Timeline(val course: Course, val speed: Float, val dt: Float = 1f / 60f,
             b.air -> {
                 b.vy -= b.gravity * dt; b.y += b.vy * dt
                 if (b.y <= gy && b.vy <= 0f) {
-                    b.y = gy; b.air = false; b.vy = 0f
+                    b.y = gy; b.air = false; b.vy = 0f; b.coyoteLeft = 0f
                     if (b.slam) { b.slam = false; b.duckT = .5f }
                     if (b.jumpBuffer > 0f) Action.takeOff(b)
                 }
             }
             gy > b.y + .001f -> { if (gy - b.y > .45f) return false else b.y = gy }
-            gy < b.y - .02f -> { b.air = true; b.vy = 0f; b.coyoteLeft = .1f }
+            gy < b.y - .02f -> if (b.y - gy <= Body.STEP_DOWN) b.y = max(gy, b.y - Body.STEP_RATE * dt)
+                else { b.air = true; b.vy = 0f; b.coyoteLeft = Body.LEDGE_GRACE }
         }
         b.duckT = max(0f, b.duckT - dt)
         b.duck += ((if (b.duckT > 0 && !b.air) 1f else 0f) - b.duck) * min(1f, dt * 18f)

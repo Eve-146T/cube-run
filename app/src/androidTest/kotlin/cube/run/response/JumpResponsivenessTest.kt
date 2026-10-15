@@ -32,13 +32,25 @@ class JumpResponsivenessTest {
                     val player: Player = value(game, "player")
                     fun step(dt: Float, ground: Float = 0f) = player.update(dt, 30f * dt, 10f, 200f, false, ground)
                     fun velocity() = value<Float>(player, "vy")
-                    for (hz in listOf(60, 90)) for (delayMs in listOf(0, 50, 83, 117)) {
+                    // Walking off an edge leaves the jump available all the way down (#54).
+                    for (hz in listOf(60, 90)) for (delayMs in listOf(0, 50, 117, 250, 350)) {
                         BotFixtures.restore(player, Body(y = 2.45f))
                         step(1f / hz) // walk off a two-unit platform
                         repeat(kotlin.math.ceil(delayMs * hz / 1000.0).toInt()) { step(1f / hz) }
                         player.jump()
-                        assertEquals("edge grace $delayMs ms at $hz Hz", delayMs < 100, velocity() > 8f)
+                        assertTrue("edge grace $delayMs ms at $hz Hz", velocity() > 8f)
                     }
+                    // A ramp-sized drop is stepped down on the ground, and the jump answers at once.
+                    BotFixtures.restore(player, Body(y = .85f))
+                    step(1f / 60f)
+                    assertFalse("A small step down must not leave the ground", player.air)
+                    player.jump()
+                    assertTrue("Jump lost on a step down", velocity() > 8f)
+                    // Once a walk-off has landed, the grace is gone.
+                    BotFixtures.restore(player, Body(y = 1.45f))
+                    repeat(40) { step(.01f) }
+                    assertFalse(player.air)
+                    assertEquals("Landing must end the edge grace", 0f, value<Float>(player, "coyoteLeft"), 0f)
                     // A real jump never grants a second mid-air takeoff.
                     BotFixtures.restore(player, Body())
                     player.jump(); step(.05f)

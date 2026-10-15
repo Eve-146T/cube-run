@@ -21,6 +21,8 @@ Read the matching guide before starting:
 - `docs/release-notes.md` for every update and every worktree: rewrite the "In this update" notes (`update_notes.xml`, set `update_notes_for`) and, for a release, the F-Droid changelog and the GitHub release. Balance changes, fixes, performance and UI moves are never their own line.
 - Reference: `docs/architecture.md`, `docs/achievements.md`, `docs/progression.md`, `docs/translations.md`, `docs/compact-layout.md`, `docs/performance.md`, `docs/action-benchmarks.md`, `docs/bot.md`, `docs/redeem-codes.md`.
 
+Project skills live in `.skills/` (linked as `.claude/skills`), one folder with a `SKILL.md` each. Use `.skills/release` for every release.
+
 Docs describe how things are and how to do them, not how they got there: git keeps the history. Update a guide when you change what it describes, and don't add investigation logs.
 
 ## Devices and builds

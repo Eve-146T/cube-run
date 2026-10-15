@@ -18,4 +18,7 @@
     <string name="ability_calm">רוגע</string><string name="ability_calm_detail">ערפל רך יורד על העולם ומעמעם את צבעיו.</string>
     <string name="ability_smol">זעיר</string>
     <string name="ability_smol_detail">קטן מספיק כדי להתגלגל מתחת לקורות בלי להתכופף!</string>
+    <string name="ability_bubble_score">ניקוד כפול</string><string name="ability_bubble_score_detail">צוברים ניקוד כפול כשהבועה שלכם פעילה!</string>
+    <string name="ability_pound_magnet">מגנט מחץ</string><string name="ability_pound_magnet_detail">מכות קרקע מושכות מטבעות קרובים כשהבועה שלכם פעילה!</string>
+    <string name="ability_bubble_slowmo">הילוך איטי</string><string name="ability_bubble_slowmo_detail">העולם מאט כשהבועה שלכם פעילה!</string>
 </resources>

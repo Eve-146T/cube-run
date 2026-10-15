@@ -23,6 +23,9 @@ class CosmeticAbilitiesTest {
                 3 -> listOf(Ability.GOLD_BUBBLE)
                 8 -> listOf(Ability.GIGAJUMP)
                 4 -> listOf(Ability.LONG_BUBBLE)
+                5 -> listOf(Ability.BUBBLE_SCORE)
+                6 -> listOf(Ability.BUBBLE_SLOWMO)
+                9 -> listOf(Ability.POUND_MAGNET)
                 else -> emptyList()
             }, it.abilities)
         }

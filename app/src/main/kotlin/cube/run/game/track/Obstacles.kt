@@ -156,7 +156,8 @@ class Row(var z: Float, val obs: ArrayList<Ob>, initialLaneWidth: Float = Lanes.
  * offset from the current world hue so its verb reads at a glance: pillars
  * (dodge) +185, sliders +230, low walls (jump) +140, overhead bars (roll) +300,
  * pistons +155, sweepers +120, stompers +210, pendulums +260, tall walls +140
- * (striped), pads +85.
+ * (striped), pads +85. Whatever the offset, a hue never lands within
+ * [ROAD_APART] of the road ([roadHue]).
  */
 class ObstacleFactory(private val rnd: Random) {
 
@@ -173,12 +174,29 @@ class ObstacleFactory(private val rnd: Random) {
         const val METEOR_H = 1.05f
         /** A station hull: above any low-gravity jump, below a gravity ring's arc (peak ~3.5). */
         const val HULL_H = 2.3f
+        /** No obstacle hue comes closer than this to the road it stands on. */
+        const val ROAD_APART = 50f
+    }
+
+    /**
+     * The hue of the road the rows being laid stand on (NaN: no rule). An
+     * obstacle that would come out in nearly the road's colour is turned
+     * just far enough away from it, so it never melts into its ground.
+     */
+    var roadHue = Float.NaN
+
+    /** [h], kept [ROAD_APART] degrees from [roadHue]. */
+    fun apart(h: Float): Float {
+        if (roadHue.isNaN()) return h
+        val d = ((h - roadHue) % 360f + 540f) % 360f - 180f
+        if (abs(d) >= ROAD_APART) return h
+        return roadHue + if (d < 0f) -ROAD_APART else ROAD_APART
     }
 
     /** Lane x in the three-lane language sections are written in (the road may be wider or stretched right now). */
     fun laneX(l: Int) = (l - 1) * Lanes.NORMAL_W
 
-    private fun hsv(h: Float, s: Float, v: Float) = hsvInto(Color(), h, s, v)
+    private fun hsv(h: Float, s: Float, v: Float) = hsvInto(Color(), apart(h), s, v)
 
     fun pillar(x: Float, hue: Float, sliding: Boolean = false, slideTo: Float = 0f, slideRate: Float = 2f): Ob {
         val h = PILLAR_H + rnd.nextFloat() * 0.25f

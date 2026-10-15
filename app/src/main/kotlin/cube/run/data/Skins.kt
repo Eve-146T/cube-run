@@ -48,6 +48,9 @@ object Skins {
         ZEN("Zen", "Obstacles melt away. Only the Monk challenge progresses. Just roll."),
         CALM("Calm", "A soft haze settles over the world and mutes its colours."),
         SMOL("Smol", "Small enough to roll under bars without ducking!"),
+        BUBBLE_SCORE("Double Score", "Score twice as fast while your bubble is active!"),
+        POUND_MAGNET("Pound Magnet", "Ground pounds pull in nearby coins while your bubble is active!"),
+        BUBBLE_SLOWMO("Slow Motion", "The world slows down while your bubble is active!"),
     }
 
     class Skin(
@@ -180,11 +183,11 @@ object BubbleSkins {
         BubbleSkin(MINT_ID, "Mint", 9_000, SOLID, hue = 150f, sat = 0.65f, abilities = listOf(Skins.Ability.DOUBLE_JUMP)),
         BubbleSkin(3, "Gold", 3_500, SOLID, hue = 46f, sat = 0.85f, fill = 0.14f, sparkle = true, abilities = listOf(Skins.Ability.GOLD_BUBBLE)),
         BubbleSkin(4, "Plasma", 4_200, ELECTRIC, hue = 300f, hue2 = 330f, sat = 0.9f, rim = 2.2f, abilities = listOf(Skins.Ability.LONG_BUBBLE)),
-        BubbleSkin(5, "Rainbow", 7_000, RAINBOW, sat = 0.9f, rim = 2.4f, sparkle = true),
-        BubbleSkin(6, "Ice", 2_600, IRIS, hue = 190f, hue2 = 215f, sat = 0.35f, rim = 3.4f, fill = 0.05f),
+        BubbleSkin(5, "Rainbow", 7_000, RAINBOW, sat = 0.9f, rim = 2.4f, sparkle = true, abilities = listOf(Skins.Ability.BUBBLE_SCORE)),
+        BubbleSkin(6, "Ice", 2_600, IRIS, hue = 190f, hue2 = 215f, sat = 0.35f, rim = 3.4f, fill = 0.05f, abilities = listOf(Skins.Ability.BUBBLE_SLOWMO)),
         BubbleSkin(7, "Lava", 4_800, ELECTRIC, hue = 12f, hue2 = 42f, sat = 0.95f, rim = 2f, fill = 0.12f),
         BubbleSkin(8, "Neon", 30_000, SOLID, hue = 118f, sat = 0.95f, rim = 2f, abilities = listOf(Skins.Ability.GIGAJUMP)),
-        BubbleSkin(9, "Galaxy", 6_000, IRIS, hue = 250f, hue2 = 340f, sat = 0.85f, rim = 2.8f, fill = 0.1f, sparkle = true),
+        BubbleSkin(9, "Galaxy", 6_000, IRIS, hue = 250f, hue2 = 340f, sat = 0.85f, rim = 2.8f, fill = 0.1f, sparkle = true, abilities = listOf(Skins.Ability.POUND_MAGNET)),
         BubbleSkin(VOID_ID, "Event horizon", 750_000, VOID, hue = 260f, hue2 = 285f, sat = 0.25f, rim = 5f, fill = 0.12f),
     )
 
