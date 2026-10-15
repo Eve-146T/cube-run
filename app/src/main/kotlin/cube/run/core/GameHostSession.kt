@@ -215,6 +215,7 @@ class GameHostSession(
     }
 
     override fun setBubbleCooldown(seconds: Int) { ui { it.setBubbleCooldown(seconds) } }
+    override fun setScoreBoost(on: Boolean) { ui { it.setScoreBoost(on) } }
 
     override fun setBoxes(v: Int) {
         if (over.get()) return

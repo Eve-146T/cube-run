@@ -1,7 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string-array name="update_notes">
-        <item>sky_sweeper | Himmelsfeger | Eine neue Herausforderung: Sammle bei einem Jetpack-Flug jede Münze ein.</item>
-        <item>news | Blasen mit Kräften | Die Regenbogen-Blase verdoppelt deine Punkte, die Eis-Blase verlangsamt die Welt und mit der Galaxie-Blase ziehen Bodenstampfer Münzen an.</item>
+        <item>sky_sweeper | Himmelsfeger | Sammle bei einem Jetpack-Flug jede Münze ein.</item>
+        <item>news | Blasen mit Kräften | Regenbogen verdoppelt Punkte, Eis bremst die Zeit, Galaxie zieht Münzen an.</item>
+        <item>icarus | Ikarus | Eine neue Herausforderung für den Gift-Würfel: Stirb im Jetpack-Flug an einer grünen Münze.</item>
+        <item>poltergeist | Poltergeist | Die Herausforderung des Geist-Würfels: Gleite durch 100 Hindernisse.</item>
+        <item>juggernaut | Dampfwalze | Zerschmettere in einem einzigen Lauf 300 Hindernisse mit Blasen.</item>
+        <item>full_throttle | Vollgas | Starte mit allen 10 Boosts und erreiche 1500 Punkte.</item>
     </string-array>
 </resources>

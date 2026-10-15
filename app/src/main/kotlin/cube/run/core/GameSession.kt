@@ -57,6 +57,8 @@ interface GameSession {
     /** Bubble shields left in stock (shown as a HUD hint). */
     fun setBubbles(v: Int) {}
     fun setBubbleCooldown(seconds: Int) {}
+    /** Rows score double right now (the 2× pickup or a Double Score bubble): the HUD score turns pink. */
+    fun setScoreBoost(on: Boolean) {}
 
     /** Mystery boxes collected so far this run (opened on the run-over screens). */
     fun setBoxes(v: Int) {}

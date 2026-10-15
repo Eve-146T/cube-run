@@ -170,6 +170,7 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
     private var sweepFlight = 0      // the flight being judged (Track.flight), 0 = none
     private var sweepClean = false   // no coin of its line has slipped past yet
     private var sweepTaken = 0
+    private var scoreBoostShown = false
 
     // smooth-control gesture state (positional steering within one continuous touch)
     private var smoothAnchorX = 0f
@@ -321,7 +322,7 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
             track.portalPool = emptyList()
             powerUps.magnet.start(3600f)
         }
-        bubble.reset(); shownBubbleCooldown = 0; session.setBubbleCooldown(0); bubbleSlow = 0f; sweepFlight = 0
+        bubble.reset(); shownBubbleCooldown = 0; session.setBubbleCooldown(0); bubbleSlow = 0f; sweepFlight = 0; showScoreBoost(false)
         bubble.cooldownDuration = Progress.bubbleCooldownSeconds * runSkin.bubbleCooldownMultiplier
         bubble.duration = bubbleDuration()
         difficulty.ceiling = if (zen) zenCeiling else 1f
@@ -486,6 +487,13 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
         for (ob in row.obs) if (ob.type == ObType.SOLID) { debris.smash(ob, row.z); solids++ }
         row.obs.removeAll { it.type == ObType.SOLID }
         return solids
+    }
+
+    /** Rows score double: the 2× pickup or a Double Score bubble. */
+    private fun scoreBoosted() = powerUps.mult.active || (bubble.active && Skins.Ability.BUBBLE_SCORE in runBubble.abilities)
+
+    private fun showScoreBoost(on: Boolean) {
+        if (on != scoreBoostShown) { scoreBoostShown = on; session.setScoreBoost(on) }
     }
 
     private fun scoreRow(row: Row) {
@@ -972,6 +980,7 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
         }
         bubble.update(dt, time, player.px + player.nudge, player.py + Terrain.y(0f))
         refreshJumpAbility()
+        showScoreBoost(live() && scoreBoosted())
         val cooldown = kotlin.math.ceil(bubble.cooldownLeft).toInt()
         if (cooldown != shownBubbleCooldown) { shownBubbleCooldown = cooldown; session.setBubbleCooldown(cooldown) }
 

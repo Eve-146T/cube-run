@@ -11,7 +11,11 @@
     <!-- Notes written for another version are stale: they never pop up. -->
     <string name="update_notes_for" translatable="false">2.7</string>
     <string-array name="update_notes">
-        <item>sky_sweeper | Sky Sweeper | A new challenge: collect every coin on a jetpack flight.</item>
-        <item>news | Bubbles with powers | The Rainbow bubble doubles your score, the Ice bubble slows the world down and the Galaxy bubble\'s ground pounds pull in coins.</item>
+        <item>sky_sweeper | Sky Sweeper | Collect every coin on a jetpack flight.</item>
+        <item>news | Bubbles with powers | Rainbow doubles your score, Ice slows time, Galaxy pulls in coins.</item>
+        <item>icarus | Icarus | A new challenge for the Toxic cube: die to a green coin while flying the jetpack.</item>
+        <item>poltergeist | Poltergeist | The Ghost cube\'s own challenge: slip through 100 obstacles.</item>
+        <item>juggernaut | Juggernaut | Smash 300 obstacles with bubbles in a single run.</item>
+        <item>full_throttle | Full Throttle | Start with all 10 boosts and reach 1500 points.</item>
     </string-array>
 </resources>

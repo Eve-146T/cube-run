@@ -328,8 +328,17 @@ class Track(private val rnd: Random, private val fx: ObstacleFactory) {
         for (c in s.steps) pendingSteps.add(c)
     }
 
+    /**
+     * A wall only a launch clears needs its pad (or ring) right before it. When the
+     * pad is gone (a jetpack's landing cleared it, or the landing opened up between
+     * the pad and its wall) the wall is never laid: the row comes in open.
+     */
+    private fun launchable(code: Int): Int =
+        if (Step.isTall(code) && rows.lastOrNull()?.obs?.any { it.type == ObType.PAD } != true) Step.EM else code
+
     /** Decode one step code into a row at [z], advancing the walk. */
-    private fun spawnStep(code: Int, z: Float, baseHue: Float) {
+    private fun spawnStep(step: Int, z: Float, baseHue: Float) {
+        val code = launchable(step)
         // The original track drifted with distance. Keep neighbouring rows varied
         // within a biome, with each row's colour fixed for its entire lifetime.
         val hue = (baseHue + rowsSpawned * 19f) % 360f
