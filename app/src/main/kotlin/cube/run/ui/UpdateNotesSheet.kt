@@ -35,6 +35,11 @@ class UpdateNotesSheet(activity: Activity, kit: UiKit, onDismissed: () -> Unit) 
     private val rows = ArrayList<Pair<View, View>>()
     private val done = kit.button(activity.getString(R.string.update_notes_done), Theme.GOLD, UiKit.Size.BIG) { dismiss() }
     private val pending = ArrayList<Runnable>()
+    /** Uptime when the entrance has played out (set by [choreograph]). */
+    private var entranceEnds = 0L
+
+    /** Milliseconds of entrance still to play: background work waits so the card stays smooth. */
+    fun entranceLeftMs(): Long = maxOf(0L, entranceEnds - android.os.SystemClock.uptimeMillis())
 
     init {
         card.setPadding(0, 0, 0, dp(22f))
@@ -64,7 +69,10 @@ class UpdateNotesSheet(activity: Activity, kit: UiKit, onDismissed: () -> Unit) 
 
     private fun row(item: UpdateNotes.Item): View {
         val tile = ImageView(activity).apply {
-            setImageDrawable(AchievementTile(item.icon, AchievementCards.accent(item.icon)))
+            // Painted ahead off the main thread when the card was due ([UpdateNotesArt]): drawing the tiles' art
+            // here, cold, took most of the card's first frame.
+            setImageDrawable(UpdateNotesArt.take(item.icon, dp(TILE_DP))?.let { android.graphics.drawable.BitmapDrawable(resources, it) }
+                ?: AchievementTile(item.icon, AchievementCards.accent(item.icon)))
             importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO
         }
         val words = LinearLayout(activity).apply {
@@ -80,7 +88,7 @@ class UpdateNotesSheet(activity: Activity, kit: UiKit, onDismissed: () -> Unit) 
             setPadding(dp(4f), dp(5f), dp(4f), dp(5f))
             isClickable = true; isFocusable = true
             contentDescription = "${item.title}. ${item.text}"
-            addView(tile, LinearLayout.LayoutParams(dp(54f), dp(54f)))
+            addView(tile, LinearLayout.LayoutParams(dp(TILE_DP), dp(TILE_DP)))
             addView(words, LinearLayout.LayoutParams(0, -2, 1f).apply { marginStart = dp(14f) })
             // An idle tap, like a card on the achievement page: the same soft press and tick.
             setOnClickListener {
@@ -94,17 +102,34 @@ class UpdateNotesSheet(activity: Activity, kit: UiKit, onDismissed: () -> Unit) 
 
     /** The card lands, the title pops, then each row in turn; the button rises in last. */
     private fun choreograph() {
-        Anim.popIn(title, delay = 110, from = .6f, duration = 360)
-        Anim.riseIn(version, delay = 190, distancePx = dpf(10f))
+        enter(title, delay = 110, duration = 360, curve = Anim.spring, scale = .6f)
+        enter(version, delay = 190, duration = 300, curve = Anim.ease, dy = dpf(10f))
         val first = 300L; val step = 120L
         for ((i, pair) in rows.withIndex()) {
             val (tile, words) = pair
             val at = first + i * step
-            Anim.popIn(tile, delay = at, from = .35f, duration = 380)
-            Anim.slideIn(words, delay = at + 30, fromX = dpf(if (layoutDirection == LAYOUT_DIRECTION_RTL) -22f else 22f), duration = 320)
+            enter(tile, delay = at, duration = 380, curve = Anim.spring, scale = .35f)
+            enter(words, delay = at + 30, duration = 320, curve = Anim.ease, dx = dpf(if (layoutDirection == LAYOUT_DIRECTION_RTL) -22f else 22f))
             later(at) { SoundFx.play("place", rate = 1f + i * .09f, vol = .42f) }
         }
-        Anim.riseIn(done, delay = first + rows.size * step + 40, distancePx = dpf(18f), duration = 340)
+        enter(done, delay = first + rows.size * step + 40, duration = 340, curve = Anim.ease, dy = dpf(18f))
+        entranceEnds = android.os.SystemClock.uptimeMillis() + first + rows.size * step + 40 + 340 + 120
+    }
+
+    /**
+     * An entrance on a hardware layer: the view is painted once and the motion only moves and
+     * fades that picture. The window still repaints every frame (the rule over the GL stage, see
+     * [Anim.repaint]), but the view itself is not invalidated, so its layer is never redrawn.
+     */
+    private fun enter(v: View, delay: Long, duration: Long, curve: android.animation.TimeInterpolator,
+                      scale: Float = 1f, dx: Float = 0f, dy: Float = 0f) {
+        v.animate().cancel()
+        v.alpha = 0f; v.scaleX = scale; v.scaleY = scale; v.translationX = dx; v.translationY = dy
+        v.animate().alpha(1f).scaleX(1f).scaleY(1f).translationX(0f).translationY(0f)
+            .setStartDelay(delay).setDuration(duration).setInterpolator(curve).withLayer()
+            .setUpdateListener { v.rootView?.invalidate() }
+            .withEndAction { v.requestLayout(); v.rootView?.invalidate() }
+            .start()
     }
 
     private fun later(ms: Long, action: () -> Unit) {
@@ -150,10 +175,11 @@ class UpdateNotesSheet(activity: Activity, kit: UiKit, onDismissed: () -> Unit) 
     /** The grape top of the card (painted by [Back]): soft turning rays and twinkles over it. */
     private inner class Header : FrameLayout(activity) {
         private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
-        private val mask = Paint(Paint.ANTI_ALIAS_FLAG).apply { xfermode = android.graphics.PorterDuffXfermode(android.graphics.PorterDuff.Mode.CLEAR) }
-        /** Everything outside the rounded top: cleared from the rays' layer. */
+        /** The rounded top the rays are trimmed to. */
         private val clip = Path()
         private val rays = Path()
+        private val turned = Path()
+        private val turning = android.graphics.Matrix()
         private val box = RectF()
         private val star = Path()
         private var turn = 0f
@@ -175,7 +201,6 @@ class UpdateNotesSheet(activity: Activity, kit: UiKit, onDismissed: () -> Unit) 
             val r = dpf(30f)
             box.set(0f, 0f, w.toFloat(), h.toFloat())
             clip.reset(); clip.addRoundRect(box, floatArrayOf(r, r, r, r, 0f, 0f, 0f, 0f), Path.Direction.CW)
-            clip.fillType = Path.FillType.INVERSE_WINDING
             rays.reset()
             val reach = maxOf(w, h).toFloat()
             for (k in 0 until 12) {
@@ -188,16 +213,13 @@ class UpdateNotesSheet(activity: Activity, kit: UiKit, onDismissed: () -> Unit) 
         }
 
         override fun onDraw(canvas: Canvas) {
-            // The rays are trimmed to the rounded top by an anti-aliased mask: clipPath has hard,
-            // stepped edges that stood out on the corners.
-            val save = canvas.saveLayer(box, null)
-            canvas.save()
-            canvas.translate(width / 2f, height * .52f)
-            canvas.rotate(turn)
-            paint.color = Theme.alpha(Theme.WHITE, 22); canvas.drawPath(rays, paint)
-            canvas.restore()
-            canvas.drawPath(clip, mask)
-            canvas.restoreToCount(save)
+            // The turned rays are cut to the rounded top as a shape and filled anti-aliased:
+            // clipPath had hard, stepped corner edges, and an off-screen mask layer cost a
+            // full-header buffer every frame.
+            turning.setRotate(turn); turning.postTranslate(width / 2f, height * .52f)
+            rays.transform(turning, turned)
+            turned.op(clip, Path.Op.INTERSECT)
+            paint.color = Theme.alpha(Theme.WHITE, 22); canvas.drawPath(turned, paint)
             // The same twinkles the achievement art uses, fixed in the corners.
             twinkle(canvas, width * .12f, height * .3f, dpf(7f))
             twinkle(canvas, width * .88f, height * .24f, dpf(9f))
@@ -213,7 +235,9 @@ class UpdateNotesSheet(activity: Activity, kit: UiKit, onDismissed: () -> Unit) 
         }
     }
 
-    private companion object {
+    companion object {
+        /** A row's tile, square. */
+        const val TILE_DP = 54f
         /** A deep grape, so the white title and twinkles stand out. */
         const val GRAPE = 0xFF6A35E8.toInt()
     }
