@@ -5,6 +5,7 @@ Cube Run's menus are candy arcade: bright, chunky and quick, and they never get 
 ## Look
 
 - Flat saturated colours and chunky rounded slabs with a darker lip under them. White cards sit on a flat backdrop: no gradients, no bokeh, no drop shadows.
+- Pages of cards share one build: white slabs on a solid lip, each item's picture on its candy tile, a bar underneath. Each page has its own flat backdrop: lavender for achievements (`TrophyRoom`), butter for the shop's sheet under the showroom (`ShopCards`).
 - The Fredoka font. Over the 3D stage, white text with an ink outline.
 - Every menu is full screen, with the one standard back button top-left. The pause menu is a compact card over the frozen run and repeats nothing the HUD already shows.
 - The cube is never hidden behind UI.

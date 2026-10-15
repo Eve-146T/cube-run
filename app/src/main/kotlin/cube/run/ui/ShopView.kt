@@ -7,19 +7,14 @@ import android.animation.Animator
 import android.animation.AnimatorListenerAdapter
 import android.annotation.SuppressLint
 import android.app.Activity
-import android.graphics.drawable.Drawable
 import android.graphics.drawable.GradientDrawable
 import android.text.SpannableStringBuilder
 import android.text.Spanned
-import android.text.Layout
-import android.text.TextPaint
-import android.util.TypedValue
 import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
 import android.view.MotionEvent
 import android.view.ViewTreeObserver
-import android.widget.ImageView
 import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.ScrollView
@@ -62,7 +57,7 @@ class ShopView(
     private var navigation: ValueAnimator? = null
     private var balanceCount: ValueAnimator? = null
     private val shopCards = ShopCards(activity, kit)
-    private val cards get() = shopCards.cards
+    private val cards = shopCards.cards
     private var paying = false
     private var preparedState = currentState()
     private var pendingBox: Progress.BoxReward? = null
@@ -356,7 +351,7 @@ class ShopView(
             pendingBox != null
         }!!)
 
-    private fun achievementCard(): View = shopCards.achievements(activity.getString(R.string.achievements_title), activity.getString(R.string.shop_achievements_detail),
+    private fun achievementCard(): View = shopCards.achievements(activity.getString(R.string.shop_achievements_name), activity.getString(R.string.shop_achievements_detail),
         if (Progress.achievementsUnlocked) CandyButton(activity, Theme.PLAY, activity.getString(R.string.shop_unlocked), 16f, dpf(4f), dpf(14f)).apply {
             // A read-only candy slab must not retain CandyButton's ACTION_DOWN press listener:
             // non-clickable views do not necessarily receive the matching release event.

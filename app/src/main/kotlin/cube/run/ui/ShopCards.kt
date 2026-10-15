@@ -16,7 +16,6 @@ import android.util.TypedValue
 import android.view.Gravity
 import android.view.View
 import android.view.animation.LinearInterpolator
-import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
@@ -139,15 +138,17 @@ internal class ShopCards(private val activity: Activity, private val kit: UiKit)
         val strong = readable(color)
         val big = kit.dp(25f * activity.resources.configuration.fontScale)
         val text = SpannableStringBuilder()
+        // A value never splits across lines ("96 / Reihen"): a narrow card wraps before the new value instead.
+        fun whole(s: String) = s.replace(' ', '\u00A0')
         fun strong(s: String) {
             val start = text.length
-            text.append(s)
+            text.append(whole(s))
             text.setSpan(ForegroundColorSpan(strong), start, text.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
             text.setSpan(AbsoluteSizeSpan(big), start, text.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
         }
         if (next == null) strong(now)
         else {
-            text.append(now).append(if (activity.resources.configuration.layoutDirection == View.LAYOUT_DIRECTION_RTL) "  ←  " else "  →  ")
+            text.append(whole(now)).append(if (activity.resources.configuration.layoutDirection == View.LAYOUT_DIRECTION_RTL) "  ←  " else "  →  ")
             strong(next)
         }
         return kit.text(text, 16f, INK_SOFT, 700, Gravity.START).apply { maxLines = 2 }
@@ -221,12 +222,15 @@ internal class ShopCards(private val activity: Activity, private val kit: UiKit)
             box.set(0f, kit.CARD_LIP.toFloat(), width.toFloat(), height.toFloat()); canvas.drawRoundRect(box, r, r, paint)
             paint.color = DEEP_GRAPE; canvas.drawPath(face, paint)
             // Rays turn slowly around the question mark, cut to the card's face.
-            turning.setRotate(turn); turning.postTranslate(paddingLeft + kit.dpf(HERO) / 2f, paddingTop + kit.dpf(HERO) / 2f)
+            val rtl = layoutDirection == LAYOUT_DIRECTION_RTL
+            val focus = if (rtl) width - paddingRight - kit.dpf(HERO) / 2f else paddingLeft + kit.dpf(HERO) / 2f
+            turning.setRotate(turn); turning.postTranslate(focus, paddingTop + kit.dpf(HERO) / 2f)
             rays.transform(turning, turned)
             turned.op(face, Path.Op.INTERSECT)
             paint.color = Theme.alpha(Theme.WHITE, 24); canvas.drawPath(turned, paint)
-            twinkle(canvas, width * .93f, kit.dpf(20f), kit.dpf(8f))
-            twinkle(canvas, width * .80f, kit.dpf(40f), kit.dpf(5f))
+            // In the far corner from the question mark.
+            twinkle(canvas, width * (if (rtl) .07f else .93f), kit.dpf(20f), kit.dpf(8f))
+            twinkle(canvas, width * (if (rtl) .20f else .80f), kit.dpf(40f), kit.dpf(5f))
         }
 
         private fun twinkle(canvas: Canvas, x: Float, y: Float, r: Float) {

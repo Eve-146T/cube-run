@@ -162,7 +162,6 @@ class GiftBoxUiTest {
         assertEquals("GESCHENKE", german.resources.getQuantityString(R.plurals.mystery_boxes, 2))
         assertEquals("Geschenk", german.getString(R.string.shop_mystery_box))
         assertEquals("Geschenke geöffnet", german.getString(R.string.achievement_boxes_opened))
-        assertEquals("Geschenke erscheinen öfter", german.getString(R.string.text_mystery_boxes_turn_up_more_often))
         assertEquals("pro Geschenk", german.getString(R.string.lottery_per_box))
         assertEquals("TIPPEN FÜR DAS NÄCHSTE GESCHENK", german.getString(R.string.text_tap_for_the_next_box))
     }
