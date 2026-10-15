@@ -20,6 +20,28 @@ import kotlin.math.min
 private const val SLOT = 0xFFE4F0FA.toInt()
 private const val SLOT_LIP = 0xFFBFD8EB.toInt()
 
+/** "In this update": a plain white rounded star, like every other settings glyph. */
+class UpdateTile : Icon() {
+    private val star = android.graphics.Path()
+    override fun draw(canvas: Canvas) {
+        val b = bounds
+        val r = min(b.width(), b.height()) / 2f
+        val cx = b.exactCenterX(); val cy = b.exactCenterY() + r * .06f
+        star.reset()
+        for (i in 0 until 10) {
+            val reach = if (i % 2 == 0) r else r * .48f
+            val a = Math.toRadians(i * 36.0 - 90.0)
+            val x = cx + (reach * kotlin.math.cos(a)).toFloat(); val y = cy + (reach * kotlin.math.sin(a)).toFloat()
+            if (i == 0) star.moveTo(x, y) else star.lineTo(x, y)
+        }
+        star.close()
+        paint.style = Paint.Style.FILL_AND_STROKE; paint.strokeJoin = Paint.Join.ROUND; paint.strokeWidth = r * .16f
+        paint.color = Theme.WHITE
+        canvas.drawPath(star, paint)
+        paint.style = Paint.Style.FILL
+    }
+}
+
 /** A coin as a plain white glyph (a disc with a ring), for a gold tile. */
 class CoinGlyph(private val ring: Int = Theme.GOLD) : Icon() {
     var off = false

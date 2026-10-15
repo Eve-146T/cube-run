@@ -395,6 +395,19 @@ internal class ChallengeIcon(private val id: String) : Icon() {
                 fill(Theme.ORANGE); c.drawCircle(24f, 28f, 2f, paint)
                 sparkle(42f, 6f, 5f, Theme.YELLOW)
             }
+            "news" -> {
+                // What's new: a fat glossy star with a twinkle (the "In this update" card).
+                val star = Path()
+                rounded(star, 3f, *FloatArray(20) { k ->
+                    val i = k / 2; val r = if (i % 2 == 0) 21f else 10f
+                    val a = Math.toRadians(i * 36.0 - 90.0)
+                    if (k % 2 == 0) 24f + (r * Math.cos(a)).toFloat() else 26f + (r * Math.sin(a)).toFloat()
+                })
+                lipped(Theme.YELLOW) { lastCanvas!!.drawPath(star, paint) }
+                paint.style = Paint.Style.STROKE; paint.strokeWidth = 2.8f; paint.strokeCap = Paint.Cap.ROUND; paint.color = Theme.alpha(Theme.WHITE, 220)
+                canvas.drawLine(17f, 22f, 21f, 15f, paint)
+                sparkle(41f, 8f, 5f)
+            }
             "neo" -> {
                 // The red pill: a glossy capsule lying at a tilt, with its seam.
                 canvas.rotate(-38f, 24f, 24f)

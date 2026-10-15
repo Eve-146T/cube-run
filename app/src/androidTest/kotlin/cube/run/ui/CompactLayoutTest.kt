@@ -37,7 +37,7 @@ class CompactLayoutTest {
         ActivityScenario.launch(GameActivity::class.java).use { scenario -> scenario.onActivity { activity ->
             for (scale in listOf(1f, 1.5f)) {
                 val kit = UiKit(activity.createConfigurationContext(Configuration(activity.resources.configuration).apply { fontScale = scale }))
-                val page = SettingsView(activity, kit, {}, {}, {}) {}
+                val page = SettingsView(activity, kit, {}, {}, {}, {}) {}
                 for (direction in listOf(View.LAYOUT_DIRECTION_LTR, View.LAYOUT_DIRECTION_RTL)) {
                     page.layoutDirection = direction
                     for ((w, h) in sizes) {
@@ -76,7 +76,7 @@ class CompactLayoutTest {
                 for (direction in listOf(View.LAYOUT_DIRECTION_LTR, View.LAYOUT_DIRECTION_RTL)) {
                     settings.setVolume(1); settings.setStartSpeed(0); settings.setSoundEnabled(false)
                     val kit = UiKit(activity)
-                    val page = SettingsView(activity, kit, {}, {}, {}) {}
+                    val page = SettingsView(activity, kit, {}, {}, {}, {}) {}
                     page.layoutDirection = direction
                     measure(page, kit, 360, 720)
                     val volume = all(page).filterIsInstance<VolumeSteps>().single()

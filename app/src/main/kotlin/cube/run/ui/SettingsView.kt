@@ -34,6 +34,7 @@ class SettingsView(
     kit: UiKit,
     private val openLanguages: () -> Unit,
     private val openSections: () -> Unit,
+    private val openUpdateNotes: () -> Unit,
     private val devChanged: () -> Unit,
     onClosed: () -> Unit,
 ) : Page(activity, kit, activity.getString(R.string.settings_title), dark = false, onClosed = onClosed) {
@@ -139,6 +140,11 @@ class SettingsView(
             }).apply {
                 contentDescription = activity.getString(R.string.cd_languages)
                 link { openLanguages() }
+            },
+            row(tile(UpdateTile(), Theme.PINK), activity.getString(R.string.update_notes_title), chevron(), dp(22f), dp(22f)).apply {
+                tag = "settings_update_notes"
+                contentDescription = activity.getString(R.string.update_notes_title)
+                link { openUpdateNotes() }
             },
             *(if (Settings.CODES_UI) arrayOf(row(tile(R.drawable.ic_codes, Theme.SKY), activity.getString(R.string.settings_codes), chevron(), dp(22f), dp(22f)).apply {
                 tag = "settings_codes"

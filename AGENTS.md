@@ -12,6 +12,10 @@ Cube Run is a hyperstimulating Android endless runner built with libGDX, created
 - Don't bloat the repo - do not commit unecessary stuff like temporary files. If you're tasked with merging a worktree, check if you can omit temporary files.
 
 
+## In this update
+
+- Every update, and every worktree, rewrites `app/src/main/res/values*/update_notes.xml` (English, German, Hebrew) to say what it changes, one `icon | title | text` line each. The icon is an achievement id or `news`. Rewriting the notes makes the "In this update" card pop up once on the next launch.
+
 ## Devices and builds
 
 - Any phone currently attached through adb is authorized for Cube Run testing. 

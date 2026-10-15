@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="update_notes_title">בעדכון הזה</string>
+    <string name="update_notes_version">גרסה %1$s</string>
+    <string name="update_notes_done">יאללה</string>
+</resources>

@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    In this update: rewrite this list (and its translations) for every update. A worktree
+    rewrites it to say what that worktree changes. One item per line: icon | title | text.
+    The icon is an achievement id, whose tile is shown, or "news".
+-->
+<resources>
+    <string-array name="update_notes">
+        <item>icarus | Icarus | A new challenge for the Toxic cube: die to a green coin while flying the jetpack.</item>
+        <item>poltergeist | Poltergeist | The Ghost cube\'s own challenge: slip through 100 obstacles.</item>
+        <item>juggernaut | Juggernaut | Smash 300 obstacles with bubbles in a single run.</item>
+        <item>full_throttle | Full Throttle | Start with all 10 boosts and reach 1500 points.</item>
+        <item>news | In this update | This card! It shows up once after every update, and lives in Settings.</item>
+    </string-array>
+</resources>
