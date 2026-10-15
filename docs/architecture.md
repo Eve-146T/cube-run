@@ -1,4 +1,4 @@
-# Architecture (experimental branch)
+# Architecture
 
 Two threads, one rule: the game simulates and draws on the GL thread; the
 HUD lives on the UI thread. They only meet through `core.GameSession`

@@ -23,7 +23,7 @@ class UpdateNotesTest {
 
     /** A version bump without new notes would show last update's news as this one's. */
     @Test fun theNotesAreWrittenForThisVersion() {
-        assertEquals("Rewrite update_notes.xml for this version (docs/update-notes.md), then set update_notes_for",
+        assertEquals("Rewrite update_notes.xml for this version (docs/release-notes.md), then set update_notes_for",
             cube.run.BuildConfig.VERSION_NAME, context.getString(cube.run.R.string.update_notes_for))
         assertFalse(UpdateNotes.stale(context))
     }

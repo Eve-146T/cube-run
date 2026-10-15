@@ -3,7 +3,7 @@
     In this update: rewrite this list (and its translations) for every update, and set
     update_notes_for to the new versionName. A worktree rewrites it to say what that worktree
     changes. One item per line: icon | title | text. The icon is an achievement id, whose tile is
-    shown, or "news". What belongs here and what does not: docs/update-notes.md. Balance changes,
+    shown, or "news". What belongs here and what does not: docs/release-notes.md. Balance changes,
     fixes, performance and UI moves are never listed: "And the usual" (update_notes_ui.xml) is
     always the last item.
 -->

@@ -1,8 +1,5 @@
 # Achievements and the void
 
-The achievements worktree started from `rebalancing` at `e97b018` and has been
-fast-forwarded to the 2.4 release (`615bbae`), with the achievement changes retained.
-
 ## Discovery and presentation
 
 Achievements cost 3,000 coins in the shop. Buying the unlock reveals the large
