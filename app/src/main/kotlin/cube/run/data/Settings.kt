@@ -90,6 +90,8 @@ object Settings {
     /** Section explorer: the run starts inside Outer Space and every portal leads back there. Process-scoped. */
     @Volatile var testSpaceWorld = false
     @Volatile var testWorld: Int = -1
+    /** Debug: seconds on the ground before dev mode hands out another jetpack (-1 = off). Process-scoped. */
+    @Volatile var testJetEvery = -1f
 
     @Volatile private var performanceCourseSelected = false
     val performanceCourse: Boolean get() = cube.run.BuildConfig.DEBUG && performanceCourseSelected

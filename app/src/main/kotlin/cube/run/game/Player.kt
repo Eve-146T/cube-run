@@ -60,8 +60,10 @@ class Player(private val game: Gdx3DGame, private val rnd: Random) {
     /** Jetpack: hover at [flyY], ignore the ground. Set via [setFlying]. */
     var flying = false
         private set
-    /** Where the jetpack holds you: [FLY_Y] while cruising, gliding down to the ground as it runs out. */
+    /** Where the jetpack holds you: [FLY_Y] while cruising, then down its descent onto the landing strip. */
     var flyY = FLY_Y
+    /** The flight is coming down: [flyY] is followed tightly, and the road can reach the cube again. */
+    var descending = false
     /** Zero-G: hover at [HOVER_Y], drift between lanes slowly, no jumping or rolling. */
     var hover = false
     /** Outer Space: weaker gravity, slower take-offs, softer lane changes. */
@@ -158,7 +160,7 @@ class Player(private val game: Gdx3DGame, private val rnd: Random) {
 
     /** Reset simulation and pose while retaining the cube's mesh and material resources. */
     fun resetToMenu(baseHue: Float, time: Float) {
-        flying = false; flyY = FLY_Y; hover = false; lowGravity = false
+        flying = false; flyY = FLY_Y; descending = false; hover = false; lowGravity = false
         zappyEnabled = false; floaty = false; smol = false; doubleJumpEnabled = false; tripleJumpEnabled = false
         gigajumpEnabled = false
         airJumpAvailable = false; airJumpsUsed = 0
@@ -248,7 +250,27 @@ class Player(private val game: Gdx3DGame, private val rnd: Random) {
         flying = on
         duckT = 0f
         flyY = FLY_Y
+        descending = false
         if (on) { air = false; vy = 0f } else { air = true; vy = 0f } // ends with a fall + normal landing
+    }
+
+    /** The flight ends on its landing at height [y]: onto the ground like any other landing. */
+    fun touchDown(y: Float) {
+        setFlying(false)
+        py = y; air = false; vy = 0f
+        landed(y)
+    }
+
+    /** A landing's pop, click, dust and squash. */
+    private fun landed(gy: Float) {
+        if (!quietLanding) {
+            if (lowGravity) SoundFx.play("moonland", rate = 0.95f + Random.nextFloat() * 0.1f)
+            else SoundFx.play("pop", rate = 0.95f + rnd.nextFloat() * 0.12f)
+            Haptics.click()
+        }
+        quietLanding = false
+        game.burst3d(tmp.set(px, gy - 0.39f, 0.4f), trailCol(), n = 8, speed = 3.2f, size = 0.09f, life = 0.4f)
+        squash = 1f
     }
 
     /** Put the cube on a platform of height [h] (bubble save after a side hit). */
@@ -355,7 +377,7 @@ class Player(private val game: Gdx3DGame, private val rnd: Random) {
         // Keep hover set so flight expiry naturally returns to the floating road.
         if (flying) {
             clearJumpInput()
-            py += (flyY - py) * min(1f, dt * (if (flyY < FLY_Y) 7f else 4f)) // quick to climb, tight on the glide down
+            py = if (descending) flyY else py + (flyY - py) * min(1f, dt * 4f) // an easy climb; the descent is the arc itself
         } else if (hover) {
             clearJumpInput()
             py += (HOVER_Y + 0.15f * sin(time * 2.2f) - py) * min(1f, dt * 3f)
@@ -366,14 +388,7 @@ class Player(private val game: Gdx3DGame, private val rnd: Random) {
             if (py <= gy && vy <= 0f) {
                 py = gy; air = false; vy = 0f
                 airJumpAvailable = false
-                if (!quietLanding) {
-                    if (lowGravity) SoundFx.play("moonland", rate = 0.95f + Random.nextFloat() * 0.1f)
-                    else SoundFx.play("pop", rate = 0.95f + rnd.nextFloat() * 0.12f)
-                    Haptics.click()
-                }
-                quietLanding = false
-                game.burst3d(tmp.set(px, gy - 0.39f, 0.4f), trailCol(), n = 8, speed = 3.2f, size = 0.09f, life = 0.4f)
-                squash = 1f
+                landed(gy)
                 event = if (slamming) EV_GROUND_POUND else EV_LANDED
                 if (slamming) { slamming = false; duckT = 0.5f } // slam → auto-crouch on landing
                 if (jumpBuffer > 0f) takeOff()

@@ -129,10 +129,9 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
     private var coinsRunF = 0.0     // preserve fractional Rich coins / Gold rewards
     private var lottery = Lottery(rnd)
     private var runBubble = BubbleSkins.get(0)
-    private var jetGrace = 0f        // safe landing window after a jetpack flight
     private var jetBoost = 0f        // eased 0..1: how much of the jetpack's speed boost is on
-    private val jetGlide = 1.4f      // the last seconds of a flight glide back down to the ground
-    private val jetSpeedUp = 0.75f   // the jetpack's speed boost (+75%)
+    private lateinit var jetFlight: JetFlight
+    private var jetGroundT = 0f      // dev: seconds on the ground since the last flight (Settings.testJetEvery)
 
     // ---- death: let the crash animation play before the run-over screens ----
     private val deathAnimTime = 1.5f
@@ -201,6 +200,7 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
         bubble.init()
         scenery.spawnStartGate(hsvInto(tmpCol, worldHue() + 180f, 0.7f, 1f))
         rig = RunCamera(cam)
+        jetFlight = JetFlight(track, player)
         if (hasLaunchOpening) { introT = 1.8f; rig.intro = 0f }
         cam.position.set(0f, 3.7f, 6.4f)
         cam.lookAt(0f, 1.0f, -8f)
@@ -228,7 +228,7 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
         autoStart = false; started = false; dead = false; gameOverShown = false
         spd = 0f; dist = 0f; rowsPassed = 0; curTier = 0; runT = 0f; deathT = 0f
         introT = 1.8f; introAtStart = 0f; skyBlend = 0f; bonus = Bonus.NONE
-        kaleido = 0f; kaleidoHue = 0f; jetGrace = 0f; jetBoost = 0f
+        kaleido = 0f; kaleidoHue = 0f; jetBoost = 0f; jetGroundT = 0f
         phaseUsed = false; phasedObstacle = null; groundObstacle = null
         zen = false; zenStreak = 0; Progress.zenRun = false; difficulty.ceiling = 1f; calmWash = 0f
         styleCombo = 0; sideBounces = 0; smoothWall = 0; smoothVAccum = 0f
@@ -304,7 +304,7 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
             else -> Bonus.unlocked(Scores.best("cuberun")).map { it.id }
         }
         track.portalEvery = if (Settings.devMode || Settings.testSpaceWorld) 28 else 110 - 14 * Progress.level(Progress.PORTALS) // dev: portals galore too
-        powerUps.reset(); redPill.reset(); jetGrace = 0f
+        powerUps.reset(); redPill.reset()
         if (BuildConfig.DEBUG && BuildConfig.JACKPOT_TEST_WORLD && !Settings.performanceCourse) {
             track.portalPool = emptyList()
             powerUps.magnet.start(3600f)
@@ -338,7 +338,6 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
             session.setBonus(bonus)
         }
         session.runStarted()
-        if (Settings.devMode) session.setScore(950)
         if (bonus >= 0) session.setBonus(bonus)
         session.laneChanged(player.lane, Lanes.count)
         refreshJumpAbility()
@@ -598,9 +597,7 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
                 val dur = Progress.JET.duration(Progress.jetLevel) * runSkin.powerupDurationMultiplier
                 powerUps.jet.start(dur)
                 player.setFlying(true)
-                track.airCoins = true
-                aimJetCoins(dur, difficulty.speed() * runSkin.speedMultiplier * (1f + jetSpeedUp)) // where the flight will end, at boosted speed
-                track.liftCoins()
+                jetFlight.begin(dur, difficulty.speed() * runSkin.speedMultiplier, jetBoost)
                 fx.pickup(trackArt.colorOf(kind), row.pickupX, cz)
                 rig.punch(1f)
             }
@@ -655,17 +652,11 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
         player.gigajumpEnabled = shielded && Skins.Ability.GIGAJUMP in runBubble.abilities
     }
 
-    /** Tell the track where the flight lands, so the coin line it lays glides down to meet the ground there. */
-    private fun aimJetCoins(left: Float, speed: Float) {
-        track.jetEndZ = -(left * speed)
-        track.jetGlideLen = jetGlide * speed
-    }
+    private fun jetLandingY() = if (bonus == Bonus.FLOAT) Player.HOVER_Y else player.ground
 
     private fun endJet() {
-        player.setFlying(false)
-        track.airCoins = false
-        track.dropCoins()
-        jetGrace = 1.2f
+        if (!player.flying) { track.airCoins = false; track.dropCoins(); return }
+        jetFlight.touchDown(jetLandingY() + if (bonus == Bonus.FLOAT) 0f else groundAt(player.px))
         fx.jetEnd()
     }
 
@@ -827,7 +818,7 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
         }
         // Player/track still describe the start of this simulation slice.
         if (idlePilot.active && live()) idlePilot.drive(time - dt, spd, timeScale, track,
-            player.pilotBody(powerUps.jet.left).apply { landingGrace = jetGrace },
+            player.pilotBody(powerUps.jet.left),
             if (runT >= 1.5f) cube.run.bot.JetMotion(difficulty.speed() * runSkin.speedMultiplier,
                 jetBoost, if (player.flying) powerUps.jet.left else 0f) else null, ::onSwipe)
         if (jackpot.active) { tickJackpot(dt); if (jackpot.active) return }
@@ -842,7 +833,7 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
             session.runSeconds(runT.toInt())
             val ease = min(1f, runT / 1.5f).let { it * it * it * (it * (it * 6f - 15f) + 10f) } // the start: the road winds up, the camera drops in
             rig.intro = introAtStart + (1f - introAtStart) * ease
-            spd = launchSpeed + (difficulty.speed() * runSkin.speedMultiplier * (1f + jetSpeedUp * jetBoost) - launchSpeed) * ease
+            spd = launchSpeed + (difficulty.speed() * runSkin.speedMultiplier * (1f + JetFlight.SPEED_UP * jetBoost) - launchSpeed) * ease
             if (fire.tick(dt, player.px, player.py) > 0) rig.punch(0.45f)
             difficulty.ramp(dt)
         } else if (!started) {
@@ -876,7 +867,10 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
             if (t > curTier) { curTier = t; fx.tierUp(t, worldHue()); rig.punch(0.5f) }
         }
         track.tier = curTier
-        if (jetGrace > 0f) jetGrace = max(0f, jetGrace - dt)
+        if (BuildConfig.DEBUG && Settings.devMode && Settings.testJetEvery >= 0f && started && !dead && !player.flying && runT > 2f) {
+            jetGroundT += dt // dev: another flight after a beat on the ground
+            if (jetGroundT >= Settings.testJetEvery) { jetGroundT = 0f; collectPickup(Row(-0.5f, arrayListOf()).apply { pickup = Pickup.JET }, -0.5f) }
+        }
 
         // ---- the world: sky cross-fade, roadside, the next gate
         worlds.tick(dt)
@@ -923,13 +917,9 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
             powerUps.magnet.tick(dt)
             powerUps.mult.tick(dt)
             if (bubble.active && powerUps.magnet.active && powerUps.mult.active && powerUps.jet.active) session.fullKitHeld()
+            if (player.flying) jetFlight.secondsLeft(spd)?.let { powerUps.jet.hold(it) } // the strip's arrival is the clock
             if (powerUps.jet.tick(dt)) endJet()
-            else if (player.flying) { // keep the landing point current; glide down through the last seconds
-                val left = powerUps.jet.left
-                aimJetCoins(left, spd)
-                val landingY = if (bonus == Bonus.FLOAT) Player.HOVER_Y else player.ground
-                player.flyY = if (left < jetGlide) landingY + (Player.FLY_Y - landingY) * (left / jetGlide) else Player.FLY_Y
-            }
+            else if (player.flying) jetFlight.steer(powerUps.jet.left, jetLandingY())
         }
 
         if (!dead) {
@@ -959,6 +949,7 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
         zenDissolve.update(dt, mv)
         collide(dt)
 
+        rig.holdHigh = player.flying && player.descending
         rig.chase(dt, player.px, player.py, player.ground, deathT, spd)
         if (opening.active) opening.pose(player, cam, worldHue())
     }
@@ -968,7 +959,7 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
         val cubeBottom = player.cubeBottom
         val headY = player.headY
         val px = player.px; val py = player.py
-        val immune = player.flying || jetGrace > 0f
+        val immune = player.flying && !player.descending // cruising above it all; coming down, the road counts again
         val pull = if (powerUps.magnet.active) 7.5f else 0f // only a MAGNET pulls; otherwise you have to touch them
         for (row in track.rows) {
             if (row.portal >= 0 && started && !dead && row.z > 0f) crossPortal(row)

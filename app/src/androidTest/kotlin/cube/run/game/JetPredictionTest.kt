@@ -36,7 +36,6 @@ class JetPredictionTest {
                         powers.reset(); powers.jet.start(.3f)
                         field(game, "runT").setFloat(game, 10f)
                         field(game, "jetBoost").setFloat(game, 1f)
-                        field(game, "jetGrace").setFloat(game, 0f)
                         val body = player.pilotBody(.3f)
                         val timeline = Timeline(Course(0, "jet landing", 0, 0, false, player.lane, emptyList()),
                             68.25f, dt = 1f/hz, seconds = 2f, motion = JetMotion(39f, 1f, .3f))
@@ -47,9 +46,7 @@ class JetPredictionTest {
                             assertEquals("speed $label", value<Float>(game, "spd"), timeline.frames[frame].movement/timeline.dt, .0001f)
                             assertEquals("height $label", player.py, body.y, .0001f)
                             assertEquals("flight $label", player.flying, body.flying)
-                            assertEquals("landing grace $label", value<Float>(game, "jetGrace"), body.landingGrace, .0001f)
                         }
-                        assertEquals(0f, body.landingGrace, 0f)
                         assertFalse(player.flying)
                     }
                 } finally {

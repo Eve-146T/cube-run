@@ -21,6 +21,8 @@ class PowerUps {
 
         fun start(seconds: Float) { left = seconds; duration = seconds }
         fun stop() { left = 0f }
+        /** Set the time left from outside (the jetpack's clock is its landing strip); the bar grows to fit. */
+        fun hold(seconds: Float) { left = seconds; duration = kotlin.math.max(duration, seconds) }
 
         /** Count down; returns true on the frame it runs out. */
         fun tick(dt: Float): Boolean {
