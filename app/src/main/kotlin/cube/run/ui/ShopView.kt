@@ -452,7 +452,7 @@ class ShopView(
             SoundFx.play("success", rate = 1.4f, vol = 0.55f); Haptics.success()
             if (!compactLayout) Stage.demoRequests.set(demo) // short panes have no showroom to play it in
             render(u)
-            cards[key]?.let { PayFx.flash(it, dpf(ShopCards.RADIUS)) }
+            cards[key]?.let { PayFx.flash(it, dpf(ShopCards.RADIUS), tint = if (key == ShopIcon.MYSTERY) null else ShopIcon.color(key), lip = kit.CARD_LIP) }
             shopCards.values[key]?.let { Anim.popIn(it, 0, 0.6f, 360) }
             if (key == "mystery") pendingBox?.let { pendingBox = null; onOpenMysteryBox(it) }
         })
