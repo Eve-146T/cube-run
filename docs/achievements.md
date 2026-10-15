@@ -89,6 +89,8 @@ The tiered thresholds, bronze through diamond: Good Runner beats 500, 1,000, 2,0
 and 5,000 points in one run; Lifetime Coins collects 5,000, 25,000, 100,000 and
 500,000; Unlocked Cubes owns 5, 10, 15 and 24; Power Collector picks up 100, 1,000,
 5,000 and 10,000 power-ups; Mystery Seeker opens 10, 50, 100 and 300 boxes.
+Trailblazer owns 3, 5, 8 and 11 trails, and Bubble Bath owns 3, 5, 7 and 10 bubble skins. The
+free item counts, and the diamond tier never needs a secret skin.
 
 Globetrotter (1/2/3/4 distinct bonus worlds across runs) is parked until there are more
 bonus worlds: it keeps recording the worlds visited, so its progress is there when it comes

@@ -98,6 +98,8 @@ fun Context.gameText(stableLabel: String): String = when (stableLabel) {
     "Bubble Dividend" -> getString(R.string.ability_bubble_dividend)
     "Gain 1 free bubble for every 200 coins collected during a run!" -> getString(R.string.ability_bubble_dividend_detail)
     "Your bubble lasts 30% longer!" -> getString(R.string.ability_long_bubble_detail)
+    "Smol" -> getString(R.string.ability_smol)
+    "Small enough to roll under bars without ducking!" -> getString(R.string.ability_smol_detail)
     "35% chance to not consume a bubble." -> getString(R.string.game_35_chance_to_not_consume_a_bubble)
     "35%" -> getString(R.string.game_35)
     "Bubble" -> getString(R.string.game_bubble)
@@ -262,6 +264,8 @@ fun Context.achievementTitle(id: String): String = getString(when (id) {
     "stage_fright" -> R.string.achievement_stage_fright
     "monk" -> R.string.achievement_monk
     "neo" -> R.string.achievement_neo
+    "trailblazer" -> R.string.achievement_trailblazer
+    "bubble_bath" -> R.string.achievement_bubble_bath
     else -> R.string.achievement_cookie_clicker
 })
 
@@ -306,6 +310,8 @@ fun Context.achievementGoal(id: String): String = getString(when (id) {
     "stage_fright" -> R.string.achievement_goal_stage_fright
     "monk" -> R.string.achievement_goal_monk
     "neo" -> R.string.achievement_goal_neo
+    "trailblazer" -> R.string.achievement_goal_trailblazer
+    "bubble_bath" -> R.string.achievement_goal_bubble_bath
     else -> R.string.achievement_toggle_haptics
 })
 

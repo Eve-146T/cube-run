@@ -16,4 +16,6 @@
     <string name="lottery_one_in">1 מתוך 100000</string><string name="lottery_per_coin">על כל יחידת ערך של מטבע</string><string name="lottery_per_box">לכל תיבת הפתעה</string>
     <string name="game_zen">זן</string><string name="ability_zen">זן</string><string name="ability_zen_detail">המכשולים נמסים. רק אתגר הנזיר מתקדם. פשוט תתגלגל.</string>
     <string name="ability_calm">רוגע</string><string name="ability_calm_detail">ערפל רך יורד על העולם ומעמעם את צבעיו.</string>
+    <string name="ability_smol">זעיר</string>
+    <string name="ability_smol_detail">קטן מספיק כדי להתגלגל מתחת לקורות בלי להתכופף!</string>
 </resources>

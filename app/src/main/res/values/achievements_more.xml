@@ -64,4 +64,8 @@
     <string name="achievement_section_secrets">SECRETS</string>
     <string name="achievement_secret_title">Secret achievement</string>
     <string name="achievement_secret_hint">Keep playing to find it.</string>
+    <string name="achievement_trailblazer">Trailblazer</string>
+    <string name="achievement_bubble_bath">Bubble Bath</string>
+    <string name="achievement_goal_trailblazer">Trails unlocked</string>
+    <string name="achievement_goal_bubble_bath">Bubble skins unlocked</string>
 </resources>

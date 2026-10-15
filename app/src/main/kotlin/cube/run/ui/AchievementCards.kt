@@ -348,6 +348,8 @@ internal class AchievementCards(
             "gambliphobic" -> Theme.LIME
             "coal_miner", "full_kit", "regular" -> Theme.YELLOW
             "just_browsing" -> Theme.GOLD
+            "trailblazer" -> Theme.GRAPE
+            "bubble_bath" -> Theme.PINK
             "shard_hunter", "insomniac", "globetrotter", "shardsmith", "very_silent_treatment", "secret" -> DEEP
             else -> Theme.PINK
         }

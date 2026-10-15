@@ -16,4 +16,6 @@
     <string name="lottery_one_in">1 in 100000</string><string name="lottery_per_coin">per 1 coin of value</string><string name="lottery_per_box">per mystery box</string>
     <string name="game_zen">Zen</string><string name="ability_zen">Zen</string><string name="ability_zen_detail">Obstacles melt away. Only the Monk challenge progresses. Just roll.</string>
     <string name="ability_calm">Calm</string><string name="ability_calm_detail">A soft haze settles over the world and mutes its colours.</string>
+    <string name="ability_smol">Smol</string>
+    <string name="ability_smol_detail">Small enough to roll under bars without ducking!</string>
 </resources>

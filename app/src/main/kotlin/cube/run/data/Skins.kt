@@ -12,6 +12,7 @@ object Skins {
     const val MINT_ID = 8
     const val VOID_ID = 24
     const val ZEN_ID = 25
+    const val SMOL_ID = 26
     // colour modes
     const val COMP = 0      // complementary to the world's base hue (the classic look)
     const val FIXED = 1     // one fixed hue
@@ -45,6 +46,7 @@ object Skins {
         TOXIC_FORTUNE("Toxic Fortune", "Coins are worth 60% more, but 1% are green and kill you instantly!"),
         ZEN("Zen", "Obstacles melt away. Only the Monk challenge progresses. Just roll."),
         CALM("Calm", "A soft haze settles over the world and mutes its colours."),
+        SMOL("Smol", "Small enough to roll under bars without ducking!"),
     }
 
     class Skin(
@@ -126,6 +128,7 @@ object Skins {
         Skin(VOID_ID, "Black void", 300_000, FIXED, hue = 265f, sat = 0.25f, value = 0.012f, glow = 0.7f, trail = 0.7f, abilities = listOf(Ability.SECRET)),
         // Black and white: the yin-yang texture is the body, so the tint stays white (see Player).
         Skin(ZEN_ID, "Zen", 500, FIXED, sat = 0f, value = 1f, glow = 0.6f, trail = 0.7f, abilities = listOf(Ability.ZEN, Ability.CALM)),
+        Skin(SMOL_ID, "Smol", 3_500, FIXED, hue = 95f, sat = 0.6f, value = 1f, glow = 1.2f, abilities = listOf(Ability.SMOL)),
     )
 
     fun mintSynergy(cube: Int, bubble: Int): Boolean = cube == MINT_ID && bubble == BubbleSkins.MINT_ID

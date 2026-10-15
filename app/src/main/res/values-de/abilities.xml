@@ -16,4 +16,6 @@
     <string name="lottery_one_in">1 zu 100000</string><string name="lottery_per_coin">je Münzwert</string><string name="lottery_per_box">pro Geschenk</string>
     <string name="game_zen">Zen</string><string name="ability_zen">Zen</string><string name="ability_zen_detail">Hindernisse lösen sich auf. Nur die Mönch-Herausforderung zählt weiter. Roll einfach.</string>
     <string name="ability_calm">Ruhe</string><string name="ability_calm_detail">Ein sanfter Dunst legt sich über die Welt und dämpft ihre Farben.</string>
+    <string name="ability_smol">Winzig</string>
+    <string name="ability_smol_detail">Klein genug, um ohne Ducken unter Balken durchzurollen!</string>
 </resources>

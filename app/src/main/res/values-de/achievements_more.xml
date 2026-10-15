@@ -64,4 +64,8 @@
     <string name="achievement_section_secrets">GEHEIM</string>
     <string name="achievement_secret_title">Geheimer Erfolg</string>
     <string name="achievement_secret_hint">Spiel weiter, um ihn zu finden.</string>
+    <string name="achievement_trailblazer">Bahnbrecher</string>
+    <string name="achievement_bubble_bath">Schaumbad</string>
+    <string name="achievement_goal_trailblazer">Freigeschaltete Spuren</string>
+    <string name="achievement_goal_bubble_bath">Freigeschaltete Blasen</string>
 </resources>

@@ -279,6 +279,7 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
         zenStreak = 0
         player.zappyEnabled = Skins.Ability.ZAPPY in runSkin.abilities
         player.floaty = Skins.Ability.FLOATY in runSkin.abilities
+        player.smol = Skins.Ability.SMOL in runSkin.abilities
         player.doubleJumpEnabled = false
         player.tripleJumpEnabled = false
         player.gigajumpEnabled = false

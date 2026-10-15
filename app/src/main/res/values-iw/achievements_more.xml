@@ -64,4 +64,8 @@
     <string name="achievement_section_secrets">סודות</string>
     <string name="achievement_secret_title">הישג סודי</string>
     <string name="achievement_secret_hint">המשיכו לשחק כדי למצוא אותו.</string>
+    <string name="achievement_trailblazer">חלוץ הדרך</string>
+    <string name="achievement_bubble_bath">אמבט בועות</string>
+    <string name="achievement_goal_trailblazer">שובלים שנפתחו</string>
+    <string name="achievement_goal_bubble_bath">בועות שנפתחו</string>
 </resources>

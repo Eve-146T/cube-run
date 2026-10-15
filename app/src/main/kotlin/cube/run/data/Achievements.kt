@@ -86,6 +86,8 @@ object Achievements {
         Definition("stage_fright", "Stage Fright", "Crash within two seconds of the start gate in 25 runs.", intArrayOf(25), false),
         Definition("monk", "Monk", "Destroy 100 consecutive obstacles with the Zen cube in one run. You can skip stairs.", intArrayOf(100), false),
         Definition("neo", "Neo", "???", intArrayOf(1), false),
+        Definition("trailblazer", "Trailblazer", "Own trails.", intArrayOf(3, 5, 8, 11)),
+        Definition("bubble_bath", "Bubble Bath", "Own bubble skins.", intArrayOf(3, 5, 7, 10)),
     )
     /** The achievements on offer. */
     val all = tracked.filterNot { it.id in parked }
@@ -96,6 +98,8 @@ object Achievements {
         "runner" -> Progress.achievementScore
         "coins" -> Progress.achievementCoins
         "cubes" -> Integer.bitCount(Progress.ownedSkins)
+        "trailblazer" -> Integer.bitCount(Progress.ownedTrails)
+        "bubble_bath" -> Integer.bitCount(Progress.ownedBubbleSkins)
         "powerups" -> Progress.totalPowerups
         "boxes" -> Progress.boxesOpened
         "bubbles" -> Progress.maxBubbles

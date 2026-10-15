@@ -14,6 +14,7 @@ class CosmeticAbilitiesTest {
             15 to listOf(Ability.COAL), 16 to listOf(Ability.BUBBLE_SAVER, Ability.QUICK_BUBBLE),
             17 to listOf(Ability.FLOATY), 22 to listOf(Ability.ZAPPY),
             23 to listOf(Ability.SPEED), Skins.VOID_ID to listOf(Ability.SECRET),
+            Skins.ZEN_ID to listOf(Ability.ZEN, Ability.CALM), Skins.SMOL_ID to listOf(Ability.SMOL),
         )
         Skins.all.forEach { assertEquals("Cube ${it.id}", expected[it.id].orEmpty(), it.abilities) }
         BubbleSkins.all.forEach {

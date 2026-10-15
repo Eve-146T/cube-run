@@ -122,7 +122,11 @@ class AbilityDisplay(private val activity: Activity, private val kit: UiKit, val
             .setDuration(260).setInterpolator(Anim.springSoft).start()
     }
 
-    private fun icon(ability: Ability): Drawable = if (ability == Ability.BUBBLE_SAVER) BubbleIcon(Theme.INK) else AbilityIcon(ability)
+    private fun icon(ability: Ability): Drawable = when {
+        ability == Ability.BUBBLE_SAVER -> BubbleIcon(Theme.INK)
+        ability in ExtraAbilityIcon.handled -> ExtraAbilityIcon(ability)
+        else -> AbilityIcon(ability)
+    }
 
     private fun chip(ability: Ability, index: Int): CandyChip = CandyChip(activity, if (selected == index) Theme.LAVENDER else Theme.WHITE, kit.dpf(4f), kit.dpf(16f)).apply {
         setImageDrawable(icon(ability)); setPadding(dp(10f), dp(10f), dp(10f), dp(10f))

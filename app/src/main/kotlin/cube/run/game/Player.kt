@@ -52,6 +52,8 @@ class Player(private val game: Gdx3DGame, private val rnd: Random) {
         const val EV_LANDED = 1
         const val EV_SIDE_HIT = 2   // ran into the side of a platform
         const val EV_GROUND_POUND = 3 // completed slam landing
+        /** The Smol cube's size next to the others. */
+        const val SMOL_SIZE = 0.62f
     }
 
     val ground = 0.45f      // resting cube center (cube = 0.9 across)
@@ -72,6 +74,8 @@ class Player(private val game: Gdx3DGame, private val rnd: Random) {
             if (!value) zappyFx?.clear()
             else if (::unit.isInitialized && zappyFx == null) zappyFx = ZappyFx(unit)
         }
+    /** Smol is small enough to pass under bars standing: set for the run, so a try-on in the wardrobe grants nothing. */
+    var smol = false
     /** Cloud keeps the usual jump height, with a softer ascent and longer hang. */
     var floaty = false
     /** Set by the run: Mint abilities require an active shield. */
@@ -107,7 +111,7 @@ class Player(private val game: Gdx3DGame, private val rnd: Random) {
 
     /** Collision extents. Rolling tucks the head below the bars. */
     val cubeBottom: Float get() = py - 0.45f
-    val headY: Float get() = py + 0.45f - duck * 0.72f
+    val headY: Float get() = py + 0.45f - (if (smol) 0.72f else duck * 0.72f)
 
     private lateinit var unit: Model
     private lateinit var inst: ModelInstance
@@ -137,6 +141,9 @@ class Player(private val game: Gdx3DGame, private val rnd: Random) {
 
     fun laneX(l: Int) = Lanes.x(l)
 
+    /** How big the body is drawn: Smol is a small cube; the rest are full size. */
+    private fun bodySize() = if (Skins.Ability.SMOL in skin.abilities) SMOL_SIZE else 1f
+
     /** The road changed shape (a portal): keep the cube on a lane that still exists. */
     fun remapLane(oldCount: Int, newCount: Int) {
         lane = (lane + (newCount - oldCount) / 2).coerceIn(0, newCount - 1)
@@ -152,7 +159,7 @@ class Player(private val game: Gdx3DGame, private val rnd: Random) {
     /** Reset simulation and pose while retaining the cube's mesh and material resources. */
     fun resetToMenu(baseHue: Float, time: Float) {
         flying = false; flyY = FLY_Y; hover = false; lowGravity = false
-        zappyEnabled = false; floaty = false; doubleJumpEnabled = false; tripleJumpEnabled = false
+        zappyEnabled = false; floaty = false; smol = false; doubleJumpEnabled = false; tripleJumpEnabled = false
         gigajumpEnabled = false
         airJumpAvailable = false; airJumpsUsed = 0
         lane = 1; px = 0f; py = ground; air = false
@@ -404,15 +411,18 @@ class Player(private val game: Gdx3DGame, private val rnd: Random) {
         hsvInto(shellCol, skin.hueAt(time, baseHue), skin.sat * 0.9f, 1f)
         openingMaterial(skin.opacity + (1f - skin.opacity) * spentMix, (if (skin.id == 13) 1f + 0.6f * spentMix else 0f))
         val breathe = 1f + 0.03f * idleMix * sin(time * 2.4f)
-        inst.transform.setToTranslation(px + nudge, py - squash * 0.08f - duY, 0f)
+        val size = bodySize()
+        val drop = (1f - size) * 0.36f // a smaller cube still rests on the road
+        inst.transform.setToTranslation(px + nudge, py - squash * 0.08f - duY - drop, 0f)
             .rotate(Vector3.Y, idleYaw * idleMix)
             .rotate(Vector3.Z, tilt)
             .rotate(Vector3.X, -roll)
             .scale(breathe, 1f / breathe, breathe)
             .scale(0.9f * (1f + sq + duck * 0.35f - st * 0.5f), 0.9f * (1f - sq + st) * (1f - duck * 0.5f), 0.9f * (1f + sq + duck * 0.1f - st * 0.5f))
-        val pulse = glowScale(time)
+            .scale(size, size, size)
+        val pulse = glowScale(time) * size
         shellBlend.opacity = shellOpacity(time) * (1f - spentMix)
-        shellInst.transform.setToTranslation(px + nudge, py - duY, 0f)
+        shellInst.transform.setToTranslation(px + nudge, py - duY - drop, 0f)
             .rotate(Vector3.Y, idleYaw * idleMix).rotate(Vector3.Z, tilt).rotate(Vector3.X, -roll)
             .scale(pulse, pulse, pulse)
 
@@ -457,9 +467,9 @@ class Player(private val game: Gdx3DGame, private val rnd: Random) {
         hsvInto(shellCol, skin.hueAt(time, baseHue), skin.sat * 0.9f, 1f)
         val yy = y + 0.06f * sin(time * 2.2f)
         val yaw = time * spin + extraYaw
-        val sc = 0.9f * scale
+        val sc = 0.9f * scale * bodySize()
         inst.transform.setToTranslation(x, yy, 0f).rotate(Vector3.Y, yaw).rotate(Vector3.X, 12f).scale(sc, sc, sc)
-        val pulse = glowScale(time) * scale
+        val pulse = glowScale(time) * scale * bodySize()
         shellBlend.opacity = shellOpacity(time)
         shellInst.transform.setToTranslation(x, yy, 0f).rotate(Vector3.Y, yaw).rotate(Vector3.X, 12f).scale(pulse, pulse, pulse)
         px = x; py = yy
@@ -481,9 +491,9 @@ class Player(private val game: Gdx3DGame, private val rnd: Random) {
         val glow = material.get(ColorAttribute.Emissive) as? ColorAttribute
             ?: ColorAttribute.createEmissive(0f, 0f, 0f, 1f).also { material.set(it) }
         glow.color.set(goldCol.r * 0.32f * gold, goldCol.g * 0.24f * gold, goldCol.b * 0.05f * gold, 1f)
-        val sc = 0.9f * scale
+        val sc = 0.9f * scale * bodySize()
         inst.transform.setToTranslation(x, y, 0f).rotate(Vector3.Y, yaw).rotate(Vector3.X, tip).scale(sc, sc, sc)
-        val pulse = glowScale(time) * scale * (1f + 0.12f * gold)
+        val pulse = glowScale(time) * scale * bodySize() * (1f + 0.12f * gold)
         shellBlend.opacity = shellOpacity(time) + 0.1f * gold
         shellInst.transform.setToTranslation(x, y, 0f).rotate(Vector3.Y, yaw).rotate(Vector3.X, tip).scale(pulse, pulse, pulse)
     }
