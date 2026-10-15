@@ -36,6 +36,12 @@ interface GameSession {
     /** One airborne slam reached the ground during a live run. */
     fun groundPounded() {}
     fun coalCollected() {}
+    /** Bubbles or a second wind shattered [count] solid obstacles. The jackpot's shockwave does not count. */
+    fun obstaclesSmashed(count: Int) {}
+    /** The Ghost cube slipped through an obstacle. */
+    fun obstaclePhased() {}
+    /** The run ended mid jetpack flight. */
+    fun diedFlying() {}
     fun fullKitHeld() {}
     /** A red pill ran its whole course without a crash. */
     fun redPillSurvived() {}

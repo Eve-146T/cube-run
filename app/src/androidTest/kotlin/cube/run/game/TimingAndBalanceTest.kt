@@ -204,7 +204,7 @@ class TimingAndBalanceTest {
                         bubble.update(1f, 0f, 0f, 0f)
                         assertEquals(level * 2, sounds.size)
                         bubble.cooldownDuration = Progress.FASTBUBBLES.duration(level)
-                        assertEquals(5f - .5f * level, bubble.cooldownDuration, 0f)
+                        assertEquals(6f - .5f * level, bubble.cooldownDuration, 0f)
                         bubble.duration = .01f
                         bubble.activate(0f, 0f, quiet = true)
                         bubble.update(.02f, 0f, 0f, 0f)

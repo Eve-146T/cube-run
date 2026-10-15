@@ -155,7 +155,7 @@ class RebalancingTest {
         bubble.activate(0f, .45f, quiet = true); game.tick(0f)
         assertFalse(field(game, "phaseUsed").getBoolean(game))
         assertFalse(field(game, "dead").getBoolean(game)); assertFalse(bubble.active)
-        assertEquals(5f, bubble.cooldownLeft, .001f)
+        assertEquals(Progress.FASTBUBBLES.duration(0), bubble.cooldownLeft, .001f)
     }
 
     @Test fun speedyCubeActuallyRunsThirtyPercentFaster() = withGame(23) { game ->

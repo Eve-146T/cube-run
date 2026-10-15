@@ -189,11 +189,11 @@ class EquippedAbilitiesTest {
         val bubble = read<Bubble>(game, "bubble")
         bubble.activate(0f, .5f, quiet = true)
         bubble.pop(0f, .5f)
-        assertEquals(3.5f, bubble.cooldownLeft, .001f)
+        assertEquals(6f * .7f, bubble.cooldownLeft, .001f)
         bubble.reset()
         bubble.activate(0f, .5f, quiet = true)
         assertTrue(bubble.update(bubble.duration + .01f, 0f, 0f, .5f))
-        assertEquals(3.5f, bubble.cooldownLeft, .001f)
+        assertEquals(6f * .7f, bubble.cooldownLeft, .001f)
     }
 
     @Test fun coalPickupIsWorthlessAndAllowsHomeress() = fixture(15) { game ->

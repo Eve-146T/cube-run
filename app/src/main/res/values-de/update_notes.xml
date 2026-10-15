@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string-array name="update_notes">
+        <item>icarus | Ikarus | Eine neue Herausforderung für den Gift-Würfel: Stirb im Jetpack-Flug an einer grünen Münze.</item>
+        <item>poltergeist | Poltergeist | Die Herausforderung des Geist-Würfels: Gleite durch 100 Hindernisse.</item>
+        <item>juggernaut | Dampfwalze | Zerschmettere in einem einzigen Lauf 300 Hindernisse mit Blasen.</item>
+        <item>full_throttle | Vollgas | Starte mit allen 10 Boosts und erreiche 1500 Punkte.</item>
+    </string-array>
+</resources>

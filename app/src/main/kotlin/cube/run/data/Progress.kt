@@ -35,8 +35,8 @@ object Progress {
     val JET = Upgrade("jet_time", "Jetpack", 5f, 0.6f)
     val upgrades = listOf(BUBBLE, MAGNET, MULT, JET)
     // ---- perks: each level changes a rule of the run (see CubeRun)
-    /** Each level removes half a second from cooldown; the old key preserves purchases. */
-    val FASTBUBBLES = Upgrade("perk_safestart", "Faster bubbles", 5f, -0.5f, max = 5, basePrice = 1500)
+    /** 6 s of cooldown, each level removes half a second (3.5 s maxed); the old key preserves purchases. */
+    val FASTBUBBLES = Upgrade("perk_safestart", "Faster bubbles", 6f, -0.5f, max = 5, basePrice = 1500)
     /** Coins are worth +20% per level. */
     val COINVALUE = Upgrade("perk_coinvalue", "Rich coins", 1f, 0.2f, max = 10, basePrice = 2400)
     /** Portals open more often. */
@@ -372,9 +372,10 @@ object Progress {
         totalPowerups = prefs.getInt("total_powerups", 0)
         maxBubbles = maxOf(bubbles, prefs.getInt("max_bubbles", 0))
         maxRunBounces = prefs.getInt("max_run_bounces", 0)
-        bestCenteredScore = prefs.getInt("best_centered_score", 0).coerceIn(0, 100)
-        bestCoinlessScore = prefs.getInt("best_coinless_score", 0).coerceIn(0, 60)
-        maxRunMissedBoxes = prefs.getInt("max_run_missed_boxes", 0).coerceIn(0, 10)
+        // Records, not progress: a finished card shows the best run, so nothing caps them at the goal.
+        bestCenteredScore = prefs.getInt("best_centered_score", 0).coerceAtLeast(0)
+        bestCoinlessScore = prefs.getInt("best_coinless_score", 0).coerceAtLeast(0)
+        maxRunMissedBoxes = prefs.getInt("max_run_missed_boxes", 0).coerceAtLeast(0)
         // Retain old progress and rewards when replacing Cookie Clicker.
         totalHapticTaps = prefs.getInt("total_haptic_taps", prefs.getInt("total_mute_toggles", 0)).coerceAtLeast(0)
         voidPurchases = prefs.getInt("void_purchases", 0).coerceAtLeast(0)

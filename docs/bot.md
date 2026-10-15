@@ -156,12 +156,8 @@ releases its contact, and changes no device settings. The gesture listener consu
 these probe events; they are not forwarded as gameplay, purchases, or navigation.
 The helper and wrapper are removed after the command.
 
-## Review page and current controls
+## Current controls
 
-The [section review page](section-review.html) contains the 53 selectable in-game
-patterns in the same tier/ID order as the section grid, visual previews, bot reference ratings and separate player feedback for
-each section/boost combination. It stores drafts locally, imports and exports JSON, and sends
-feedback to the local drop service only when the player clicks Send feedback.
 
 `--boosts` accepts 0–10. Values above five explicitly enable development mode;
 the game keeps five arrows and changes them from orange to blue for boosts 6–10.

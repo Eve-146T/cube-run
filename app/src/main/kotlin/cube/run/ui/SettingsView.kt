@@ -34,7 +34,10 @@ class SettingsView(
     kit: UiKit,
     private val openLanguages: () -> Unit,
     private val openSections: () -> Unit,
+    private val openUpdateNotes: () -> Unit,
     private val devChanged: () -> Unit,
+    /** Dev mode and the section explorer: debug builds only. */
+    devTools: Boolean = BuildConfig.DEBUG,
     onClosed: () -> Unit,
 ) : Page(activity, kit, activity.getString(R.string.settings_title), dark = false, onClosed = onClosed) {
 
@@ -140,6 +143,11 @@ class SettingsView(
                 contentDescription = activity.getString(R.string.cd_languages)
                 link { openLanguages() }
             },
+            row(tile(UpdateTile(), Theme.PINK), activity.getString(R.string.update_notes_title), chevron(), dp(22f), dp(22f)).apply {
+                tag = "settings_update_notes"
+                contentDescription = activity.getString(R.string.update_notes_title)
+                link { openUpdateNotes() }
+            },
             *(if (Settings.CODES_UI) arrayOf(row(tile(R.drawable.ic_codes, Theme.SKY), activity.getString(R.string.settings_codes), chevron(), dp(22f), dp(22f)).apply {
                 tag = "settings_codes"
                 contentDescription = activity.getString(R.string.settings_codes)
@@ -148,7 +156,7 @@ class SettingsView(
                 }
             }) else emptyArray()),
         ))
-        if (BuildConfig.DEBUG) column.addView(card(
+        if (devTools) column.addView(card(
             switchRow(devTile, activity.getString(R.string.cd_dev), devSwitch, { Settings.devMode }) {
                 Settings.setDevMode(it); if (it) Progress.enterDev() else Progress.leaveDev(); devChanged()
             },

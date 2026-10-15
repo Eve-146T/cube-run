@@ -37,14 +37,17 @@ class CompactLayoutTest {
         ActivityScenario.launch(GameActivity::class.java).use { scenario -> scenario.onActivity { activity ->
             for (scale in listOf(1f, 1.5f)) {
                 val kit = UiKit(activity.createConfigurationContext(Configuration(activity.resources.configuration).apply { fontScale = scale }))
-                val page = SettingsView(activity, kit, {}, {}, {}) {}
+                val page = SettingsView(activity, kit, {}, {}, {}, {}) {}
                 for (direction in listOf(View.LAYOUT_DIRECTION_LTR, View.LAYOUT_DIRECTION_RTL)) {
                     page.layoutDirection = direction
                     for ((w, h) in sizes) {
                         measure(page, kit, w, h)
                         if (w >= 320 && h >= 720 && scale == 1f) {
-                            val scroller = all(page).filterIsInstance<ScrollView>().single()
-                            assertTrue("Full-screen settings must not have a tiny scroll range",
+                            // Only the page players get must fit: the debug card (dev mode, section explorer) may scroll.
+                            val release = SettingsView(activity, kit, {}, {}, {}, {}, devTools = false) {}.apply { layoutDirection = direction }
+                            measure(release, kit, w, h)
+                            val scroller = all(release).filterIsInstance<ScrollView>().single()
+                            assertTrue("Full-screen settings without the debug card must not scroll",
                                 scroller.getChildAt(0).height <= scroller.height - scroller.paddingTop - scroller.paddingBottom)
                         }
                         for (control in all(page).filter { it is CandySwitch || it is LevelPicker }) {
@@ -76,7 +79,7 @@ class CompactLayoutTest {
                 for (direction in listOf(View.LAYOUT_DIRECTION_LTR, View.LAYOUT_DIRECTION_RTL)) {
                     settings.setVolume(1); settings.setStartSpeed(0); settings.setSoundEnabled(false)
                     val kit = UiKit(activity)
-                    val page = SettingsView(activity, kit, {}, {}, {}) {}
+                    val page = SettingsView(activity, kit, {}, {}, {}, {}) {}
                     page.layoutDirection = direction
                     measure(page, kit, 360, 720)
                     val volume = all(page).filterIsInstance<VolumeSteps>().single()

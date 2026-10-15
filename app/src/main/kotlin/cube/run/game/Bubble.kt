@@ -28,7 +28,7 @@ class Bubble(private val game: Gdx3DGame) {
     /** Full duration (upgrade-dependent). */
     var duration = 10f
     /** Faster bubbles and Bubblegum shorten both the natural-expiry and crash cooldown. */
-    var cooldownDuration = 5f
+    var cooldownDuration = 6f
     val active: Boolean get() = timer.active
     val timeLeft: Float get() = timer.left
     var cooldownLeft = 0f

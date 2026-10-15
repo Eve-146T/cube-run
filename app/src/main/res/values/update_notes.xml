@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    In this update: rewrite this list (and its translations) for every update, and set
+    update_notes_for to the new versionName. A worktree rewrites it to say what that worktree
+    changes. One item per line: icon | title | text. The icon is an achievement id, whose tile is
+    shown, or "news". What belongs here and what does not: docs/release-notes.md. Balance changes,
+    fixes, performance and UI moves are never listed: "And the usual" (update_notes_ui.xml) is
+    always the last item.
+-->
+<resources>
+    <!-- Notes written for another version are stale: they never pop up. -->
+    <string name="update_notes_for" translatable="false">2.7</string>
+    <string-array name="update_notes">
+        <item>icarus | Icarus | A new challenge for the Toxic cube: die to a green coin while flying the jetpack.</item>
+        <item>poltergeist | Poltergeist | The Ghost cube\'s own challenge: slip through 100 obstacles.</item>
+        <item>juggernaut | Juggernaut | Smash 300 obstacles with bubbles in a single run.</item>
+        <item>full_throttle | Full Throttle | Start with all 10 boosts and reach 1500 points.</item>
+    </string-array>
+</resources>

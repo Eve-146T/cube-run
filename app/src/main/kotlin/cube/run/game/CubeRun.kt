@@ -365,6 +365,7 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
     private fun die() {
         if (dead) return
         if (startGateRunT >= 0f) session.runCrashed(runT - startGateRunT)
+        if (player.flying) session.diedFlying()
         dead = true
         player.setFlying(false)
         fx.crash(player.px, player.py, player.col)
@@ -386,9 +387,11 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
     /** A second wind: the crash becomes a smash — the row shatters, a bubble goes up, the run goes on. */
     private fun secondWind() {
         val zone = -(spd * 2.5f) - 4f
+        var smashed = 0
         for (r in track.rows) {
-            if (r.z > zone && r.z < 1.2f && r.obs.isNotEmpty()) shatter(r, impact = r.z > -8f)
+            if (r.z > zone && r.z < 1.2f && r.obs.isNotEmpty()) smashed += shatter(r, impact = r.z > -8f)
         }
+        session.obstaclesSmashed(smashed)
         fx.smashFeedback()
         bubble.duration = 3f * bubbleDurationMultiplier()
         bubble.activate(player.px, player.py)
@@ -403,6 +406,7 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
         phaseUsed = true
         player.phaseSpent = true
         phasedObstacle = ob
+        session.obstaclePhased()
         SoundFx.play("whoosh", rate = 1.4f)
         Haptics.success()
         flash(Color.CYAN, 0.25f)
@@ -452,20 +456,24 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
      */
     private fun smash(row: Row) {
         val zone = -(spd * 2.2f) - 4f // ≈ 2 s of clean track
-        shatter(row, impact = true)
+        var smashed = shatter(row, impact = true)
         for (r in track.rows) {
-            if (r !== row && r.z > zone && r.z < 0f && r.obs.isNotEmpty()) shatter(r, impact = false)
+            if (r !== row && r.z > zone && r.z < 0f && r.obs.isNotEmpty()) smashed += shatter(r, impact = false)
         }
+        session.obstaclesSmashed(smashed)
         fx.smashFeedback()
         bubble.pop(player.px, player.py)
         rig.punch(0.6f)
         session.addScore(3)
     }
 
-    private fun shatter(row: Row, impact: Boolean) {
+    /** Returns how many solid obstacles broke. */
+    private fun shatter(row: Row, impact: Boolean): Int {
         fx.smashRow(row, impact)
-        for (ob in row.obs) if (ob.type == ObType.SOLID) debris.smash(ob, row.z)
+        var solids = 0
+        for (ob in row.obs) if (ob.type == ObType.SOLID) { debris.smash(ob, row.z); solids++ }
         row.obs.removeAll { it.type == ObType.SOLID }
+        return solids
     }
 
     private fun scoreRow(row: Row) {

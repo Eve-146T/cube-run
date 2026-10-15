@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Challenges from issue #73 and after: one per cube, and two for strong runs. -->
+<resources>
+    <string name="achievement_icarus">Icarus</string>
+    <string name="achievement_poltergeist">Poltergeist</string>
+    <string name="achievement_juggernaut">Juggernaut</string>
+    <string name="achievement_full_throttle">Full Throttle</string>
+    <string name="achievement_goal_icarus">Die to a green coin while flying the jetpack as the Toxic cube.</string>
+    <string name="achievement_goal_poltergeist">Slip through 100 obstacles with the Ghost cube.</string>
+    <string name="achievement_goal_juggernaut">Smash 300 obstacles with bubbles in one run.</string>
+    <string name="achievement_goal_full_throttle">Reach 1500 points in a run started with all 10 boosts.</string>
+</resources>

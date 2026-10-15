@@ -35,7 +35,8 @@ Coin rewards are 500–1,000 (80%) or 2,000–3,000 (20%). Bubble rewards contai
 rewards occur in about 3/7 of boxes, averaging about 471 coins per box across
 all outcomes (about 189 coins/min at the reference box rate).
 
-A used or expired bubble starts a **10-second gameplay cooldown**. Tapping again
+A used or expired bubble starts a **6-second gameplay cooldown**; each of the five
+Faster bubbles levels takes half a second off, down to 3.5 seconds. Tapping again
 during cooldown spends no stock; the HUD shows remaining seconds. Pause freezes
 the cooldown, and a new run resets it. Automatic Second Wind protection retains
 its existing behavior.

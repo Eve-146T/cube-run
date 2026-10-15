@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The "In this update" card's own words; the notes themselves are in update_notes.xml. -->
+<resources>
+    <string name="update_notes_title">In this update</string>
+    <string name="update_notes_version">Version %1$s</string>
+    <string name="update_notes_done">LET\'S GO</string>
+    <!-- Always the last item: never rewritten, never listed one by one. -->
+    <string name="update_notes_usual_title">And the usual</string>
+    <string name="update_notes_usual_text">Balance changes, bug fixes, moar performance and moving stuff around in the UI.</string>
+</resources>

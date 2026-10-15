@@ -20,6 +20,7 @@ import cube.run.core.PhysicalAction
 import cube.run.data.Settings
 import cube.run.data.Progress
 import cube.run.data.Achievements
+import cube.run.data.UpdateNotes
 import cube.run.ui.Anim.move
 
 /**
@@ -155,6 +156,7 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false, retu
         shop.warmNavigation()
     }
     private var languageSheet: LanguageSheet? = null
+    private var updateNotes: UpdateNotesSheet? = null
     private var preparedLanguages: LanguageSheet? = null
     private val prepareSettingsMenus = Runnable {
         if (isAttachedToWindow && !runStarted && preparedLanguages == null) {
@@ -193,7 +195,13 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false, retu
         alpha = amount
         if (amount >= 1f) {
             menu.finishOpeningEntrance()
-            if (opening) { opening = false; scheduleShopPreparation() }
+            if (opening) {
+                opening = false; scheduleShopPreparation()
+                // Once the menu has settled: the first launch after an update says what changed.
+                postDelayed({
+                    if (isAttachedToWindow && !runStarted && page == null && languageSheet == null && UpdateNotes.takeUnseen(activity)) openUpdateNotes()
+                }, 420)
+            }
         }
     }
     init {
@@ -326,7 +334,7 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false, retu
         "achievements" -> AchievementsView(activity, kit, preparing = true) { closed() }
         "wardrobe" -> WardrobeView(activity, kit) { closed() }
         "settings" -> SettingsView(activity, kit, openLanguages = { openLanguages() }, openSections = { openSectionsFromSettings() },
-            devChanged = { menu.pulseBank() }) { closed() }
+            openUpdateNotes = { openUpdateNotes() }, devChanged = { menu.pulseBank() }) { closed() }
         else -> SectionsView(activity, kit, reloadMenu = { relaunch(autoStart = false) }) { closed() }
     }
 
@@ -353,6 +361,7 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false, retu
     /** System Back navigates out of the stores and the settings page. */
     fun navigateBack() {
         if (restartBlocker != null) return
+        updateNotes?.let { it.dismiss(); return }
         languageSheet?.let { it.dismiss(); return }
         if (runStarted || pauseSheet != null || runOver != null) return
         if (shopBox != null || voidPurchase != null) return // keep purchased presentations intact
@@ -360,7 +369,7 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false, retu
         if (current is ShopView || current is WardrobeView || current is AchievementsView || current is SettingsView) current.navigateBack()
     }
 
-    private fun pageOpen() = page != null || languageSheet != null || runStarted
+    private fun pageOpen() = page != null || languageSheet != null || updateNotes != null || runStarted
 
     fun clearHardwareFocus() = hardwareNavigation.clear()
 
@@ -372,6 +381,7 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false, retu
             clearHardwareFocus()
             when {
                 pauseSheet != null -> pauseSheet?.dismiss()
+                updateNotes != null -> updateNotes?.dismiss()
                 languageSheet != null -> languageSheet?.dismiss()
                 page != null -> page?.navigateBack()
                 runOver == null -> pause()
@@ -382,7 +392,7 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false, retu
             if (action == PhysicalAction.CONFIRM) it.confirm()
             return true
         }
-        val scope = pauseSheet ?: languageSheet ?: page ?: if (!runStarted) menu else null
+        val scope = pauseSheet ?: updateNotes ?: languageSheet ?: page ?: if (!runStarted) menu else null
         if (scope != null) {
             if (action.swipe != null) hardwareNavigation.move(scope, action, if (scope === menu) menu.startControl else null)
             if (action == PhysicalAction.CONFIRM) {
@@ -393,6 +403,7 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false, retu
                 }
                 if (target != null) target.performClick()
                 else if (pauseSheet != null) pauseSheet?.dismiss()
+                else if (updateNotes != null) updateNotes?.dismiss()
                 else hardwareNavigation.move(scope, PhysicalAction.DOWN)
             }
             return true
@@ -478,6 +489,18 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false, retu
         Stage.homeScreen = page == null
         scheduleShopPreparation()
     })
+
+    /** "In this update" over the menu (after an update) or over the settings page. */
+    private fun openUpdateNotes() {
+        if (updateNotes != null || runStarted || languageSheet != null) return
+        clearHardwareFocus()
+        Stage.homeScreen = false
+        updateNotes = UpdateNotesSheet(activity, kit) {
+            updateNotes = null
+            clearHardwareFocus()
+            Stage.homeScreen = page == null
+        }.also { addView(it, LayoutParams(-1, -1)) }
+    }
 
     private fun openShop() {
         if (pageOpen()) return

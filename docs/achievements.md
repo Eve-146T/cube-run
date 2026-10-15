@@ -1,8 +1,5 @@
 # Achievements and the void
 
-The achievements worktree started from `rebalancing` at `e97b018` and has been
-fast-forwarded to the 2.4 release (`615bbae`), with the achievement changes retained.
-
 ## Discovery and presentation
 
 Achievements cost 3,000 coins in the shop. Buying the unlock reveals the large
@@ -15,10 +12,11 @@ power-up pickups and wall bounces were not previously recorded, so those counter
 begin with this version. Purchasing the unlock acknowledges existing medals
 quietly rather than replaying notifications.
 
-The page sits on a flat candy grape (`TrophyRoom`), not the pink-to-sky backdrop of the other
+The page sits on a flat candy lavender (`TrophyRoom`), not the pink-to-sky backdrop of the other
 bright pages: testers found white cards on that near-white "white on white" and the gradient
-kitschy. Cards are white slabs with a solid lavender lip, section names are white, and the
-title is white, in the back button's row in the back button's row beside the coin bank; only when the
+kitschy. A grape came first; lavender was picked from nine flat backdrops tried on the real page.
+Cards are white slabs with a solid pale lip, and section names and the title are ink, the
+title in the back button's row beside the coin bank; only when the
 title cannot fit there (a huge balance, a narrow pane, large text) does it take its own line.
 At the top is the trophy case: one slot each for bronze, silver, gold and diamond badges and one for
 challenge badges, each counting what has been *claimed* out of what exists (`3/10`, `6/28`).
@@ -33,7 +31,7 @@ A challenge's badge is mint with a check mark. Not yet won, the same hexagon is 
 slot. `BadgeArt` and `AchievementTile` live in `AchievementBadges.kt`. Every picture except
 Homeress's crossed coin and Bouncer's wall are drawn in `ChallengeIcons.kt` in one lipped candy
 language, sharing one rounded toy cube, one glossy question mark (the mystery boxes) and one
-bubble.
+bubble. How to draw a new one: `docs/icons.md`.
 
 Below the case, four labelled groups in one column: READY (every card with a reward waiting,
 medal families first), BADGES, CHALLENGES and DONE, the open ones sorted by how close they are
@@ -48,7 +46,8 @@ the card pays lying over that bar. Yes-or-no dares (target 1) have no row until 
 be squeezed narrower than a few words of the title (a split pane, large text) the badge folds
 away. Once there is nothing left to aim for, anything with a bar keeps it, full, with its number
 beside it: the best a one-run record has reached, or a lifetime total. One-run records are
-stored uncapped for this (Untouchable's full-run score is saved when the run ends). A claimed
+stored uncapped for this, and survive a restart uncapped (Untouchable's and Full Throttle's
+full-run scores and Long Con's exact time are saved when the run ends). A claimed
 card keeps the same text it had while waiting, so claiming never changes its height. DONE
 collects everything fully claimed as slim rows with the tile, the name, the number if it counted
 one, and the last badge. What a reward pays stays a surprise until it can be claimed. The list clips below the
@@ -108,6 +107,18 @@ Stage Fright counts terminal crashes within two seconds of crossing the start ga
 revived crashes. Bankrupt needs a paid transaction that takes a positive balance
 to zero, so an empty new account does not qualify.
 
+Four challenges came from issue #73 and after. Icarus (Toxic cube, 2,000) is a death to a green
+coin while flying the jetpack; poison is the only way to die in the air, and other cubes never count.
+Poltergeist (Ghost cube, 2,000) counts every obstacle the Ghost slips through across runs, one a run,
+up to 100. Juggernaut (2,500) counts the solid obstacles a bubble or a second wind shatters in one
+run, the row you hit and everything in the breather zone ahead; platforms, pads and the jackpot's
+shockwave do not count. A survey that keeps a bubble up and rams the first thing in its lane, with
+crashes between bubbles ignored, smashes about 75 obstacles a minute without upgrades (7 to 8 a
+bubble) and 110 to 175 with Bubble time and Faster bubbles maxed. The goal of 300 is about four
+minutes of that with no upgrades and about 40 bubbles. Full Throttle (2,500) needs 1,500 points in a run whose boost
+presses, the start speed setting's included, reached all ten (Even faster starts maxed). Its bar
+follows the run in steps of 50; the run's exact score is its record.
+
 Big Bubble requires 1,000 stocked bubbles at once. Bouncer requires 67 deliberate
 side-wall hits in one run. Holding a smooth drag beyond an edge does not repeatedly
 count as a hit. Mystery boxes do not count as power-ups; bubble, magnet, score
@@ -118,7 +129,7 @@ frame; there is no simulation-time filter that discards separate gestures.
 Stay Centered requires a score of **100 or higher** without leaving the middle lane
 before that score. Leaving and returning invalidates that run, even when both inputs
 arrive within one rendered frame. Portals that widen or narrow the road preserve
-the middle lane. Progress is the best eligible score, capped at 100, and starts fresh
+the middle lane. Progress is the best eligible score (the bar fills at 100) and starts fresh
 because older runs contain no lane history. Completion persists if the player later
 changes lanes. It shares the ordinary unlock gate, quiet discovery, claim flow and
 dev-mode support.
@@ -126,13 +137,13 @@ dev-mode support.
 Homeress requires a score of **60 or higher** before picking up any track coin.
 Any physical coin pickup invalidates the run, even when Coal makes it worthless
 or Gambler converts it into a losing lottery ticket. A mystery-box jackpot does
-not itself count as a coin pickup. Best eligible progress is capped at 60; after
+not itself count as a coin pickup. Progress is the best eligible score (the bar fills at 60); after
 completion, picking up a coin does not revoke the achievement.
 
 Gambliphobic requires **10 missed mystery boxes in one run**. Each uncollected box
 counts once after it passes the player. Collected boxes, including forfeited
 Gambler lottery boxes, do not count as missed. Run counters reset on restart;
-the best missed-box count persists, capped at 10.
+the best missed-box count persists.
 
 Cookie Clicker requires **1,000 lifetime haptics-toggle taps**. Each deliberate tap
 on the vibration row in settings or the vibration chip in pause counts once,

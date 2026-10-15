@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string-array name="update_notes">
+        <item>icarus | איקרוס | אתגר חדש לקובייה הרעילה: מותו ממטבע ירוק בזמן טיסה בתרמיל הסילון.</item>
+        <item>poltergeist | פולטרגייסט | האתגר של קוביית רוח הרפאים: חלפו דרך 100 מכשולים.</item>
+        <item>juggernaut | מכבש | נפצו 300 מכשולים עם בועות בריצה אחת.</item>
+        <item>full_throttle | מלוא הגז | התחילו עם כל 10 ההאצות והגיעו ל־1500 נקודות.</item>
+    </string-array>
+</resources>

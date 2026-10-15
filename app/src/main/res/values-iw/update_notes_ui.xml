@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="update_notes_title">בעדכון הזה</string>
+    <string name="update_notes_version">גרסה %1$s</string>
+    <string name="update_notes_done">יאללה</string>
+    <!-- Always the last item: never rewritten, never listed one by one. -->
+    <string name="update_notes_usual_title">והרגיל</string>
+    <string name="update_notes_usual_text">שינויי איזון, תיקוני באגים, עוד ביצועים והזזת דברים בממשק.</string>
+</resources>
