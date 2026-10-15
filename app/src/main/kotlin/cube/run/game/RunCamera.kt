@@ -22,6 +22,8 @@ class RunCamera(private val cam: PerspectiveCamera) {
     var roll = 0f
     /** Extra pull-back for wide roads, eased. */
     var wide = 0f
+    /** A jetpack descent: the flight camera holds its height and watches the cube drop away below. */
+    var holdHigh = false
 
     /** A field-of-view punch (bubble, fire taps, level up, bounces). Bigger wins. */
     fun punch(amount: Float) { kick = max(kick, amount) }
@@ -34,8 +36,8 @@ class RunCamera(private val cam: PerspectiveCamera) {
      */
     fun chase(dt: Float, px: Float, py: Float, ground: Float, deathT: Float, spd: Float) {
         val lift = py - ground
-        val highT = ((lift - 1.5f) / (Player.FLY_Y - ground - 1.5f)).coerceIn(0f, 1f)
-        flyCam += (highT - flyCam) * min(1f, dt * 4f)
+        val highT = if (holdHigh) 1f else ((lift - 1.5f) / (Player.FLY_Y - ground - 1.5f)).coerceIn(0f, 1f)
+        flyCam += (highT - flyCam) * min(1f, dt * (if (highT < flyCam) 2.4f else 4f)) // lingers up high: you watch the cube drop away below
         val f = flyCam
         val g = Terrain.y(0f)
         val cy = OpeningPose.MENU_CAMERA_Y + lift * 0.3f * (1f - f) + f * 9.5f + deathT * 1.6f - intro * 1.9f + wide * 1.4f + g * 0.8f

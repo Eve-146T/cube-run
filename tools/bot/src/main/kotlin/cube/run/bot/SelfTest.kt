@@ -68,7 +68,7 @@ fun selfTest() {
     val flight = Body(y = 1f, flying = true, flightLeft = .02f)
     val empty = Timeline(coins, 12f)
     check(empty.step(flight, 0, 0) && flight.flying)
-    check(empty.step(flight, 1, 0) && !flight.flying && flight.air && flight.vy < 0)
+    check(empty.step(flight, 1, 0) && !flight.flying && !flight.air && kotlin.math.abs(flight.y - .45f) < .001f)
     for (hz in listOf(60, 90)) {
         val floatCourse = Course(3, "jet in Zero-G", 0, 0, false, 1, emptyList(), width = 2.6f)
         val timeline = Timeline(floatCourse, 30f, dt = 1f / hz, seconds = 5f)

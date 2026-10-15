@@ -1,5 +1,6 @@
 package cube.run.game.track
 
+import cube.run.bot.JetDescent
 import cube.run.data.Bonus
 import cube.run.data.Skins
 import cube.run.data.Progress
@@ -78,13 +79,13 @@ class Track(private val rnd: Random, private val fx: ObstacleFactory) {
     /** While the jetpack is on, new coin trails are laid at flying height. */
     @Volatile var airCoins = false
     /**
-     * Jetpack: the z that reaches the player the moment the flight ends, and how
-     * long (in world units) the glide down before it lasts. Coins ahead of the
-     * end fly, coins along the glide descend with you, coins beyond it are laid
-     * on the ground — so the line itself announces the landing.
+     * Jetpack: where the flight comes down (null without one). Rows on it spawn
+     * clear; coins ahead of it fly, coins over the descent come down with you,
+     * coins on the runway lie on it, and the line ends with the strip.
      */
-    var jetEndZ = 0f
-    var jetGlideLen = 0f
+    var landing: LandingStrip? = null
+    /** How the flight comes down ([JetDescent.FALL] / [JetDescent.GLIDE]): the coin line follows it. */
+    var jetDescent = JetDescent.FALL
 
     // ---- portals / bonus worlds ----
     /** The bonus world the road is currently in (Bonus.NONE outside one). */
@@ -126,7 +127,7 @@ class Track(private val rnd: Random, private val fx: ObstacleFactory) {
         introServed = false; sectsSinceBreather = 0; lastSectId = -99
         curSafe = 1; prevKind = -1; rowsSpawned = 0
         coinRowsLeft = 0; prevPlatLane = -1
-        rowsSincePickup = 0; pickupSpacing = 12; pickupBag.clear(); airCoins = false
+        rowsSincePickup = 0; pickupSpacing = 12; pickupBag.clear(); airCoins = false; landing = null
         runScore = 0; jetOffers = 0; boxOffers = 0; shardOffers = 0
         bonus = Bonus.NONE; bonusRowsLeft = 0; rowsSincePortal = 0; portalPending = Bonus.NONE
         spaceIntro = false; cometStep = 0
@@ -154,6 +155,12 @@ class Track(private val rnd: Random, private val fx: ObstacleFactory) {
         while (true) {
             if (pendingSteps.isEmpty()) loadNextSection()
             val code = pendingSteps.first()
+            if (code != Step.PORTAL && landing?.covers(spawnZ) == true) { // the landing strip: open road, the section waits
+                if (spawnAcc < dodgeGap) break
+                spawnAcc -= dodgeGap
+                spawnStripRow(spawnZ)
+                continue
+            }
             val gap = gapFor(code)
             if (spawnAcc >= gap) {
                 spawnAcc -= gap
@@ -165,6 +172,7 @@ class Track(private val rnd: Random, private val fx: ObstacleFactory) {
 
     /** Move every row toward the player, stream it in, advance the animated obstacles, drop rows that passed. */
     fun scroll(mv: Float, time: Float, dt: Float) {
+        landing?.let { it.scroll(mv); if (it.gone) landing = null }
         var i = rows.size - 1
         while (i >= 0) {
             val row = rows[i]
@@ -457,21 +465,44 @@ class Track(private val rnd: Random, private val fx: ObstacleFactory) {
 
     /**
      * Height of the jet coin line at world z: cruising height ahead of the
-     * glide, sloping down along it, ground level past the landing point.
+     * descent, on the cube's own path down it, ground level on the runway.
      */
     private fun jetY(z: Float, restY: Float): Float {
-        val glideStart = jetEndZ + jetGlideLen
-        return when {
-            z >= glideStart -> Player.FLY_Y
-            z >= jetEndZ -> restY + (Player.FLY_Y - restY) * ((z - jetEndZ) / max(0.01f, jetGlideLen))
-            else -> restY
-        }
+        val strip = landing ?: return Player.FLY_Y
+        return restY + (Player.FLY_Y - restY) * JetDescent.height(strip.progressAt(z), jetDescent)
     }
 
-    /** Jetpack on: every coin ahead rises onto the flight line (cruise, glide or ground, by where it will be met). */
+    /** The jet coin line runs from the pickup to the strip's end; rows past it get ordinary coins. */
+    private fun jetLine(z: Float): Boolean = airCoins && landing.let { it == null || z >= it.endZ }
+
+    /** A row of the landing strip: open road, the jet coin line on the walk lane. */
+    private fun spawnStripRow(z: Float) {
+        val row = Row(z, ArrayList(0))
+        if (bonus == Bonus.WIDE) { row.laneCount = 5; row.safeLane = wideSafe } else row.safeLane = curSafe
+        if (jetLine(z)) {
+            val rest = 0.5f + if (bonus == Bonus.FLOAT) Player.HOVER_Y - 0.45f else 0f
+            val x = row.safeX()
+            row.coins = ArrayList<Coin>(3).apply {
+                for (k in 0 until 3) { val dz = -1.6f - k * 1.5f; add(Coin(x, jetY(z + dz, rest), dz, restY = rest)) }
+            }
+        }
+        row.alignLaneSpacing(Lanes.w)
+        rows.add(row)
+        rowsSpawned++
+        prevKind = Step.EM
+    }
+
+    /** A flight just began: anything already laid on its strip goes (it is still far off in the haze). */
+    fun clearStrip() {
+        val strip = landing ?: return
+        for (row in rows) if (row.portal == Bonus.NONE && strip.covers(row.z)) { row.obs.clear(); row.pickup = Pickup.NONE }
+    }
+
+    /** Jetpack on: every coin ahead rises onto the flight line (cruise, descent or runway, by where it will be met). */
     fun liftCoins() {
+        val end = landing?.endZ ?: Float.NEGATIVE_INFINITY
         for (row in rows) {
-            if (row.z > -4f) continue
+            if (row.z > -4f || row.z < end) continue
             val coins = row.coins
             if (coins == null) {
                 val x = row.safeX()
@@ -508,9 +539,9 @@ class Track(private val rnd: Random, private val fx: ObstacleFactory) {
     private fun layCoins(row: Row, code: Int, platLane: Int, continued: Boolean = false) {
         val x = fx.laneX(curSafe)
         val coins = ArrayList<Coin>(5)
-        if (bonus == Bonus.SPACE && !airCoins && SpaceCoins.lay(row, code, x, continued, speed, coins) { fx.laneX(COMET_WEAVE[cometStep++ % COMET_WEAVE.size]) }) return
+        if (bonus == Bonus.SPACE && !jetLine(row.z) && SpaceCoins.lay(row, code, x, continued, speed, coins) { fx.laneX(COMET_WEAVE[cometStep++ % COMET_WEAVE.size]) }) return
         val hover = if (bonus == Bonus.FLOAT) Player.HOVER_Y - 0.45f else 0f
-        if (airCoins) { // jetpack: a line every row — cruising, gliding down, or already on the ground
+        if (jetLine(row.z)) { // jetpack: a line every row — cruising, coming down, or on the runway
             for (k in 0 until 3) {
                 val dz = -1.6f - k * 1.5f
                 coins.add(Coin(x, jetY(row.z + dz, 0.5f + hover), dz, restY = 0.5f + hover))

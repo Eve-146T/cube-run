@@ -11,12 +11,15 @@ data class Body(var lane: Int = 1, var x: Float = 0f, var y: Float = .45f,
     var flyY: Float = 5.2f, var hover: Boolean = false, var pads: Long = 0L,
     var flightLeft: Float = Float.POSITIVE_INFINITY,
     var coyoteLeft: Float = 0f, var jumpBuffer: Float = 0f,
-    var landingGrace: Float = 0f,
+    /** How the flight comes down ([JetDescent.FALL] or [JetDescent.GLIDE]); [flightLeft] counts to touchdown. */
+    var descent: Int = JetDescent.FALL,
     /** Outer Space: weaker gravity, slower launches, softer lane changes (mirrors Player.LOW_G*). */
     var lowG: Boolean = false) {
     val gravity: Float get() = if (lowG) 26f * LOW_G else 26f
     val launchScale: Float get() = if (lowG) LOW_G_LAUNCH else 1f
     val laneRate: Float get() = if (hover) 4.5f else if (lowG) LOW_G_LANE_RATE else 13f
+    /** Cruising high above everything: only here does nothing on the road reach the cube. */
+    val cruising: Boolean get() = flying && flightLeft > JetDescent.seconds(descent)
     companion object {
         const val LOW_G = .52f
         const val LOW_G_LAUNCH = .786f
@@ -131,18 +134,16 @@ class Timeline(val course: Course, val speed: Float, val dt: Float = 1f / 60f,
     /** Returns false on a fatal collision; pickups never buy permission to hit an obstacle. */
     fun step(b: Body, frame: Int, action: Int): Boolean {
         Action.apply(b, action, course.lanes)
-        b.landingGrace = max(0f, b.landingGrace-dt)
+        var touchdown = false
         if (b.flying && b.flightLeft.isFinite()) {
             b.flightLeft = max(0f, b.flightLeft - dt)
+            val landingY = if (b.hover) 1.4f else .45f
             if (b.flightLeft == 0f) {
-                b.flying = false; b.air = true; b.vy = 0f; b.flyY = 5.2f
+                b.flying = false; b.air = false; b.vy = 0f; b.flyY = 5.2f; b.y = landingY
                 b.coyoteLeft = 0f; b.jumpBuffer = 0f
-                b.landingGrace = 1.2f
+                touchdown = true
             }
-            else {
-                val landingY = if (b.hover) 1.4f else .45f
-                b.flyY = if (b.flightLeft < 1.4f) landingY + (5.2f - landingY) * (b.flightLeft / 1.4f) else 5.2f
-            }
+            else b.flyY = landingY + (5.2f - landingY) * JetDescent.height(1f - b.flightLeft / JetDescent.seconds(b.descent), b.descent)
         }
         val f = frames[frame]
         var ground = 0f
@@ -157,7 +158,8 @@ class Timeline(val course: Course, val speed: Float, val dt: Float = 1f / 60f,
         b.jumpBuffer = max(0f, b.jumpBuffer - dt)
         if (b.hover || b.flying) { b.coyoteLeft = 0f; b.jumpBuffer = 0f }
         when {
-            b.flying -> b.y += (b.flyY - b.y) * min(1f, dt * if (b.flyY < 5.2f) 7f else 4f)
+            touchdown -> {}
+            b.flying -> b.y = if (b.cruising) b.y + (b.flyY - b.y) * min(1f, dt * 4f) else b.flyY // the descent is the arc itself
             b.hover -> { b.y += (1.4f + .15f * sin(f.time * 2.2f) - b.y) * min(1f, dt * 3f); b.air = false; b.vy = 0f }
             b.air -> {
                 b.vy -= b.gravity * dt; b.y += b.vy * dt
@@ -182,7 +184,7 @@ class Timeline(val course: Course, val speed: Float, val dt: Float = 1f / 60f,
             }
             // Expand the z test to cover a swept frame: high speed must not win by tunnelling.
             val crossed = if (conservative) o.rowZ >= -.82f && o.rowZ - f.movement <= .82f else abs(o.rowZ) < .82f
-            if (!b.flying && b.landingGrace <= 0f && o.type == 0 && crossed && abs(b.x - o.x) < o.halfW + .36f + safetyMargin &&
+            if (!b.cruising && o.type == 0 && crossed && abs(b.x - o.x) < o.halfW + .36f + safetyMargin &&
                 max(b.y - .45f - o.top, o.bottom - (b.y + .45f - b.duck * .72f)) < safetyMargin - .02f) return false
         }
         return true

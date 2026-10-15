@@ -51,6 +51,7 @@ class JetBonusTest {
                         game.tick(1f / hz)
                         assertTrue("Sky coin missed: $label", coin.taken)
                         if (world.id == Bonus.FLOAT) {
+                            track.landing = null // a bare short timer: no strip clock
                             powers.jet.start(.12f)
                             repeat(hz / 12) { game.tick(1f / hz) }
                             assertTrue(player.flying)

@@ -69,8 +69,7 @@ class IdlePilotSoakTest {
                         val track: Track = value(game,"track")
                         val pilot: IdlePilot = value(game,"idlePilot")
                         val dead: Boolean = value(game,"dead")
-                        val body = player.pilotBody(value<PowerUps>(game,"powerUps").jet.left)
-                            .apply { landingGrace = value(game,"jetGrace") }
+                        val body = player.pilotBody(value<PowerUps>(game,"powerUps").jet.left, value<JetFlight>(game,"jetFlight").descent)
                         val nearby = track.rows.filter { it.z in -30f..3f }.joinToString(";") { row ->
                             "${row.z}:"+row.obs.joinToString("|") { "${it.type}/${it.anim}@${it.x}/${it.cy}/${it.sy}/${it.halfW}" }
                         }

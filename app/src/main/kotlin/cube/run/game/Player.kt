@@ -60,8 +60,10 @@ class Player(private val game: Gdx3DGame, private val rnd: Random) {
     /** Jetpack: hover at [flyY], ignore the ground. Set via [setFlying]. */
     var flying = false
         private set
-    /** Where the jetpack holds you: [FLY_Y] while cruising, gliding down to the ground as it runs out. */
+    /** Where the jetpack holds you: [FLY_Y] while cruising, then down its descent onto the landing strip. */
     var flyY = FLY_Y
+    /** The flight is coming down: [flyY] is followed tightly, and the road can reach the cube again. */
+    var descending = false
     /** Zero-G: hover at [HOVER_Y], drift between lanes slowly, no jumping or rolling. */
     var hover = false
     /** Outer Space: weaker gravity, slower take-offs, softer lane changes. */
@@ -135,9 +137,9 @@ class Player(private val game: Gdx3DGame, private val rnd: Random) {
     private val tmp = Vector3()
     private val tmpCol = Color()
 
-    internal fun pilotBody(flightLeft: Float) = cube.run.bot.Body(lane, px, py, vy, air, duck,
+    internal fun pilotBody(flightLeft: Float, descent: Int) = cube.run.bot.Body(lane, px, py, vy, air, duck,
         duckT, slamming, flying, flyY, hover, flightLeft = flightLeft, lowG = lowGravity,
-        coyoteLeft = coyoteLeft, jumpBuffer = jumpBuffer)
+        coyoteLeft = coyoteLeft, jumpBuffer = jumpBuffer, descent = descent)
 
     fun laneX(l: Int) = Lanes.x(l)
 
@@ -158,7 +160,7 @@ class Player(private val game: Gdx3DGame, private val rnd: Random) {
 
     /** Reset simulation and pose while retaining the cube's mesh and material resources. */
     fun resetToMenu(baseHue: Float, time: Float) {
-        flying = false; flyY = FLY_Y; hover = false; lowGravity = false
+        flying = false; flyY = FLY_Y; descending = false; hover = false; lowGravity = false
         zappyEnabled = false; floaty = false; smol = false; doubleJumpEnabled = false; tripleJumpEnabled = false
         gigajumpEnabled = false
         airJumpAvailable = false; airJumpsUsed = 0
@@ -248,7 +250,15 @@ class Player(private val game: Gdx3DGame, private val rnd: Random) {
         flying = on
         duckT = 0f
         flyY = FLY_Y
+        descending = false
         if (on) { air = false; vy = 0f } else { air = true; vy = 0f } // ends with a fall + normal landing
+    }
+
+    /** The flight ends on the landing strip at height [y]: straight onto the ground, squashed by [impact]. */
+    fun touchDown(y: Float, impact: Float) {
+        setFlying(false)
+        py = y; air = false; vy = 0f
+        squash = impact
     }
 
     /** Put the cube on a platform of height [h] (bubble save after a side hit). */
@@ -313,6 +323,11 @@ class Player(private val game: Gdx3DGame, private val rnd: Random) {
         stretch = 1f
     }
 
+    /** Knocked back up off a hard landing: a short hop, still squashed, no air jump. */
+    fun rebound(v: Float) {
+        air = true; vy = v * launchScale
+    }
+
     /** Context-sensitive DOWN: slam when airborne, roll under when grounded. */
     fun downAction() {
         clearJumpInput() // a newer DOWN replaces a pending UP
@@ -355,7 +370,7 @@ class Player(private val game: Gdx3DGame, private val rnd: Random) {
         // Keep hover set so flight expiry naturally returns to the floating road.
         if (flying) {
             clearJumpInput()
-            py += (flyY - py) * min(1f, dt * (if (flyY < FLY_Y) 7f else 4f)) // quick to climb, tight on the glide down
+            py = if (descending) flyY else py + (flyY - py) * min(1f, dt * 4f) // an easy climb; the descent is the arc itself
         } else if (hover) {
             clearJumpInput()
             py += (HOVER_Y + 0.15f * sin(time * 2.2f) - py) * min(1f, dt * 3f)
