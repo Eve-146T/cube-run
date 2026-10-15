@@ -273,6 +273,7 @@ fun Context.achievementTitle(id: String): String = getString(when (id) {
     "trailblazer" -> R.string.achievement_trailblazer
     "bubble_bath" -> R.string.achievement_bubble_bath
     "icarus" -> R.string.achievement_icarus
+    "sky_sweeper" -> R.string.achievement_sky_sweeper
     "poltergeist" -> R.string.achievement_poltergeist
     "juggernaut" -> R.string.achievement_juggernaut
     "full_throttle" -> R.string.achievement_full_throttle
@@ -323,6 +324,7 @@ fun Context.achievementGoal(id: String): String = getString(when (id) {
     "trailblazer" -> R.string.achievement_goal_trailblazer
     "bubble_bath" -> R.string.achievement_goal_bubble_bath
     "icarus" -> R.string.achievement_goal_icarus
+    "sky_sweeper" -> R.string.achievement_goal_sky_sweeper
     "poltergeist" -> R.string.achievement_goal_poltergeist
     "juggernaut" -> R.string.achievement_goal_juggernaut
     "full_throttle" -> R.string.achievement_goal_full_throttle

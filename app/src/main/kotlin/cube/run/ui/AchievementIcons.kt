@@ -12,7 +12,7 @@ internal fun achievementIcon(id: String): android.graphics.drawable.Drawable = w
     "untouchable", "house_loses", "voidwalker", "greedy", "scenic_route", "coal_miner",
     "magpie", "shard_hunter", "full_kit", "long_con", "insomniac", "bankrupt",
     "exactly_67", "just_browsing", "two_ez", "nervous_tic", "silent_treatment", "very_silent_treatment", "secret", "stage_fright", "neo", "monk",
-    "icarus", "poltergeist", "juggernaut", "full_throttle", "news", "tweaks" -> ChallengeIcon(id)
+    "icarus", "poltergeist", "juggernaut", "full_throttle", "sky_sweeper", "news", "tweaks" -> ChallengeIcon(id)
     "trailblazer", "bubble_bath" -> CollectionIcon(id)
     else -> ChallengeIcon("runner")
 }

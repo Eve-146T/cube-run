@@ -356,6 +356,7 @@ internal class AchievementCards(
             "bubble_bath" -> Theme.PINK
             "icarus", "juggernaut" -> Theme.SKY
             "poltergeist" -> Theme.GRAPE
+            "sky_sweeper" -> Theme.GRAPE
             "full_throttle" -> DEEP
             "tweaks" -> Theme.MINT
             "shard_hunter", "insomniac", "globetrotter", "shardsmith", "very_silent_treatment", "secret" -> DEEP

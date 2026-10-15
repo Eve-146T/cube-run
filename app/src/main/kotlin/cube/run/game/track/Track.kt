@@ -5,6 +5,7 @@ import cube.run.data.Bonus
 import cube.run.data.Skins
 import cube.run.data.Progress
 import cube.run.data.Settings
+import cube.run.game.JetFlight
 import cube.run.game.Lanes
 import cube.run.game.Player
 import cube.run.game.space.SpaceCoins
@@ -84,6 +85,8 @@ class Track(private val rnd: Random, private val fx: ObstacleFactory) {
      * coins on the runway lie on it, and the line ends with the strip.
      */
     var landing: LandingStrip? = null
+    /** Counts jetpack flights: the coins on a flight's line carry its number (Sky Sweeper). */
+    var flight = 0
 
     // ---- portals / bonus worlds ----
     /** The bonus world the road is currently in (Bonus.NONE outside one). */
@@ -362,7 +365,7 @@ class Track(private val rnd: Random, private val fx: ObstacleFactory) {
             val cx = (wideSafe - 2) * Lanes.NORMAL_W
             for (k in 0 until 3) {
                 val dz = -1.6f - k * 1.5f
-                list.add(Coin(cx, if (airCoins) jetY(z + dz, 0.5f) else 0.5f, dz, restY = 0.5f))
+                list.add(Coin(cx, if (airCoins) jetY(z + dz, 0.5f) else 0.5f, dz, restY = 0.5f).also { if (airCoins) it.flight = flight })
             }
             row.coins = list
             layPickup(row, code)
@@ -495,6 +498,16 @@ class Track(private val rnd: Random, private val fx: ObstacleFactory) {
         return restY + (Player.FLY_Y - restY) * JetDescent.height(strip.progressAt(z))
     }
 
+    /**
+     * How high the cube has climbed when it meets world z just after take-off
+     * (Player eases up to its cruising height at a rate of 4 per second while
+     * the boost winds up), so the first lifted coins sit where it can take them.
+     */
+    private fun climbY(z: Float, restY: Float): Float {
+        val t = -z / (speed * (1f + JetFlight.SPEED_UP * 0.4f))
+        return restY + (Player.FLY_Y - restY) * (1f - kotlin.math.exp(-4f * t))
+    }
+
     /** The jet coin line runs from the pickup down to touchdown; the landing's checkerboard takes over from there. */
     private fun jetLine(z: Float): Boolean = airCoins && landing.let { it == null || z > it.touchZ }
 
@@ -502,7 +515,7 @@ class Track(private val rnd: Random, private val fx: ObstacleFactory) {
     private fun jetLineCoins(row: Row, z: Float, x: Float, rest: Float): ArrayList<Coin> {
         val touch = landing?.touchZ ?: Float.NEGATIVE_INFINITY
         val list = ArrayList<Coin>(3)
-        for (k in 0 until 3) { val dz = -1.6f - k * 1.5f; if (z + dz > touch) list.add(Coin(x, jetY(z + dz, rest), dz, restY = rest)) }
+        for (k in 0 until 3) { val dz = -1.6f - k * 1.5f; if (z + dz > touch) list.add(Coin(x, jetY(z + dz, rest), dz, restY = rest).also { it.flight = flight }) }
         return list
     }
 
@@ -566,9 +579,13 @@ class Track(private val rnd: Random, private val fx: ObstacleFactory) {
         for (row in rows) {
             if (row.z > -4f || row.z <= end) continue
             val coins = row.coins
-            if (coins == null) row.coins = jetLineCoins(row, row.z, row.safeX(), 0.5f)
+            if (coins == null) row.coins = jetLineCoins(row, row.z, row.safeX(), 0.5f).onEach { it.y = min(it.y, climbY(row.z + it.dz, it.restY)) }
             else {
-                for (c in coins) if (!c.taken) c.y = jetY(row.z + c.dz, c.restY)
+                for (c in coins) if (!c.taken) {
+                    c.y = min(jetY(row.z + c.dz, c.restY), climbY(row.z + c.dz, c.restY))
+                    // Only the walk lane joins the flight's line: a coin field's other lanes fly too, as a bonus.
+                    if (kotlin.math.abs(c.x - row.safeX()) < row.laneWidth / 2f) c.flight = flight
+                }
             }
         }
     }

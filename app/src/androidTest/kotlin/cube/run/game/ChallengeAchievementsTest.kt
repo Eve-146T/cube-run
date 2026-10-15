@@ -118,4 +118,33 @@ class ChallengeAchievementsTest {
         assertEquals("Gambliphobic", 12, Progress.maxRunMissedBoxes)
         assertEquals("Long Con: the exact time, not the last ten", 613, Progress.metric("long_con"))
     }
+
+    /** Start a flight, then lay hand-placed coins of that flight (and others) in its path; true if Sky Sweeper is earned once it lands. */
+    private fun sweep(run: RunControls, coins: (flight: Int, y: Float) -> List<Coin>): Boolean {
+        method("collectPickup", Row::class.java, Float::class.javaPrimitiveType!!)
+            .invoke(run.game, Row(-0.5f, arrayListOf()).apply { pickup = Pickup.JET }, -0.5f)
+        val player = run.read<Player>("player")
+        run.frames(90) // the climb
+        val flight = run.read<Track>("track").flight
+        run.rows(listOf(Row(-12f, arrayListOf()).apply { this.coins = ArrayList(coins(flight, player.py)); scored = true }))
+        var n = 0
+        while (player.flying && n++ < 1200) run.frames(1)
+        assertFalse("landed", player.flying)
+        run.frames(30)
+        assertFalse(run.read<Boolean>("dead"))
+        return Progress.metric("sky_sweeper") > 0
+    }
+
+    @Test fun skySweeperMissingALineCoinDoesNotCount() = playingRun(cube(0)) { run ->
+        assertFalse(sweep(run) { f, y -> listOf(Coin(0f, y, 0f).apply { flight = f }, Coin(Lanes.NORMAL_W, y, -2f).apply { flight = f }) })
+        assertEquals(0, earned("sky_sweeper"))
+    }
+
+    @Test fun skySweeperCountsEveryLineCoinButNotTheLanding() = playingRun(cube(0)) { run ->
+        assertTrue(sweep(run) { f, y -> listOf(
+            Coin(0f, y, 0f).apply { flight = f }, Coin(0f, y, -2f).apply { flight = f },
+            Coin(Lanes.NORMAL_W, 0.5f, -3f), // a checkerboard coin out of reach: never asked for
+        ) })
+        assertEquals(1, earned("sky_sweeper"))
+    }
 }

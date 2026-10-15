@@ -95,6 +95,8 @@ class Coin(var x: Float, var y: Float, var dz: Float, val restY: Float = y) {
     var toxic = false
     /** Roll once when the coin is spawned, so its visible danger never changes. */
     var toxicAssigned = false
+    /** The jetpack flight whose coin line it is on ([Track.flight]); 0 for every other coin, the landing's checkerboard included. */
+    var flight = 0
 }
 
 /** One row of the lane-walk: obstacles, optional coins and pickup, scoring state. */

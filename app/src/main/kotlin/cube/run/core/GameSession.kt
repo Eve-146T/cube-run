@@ -43,6 +43,8 @@ interface GameSession {
     /** The run ended mid jetpack flight. */
     fun diedFlying() {}
     fun fullKitHeld() {}
+    /** Every coin on a jetpack flight's line was collected (the landing's checkerboard aside). */
+    fun skySwept() {}
     /** A red pill ran its whole course without a crash. */
     fun redPillSurvived() {}
     fun distanceCovered(metres: Int) {}

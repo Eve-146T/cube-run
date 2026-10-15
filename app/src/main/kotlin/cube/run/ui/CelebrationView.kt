@@ -7,7 +7,6 @@ import android.graphics.Canvas
 import android.graphics.Paint
 import android.graphics.Path
 import android.graphics.RadialGradient
-import android.graphics.RectF
 import android.graphics.Shader
 import android.view.View
 import android.view.animation.LinearInterpolator
@@ -25,6 +24,11 @@ import kotlin.random.Random
  * from and where a [burst] starts; otherwise the confetti rains from the top.
  * [fallOut] keeps pieces opaque until they fall below the screen, instead of
  * fading them after [seconds].
+ *
+ * Every piece and its darker lip is written into one triangle list each
+ * frame and drawn with a single [Canvas.drawVertices]: per-piece canvas
+ * transforms and anti-aliased round rects cost hundreds of draw operations a
+ * frame on top of the GL stage and stuttered on fast, high-refresh phones.
  */
 @SuppressLint("ViewConstructor")
 class CelebrationView(
@@ -49,10 +53,8 @@ class CelebrationView(
 
     private val rnd = Random(System.nanoTime())
     private val rayPaint = Paint(Paint.ANTI_ALIAS_FLAG)
-    private val confPaint = Paint(Paint.ANTI_ALIAS_FLAG)
-    private val shadePaint = Paint(Paint.ANTI_ALIAS_FLAG)
+    private val confPaint = Paint()
     private val ray = Path()
-    private val rect = RectF()
     private val rayCount = 16
     private var angle = 0f
     private val confetti = ArrayList<Confetto>()
@@ -61,9 +63,43 @@ class CelebrationView(
     private val palette = intArrayOf(Theme.GOLD, Theme.MINT, Theme.SKY, Theme.GRAPE, Theme.PINK, Theme.WHITE, Theme.LIME, Theme.ORANGE, Theme.CYAN)
     private var spin: ValueAnimator? = null
 
+    // One triangle list for every piece: a lip and a face, each a quad (6 vertices) or a hexagon (12).
+    private val verts = FloatArray(count * 24 * 2)
+    private val colors = IntArray(count * 24)
+    private var n = 0
+
     init {
         isClickable = false
         isFocusable = false
+        // Hardware canvases only draw vertices from API 29.
+        if (android.os.Build.VERSION.SDK_INT < 29) setLayerType(LAYER_TYPE_SOFTWARE, null)
+    }
+
+    private fun vertex(x: Float, y: Float, color: Int) {
+        verts[n * 2] = x; verts[n * 2 + 1] = y; colors[n] = color; n++
+    }
+
+    /** A rectangle of half size [hw]×[hh] turned by ([cs],[sn]) about ([x],[y]). */
+    private fun quad(x: Float, y: Float, hw: Float, hh: Float, cs: Float, sn: Float, color: Int) {
+        val ax = cs * hw; val ay = sn * hw; val bx = -sn * hh; val by = cs * hh
+        val x0 = x - ax - bx; val y0 = y - ay - by; val x1 = x + ax - bx; val y1 = y + ay - by
+        val x2 = x + ax + bx; val y2 = y + ay + by; val x3 = x - ax + bx; val y3 = y - ay + by
+        vertex(x0, y0, color); vertex(x1, y1, color); vertex(x2, y2, color)
+        vertex(x0, y0, color); vertex(x2, y2, color); vertex(x3, y3, color)
+    }
+
+    /** A dot: a hexagon fan of radius [r]. */
+    private fun dot(x: Float, y: Float, r: Float, color: Int) {
+        for (k in 0 until 4) {
+            vertex(x + r * HEX_X[0], y + r * HEX_Y[0], color)
+            vertex(x + r * HEX_X[k + 1], y + r * HEX_Y[k + 1], color)
+            vertex(x + r * HEX_X[k + 2], y + r * HEX_Y[k + 2], color)
+        }
+    }
+
+    private companion object {
+        val HEX_X = FloatArray(6) { cos(it * 1.0471976f) }
+        val HEX_Y = FloatArray(6) { sin(it * 1.0471976f) }
     }
 
     override fun onAttachedToWindow() {
@@ -133,6 +169,7 @@ class CelebrationView(
         val alpha = if (fallOut) 1f else ((seconds - elapsed) / 1.2f).coerceIn(0f, 1f)
         if (alpha > 0f) {
             val a = (255 * alpha).toInt()
+            n = 0
             for (i in confetti.lastIndex downTo 0) {
                 val c = confetti[i]
                 // gravity + air drag: bursts slow into a gentle rain
@@ -158,20 +195,21 @@ class CelebrationView(
                 }
                 if (c.y > h + c.h || c.y < -h) continue
                 val fl = abs(cos(c.flutter)) // tumbling: the piece thins as it turns edge-on
-                canvas.save()
-                canvas.rotate(c.rot, c.x, c.y)
                 val hw = c.w * (0.15f + 0.85f * fl) / 2f; val hh = c.h / 2f
-                shadePaint.color = Theme.alpha(c.shadeColor, a)
-                confPaint.color = Theme.alpha(if (fl > 0.5f) c.color else c.backColor, a)
-                when (c.kind) {
-                    1 -> { canvas.drawCircle(c.x, c.y + hh * 0.15f, hw.coerceAtLeast(1f), shadePaint); canvas.drawCircle(c.x, c.y, hw.coerceAtLeast(1f), confPaint) }
-                    else -> {
-                        rect.set(c.x - hw, c.y - hh + hh * 0.2f, c.x + hw, c.y + hh + hh * 0.2f); canvas.drawRoundRect(rect, hw * 0.4f, hw * 0.4f, shadePaint)
-                        rect.set(c.x - hw, c.y - hh, c.x + hw, c.y + hh); canvas.drawRoundRect(rect, hw * 0.4f, hw * 0.4f, confPaint)
-                    }
+                val shade = Theme.alpha(c.shadeColor, a)
+                val face = Theme.alpha(if (fl > 0.5f) c.color else c.backColor, a)
+                if (c.kind == 1) {
+                    val r = hw.coerceAtLeast(1f)
+                    dot(c.x, c.y + hh * 0.15f, r, shade); dot(c.x, c.y, r, face)
+                } else {
+                    val rad = Math.toRadians(c.rot.toDouble())
+                    val cs = cos(rad).toFloat(); val sn = sin(rad).toFloat()
+                    // the lip sits below the face in the piece's own frame, as when it was drawn rotated
+                    quad(c.x - sn * hh * 0.2f, c.y + cs * hh * 0.2f, hw, hh, cs, sn, shade)
+                    quad(c.x, c.y, hw, hh, cs, sn, face)
                 }
-                canvas.restore()
             }
+            if (n > 0) canvas.drawVertices(Canvas.VertexMode.TRIANGLES, n * 2, verts, 0, null, 0, colors, 0, null, 0, 0, confPaint)
         }
         if (!rays && (alpha <= 0f || fallOut && confetti.isEmpty())) {
             spin?.cancel(); spin = null

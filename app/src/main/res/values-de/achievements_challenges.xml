@@ -8,4 +8,6 @@
     <string name="achievement_goal_poltergeist">Gleite mit dem Geist-Würfel durch 100 Hindernisse.</string>
     <string name="achievement_goal_juggernaut">Zerschmettere in einem Lauf 300 Hindernisse mit Blasen.</string>
     <string name="achievement_goal_full_throttle">Erreiche 1500 Punkte in einem Lauf mit allen 10 Boosts.</string>
+    <string name="achievement_sky_sweeper">Himmelsfeger</string>
+    <string name="achievement_goal_sky_sweeper">Sammle bei einem Jetpack-Flug jede Münze ein, die Landung nicht mitgezählt.</string>
 </resources>

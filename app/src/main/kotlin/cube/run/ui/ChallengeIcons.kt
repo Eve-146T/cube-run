@@ -351,6 +351,13 @@ internal class ChallengeIcon(private val id: String) : Icon() {
                 for (x in listOf(22.2f, 24.6f)) round(x, 29f, x + 1.3f, 32.5f, .65f)
                 gloss(24f, 25f, 14f)
             }
+            "sky_sweeper" -> {
+                // A jetpack climbing away up the coin line it has swept clean.
+                icon(CoinIcon(), -2f, 29f, 18f); icon(CoinIcon(), 8f, 18f, 19f)
+                val c = lastCanvas!!
+                c.save(); c.rotate(40f, 31f, 18f); icon(JetIcon(), 13f, -2f, 38f); c.restore()
+                sparkle(6f, 8f, 4.5f)
+            }
             "poltergeist" -> {
                 // The Ghost cube's spirit: a sheet with a wavy hem.
                 fun sheet() {

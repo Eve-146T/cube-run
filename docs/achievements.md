@@ -119,6 +119,13 @@ minutes of that with no upgrades and about 40 bubbles. Full Throttle (2,500) nee
 presses, the start speed setting's included, reached all ten (Even faster starts maxed). Its bar
 follows the run in steps of 50; the run's exact score is its record.
 
+Sky Sweeper (2,000) needs every coin on one jetpack flight's line: the coins laid or lifted onto
+the flight in the walk lane, from take-off down to touchdown (each carries the flight's number,
+`Coin.flight`). The landing's checkerboard, coins left on the ground near the take-off and a
+coin field's other lanes don't count; neither do green Toxic coins. It is judged once the cube
+has landed and the last line coin has been taken or has slipped past. The first lifted coins
+follow the cube's climb so the whole line is reachable.
+
 Big Bubble requires 1,000 stocked bubbles at once. Bouncer requires 67 deliberate
 side-wall hits in one run. Holding a smooth drag beyond an edge does not repeatedly
 count as a hit. Mystery boxes do not count as power-ups; bubble, magnet, score
