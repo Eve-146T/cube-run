@@ -65,20 +65,12 @@ object PayFx {
         return (n - 1) * step + dur
     }
 
-    /**
-     * A flash over [card] that fades out (the thing you bought lighting up): white on a dark
-     * card; on a white card, a white wash would only blank it, so it lights up in its [tint]
-     * instead, a coloured edge with a faint fill.
-     */
-    fun flash(card: View, radiusPx: Float, pulse: Boolean = true, tint: Int? = null, lip: Int = 0) {
-        val fg = GradientDrawable().apply {
-            cornerRadius = radiusPx
-            if (tint == null) setColor(Theme.WHITE)
-            else { setColor(Theme.alpha(tint, 70)); setStroke((card.resources.displayMetrics.density * 3.5f).toInt(), tint) }
-        }
+    /** A white flash over [card] that fades out (the thing you bought lighting up); [lip] keeps it off the card's lip. */
+    fun flash(card: View, radiusPx: Float, pulse: Boolean = true, lip: Int = 0) {
+        val fg = GradientDrawable().apply { cornerRadius = radiusPx; setColor(Theme.WHITE) }
         // A card's lip sits under its face: the flash covers the face only.
         card.foreground = if (lip > 0) android.graphics.drawable.InsetDrawable(fg, 0, 0, 0, lip) else fg
-        ValueAnimator.ofInt(if (tint == null) 170 else 255, 0).apply {
+        ValueAnimator.ofInt(170, 0).apply {
             duration = 520
             interpolator = Anim.ease
             addUpdateListener { a -> fg.alpha = a.animatedValue as Int }

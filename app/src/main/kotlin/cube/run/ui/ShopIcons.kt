@@ -22,11 +22,11 @@ internal class ShopIcon(private val id: String) : CandyArt("shop_$id") {
                 sparkle(8f, 9f, 4.5f)
             }
             REVIVES -> {
-                // Another life: one big white heart.
-                lipped(Theme.WHITE) { heart(24f, 24f, 21f) }
-                paint.style = Paint.Style.STROKE; paint.strokeWidth = 3f; paint.color = Theme.lighten(Theme.PINK, .6f)
-                rect.set(10f, 11f, 22f, 23f); lastCanvas!!.drawArc(rect, 190f, 70f, false, paint)
-                sparkle(41f, 8f, 5f); sparkle(7f, 38f, 3.6f)
+                // A second wind: a heart that flies back in on white wings.
+                for (side in listOf(-1f, 1f)) wing(24f + side * 11f, 22f, side)
+                lipped(Theme.WHITE) { heart(24f, 26f, 15f) }
+                fill(Theme.lighten(Theme.PINK, .1f)); heart(24f, 26f, 10.5f)
+                shine(24f, 26f, 10.5f, Theme.alpha(Theme.WHITE, 220))
             }
             MYSTERY -> {
                 mystery(24f, 44f, 50f, Theme.YELLOW, 1.2f)
@@ -34,20 +34,20 @@ internal class ShopIcon(private val id: String) : CandyArt("shop_$id") {
             }
             LUCKY -> clover()
             BUBBLE_TIME -> {
-                // The cube safe inside its bubble.
+                // The cube safe inside its bubble, filling it.
                 val c = lastCanvas!!
-                fill(Theme.darken(Theme.CYAN, .3f)); c.drawCircle(24f, 26.5f, 21f, paint)
-                fill(Theme.CYAN); c.drawCircle(24f, 24f, 21f, paint)
-                fill(Theme.lighten(Theme.CYAN, .62f)); c.drawCircle(24f, 24f, 16.5f, paint)
-                toyCube(14f, 14.5f, 20f, Theme.ORANGE)
-                paint.style = Paint.Style.STROKE; paint.strokeWidth = 3.2f; paint.color = Theme.WHITE
-                rect.set(11f, 11f, 37f, 37f); c.drawArc(rect, 195f, 65f, false, paint)
+                fill(Theme.darken(Theme.CYAN, .3f)); c.drawCircle(24f, 26.5f, 21.5f, paint)
+                fill(Theme.CYAN); c.drawCircle(24f, 24f, 21.5f, paint)
+                fill(Theme.lighten(Theme.CYAN, .72f)); c.drawCircle(24f, 24f, 17.5f, paint)
+                toyCube(12f, 12.5f, 24f, Theme.ORANGE)
+                paint.style = Paint.Style.STROKE; paint.strokeWidth = 3.4f; paint.color = Theme.WHITE
+                rect.set(10f, 10f, 38f, 38f); c.drawArc(rect, 195f, 60f, false, paint)
+                fill(Theme.WHITE); c.drawCircle(35f, 34f, 2f, paint)
             }
             RACK_BUBBLE -> bubble(24f, 22f, 21f)
             RACK_HEART -> {
-                lipped(Theme.PINK) { heart(24f, 23f, 21f) }
-                paint.style = Paint.Style.STROKE; paint.strokeWidth = 4.5f; paint.color = Theme.alpha(Theme.WHITE, 210)
-                rect.set(8f, 10f, 24f, 26f); lastCanvas!!.drawArc(rect, 190f, 70f, false, paint)
+                lipped(Theme.PINK) { heart(24f, 22f, 21f) }
+                shine(24f, 22f, 21f, Theme.alpha(Theme.WHITE, 220))
             }
             MAGNET_TIME -> {
                 tiltedLipped(-28f) { magnet() }
@@ -79,12 +79,8 @@ internal class ShopIcon(private val id: String) : CandyArt("shop_$id") {
                     lipped(if (k == 1) Theme.YELLOW else Theme.WHITE) { shape(8f, y, 24f, y - 14f, 40f, y, 40f, y + 9f, 24f, y - 5f, 8f, y + 9f) }
                 }
             }
-
-            else -> {
-                // The achievements: the gold badge their cards pay out.
-                icon(BadgeArt(BadgeArt.GOLD, true), -1f, -1f, 50f)
-                sparkle(42f, 7f, 4.5f)
-            }
+            // The achievements: the gold badge their cards pay out, alone so it sits in the middle.
+            else -> icon(BadgeArt(BadgeArt.GOLD, true), -2f, -2f, 52f)
         }
     }
 
@@ -100,16 +96,6 @@ internal class ShopIcon(private val id: String) : CandyArt("shop_$id") {
             c.rotate(degrees, 24f, 24f); c.scale(scale, scale, 24f, 24f); draw(); c.restore()
         }
         lip = false
-    }
-
-    /** A heart centred at ([x], [y]), [r] from its centre to its sides. */
-    private fun heart(x: Float, y: Float, r: Float) {
-        path.reset()
-        path.moveTo(x, y + r * .95f)
-        path.cubicTo(x - r * 1.35f, y + r * .05f, x - r * .95f, y - r * 1.05f, x, y - r * .45f)
-        path.cubicTo(x + r * .95f, y - r * 1.05f, x + r * 1.35f, y + r * .05f, x, y + r * .95f)
-        path.close()
-        lastCanvas!!.drawPath(path, paint)
     }
 
     /** A four-leaf clover for luck: four round leaves, a stem and a gloss. */
@@ -188,6 +174,46 @@ internal class ShopIcon(private val id: String) : CandyArt("shop_$id") {
         sparkle(42f, 7f, 5f); sparkle(6f, 41f, 3.6f)
     }
 
+
+    /** A chunky candy heart [r] wide each side of [x]: two round lobes on a rounded point. */
+    private fun heart(x: Float, y: Float, r: Float) {
+        val side = 2f * r / 1.7071f
+        val bottom = y + .914f * r
+        val q = side / 1.4142f
+        path.reset()
+        path.moveTo(x, bottom); path.lineTo(x - q, bottom - q); path.lineTo(x, bottom - 2f * q); path.lineTo(x + q, bottom - q); path.close()
+        val lobes = Path().apply {
+            addCircle(x - q / 2f, bottom - 1.5f * q, side / 2f, Path.Direction.CW)
+            addCircle(x + q / 2f, bottom - 1.5f * q, side / 2f, Path.Direction.CW)
+        }
+        path.op(lobes, Path.Op.UNION)
+        lastCanvas!!.drawPath(path, paint)
+    }
+
+    /** The gloss on a [heart]: a curved stroke on the left lobe. */
+    private fun shine(x: Float, y: Float, r: Float, color: Int) {
+        val side = 2f * r / 1.7071f; val q = side / 1.4142f
+        val cx = x - q / 2f; val cy = y + .914f * r - 1.5f * q; val rr = side / 2f * .62f
+        paint.style = Paint.Style.STROKE; paint.strokeWidth = maxOf(2.6f, r * .16f); paint.color = color
+        rect.set(cx - rr, cy - rr, cx + rr, cy + rr); lastCanvas!!.drawArc(rect, 190f, 75f, false, paint)
+    }
+
+    /** A white wing of four rounded feathers fanning out on the [side] (-1 left, 1 right) of ([x], [y]). */
+    private fun wing(x: Float, y: Float, side: Float) {
+        val c = lastCanvas!!
+        for (pass in 0..1) {
+            fill(if (pass == 0) Theme.darken(Theme.WHITE, .3f) else Theme.WHITE)
+            for ((k, len) in listOf(19f, 16.5f, 13.5f, 10f).withIndex()) {
+                c.save(); c.translate(0f, if (pass == 0) 2.5f else 0f)
+                c.rotate(side * (-34f + k * 22f), x, y)
+                val h = 3.6f
+                rect.set(if (side < 0) x - len else x, y - h, if (side < 0) x else x + len, y + h)
+                c.drawRoundRect(rect, h, h, paint)
+                c.restore()
+            }
+        }
+    }
+
     /** Bold rounded text as a lipped candy shape, grown by [weight] for fatter figures. */
     private fun glyph(text: String, x: Float, y: Float, size: Float, color: Int, weight: Float = 0f) {
         val c = lastCanvas!!
@@ -219,7 +245,7 @@ internal class ShopIcon(private val id: String) : CandyArt("shop_$id") {
 
         /** Each item's tile colour: the bar and the big number share it. Chosen so the picture stands out. */
         fun color(id: String): Int = when (id) {
-            BUBBLES -> Theme.GRAPE
+            BUBBLES -> Theme.SKY
             REVIVES -> Theme.PINK
             MYSTERY -> Theme.GRAPE
             BUBBLE_TIME -> Theme.ORANGE
@@ -231,8 +257,14 @@ internal class ShopIcon(private val id: String) : CandyArt("shop_$id") {
             PORTALS -> DEEP
             LUCKY -> Theme.SKY
             FASTER_START -> Theme.ORANGE
-            ACHIEVEMENTS -> Theme.LAVENDER
+            ACHIEVEMENTS -> Theme.GRAPE
             else -> Theme.GOLD
+        }
+
+        /** The candy tile behind an item's picture: its card's colour, unless the picture needs a contrast. */
+        fun tile(id: String): Int = when (id) {
+            BUBBLES -> Theme.GRAPE
+            else -> color(id)
         }
 
         /** The deep indigo tile the achievements use for night and space pictures. */

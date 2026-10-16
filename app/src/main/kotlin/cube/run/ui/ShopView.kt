@@ -190,16 +190,15 @@ class ShopView(
         shopCards.clear()
         fun wide() = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
         fun gap(top: Float) = wide().apply { topMargin = dp(top) }
-        fun section(label: String, count: String?) =
-            list.addView(shopCards.heading(label, count), wide().apply { topMargin = dp(24f); bottomMargin = dp(10f) })
-        fun bought(items: List<Progress.Upgrade>) = "${items.sumOf { Progress.level(it) }} / ${items.sumOf { it.max }}"
+        fun section(label: String) =
+            list.addView(shopCards.heading(label), wide().apply { topMargin = dp(24f); bottomMargin = dp(10f) })
         list.addView(mysteryCard(), wide())
-        section(kit.ctx.getString(R.string.text_consumables), null)
+        section(kit.ctx.getString(R.string.text_consumables))
         list.addView(bubbleCard(), wide())
         list.addView(reviveCard(), gap(12f))
-        section(kit.ctx.getString(R.string.text_power_ups), bought(Progress.upgrades))
+        section(kit.ctx.getString(R.string.text_power_ups))
         for ((i, u) in Progress.upgrades.withIndex()) list.addView(upgradeCard(u), if (i == 0) wide() else gap(12f))
-        section(kit.ctx.getString(R.string.text_perks), bought(Progress.perks))
+        section(kit.ctx.getString(R.string.text_perks))
         for ((i, u) in Progress.perks.withIndex()) list.addView(perkCard(u), if (i == 0) wide() else gap(12f))
         list.addView(achievementCard(), gap(12f))
         if (Progress.voidAvailable) {
@@ -320,7 +319,7 @@ class ShopView(
         val maxed = Progress.nextPrice(u) == null
         return shopCards.level(u.key, kit.ctx.gameText(u.name), u.max, lvl, kit.ctx.getString(R.string.text_seconds, fmt(now)),
             if (maxed) null else kit.ctx.getString(R.string.text_seconds, fmt(now + u.step)),
-            priceButton(Progress.nextPrice(u), u.key, u, demoOf(u)) { Progress.buyUpgrade(u) })
+            offer(Progress.nextPrice(u), u.key, u, demoOf(u)) { Progress.buyUpgrade(u) })
     }
 
     private fun perkValue(u: Progress.Upgrade, lvl: Int): String = when (u) {
@@ -335,18 +334,18 @@ class ShopView(
         val lvl = Progress.level(u)
         val maxed = Progress.nextPrice(u) == null
         return shopCards.level(u.key, kit.ctx.gameText(u.name), u.max, lvl, perkValue(u, lvl), if (maxed) null else perkValue(u, lvl + 1),
-            priceButton(Progress.nextPrice(u), u.key, u, demoOf(u)) { Progress.buyUpgrade(u) })
+            offer(Progress.nextPrice(u), u.key, u, demoOf(u)) { Progress.buyUpgrade(u) })
     }
 
     private fun bubbleCard(): View = shopCards.stock(ShopIcon.BUBBLES, kit.ctx.getString(R.string.text_bubble_shield), Progress.bubbles, 5, { ShopIcon(ShopIcon.RACK_BUBBLE) },
-        priceButton(Progress.BUBBLE_PRICE, ShopIcon.BUBBLES, null, Stage.DEMO_BUBBLE) { Progress.buyBubble() })
+        offer(Progress.BUBBLE_PRICE, ShopIcon.BUBBLES, null, Stage.DEMO_BUBBLE) { Progress.buyBubble() })
 
     /** Second wind: a stock of revives. */
     private fun reviveCard(): View = shopCards.stock(ShopIcon.REVIVES, kit.ctx.getString(R.string.text_second_wind), Progress.revives, 3, { ShopIcon(ShopIcon.RACK_HEART) },
-        priceButton(if (Progress.revives >= Progress.MAX_REVIVES) null else Progress.REVIVE_PRICE, ShopIcon.REVIVES, null, Stage.DEMO_REVIVE) { Progress.buyRevive() })
+        offer(if (Progress.revives >= Progress.MAX_REVIVES) null else Progress.REVIVE_PRICE, ShopIcon.REVIVES, null, Stage.DEMO_REVIVE) { Progress.buyRevive() })
 
     private fun mysteryCard(): View = shopCards.mystery(activity.getString(R.string.shop_mystery_box), activity.getString(R.string.shop_mystery_box_detail),
-        priceButton(Progress.mysteryBoxPrice, ShopIcon.MYSTERY, null, 0) {
+        priceButton(Progress.mysteryBoxPrice, ShopIcon.MYSTERY) {
             pendingBox = Progress.buyMysteryBox()
             pendingBox != null
         }!!)
@@ -365,34 +364,36 @@ class ShopView(
             text = SpannableStringBuilder("\uFFFC  ${activity.getString(R.string.shop_unlocked)}").apply {
                 setSpan(CenteredImageSpan(check), 0, 1, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
             }
-        } else priceButton(Progress.ACHIEVEMENTS_PRICE, ShopIcon.ACHIEVEMENTS, null, 0) { Progress.buyAchievements() }!!)
+        } else priceButton(Progress.ACHIEVEMENTS_PRICE, ShopIcon.ACHIEVEMENTS) { Progress.buyAchievements() }!!)
 
     // The card only ever says "???", and only until the first offering: the void speaks in its show.
     private fun voidCard(): View = VoidCardView(activity, kit, if (Progress.voidPurchases == 0) "???" else "",
-        priceButton(Progress.voidPrice, "void", null, 0) { Progress.buyVoid() }!!).also { cards["void"] = it }
+        priceButton(Progress.voidPrice, "void") { Progress.buyVoid() }!!).also { cards["void"] = it }
 
     /**
-     * Gold when affordable, pale gold when not, nothing (the card shows a tick) when
-     * there is nothing left to buy. A tap pays right here: [buy] takes the
-     * coins, then they fly from the balance into this button.
+     * What a tap on a price does, or null when there is nothing left to buy: [buy] takes the
+     * coins, then they fly from the balance into the button that was tapped.
      */
-    private fun priceButton(price: Int?, key: String, u: Progress.Upgrade?, demo: Int, buy: () -> Boolean): View? {
+    private fun offer(price: Int?, key: String, u: Progress.Upgrade?, demo: Int, buy: () -> Boolean): ShopCards.Offer? {
         if (price == null) return null
-        val can = price <= Progress.coins
-        lateinit var btn: CandyButton
-        val fullWidth = key == ShopIcon.MYSTERY || key == ShopIcon.ACHIEVEMENTS || key == "void"
-        // Not enough coins yet: a pale gold slab, still a price, plainly not lit (the void's card is dark: glass there).
-        val dim = if (key == "void") Theme.alpha(Theme.WHITE, 46) else Theme.lerp(Theme.WHITE, ShopCards.BACKDROP, .55f)
-        btn = kit.button(kit.coins(price, if (fullWidth) 19f else 16f), if (can) Theme.GOLD else dim,
-            if (fullWidth) UiKit.Size.NORMAL else UiKit.Size.SMALL) {
-            if (paying || closing || progress < 1f) return@button
+        return ShopCards.Offer(price, price <= Progress.coins) tap@{ btn ->
+            if (paying || closing || progress < 1f) return@tap
             val before = Progress.coins
-            if (!buy()) { broke(); return@button }
+            if (!buy()) { broke(); return@tap }
             pay(btn, before, key, u, demo, if (key == "mystery") before - price else Progress.coins)
         }
-        if (!can) btn.setTextColor(if (key == "void") Theme.alpha(Theme.WHITE, 170) else Theme.alpha(Theme.INK, 150))
-        if (!fullWidth) btn.minimumHeight = dp(ShopCards.BOTTOM)
-        return if (key == "void") FittedVoidPrice(activity, kit, btn, price) else btn
+    }
+
+    /**
+     * A full-width price for the one-off cards (the mystery box, the trophy room, the void):
+     * gold when affordable, frosted glass when not.
+     */
+    private fun priceButton(price: Int?, key: String, buy: () -> Boolean): View? {
+        val offer = offer(price, key, null, 0, buy) ?: return null
+        lateinit var btn: CandyButton
+        btn = kit.button(kit.coins(offer.price, 19f), if (offer.can) Theme.GOLD else Theme.alpha(Theme.WHITE, if (key == "void") 46 else 64)) { offer.onTap(btn) }
+        if (!offer.can) btn.setTextColor(Theme.alpha(Theme.WHITE, if (key == "void") 170 else 235))
+        return if (key == "void") FittedVoidPrice(activity, kit, btn, offer.price) else btn
     }
 
     private fun fmt(v: Float): String = if (v == v.toInt().toFloat()) v.toInt().toString() else "%.1f".format(kit.ctx.resources.configuration.locales[0], v)
@@ -447,7 +448,7 @@ class ShopView(
             SoundFx.play("success", rate = 1.4f, vol = 0.55f); Haptics.success()
             if (!compactLayout) Stage.demoRequests.set(demo) // short panes have no showroom to play it in
             render(u)
-            cards[key]?.let { PayFx.flash(it, dpf(ShopCards.RADIUS), tint = if (key == ShopIcon.MYSTERY) null else ShopIcon.color(key), lip = kit.CARD_LIP) }
+            cards[key]?.let { PayFx.flash(it, dpf(ShopCards.RADIUS), lip = kit.CARD_LIP) }
             shopCards.values[key]?.let { Anim.popIn(it, 0, 0.6f, 360) }
             if (key == "mystery") pendingBox?.let { pendingBox = null; onOpenMysteryBox(it) }
         })

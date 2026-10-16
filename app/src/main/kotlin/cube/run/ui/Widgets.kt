@@ -252,6 +252,46 @@ class OutlineTextView(ctx: Context, private val strokePx: Float, private val str
 
 /** A row of [max] segments, [level] of them lit — the shop's level bars, the run-over rank. */
 @SuppressLint("ViewConstructor")
+/**
+ * A candy button that holds other views (a shop card's level bar and its price): they sit on
+ * its face and press down with it, and a tap anywhere on it is the click.
+ */
+class CandyRow(ctx: Context, color: Int, private val lipPx: Float, radiusPx: Float) : LinearLayout(ctx) {
+    private val painter = CandyPainter(radiusPx, lipPx).also { it.color = color }
+    private var resetPress: () -> Unit = {}
+    private var tapPress: () -> Unit = {}
+
+    init {
+        orientation = HORIZONTAL
+        gravity = Gravity.CENTER_VERTICAL
+        setWillNotDraw(false)
+        isClickable = true
+        isFocusable = true
+        resetPress = candyTouch(painter, bindTap = { tapPress = it })
+    }
+
+    override fun performClick(): Boolean { tapPress(); return super.performClick() }
+
+    override fun onWindowFocusChanged(hasWindowFocus: Boolean) {
+        super.onWindowFocusChanged(hasWindowFocus)
+        if (!hasWindowFocus) resetPress()
+    }
+
+    override fun setPadding(left: Int, top: Int, right: Int, bottom: Int) {
+        super.setPadding(left, top, right, bottom + lipPx.toInt())
+    }
+
+    override fun dispatchDraw(canvas: Canvas) {
+        canvas.save()
+        painter.rtl = layoutDirection == View.LAYOUT_DIRECTION_RTL
+        canvas.scale(painter.scale(), painter.scale(), width / 2f, height / 2f)
+        painter.draw(canvas, width.toFloat(), height.toFloat())
+        canvas.translate(0f, painter.offset())
+        super.dispatchDraw(canvas)
+        canvas.restore()
+    }
+}
+
 class SegmentBar(ctx: Context, private val max: Int, private val gapPx: Float, private val radiusPx: Float) : View(ctx) {
     private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
     private val rect = RectF()

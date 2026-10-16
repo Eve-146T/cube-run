@@ -19,11 +19,11 @@ internal object TrophyRoom {
     val HEADING_SOFT = Theme.alpha(Theme.INK, 190)
 
     /** A white card: its face, an optional coloured [edge], and the solid lip under it. */
-    fun slab(kit: UiKit, radius: Float, edge: Int? = null, lip: Int = LIP): Drawable {
+    fun slab(kit: UiKit, radius: Float, edge: Int? = null, lip: Int = LIP, face: Int = Theme.CARD): Drawable {
         val r = kit.dpf(radius)
         return LayerDrawable(arrayOf(
             GradientDrawable().apply { cornerRadius = r; setColor(lip) },
-            GradientDrawable().apply { cornerRadius = r; setColor(Theme.CARD); if (edge != null) setStroke(kit.dp(3f), edge) },
+            GradientDrawable().apply { cornerRadius = r; setColor(face); if (edge != null) setStroke(kit.dp(3f), edge) },
         )).apply { setLayerInset(1, 0, 0, 0, kit.CARD_LIP) }
     }
 }
