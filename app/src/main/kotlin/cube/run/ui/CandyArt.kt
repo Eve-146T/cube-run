@@ -126,10 +126,11 @@ internal abstract class CandyArt(private val key: String) : Icon() {
      * A chunky glossy question mark in the game's rounded font, its baseline at ([x], [y]),
      * [size] high: a darker lip under it, a paler top and a white glint on the hook.
      */
-    protected fun mystery(x: Float, y: Float, size: Float, color: Int) {
+    protected fun mystery(x: Float, y: Float, size: Float, color: Int, weight: Float = 0f) {
         val c = lastCanvas!!
         paint.typeface = Fonts.cached(700); paint.textSize = size; paint.textAlign = Paint.Align.CENTER
         val glyph = Path(); paint.getTextPath("?", 0, 1, x, y, glyph)
+        if (weight > 0f) fatten(glyph, weight)
         paint.textAlign = Paint.Align.LEFT
         val box = RectF(); glyph.computeBounds(box, true)
         fill(Theme.darken(color, .38f)); c.save(); c.translate(0f, size * .07f); c.drawPath(glyph, paint); c.restore()
@@ -140,6 +141,12 @@ internal abstract class CandyArt(private val key: String) : Icon() {
         rect.set(box.left + box.width() * .12f, box.top + box.height() * .08f, box.left + box.width() * .4f, box.top + box.height() * .17f)
         c.drawRoundRect(rect, rect.height() / 2f, rect.height() / 2f, paint)
         c.restore()
+    }
+
+    /** Grow [outline] by [weight] on every side, with round corners: fatter letters. */
+    protected fun fatten(outline: Path, weight: Float) {
+        val stroke = Paint(paint).apply { style = Paint.Style.STROKE; strokeWidth = weight * 2f; strokeJoin = Paint.Join.ROUND }
+        val grown = Path(); stroke.getFillPath(outline, grown); outline.op(grown, Path.Op.UNION)
     }
 
     /** A pointy polygon with every corner rounded off by [radius]. */

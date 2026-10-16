@@ -2,6 +2,7 @@ package cube.run.ui
 
 import android.graphics.Canvas
 import android.graphics.Paint
+import android.graphics.Path
 
 /**
  * The shop's pictures, in the achievement tiles' candy language (see docs/icons.md): one bold
@@ -9,26 +10,27 @@ import android.graphics.Paint
  * you meet it on the road.
  */
 internal class ShopIcon(private val id: String) : CandyArt("shop_$id") {
+    /** True while a tilted picture draws its lip: every colour is the darker lip shade. */
+    private var lip = false
+
     override fun picture(canvas: Canvas) {
         paint.strokeCap = Paint.Cap.ROUND; paint.strokeJoin = Paint.Join.ROUND
         when (id) {
             BUBBLES -> {
-                // A stock of bubbles: a little pile of them.
-                bubble(14f, 33f, 11f); bubble(34f, 33f, 11f); bubble(24f, 15f, 11f)
+                // A stock of bubbles: a big one in front of another.
+                bubble(33f, 16f, 12f); bubble(18f, 29f, 16f)
+                sparkle(8f, 9f, 4.5f)
             }
             REVIVES -> {
-                // A second heart: one big glossy heart and a twinkle.
-                lipped(Theme.WHITE) { heart(23f, 25f, 20f) }
-                fill(Theme.lighten(Theme.PINK, .55f)); heart(23f, 25f, 13f)
-                paint.style = Paint.Style.STROKE; paint.strokeWidth = 3f; paint.color = Theme.WHITE
-                rect.set(9f, 12f, 21f, 24f); lastCanvas!!.drawArc(rect, 190f, 70f, false, paint)
-                sparkle(42f, 9f, 5f)
+                // Another life: one big white heart.
+                lipped(Theme.WHITE) { heart(24f, 24f, 21f) }
+                paint.style = Paint.Style.STROKE; paint.strokeWidth = 3f; paint.color = Theme.lighten(Theme.PINK, .6f)
+                rect.set(10f, 11f, 22f, 23f); lastCanvas!!.drawArc(rect, 190f, 70f, false, paint)
+                sparkle(41f, 8f, 5f); sparkle(7f, 38f, 3.6f)
             }
             MYSTERY -> {
-                lastCanvas!!.save(); lastCanvas!!.rotate(-8f, 24f, 24f)
-                mystery(24f, 42f, 46f, Theme.YELLOW)
-                lastCanvas!!.restore()
-                sparkle(41f, 9f, 5f)
+                mystery(24f, 44f, 50f, Theme.YELLOW, 1.2f)
+                sparkle(41f, 9f, 5f); sparkle(8f, 34f, 3.8f)
             }
             LUCKY -> clover()
             BUBBLE_TIME -> {
@@ -47,16 +49,16 @@ internal class ShopIcon(private val id: String) : CandyArt("shop_$id") {
                 paint.style = Paint.Style.STROKE; paint.strokeWidth = 4.5f; paint.color = Theme.alpha(Theme.WHITE, 210)
                 rect.set(8f, 10f, 24f, 26f); lastCanvas!!.drawArc(rect, 190f, 70f, false, paint)
             }
-            MAGNET_TIME -> magnet()
+            MAGNET_TIME -> {
+                tiltedLipped(-28f) { magnet() }
+                sparkle(41f, 10f, 4.5f)
+            }
             MULT_TIME -> {
-                // "2×" is the whole point, so it is the picture: fat glossy figures.
-                glyph("2×", 24f, 37f, 30f, Theme.WHITE)
-                sparkle(42f, 8f, 5f)
+                // "2×" is the whole point, so it is the picture: a fat white 2 and a yellow ×.
+                glyph("2", 18f, 41f, 44f, Theme.WHITE, 1.2f); glyph("×", 37f, 39f, 32f, Theme.YELLOW, 1.4f)
+                sparkle(42f, 7f, 4.5f)
             }
-            JET_TIME -> {
-                val c = lastCanvas!!
-                c.save(); c.rotate(28f, 24f, 24f); icon(JetIcon(Theme.WHITE), -1f, -3f, 52f); c.restore()
-            }
+            JET_TIME -> tiltedLipped(35f, 1.22f) { rocket() }
             FAST_BUBBLES -> {
                 // A bubble in a hurry: streaks behind it.
                 for ((y, from) in listOf(15f to 5f, 24f to 1f, 33f to 6f)) {
@@ -65,29 +67,39 @@ internal class ShopIcon(private val id: String) : CandyArt("shop_$id") {
                 bubble(30f, 24f, 15f)
             }
             COIN_VALUE -> {
-                coinStack(16f, 42f, 3); coinStack(32f, 42f, 6)
-                sparkle(41f, 9f, 4.5f)
+                // Richer coins: a big one and a little one.
+                coin(35f, 14f, 9.5f); coin(21f, 28f, 17f)
+                sparkle(42f, 38f, 4.5f)
             }
-            PORTALS -> {
-                // The portal ring, bold and lit.
-                val c = lastCanvas!!
-                paint.style = Paint.Style.STROKE; paint.strokeWidth = 8f
-                paint.color = Theme.darken(Theme.MINT, .3f); c.drawCircle(24f, 26.5f, 16f, paint)
-                paint.color = Theme.MINT; c.drawCircle(24f, 24f, 16f, paint)
-                fill(Theme.lighten(Theme.MINT, .7f)); c.drawCircle(24f, 24f, 10f, paint)
-                paint.style = Paint.Style.STROKE; paint.strokeWidth = 2.6f; paint.color = Theme.alpha(Theme.WHITE, 220)
-                rect.set(11f, 11f, 37f, 37f); c.drawArc(rect, 200f, 55f, false, paint)
-                sparkle(42f, 8f, 4.5f)
-            }
+            PORTALS -> portal()
             FASTER_START -> {
-                // The boost: three chevrons pointing up the road.
-                for (k in 0..2) {
-                    val y = 38f - k * 12f
-                    lipped(if (k == 2) Theme.YELLOW else Theme.WHITE) { shape(6f, y, 24f, y - 14f, 42f, y, 42f, y + 7f, 24f, y - 7f, 6f, y + 7f) }
+                // The boost: two chevrons pointing up the road.
+                for (k in 0..1) {
+                    val y = 34f - k * 15f
+                    lipped(if (k == 1) Theme.YELLOW else Theme.WHITE) { shape(8f, y, 24f, y - 14f, 40f, y, 40f, y + 9f, 24f, y - 5f, 8f, y + 9f) }
                 }
             }
-            else -> trophy()
+
+            else -> {
+                // The achievements: the gold badge their cards pay out.
+                icon(BadgeArt(BadgeArt.GOLD, true), -1f, -1f, 50f)
+                sparkle(42f, 7f, 4.5f)
+            }
         }
+    }
+
+    /** The colour to paint with: the darker lip shade while a tilted picture draws its lip. */
+    private fun tone(color: Int) = if (lip) Theme.darken(color, .3f) else color
+
+    /** Draw [draw] turned by [degrees] about the centre, twice: its lip dropped straight down, then itself. */
+    private inline fun tiltedLipped(degrees: Float, scale: Float = 1f, draw: () -> Unit) {
+        val c = lastCanvas!!
+        for (pass in 0..1) {
+            lip = pass == 0
+            c.save(); if (lip) c.translate(0f, 2.5f)
+            c.rotate(degrees, 24f, 24f); c.scale(scale, scale, 24f, 24f); draw(); c.restore()
+        }
+        lip = false
     }
 
     /** A heart centred at ([x], [y]), [r] from its centre to its sides. */
@@ -116,48 +128,72 @@ internal class ShopIcon(private val id: String) : CandyArt("shop_$id") {
         sparkle(42f, 41f, 4.5f)
     }
 
-    /** A white trophy cup: bowl, handles, stem and base, with a gloss. */
-    private fun trophy() {
-        val c = lastCanvas!!
-        for (pass in 0..1) {
-            val dy = if (pass == 0) 2.5f else 0f
-            val color = if (pass == 0) Theme.darken(Theme.WHITE, .3f) else Theme.WHITE
-            paint.style = Paint.Style.STROKE; paint.strokeWidth = 4.5f; paint.color = color
-            rect.set(4f, 9f + dy, 18f, 25f + dy); c.drawArc(rect, 90f, 180f, false, paint)
-            rect.set(30f, 9f + dy, 44f, 25f + dy); c.drawArc(rect, 270f, 180f, false, paint)
-            fill(color)
-            path.reset(); path.moveTo(11f, 5f + dy); path.lineTo(37f, 5f + dy); path.lineTo(37f, 17f + dy)
-            rect.set(11f, 4f + dy, 37f, 32f + dy); path.arcTo(rect, 0f, 180f); path.close(); c.drawPath(path, paint)
-            round(20.5f, 28f + dy, 27.5f, 37f + dy, 1.5f)
-            round(13f, 36f + dy, 35f, 43f + dy, 3f)
-        }
-        fill(Theme.lighten(Theme.GOLD, .25f)); c.drawCircle(24f, 16f, 5f, paint)
-        sparkle(24f, 16f, 3.5f)
-    }
-
     /** A chunky horseshoe magnet: a red bow with white tips and a gloss. */
     private fun magnet() {
         val c = lastCanvas!!
         paint.strokeCap = Paint.Cap.BUTT
-        for (pass in 0..1) {
-            val dy = if (pass == 0) 2.5f else 0f
-            paint.style = Paint.Style.STROKE; paint.strokeWidth = 11f
-            paint.color = if (pass == 0) Theme.darken(Theme.BERRY, .3f) else Theme.BERRY
-            path.reset(); path.moveTo(12f, 8f + dy); path.lineTo(12f, 24f + dy)
-            rect.set(12f, 12f + dy, 36f, 36f + dy); path.arcTo(rect, 180f, -180f); path.lineTo(36f, 8f + dy)
-            c.drawPath(path, paint)
-        }
-        lipped(Theme.WHITE) { round(6.5f, 3f, 17.5f, 11f, 2f); round(30.5f, 3f, 41.5f, 11f, 2f) }
+        paint.style = Paint.Style.STROKE; paint.strokeWidth = 11f; paint.color = tone(Theme.BERRY)
+        path.reset(); path.moveTo(12f, 8f); path.lineTo(12f, 24f)
+        rect.set(12f, 12f, 36f, 36f); path.arcTo(rect, 180f, -180f); path.lineTo(36f, 8f)
+        c.drawPath(path, paint)
+        fill(tone(Theme.WHITE)); round(6.5f, 3f, 17.5f, 11f, 2f); round(30.5f, 3f, 41.5f, 11f, 2f)
+        if (lip) return
         paint.style = Paint.Style.STROKE; paint.strokeWidth = 2.6f; paint.strokeCap = Paint.Cap.ROUND; paint.color = Theme.alpha(Theme.WHITE, 200)
         rect.set(14f, 15f, 34f, 35f); c.drawArc(rect, 150f, 40f, false, paint)
         c.drawLine(9.5f, 15f, 9.5f, 22f, paint)
     }
 
-    /** Bold rounded text as a lipped candy shape. */
-    private fun glyph(text: String, x: Float, y: Float, size: Float, color: Int) {
+    /** An upright candy rocket: a white body with a red nose and fins, a porthole and a flame. */
+    private fun rocket() {
+        val c = lastCanvas!!
+        val body = Path().apply {
+            moveTo(17f, 34f); lineTo(17f, 18f); cubicTo(17f, 10f, 21f, 5f, 24f, 3f); cubicTo(27f, 5f, 31f, 10f, 31f, 18f); lineTo(31f, 34f); close()
+        }
+        fill(tone(Theme.ORANGE)); shape(18f, 34f, 30f, 34f, 24f, 47f)
+        fill(tone(Theme.YELLOW)); shape(20.5f, 34f, 27.5f, 34f, 24f, 42f)
+        fill(tone(Theme.BERRY))
+        shape(17f, 22f, 9f, 33f, 9f, 38f, 17f, 34f); shape(31f, 22f, 39f, 33f, 39f, 38f, 31f, 34f)
+        fill(tone(Theme.WHITE)); c.drawPath(body, paint)
+        if (lip) return
+        c.save(); c.clipPath(body); fill(Theme.BERRY); c.drawRect(14f, 0f, 34f, 11f, paint); c.restore()
+        fill(Theme.darken(Theme.SKY, .35f)); c.drawCircle(24f, 20f, 5.5f, paint)
+        fill(Theme.lighten(Theme.SKY, .45f)); c.drawCircle(24f, 20f, 3.8f, paint)
+        paint.style = Paint.Style.STROKE; paint.strokeWidth = 2.4f; paint.color = Theme.alpha(Theme.WHITE, 230)
+        rect.set(22f, 18f, 26f, 22f); c.drawArc(rect, 190f, 80f, false, paint)
+    }
+
+    /** A coin like the app's own: a bevelled gold rim, a raised paler centre and a gloss, on a lip. */
+    private fun coin(x: Float, y: Float, r: Float) {
+        val c = lastCanvas!!
+        fill(Theme.darken(Theme.GOLD, .5f)); c.drawCircle(x, y + r * .14f, r, paint)
+        fill(Theme.darken(Theme.GOLD, .3f)); c.drawCircle(x, y, r, paint)
+        fill(Theme.GOLD); c.drawCircle(x, y, r * .8f, paint)
+        fill(Theme.darken(Theme.GOLD, .16f)); c.drawCircle(x, y + r * .06f, r * .5f, paint)
+        fill(Theme.lighten(Theme.GOLD, .32f)); c.drawCircle(x, y - r * .02f, r * .46f, paint)
+        paint.style = Paint.Style.STROKE; paint.strokeWidth = r * .14f; paint.color = Theme.alpha(Theme.WHITE, 210)
+        rect.set(x - r * .64f, y - r * .64f, x + r * .64f, y + r * .64f); c.drawArc(rect, 200f, 55f, false, paint)
+    }
+
+    /** A portal: a fat mint ring around a dark hole, swirling into another world. */
+    private fun portal() {
+        val c = lastCanvas!!
+        fill(Theme.darken(Theme.MINT, .35f)); c.drawCircle(24f, 26.5f, 20f, paint)
+        fill(Theme.MINT); c.drawCircle(24f, 24f, 20f, paint)
+        fill(0xFF2A1F5C.toInt()); c.drawCircle(24f, 24f, 13.5f, paint)
+        paint.style = Paint.Style.STROKE; paint.strokeWidth = 3.2f; paint.color = Theme.lighten(Theme.GRAPE, .35f)
+        rect.set(14.5f, 14.5f, 33.5f, 33.5f); c.drawArc(rect, 200f, 210f, false, paint)
+        rect.set(19.5f, 19.5f, 28.5f, 28.5f); c.drawArc(rect, 20f, 210f, false, paint)
+        paint.color = Theme.alpha(Theme.WHITE, 210); paint.strokeWidth = 2.8f
+        rect.set(8f, 8f, 40f, 40f); c.drawArc(rect, 200f, 55f, false, paint)
+        sparkle(42f, 7f, 5f); sparkle(6f, 41f, 3.6f)
+    }
+
+    /** Bold rounded text as a lipped candy shape, grown by [weight] for fatter figures. */
+    private fun glyph(text: String, x: Float, y: Float, size: Float, color: Int, weight: Float = 0f) {
         val c = lastCanvas!!
         paint.typeface = Fonts.cached(700); paint.textSize = size; paint.textAlign = Paint.Align.CENTER
-        val outline = android.graphics.Path(); paint.getTextPath(text, 0, text.length, x, y, outline)
+        val outline = Path(); paint.getTextPath(text, 0, text.length, x, y, outline)
+        if (weight > 0f) fatten(outline, weight)
         paint.textAlign = Paint.Align.LEFT
         fill(Theme.darken(color, .3f)); c.save(); c.translate(0f, 2.5f); c.drawPath(outline, paint); c.restore()
         fill(color); c.drawPath(outline, paint)
@@ -195,6 +231,7 @@ internal class ShopIcon(private val id: String) : CandyArt("shop_$id") {
             PORTALS -> DEEP
             LUCKY -> Theme.SKY
             FASTER_START -> Theme.ORANGE
+            ACHIEVEMENTS -> Theme.LAVENDER
             else -> Theme.GOLD
         }
 
