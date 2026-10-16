@@ -33,6 +33,7 @@ import android.view.animation.PathInterpolator
  * duration you level up, the perks, the trophy room and, late in the game, the void. Every
  * purchase goes through [Progress] and plays out where you tapped and on the cube (see
  * [Stage.demoRequests]): the bubble goes up around it, coins fly into it, it lifts on a jet…
+ * A mystery box drops in beside the cube and opens right there (see [ShopGiftReveal]).
  */
 @SuppressLint("SetTextI18n", "ViewConstructor")
 class ShopView(
@@ -40,7 +41,6 @@ class ShopView(
     kit: UiKit,
     private val balance: LinearLayout,
     private val onProgress: (Float) -> Unit,
-    private val onOpenMysteryBox: (Progress.BoxReward) -> Unit = {},
     private val onVoidPurchase: (() -> Unit, () -> Unit) -> Unit,
     private val onProgressReset: () -> Unit = {},
     onClose: () -> Unit,
@@ -93,14 +93,15 @@ class ShopView(
     override fun dispatchTouchEvent(event: MotionEvent): Boolean =
         if (paying) true else super.dispatchTouchEvent(event)
 
-    private val showroom = View(activity).apply {
+    private val showroom: FrameLayout = FrameLayout(activity).apply {
         contentDescription = kit.ctx.getString(R.string.text_shop_cube)
         isClickable = true
-        setOnClickListener { playWithCube(Stage.SHOP_TAP) }
+        clipChildren = false; clipToPadding = false
+        setOnClickListener { if (gift.showing) skipGift() else playWithCube(Stage.SHOP_TAP) }
         setOnTouchListener { view, event ->
             when (event.actionMasked) {
                 MotionEvent.ACTION_DOWN -> {
-                    cubeGesture = !closing && progress == 1f &&
+                    cubeGesture = !closing && progress == 1f && !gift.showing &&
                         kotlin.math.abs(event.x - view.width / 2f) <= dpf(70f) &&
                         kotlin.math.abs(event.y - view.height / 2f) <= dpf(65f)
                     cubeDownX = event.x; cubeDownY = event.y; cubeSwiped = false
@@ -115,7 +116,7 @@ class ShopView(
                     }
                 }
                 MotionEvent.ACTION_UP -> {
-                    if (cubeGesture && !cubeSwiped) view.performClick()
+                    if (!cubeSwiped && (cubeGesture || gift.showing)) view.performClick()
                     cubeGesture = false
                 }
                 MotionEvent.ACTION_CANCEL -> cubeGesture = false
@@ -123,6 +124,9 @@ class ShopView(
             true
         }
     }
+
+    /** What a mystery box bought here gave: the pill in the showroom and the coins it pays out. */
+    private val gift: ShopGiftReveal = ShopGiftReveal(this, kit, balance, showroom)
 
     private fun playWithCube(gesture: Int) {
         if (!closing && progress == 1f && !paying) Stage.shopPlayRequests.set(gesture)
@@ -295,6 +299,7 @@ class ShopView(
     override fun animateExit(onFinished: () -> Unit) {
         cubeGesture = false
         Stage.shopPlayRequests.set(0)
+        endGift()
         balanceCount?.cancel()
         kit.labelOf(balance).text = Progress.coins.toString()
         navigate(0f) {
@@ -307,6 +312,7 @@ class ShopView(
         resetConfirmation?.let { Anim.cancelTree(it); (it.parent as? ViewGroup)?.removeView(it) }
         resetConfirmation = null
         Stage.shopPlayRequests.set(0)
+        endGift()
         navigation?.cancel()
         balanceCount?.cancel()
         if (Stage.mode == Stage.SHOP) Stage.mode = Stage.NONE
@@ -412,8 +418,7 @@ class ShopView(
             kit.labelOf(balance).text = displayedBalance.toString()
             paying = false
             render(u)
-            SoundFx.play("success", rate = 1.4f, vol = 0.55f); Haptics.success()
-            if (key == "mystery") pendingBox?.let { pendingBox = null; onOpenMysteryBox(it) }
+            SoundFx.play("buy", vol = 0.7f); Haptics.success()
             return
         }
         if (key == "void") {
@@ -442,19 +447,50 @@ class ShopView(
             }
             return
         }
+        val box = if (key == "mystery") pendingBox.also { pendingBox = null } else null
+        // The box drops into the showroom while the coins are still flying.
+        if (box != null && !compactLayout) {
+            Stage.shopGift = box
+            Stage.shopGiftRequests.incrementAndGet()
+        }
+        val opened = Stage.shopGiftOpened.get()
         val ms = PayFx.fly(this, kit, balance, btn, n = 6, onDone = {
             if (closing) return@fly
+            if (box != null) { awaitGift(box, opened); return@fly }
             paying = false
-            SoundFx.play("success", rate = 1.4f, vol = 0.55f); Haptics.success()
+            SoundFx.play("buy", vol = 0.7f); Haptics.success()
             if (!compactLayout) Stage.demoRequests.set(demo) // short panes have no showroom to play it in
             render(u)
             cards[key]?.let { PayFx.flash(it, dpf(ShopCards.RADIUS), lip = kit.CARD_LIP) }
             shopCards.values[key]?.let { Anim.popIn(it, 0, 0.6f, 360) }
-            if (key == "mystery") pendingBox?.let { pendingBox = null; onOpenMysteryBox(it) }
         })
-        // The reward is persisted already, but its value stays a surprise until the box opens.
+        // A box's reward is persisted already, but its value stays a surprise until the box opens.
         balanceCount = Anim.countTo(kit.labelOf(balance), before, displayedBalance, ms)
     }
+
+    // ---------------------------------------------------------------- the mystery box in the showroom
+
+    /** Wait for the showroom box to burst, then say what came out. */
+    private fun awaitGift(box: Progress.BoxReward, opened: Int) {
+        if (compactLayout) revealGift(box) else gift.await(opened) { revealGift(box) }
+    }
+
+    /** The box is open: the page is shoppable again, and the pill says what came out. */
+    private fun revealGift(box: Progress.BoxReward) {
+        paying = false
+        if (closing || !isAttachedToWindow) return
+        val shown = kit.labelOf(balance).text.filter { it.isDigit() }.toString().toIntOrNull() ?: Progress.coins
+        render()
+        preparedState = currentState()
+        kit.labelOf(balance).text = shown.toString()
+        if (compactLayout) { SoundFx.play("buy", vol = 0.7f); Haptics.success() }
+        balanceCount?.cancel()
+        balanceCount = gift.show(box, compactLayout, content.top, shown)
+    }
+
+    private fun skipGift() = gift.skip()
+
+    private fun endGift() = gift.end()
 
     private fun broke() {
         SoundFx.play("tap", rate = 0.6f); Haptics.tick()
@@ -468,12 +504,13 @@ class ShopView(
             if (!Progress.resetForDeveloper()) return@ResetProgressSheet false
             balanceCount?.cancel()
             pendingBox = null
+            endGift()
             Stage.clearPreview()
             Stage.shopPlayRequests.set(0)
             Stage.demoRequests.set(0)
             Stage.previewKicks.set(0)
             Stage.previewBuys.set(0)
-            Stage.purchasedBoxRewards.clear()
+            Stage.shopGift = null
             render()
             preparedState = currentState()
             onProgressReset()

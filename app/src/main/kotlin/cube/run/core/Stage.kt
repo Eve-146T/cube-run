@@ -83,10 +83,13 @@ object Stage {
     /** Boxes the player has asked to open that the game hasn't started opening yet. */
     val openRequests = AtomicInteger(0)
     val skipBoxRequests = AtomicInteger(0)
-    /** GL-owned acknowledgement: the gift camera is still being presented. */
-    @Volatile var giftShowing = false
-    /** Shop rewards are already banked; the gift stage only presents them. */
-    val purchasedBoxRewards = java.util.concurrent.ConcurrentLinkedQueue<cube.run.data.Progress.BoxReward>()
+    /** The mystery box just bought in the shop, opened in the showroom (see game.stage.ShopGift). Already banked. */
+    @Volatile var shopGift: cube.run.data.Progress.BoxReward? = null
+    val shopGiftRequests = AtomicInteger(0)
+    /** A tap on the showroom: open the box now, or send the prize into the cube. */
+    val shopGiftSkips = AtomicInteger(0)
+    /** GL-owned: counts showroom boxes that have burst, so the shop can show what came out. */
+    val shopGiftOpened = AtomicInteger(0)
 
     /** Taps on the HUD's boost button the game hasn't applied yet. */
     val boostRequests = AtomicInteger(0)
@@ -138,8 +141,9 @@ object Stage {
         voidSpeech = 0f
         openRequests.set(0)
         skipBoxRequests.set(0)
-        giftShowing = false
-        purchasedBoxRewards.clear()
+        shopGift = null
+        shopGiftRequests.set(0)
+        shopGiftSkips.set(0)
         boostRequests.set(0)
         demoRequests.set(0)
         previewKicks.set(0)
