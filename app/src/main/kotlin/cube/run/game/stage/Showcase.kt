@@ -86,9 +86,17 @@ class Showcase(private val game: Gdx3DGame, private val player: Player, private 
         trailMix = 0f; bubbleMix = 0f; kickV = 0f; kickA = 0f; pop = 0f; wide = 0f
         demos.reset()
         skyTopSave.set(bgTop); skyBottomSave.set(bgBottom)
-        hsvInto(stageTop, tint - 20f, 0.65f, 0.42f)
-        hsvInto(stageBottom, tint + 20f, 0.75f, 0.10f)
-        hsvInto(spark, tint + 180f, 0.5f, 1f)
+        if (shop) {
+            // The shop's own candy sky, whatever world you came from: grape, the opposite of the
+            // butter sheet under it, deepening downwards, with butter rays and sparkles.
+            hsvInto(stageTop, SHOP_HUE, 0.62f, 0.80f)
+            hsvInto(stageBottom, SHOP_HUE + 6f, 0.80f, 0.46f)
+            hsvInto(spark, 46f, 0.45f, 1f)
+        } else {
+            hsvInto(stageTop, tint - 20f, 0.65f, 0.42f)
+            hsvInto(stageBottom, tint + 20f, 0.75f, 0.10f)
+            hsvInto(spark, tint + 180f, 0.5f, 1f)
+        }
         hsvInto(gold, 46f, 0.8f, 1f)
     }
 
@@ -250,5 +258,10 @@ class Showcase(private val game: Gdx3DGame, private val player: Player, private 
         if (bubbleMix > 0.01f) bubble.showcase(cam, time, player.px, player.py, inflate = bubbleMix)
         demos.renderBlended(cam, time)
         if (void.active) void.renderBlended(cam, time)
+    }
+
+    private companion object {
+        /** The shop showroom's grape. */
+        const val SHOP_HUE = 262f
     }
 }
