@@ -146,13 +146,22 @@ is no "go again" page: restart and everything else live on the menu.
 
 ## The shop
 
-The shop is a showroom strip with your cube (and a sunburst) over a dark
-sheet of cards; the cards scroll inside the sheet, never over the cube. A
-price button pays where you tapped (`ui.PayFx`), then asks the stage for a
-demo (`Stage.demoRequests` → `game.stage.Demos`): the bubble inflates
-around the cube, coins spiral into it, a twin splits off and slams back,
-it lifts on a jet of flame, fire streams off its back, gold rains, a
-portal ring spins around it, a gift box drops in and bursts.
+The shop is a showroom strip with your cube (on its own grape sky, with a
+sunburst) over a butter sheet of cards, each in its item's colour; the
+cards scroll inside the sheet, never over the cube. A card's buy button
+runs along its bottom and carries its level bar or stock rack. It pays
+where you tapped (`ui.PayFx`), then asks the stage for a demo
+(`Stage.demoRequests` → `game.stage.Demos`): the bubble inflates around
+the cube, coins spiral into it, a twin splits off and slams back, it lifts
+on a jet of flame, fire streams off its back, gold rains, a portal ring
+spins around it.
+
+A mystery box bought in the shop is banked at once and then opened in the
+showroom (`Stage.shopGift` → `game.stage.ShopGift`, drawn with the run-over
+gift's `GiftArt`): the cube steps aside, the box drops in beside it and
+bursts, and the prize flies into the cube. The UI waits for the burst
+(`Stage.shopGiftOpened`) and shows what came out on a pill
+(`ui.ShopGiftReveal`); a tap on the showroom hurries it along.
 
 The showroom cube also reacts to taps and directional swipes: taps and
 vertical swipes make it hop, while horizontal swipes spin it with decaying

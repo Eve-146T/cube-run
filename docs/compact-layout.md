@@ -13,7 +13,8 @@ and calls `onCompactChanged` when a live resize crosses it.
   they left for it through `Stage.focusFraction`, and the camera frames the item there.
 - Shop: no showroom; the cards are the full-height cards. Purchases keep their coin flight,
   card flash and rolling numbers.
-  The void offering, which needs the showroom, settles directly.
+  The void offering, which needs the showroom, settles directly; a mystery box says what
+  came out on a pill at the top of the page.
 - Wardrobe: the full layout, tightened. Tabs hug the title, the details sit at the
   bottom edge, the arrows flank the item name, and the stage frames the item between.
   The bubble category pulls the camera back so the bubble fits, as does any gap too shallow
