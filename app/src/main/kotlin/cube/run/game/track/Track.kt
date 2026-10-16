@@ -679,9 +679,9 @@ class Track(private val rnd: Random, private val fx: ObstacleFactory) {
         if (galore && rowsSincePickup < 3) return
         if (pickupBag.isEmpty()) {
             val kinds = arrayListOf(Pickup.MAGNET, Pickup.MULT, Pickup.JET, Pickup.BUBBLE, Pickup.BOX, Pickup.RED_PILL, Pickup.SHARD_EMBER)
-            val luck = Progress.level(Progress.LUCKYBOX)
-            repeat(luck / 2) { kinds.add(Pickup.BOX) }
-            if (luck % 2 != 0 && rnd.nextBoolean()) kinds.add(Pickup.BOX) // +0.5 box weight per level
+            val luck = Progress.LUCKYBOX.duration(Progress.level(Progress.LUCKYBOX)) - 1f // +0.2 box weight per level
+            repeat(luck.toInt()) { kinds.add(Pickup.BOX) }
+            if (rnd.nextFloat() < luck - luck.toInt()) kinds.add(Pickup.BOX)
             pickupBag.addAll(kinds.shuffled(rnd))
         }
         val kind = pickupBag.removeFirst()

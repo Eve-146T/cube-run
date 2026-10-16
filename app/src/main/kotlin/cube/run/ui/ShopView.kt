@@ -328,7 +328,7 @@ class ShopView(
         Progress.FASTBUBBLES -> kit.ctx.getString(R.string.text_seconds, fmt(u.duration(lvl)))
         Progress.COINVALUE -> "×${fmt(u.duration(lvl))}"
         Progress.PORTALS -> kit.ctx.resources.getQuantityString(R.plurals.count_rows, 110 - 14 * lvl, 110 - 14 * lvl)
-        else -> "×${fmt(1f + 0.5f * lvl)}"
+        else -> "×${fmt(u.duration(lvl))}"
     }
 
     private fun perkCard(u: Progress.Upgrade): View {

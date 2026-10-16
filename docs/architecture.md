@@ -120,7 +120,7 @@ exactly on their sunburst's origin on every phone, whatever its aspect.
 
 After 12 opening rows, pickup opportunities occur on the next eligible row
 every 10–18 rows. A shuffled bag includes every kind; Lucky Boxes adds extra
-boxes. Jetpacks and mystery boxes require an actual run score of at least
+boxes (a fifth of a box per level). Jetpacks and mystery boxes require an actual run score of at least
 100, then use only every second opportunity for that kind. Skipped slots
 stay empty and consume their spacing, reducing their frequency by half
 without increasing other pickups. The gates also apply in developer mode.
