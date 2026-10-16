@@ -681,7 +681,8 @@ class Track(private val rnd: Random, private val fx: ObstacleFactory) {
             val kinds = arrayListOf(Pickup.MAGNET, Pickup.MULT, Pickup.JET, Pickup.BUBBLE, Pickup.BOX, Pickup.RED_PILL, Pickup.SHARD_EMBER)
             val luck = Progress.LUCKYBOX.duration(Progress.level(Progress.LUCKYBOX)) - 1f // +0.2 box weight per level
             repeat(luck.toInt()) { kinds.add(Pickup.BOX) }
-            if (rnd.nextFloat() < luck - luck.toInt()) kinds.add(Pickup.BOX)
+            val part = luck - luck.toInt() // rolled only when there is one, so a road without the perk is unchanged
+            if (part > .001f && rnd.nextFloat() < part) kinds.add(Pickup.BOX)
             pickupBag.addAll(kinds.shuffled(rnd))
         }
         val kind = pickupBag.removeFirst()

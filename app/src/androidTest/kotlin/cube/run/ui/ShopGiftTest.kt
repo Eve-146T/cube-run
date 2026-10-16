@@ -31,7 +31,7 @@ class ShopGiftTest {
     }
     private fun hud(activity: GameActivity) = field(activity, "hud").get(activity) as Hud
     private fun shop(activity: GameActivity) = field(hud(activity), "page").get(hud(activity)) as ShopView
-    private fun pill(shop: ShopView) = field(shop, "rewardPill").get(shop) as View?
+    private fun pillUp(shop: ShopView) = (field(shop, "gift").get(shop) as ShopGiftReveal).showing
     private fun paying(shop: ShopView) = field(shop, "paying").getBoolean(shop)
     private fun descendants(view: View): List<View> = listOf(view) + if (view is ViewGroup)
         (0 until view.childCount).flatMap { descendants(view.getChildAt(it)) } else emptyList()
@@ -87,7 +87,7 @@ class ShopGiftTest {
                 val bankAfterReward = Progress.coins
                 assertEquals(boxesBefore + 1, Progress.boxesOpened)
                 awaitUi(scenario, "The GL showroom bursts the box and the shop says what came out", 5000) {
-                    pill(shop(it)) != null
+                    pillUp(shop(it))
                 }
                 scenario.onActivity {
                     assertTrue("The engine opened it (not the time-out fallback)", Stage.shopGiftOpened.get() > burstsBefore)
@@ -99,7 +99,7 @@ class ShopGiftTest {
                 scenario.onActivity { shop(it).findViewWithTag<View>("shop_gift_reward")!!.let { p -> assertTrue(p.isShown) } }
                 // A tap on the showroom hurries the prize into the cube and takes the pill away.
                 scenario.onActivity { ShopView::class.java.getDeclaredMethod("skipGift").apply { isAccessible = true }.invoke(shop(it)) }
-                awaitUi(scenario, "The pill goes", 3000) { pill(shop(it)) == null && it.window.decorView.findViewWithTag<View>("shop_gift_reward") == null }
+                awaitUi(scenario, "The pill goes", 3000) { !pillUp(shop(it)) && it.window.decorView.findViewWithTag<View>("shop_gift_reward") == null }
                 awaitUi(scenario, "The bank lands on the banked total", 3000) {
                     UiKit(it).labelOf(menuOf(it).shopBalance).text.toString() == Progress.coins.toString()
                 }
