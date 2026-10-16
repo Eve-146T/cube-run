@@ -27,9 +27,9 @@ import kotlin.math.cos
 import kotlin.math.sin
 
 /**
- * The shop's cards, built like the achievement page's slabs but each in its item's own colour
- * on a flat butter backdrop: the item's picture on its candy tile, its name, and what the next
- * purchase gives (what you have small, what you buy big). Along the bottom, one big gold candy
+ * The shop's cards, built like the achievement page's: a white slab with a solid lip on a flat
+ * butter backdrop, the item's picture on its candy tile, its name, and what the next purchase
+ * gives (what you have small, what you buy big and in the item's colour). Along the bottom, one big gold candy
  * button carries the level bar (or your stock) and the price: tapping it buys the next one.
  * Maxed out, the bar lies flat with a mint tick. The mystery box gets a deep grape card with slow rays.
  */
@@ -64,19 +64,19 @@ internal class ShopCards(private val activity: Activity, private val kit: UiKit)
                 importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
             }, LinearLayout.LayoutParams(dp(26f), dp(26f)).apply { if (i > 0) marginStart = dp(4f) })
         }
-        return card(key, name, value("×$count", null), bottom(key, rack, offer))
+        return card(key, name, value(key, "×$count", null), bottom(key, rack, offer))
     }
 
     /** A level you buy up: "now → NEXT", and the level bar on the buy button. */
     fun level(key: String, name: String, max: Int, level: Int, now: String, next: String?, offer: Offer?): View {
         val bar = kit.segments(max).apply { this.level = level }
         bars[key] = bar
-        return card(key, name, value(now, next), bottom(key, bar, offer, barHeight = dp(12f)))
+        return card(key, name, value(key, now, next), bottom(key, bar, offer, barHeight = dp(12f)))
     }
 
     /** The one-off: the trophy room. [action] is its price, or the unlocked status. */
     fun achievements(name: String, detail: String, action: View): View =
-        card(ShopIcon.ACHIEVEMENTS, name, kit.text(detail, 15f, SOFT, 500, Gravity.START), action.also { it.minimumHeight = dp(BOTTOM) })
+        card(ShopIcon.ACHIEVEMENTS, name, kit.text(detail, 15f, INK_SOFT, 500, Gravity.START), action.also { it.minimumHeight = dp(BOTTOM) })
 
     /** The mystery box: a deep grape card with slow rays behind its glossy question mark. */
     fun mystery(name: String, detail: String, price: View): View = MysteryCard().apply {
@@ -99,11 +99,11 @@ internal class ShopCards(private val activity: Activity, private val kit: UiKit)
         addView(price, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(14f) })
     }
 
-    /** A card in the item's own colour: tile, name and [line] on top, [bottomRow] under them. */
+    /** A white card, like the achievement page's: tile, name and [line] on top, [bottomRow] under them. */
     private fun card(key: String, name: String, line: View, bottomRow: View): View = LinearLayout(activity).apply {
         orientation = LinearLayout.VERTICAL
         clipChildren = false; clipToPadding = false
-        background = TrophyRoom.slab(kit, RADIUS, lip = Theme.darken(face(key), .3f), face = face(key))
+        background = TrophyRoom.slab(kit, RADIUS, lip = LIP)
         setPadding(dp(PAD), dp(PAD), dp(PAD), dp(PAD) + kit.CARD_LIP)
         setOnClickListener { Pokes.press(this) }
         cards[key] = this
@@ -119,7 +119,7 @@ internal class ShopCards(private val activity: Activity, private val kit: UiKit)
             addView(LinearLayout(activity).apply {
                 orientation = LinearLayout.VERTICAL
                 clipChildren = false; clipToPadding = false
-                addView(kit.text(name, 20f, Theme.WHITE, 700, Gravity.START).apply {
+                addView(kit.text(name, 20f, INK, 700, Gravity.START).apply {
                     maxLines = 2
                     setAutoSizeTextTypeUniformWithConfiguration(16, 20, 1, TypedValue.COMPLEX_UNIT_SP)
                     hyphenationFrequency = android.text.Layout.HYPHENATION_FREQUENCY_FULL
@@ -131,10 +131,10 @@ internal class ShopCards(private val activity: Activity, private val kit: UiKit)
     }
 
     /**
-     * What you have, small and soft, then what you buy, big and white. Maxed out, what you have
-     * is all there is, so it is the big one.
+     * What you have, small and soft, then what you buy, big in the item's colour. Maxed out,
+     * what you have is all there is, so it is the big one.
      */
-    private fun value(now: String, next: String?): TextView {
+    private fun value(key: String, now: String, next: String?): TextView {
         val big = kit.dp(25f * activity.resources.configuration.fontScale)
         val text = SpannableStringBuilder()
         // A value never splits across lines ("96 / Reihen"): a narrow card wraps before the new value instead.
@@ -142,7 +142,7 @@ internal class ShopCards(private val activity: Activity, private val kit: UiKit)
         fun strong(s: String) {
             val start = text.length
             text.append(whole(s))
-            text.setSpan(ForegroundColorSpan(Theme.WHITE), start, text.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+            text.setSpan(ForegroundColorSpan(readable(ShopIcon.color(key))), start, text.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
             text.setSpan(AbsoluteSizeSpan(big), start, text.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
         }
         if (next == null) strong(now)
@@ -150,7 +150,7 @@ internal class ShopCards(private val activity: Activity, private val kit: UiKit)
             text.append(whole(now)).append(if (activity.resources.configuration.layoutDirection == View.LAYOUT_DIRECTION_RTL) "  ←  " else "  →  ")
             strong(next)
         }
-        return kit.text(text, 16f, SOFT, 700, Gravity.START).apply { maxLines = 2 }
+        return kit.text(text, 16f, INK_SOFT, 700, Gravity.START).apply { maxLines = 2 }
     }
 
     /**
@@ -169,19 +169,19 @@ internal class ShopCards(private val activity: Activity, private val kit: UiKit)
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
             minimumHeight = dp(BOTTOM)
-            bar?.apply { color = Theme.WHITE; offColor = Theme.darken(face(key), .25f) }
-            empty(Theme.darken(face(key), .25f))
+            bar?.apply { color = ShopIcon.color(key); offColor = TROUGH }
+            empty(TROUGH)
             addView(main, LinearLayout.LayoutParams(0, barHeight, 1f))
             addView(ImageView(activity).apply {
                 setImageDrawable(rewardArt(false, 0, true))
                 contentDescription = activity.getString(R.string.text_max)
             }, LinearLayout.LayoutParams(dp(BOTTOM), dp(BOTTOM)).apply { marginStart = dp(12f) })
         }
-        // Not enough coins yet: frosted glass on the card's colour, the price still there, plainly not lit.
-        val slab = if (offer.can) Theme.GOLD else Theme.alpha(Theme.WHITE, 64)
-        val words = if (offer.can) Theme.INK else Theme.WHITE
-        val trough = if (offer.can) Theme.darken(Theme.GOLD, .14f) else Theme.alpha(Theme.darken(face(key), .45f), 90)
-        bar?.apply { color = if (offer.can) Theme.WHITE else Theme.alpha(Theme.WHITE, 235); offColor = trough }
+        // Not enough coins yet: pale gold, the price still there, plainly not lit.
+        val slab = if (offer.can) Theme.GOLD else PALE_GOLD
+        val words = if (offer.can) Theme.INK else Theme.alpha(Theme.INK, 150)
+        val trough = if (offer.can) Theme.darken(Theme.GOLD, .14f) else TROUGH
+        bar?.apply { color = if (offer.can) Theme.WHITE else ShopIcon.color(key); offColor = trough }
         empty(trough)
         val price = kit.text(kit.coins(offer.price, 19f), 19f, words, 700).apply { setSingleLine() }
         return CandyRow(activity, slab, kit.dpf(5f), kit.dpf(16f)).apply {
@@ -194,11 +194,10 @@ internal class ShopCards(private val activity: Activity, private val kit: UiKit)
         }
     }
 
-    /** The card's face: the item's colour, deepened just enough for white words. */
-    private fun face(key: String): Int {
-        val c = ShopIcon.color(key)
-        val l = (0.299f * android.graphics.Color.red(c) + 0.587f * android.graphics.Color.green(c) + 0.114f * android.graphics.Color.blue(c)) / 255f
-        return Theme.darken(c, maxOf(.05f, 1f - .6f / l))
+    /** The item's colour, deepened where it would be too pale to read on white. */
+    private fun readable(color: Int): Int {
+        val l = (0.299f * android.graphics.Color.red(color) + 0.587f * android.graphics.Color.green(color) + 0.114f * android.graphics.Color.blue(color)) / 255f
+        return Theme.darken(color, if (l > .6f) .3f else .06f)
     }
 
     /** The mystery box's card: a deep grape slab on its lip, slow rays from the box and twinkles. */
@@ -268,10 +267,16 @@ internal class ShopCards(private val activity: Activity, private val kit: UiKit)
     }
 
     companion object {
-        /** The flat butter behind the cards: the shop button's yellow, calm under the coloured cards. */
+        /** The flat butter behind the cards: the shop button's yellow, light enough for white cards to stand out. */
         val BACKDROP = 0xFFFFD98A.toInt()
+        /** The solid edge under every white card. */
+        val LIP = Theme.lerp(Theme.WHITE, BACKDROP, .32f).let { Theme.darken(it, .06f) }
         const val INK = Theme.INK
-        /** Smaller words on a coloured card. */
+        val INK_SOFT = Theme.alpha(Theme.INK, 175)
+        val TROUGH = Theme.alpha(Theme.INK, 22)
+        /** A price you can't pay yet. */
+        val PALE_GOLD = Theme.lerp(Theme.WHITE, BACKDROP, .55f)
+        /** Smaller words on the mystery box's grape card. */
         val SOFT = Theme.alpha(Theme.WHITE, 215)
         /** The update card's deep grape, so the white words and twinkles stand out. */
         const val DEEP_GRAPE = 0xFF6A35E8.toInt()

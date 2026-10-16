@@ -392,13 +392,19 @@ class ShopView(
 
     /**
      * A full-width price for the one-off cards (the mystery box, the trophy room, the void):
-     * gold when affordable, frosted glass when not.
+     * gold when affordable, dimmed when not.
      */
     private fun priceButton(price: Int?, key: String, buy: () -> Boolean): View? {
         val offer = offer(price, key, null, 0, buy) ?: return null
         lateinit var btn: CandyButton
-        btn = kit.button(kit.coins(offer.price, 19f), if (offer.can) Theme.GOLD else Theme.alpha(Theme.WHITE, if (key == "void") 46 else 64)) { offer.onTap(btn) }
-        if (!offer.can) btn.setTextColor(Theme.alpha(Theme.WHITE, if (key == "void") 170 else 235))
+        // Not affordable yet: frosted glass on the dark void and grape mystery cards, pale gold on a white card.
+        val (dim, dimWords) = when (key) {
+            "void" -> Theme.alpha(Theme.WHITE, 46) to Theme.alpha(Theme.WHITE, 170)
+            ShopIcon.MYSTERY -> Theme.alpha(Theme.WHITE, 64) to Theme.alpha(Theme.WHITE, 235)
+            else -> ShopCards.PALE_GOLD to Theme.alpha(Theme.INK, 150)
+        }
+        btn = kit.button(kit.coins(offer.price, 19f), if (offer.can) Theme.GOLD else dim) { offer.onTap(btn) }
+        if (!offer.can) btn.setTextColor(dimWords)
         return if (key == "void") FittedVoidPrice(activity, kit, btn, offer.price) else btn
     }
 

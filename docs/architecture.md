@@ -147,8 +147,8 @@ is no "go again" page: restart and everything else live on the menu.
 ## The shop
 
 The shop is a showroom strip with your cube (on its own grape sky, with a
-sunburst) over a butter sheet of cards, each in its item's colour; the
-cards scroll inside the sheet, never over the cube. A card's buy button
+sunburst) over a butter sheet of white cards; the cards scroll inside the
+sheet, never over the cube. A card's buy button
 runs along its bottom and carries its level bar or stock rack. It pays
 where you tapped (`ui.PayFx`), then asks the stage for a demo
 (`Stage.demoRequests` → `game.stage.Demos`): the bubble inflates around
