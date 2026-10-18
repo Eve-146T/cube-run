@@ -44,10 +44,11 @@ android {
         applicationId = "cube.run"
         minSdk = 28
         targetSdk = 35
-        versionCode = 17
-        versionName = "2.7"
+        versionCode = 18
+        versionName = "2.8"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         buildConfigField("boolean", "JACKPOT_TEST_WORLD", "false")
+        buildConfigField("boolean", "PERFORMANCE_TEST", "false")
     }
 
     // Keep release APKs free of Google's dependency-metadata signing block,
@@ -78,6 +79,7 @@ android {
         }
         release {
             isMinifyEnabled = false
+            buildConfigField("boolean", "PERFORMANCE_TEST", performanceRelease.toString())
             if (performanceRelease) {
                 signingConfig = signingConfigs.getByName("debug")
             } else if (releaseStoreFile != null) {

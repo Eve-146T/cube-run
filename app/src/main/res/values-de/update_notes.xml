@@ -1,4 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string-array name="update_notes" />
+    <string-array name="update_notes">
+        <item>news | Shop und Erfolge neu gestaltet | Neue Karten, Abzeichen und Kaufanimationen.</item>
+        <item>sky_sweeper | Neue Erfolge | Neue Herausforderungen, Sammelziele und ein Geheimnis zum Entdecken.</item>
+        <item>bubble_bath | Blasen | Ein paar Blasen haben Fähigkeiten bekommen.</item>
+    </string-array>
 </resources>

@@ -1,4 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string-array name="update_notes" />
+    <string-array name="update_notes">
+        <item>news | עיצוב חדש לחנות ולהישגים | כרטיסים ותגים חדשים, ואנימציות קנייה חדשות.</item>
+        <item>sky_sweeper | הישגים חדשים | אתגרים חדשים, יעדי איסוף וסוד לגלות.</item>
+        <item>bubble_bath | בועות | כמה בועות קיבלו יכולות.</item>
+    </string-array>
 </resources>

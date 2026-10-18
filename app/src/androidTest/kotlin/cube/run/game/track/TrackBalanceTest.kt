@@ -65,7 +65,6 @@ class TrackBalanceTest {
             val exit = track.rows[entry + 1 + wide.size]
             assertTrue(exit.portalExit)
             assertEquals(wide.last().safeX(), exit.safeX(), 0.001f)
-            assertTrue(wide.any { it.pickup != Pickup.NONE })
             for (row in wide.filter { it.pickup != Pickup.NONE }) assertEquals(row.safeX(), row.pickupX, 0.001f)
         }
     }

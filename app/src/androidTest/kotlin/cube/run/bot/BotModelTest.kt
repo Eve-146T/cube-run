@@ -57,9 +57,12 @@ class BotModelTest {
                 try {
                     Settings.setSoundEnabled(false); Settings.setHapticsEnabled(false)
                     field(Progress::class.java, "revives").setInt(Progress, 0)
-                    Stage.paused = true
                     val game = Gdx.app.applicationListener as CubeRun
-                    field(CubeRun::class.java, "started").setBoolean(game, true)
+                    game.finishOpening()
+                    Stage.paused = false
+                    Stage.mode = Stage.NONE
+                    game.onTap(.5f, .5f)
+                    Stage.paused = true
                     val track: Track = value(game, "track")
                     val player: Player = value(game, "player")
                     val bubble: Bubble = value(game, "bubble"); bubble.timer.stop()

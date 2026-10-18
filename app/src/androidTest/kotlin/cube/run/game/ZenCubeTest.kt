@@ -62,12 +62,15 @@ class ZenCubeTest {
         val scores = context.getSharedPreferences("scores", Context.MODE_PRIVATE)
         val saved = prefs.all; val savedScores = scores.all; val savedDev = Settings.devMode
         val savedZen = Progress.zenRun
+        val savedSection = Settings.testSection
+        val savedPillWorld = Settings.testPillWorld
+        val savedSpaceWorld = Settings.testSpaceWorld
         try {
             Settings.setDevMode(false)
             assertTrue(prefs.edit().clear().putBoolean("achievements_unlocked", true)
                 .putInt("owned_skins", 1 or (1 shl Skins.ZEN_ID)).putInt("skin", skin).putInt("bubbles", 5).commit())
             scores.edit().clear().commit(); Progress.init(context)
-            val intent = Intent(context, GameActivity::class.java).putExtra(Hud.EXTRA_AUTOSTART, false)
+            val intent = Intent(context, GameActivity::class.java).putExtra(Hud.EXTRA_AUTOSTART, false).putExtra("section", -1)
             ActivityScenario.launch<GameActivity>(intent).use { scenario ->
                 var ready = false
                 val until = SystemClock.uptimeMillis() + 10000
@@ -85,6 +88,7 @@ class ZenCubeTest {
             }
         } finally {
             Stage.paused = false; Stage.mode = Stage.NONE; Progress.zenRun = savedZen
+            Settings.testSection = savedSection; Settings.testPillWorld = savedPillWorld; Settings.testSpaceWorld = savedSpaceWorld
             restore(prefs, saved); restore(scores, savedScores)
             Settings.setDevMode(savedDev)
             Progress.init(context)

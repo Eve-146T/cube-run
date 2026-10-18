@@ -161,7 +161,6 @@ class RunPerformanceTest {
         val boostTaps = field(FireBoost::class.java, "taps")
         val player = field(CubeRun::class.java, "player").get(game) as Player
         val powers = field(CubeRun::class.java, "powerUps").get(game) as PowerUps
-        val grace = field(CubeRun::class.java, "jetGrace")
         val speed = field(CubeRun::class.java, "spd")
         val dead = field(CubeRun::class.java, "dead")
         val perf = field(Gdx3DGame::class.java, "perf").get(game)
@@ -264,7 +263,6 @@ class RunPerformanceTest {
                     previousHit = hit
                     val elapsed = (now - start) / 1e9
                     probeReady = elapsed >= 5
-                    if (!botEnabled) grace.setFloat(game, 100f) // render real obstacles without ending the unattended run
                     if (elapsed >= 5 && previous != 0L) {
                         frames.add((now - previous) / 1e6f)
                         cpu.add(samples[slot.getInt(perf)])
@@ -333,10 +331,9 @@ class RunPerformanceTest {
         val observer = field(CubeRun::class.java, "testCrashObserver")
         showStatus(mode, 0)
         LiveBotDriver.gl {
-            if (botEnabled) {
-                grace.setFloat(game, 0f)
-                observer.set(game, { collisionSeen.set(true); Unit })
-            }
+            // Static runs need protection only: updating the badge for every hit
+            // would add UI work that the measured game does not normally do.
+            observer.set(game, { if (botEnabled) collisionSeen.set(true); Unit })
         }
         try {
             if (audioMode != null) {

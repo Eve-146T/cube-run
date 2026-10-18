@@ -359,8 +359,8 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
         rig.punch(0.8f)
     }
 
-    // Instrumentation installs this only for protected performance runs. Release
-    // builds always use the normal fatal-collision path, even if reflection sets it.
+    // Instrumentation installs this for protected performance runs. Ordinary release
+    // builds use the normal fatal-collision path, even if reflection sets it.
     private var testCrashObserver: (() -> Unit)? = null
     // Observation only: counts contacts even when a legitimately collected shield saves them.
     internal var pilotContacts = 0
@@ -368,7 +368,7 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
 
     private fun crash() {
         if (dead) return
-        if (BuildConfig.DEBUG && testCrashObserver != null) { testCrashObserver!!.invoke(); return }
+        if ((BuildConfig.DEBUG || BuildConfig.PERFORMANCE_TEST) && testCrashObserver != null) { testCrashObserver!!.invoke(); return }
         if (Progress.useRevive()) { secondWind(); return }
         if (reachingForBox()) session.riskyBoxDeath()
         die()

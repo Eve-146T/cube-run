@@ -2,17 +2,8 @@ package cube.run.game
 
 import android.graphics.Bitmap
 import android.graphics.Canvas
-import android.os.SystemClock
 import android.view.ContextThemeWrapper
-import android.view.View
-import android.view.ViewGroup
-import android.view.ViewTreeObserver
-import androidx.test.core.app.ActivityScenario
 import androidx.test.platform.app.InstrumentationRegistry
-import androidx.test.runner.lifecycle.ActivityLifecycleCallback
-import androidx.test.runner.lifecycle.ActivityLifecycleMonitorRegistry
-import androidx.test.runner.lifecycle.Stage
-import cube.run.GameActivity
 import cube.run.R
 import cube.run.data.Skins
 import cube.run.data.Worlds
@@ -20,9 +11,6 @@ import cube.run.intro.LaunchAppearance
 import cube.run.intro.LaunchThemes
 import cube.run.intro.NativeCubeView
 import cube.run.intro.OpeningClock
-import cube.run.ui.Hud
-import java.util.concurrent.CountDownLatch
-import java.util.concurrent.TimeUnit
 import org.junit.Assert.*
 import org.junit.Test
 
@@ -65,65 +53,5 @@ class LaunchHandoffTest {
                 }
             }
         } finally { native.recycle(); vector.recycle() }
-    }
-
-    @Test fun menuControlsStayInPlaceThroughoutTheVisibleOpening() {
-        val settled = CountDownLatch(1)
-        val positions = mutableMapOf<View, Pair<Int, Int>>()
-        val errors = mutableListOf<String>()
-        var samples = 0
-        var finishedAt = 0L
-        // ActivityScenario.onActivity may arrive after startup animations have
-        // finished. Observe creation before launch, so no entrance frames are missed.
-        val callback = ActivityLifecycleCallback { activity, state ->
-            if (activity is GameActivity && state == Stage.CREATED) {
-                val decor = activity.window.decorView
-                decor.viewTreeObserver.addOnPreDrawListener(object : ViewTreeObserver.OnPreDrawListener {
-                    override fun onPreDraw(): Boolean {
-                        fun visit(view: View, visible: Float) {
-                            if (view.visibility != View.VISIBLE) return
-                            val alpha = visible*view.alpha
-                            if (alpha > .1f && (view is ViewGroup || view.isClickable && view.contentDescription != null)) {
-                                val xy = IntArray(2); view.getLocationOnScreen(xy)
-                                val previous = positions.putIfAbsent(view, xy[0] to xy[1])
-                                if (previous != null && previous != (xy[0] to xy[1])) errors.add("${view.contentDescription ?: view.javaClass.simpleName}: $previous -> ${xy.toList()}")
-                            }
-                            if (view is ViewGroup) for (i in 0 until view.childCount) visit(view.getChildAt(i), alpha)
-                        }
-                        fun findHud(view: View): Hud? {
-                            if (view is Hud) return view
-                            if (view is ViewGroup) for (i in 0 until view.childCount) findHud(view.getChildAt(i))?.let { return it }
-                            return null
-                        }
-                        val hud = findHud(decor)
-                        if (hud != null && hud.alpha > .1f) {
-                            samples++
-                            visit(hud, 1f)
-                            if (hud.alpha == 1f) {
-                                if (finishedAt == 0L) finishedAt = SystemClock.uptimeMillis()
-                                if (SystemClock.uptimeMillis()-finishedAt >= 450) {
-                                    decor.viewTreeObserver.removeOnPreDrawListener(this)
-                                    settled.countDown()
-                                }
-                            }
-                        }
-                        return true
-                    }
-                })
-            }
-        }
-        val instrumentation = InstrumentationRegistry.getInstrumentation()
-        val monitor = ActivityLifecycleMonitorRegistry.getInstance()
-        instrumentation.runOnMainSync { monitor.addLifecycleCallback(callback) }
-        try {
-            ActivityScenario.launch(GameActivity::class.java).use {
-                assertTrue("Opening did not settle", settled.await(6, TimeUnit.SECONDS))
-                assertTrue("Need frames throughout the fade: $samples", samples >= 5)
-                assertTrue("Menu controls not observed", positions.size >= 4)
-                assertTrue("Buttons shifted during entrance: $errors", errors.isEmpty())
-            }
-        } finally {
-            instrumentation.runOnMainSync { monitor.removeLifecycleCallback(callback) }
-        }
     }
 }

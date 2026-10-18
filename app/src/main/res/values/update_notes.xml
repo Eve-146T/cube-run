@@ -9,6 +9,10 @@
 -->
 <resources>
     <!-- Notes written for another version are stale: they never pop up. -->
-    <string name="update_notes_for" translatable="false">2.7</string>
-    <string-array name="update_notes" />
+    <string name="update_notes_for" translatable="false">2.8</string>
+    <string-array name="update_notes">
+        <item>news | Redesigned shop and achievements | Fresh cards, badges and purchase animations.</item>
+        <item>sky_sweeper | New achievements | New challenges, collection goals and a secret to discover.</item>
+        <item>bubble_bath | Bubbles | A few bubbles gained abilities.</item>
+    </string-array>
 </resources>

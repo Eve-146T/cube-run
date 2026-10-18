@@ -77,7 +77,6 @@ class ZappyAbilityTest {
     @Test fun teleportSkipsIntermediateCoinsAndObstaclesButDestinationStillCollides() = withPlayer { game, player ->
         field(game, "started").setBoolean(game, true)
         field(game, "dead").setBoolean(game, false)
-        field(game, "jetGrace").setFloat(game, 0f)
         field(game, "runSkin").set(game, Skins.get(22))
         (field(game, "bubble").get(game) as Bubble).reset()
         val track = field(game, "track").get(game) as Track

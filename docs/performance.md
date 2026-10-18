@@ -17,6 +17,10 @@ adb -s ZY323NNKTB logcat -d -s RUN_BENCH:I '*:S'
 
 For longer coverage add `-e seconds 120 -e modes cruise,hills,second-wind,jet,wide,late`: `jet` holds the jetpack's top speed, `wide` the five-lane bonus world, and `late` jumps the clock and distance far into a run. These are test-only controls.
 
+For release-variant measurements, build both APKs with `./gradlew -PperformanceRelease=true assembleRelease assembleReleaseAndroidTest`. This signs the local release with the debug key and enables `BuildConfig.PERFORMANCE_TEST`, allowing the instrumentation's crash observer to protect an unattended run. Ordinary release builds keep that flag false. Protection uses the observer rather than the removed jetpack landing grace timer.
+
+Install the matching `app-release.apk` and `app-release-androidTest.apk`. Debug instrumentation cannot drive a release APK: Kotlin internal accessors include the build variant in their names. When comparing an older release, build its release instrumentation from its tag and pass it as `--baseline-test-apk` to `tools/performance/compare.py`. A downloaded release APK can be re-signed with the local test key without changing its code or resources. Record that provenance and any differences in collision protection alongside the results.
+
 Menus, restarts and taps are measured by `UserActionBenchmarkTest`: see [action-benchmarks.md](action-benchmarks.md). The playing bot used by long tests is in [bot.md](bot.md).
 
 Compare before and after on the same phone, battery level and temperature, and don't profile while measuring: even sampling changes the timings a lot.

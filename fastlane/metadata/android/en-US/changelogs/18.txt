@@ -1,0 +1,4 @@
+The shop and achievements screens have been redesigned.
+New achievements: challenges, collection goals and a secret to discover.
+A few bubbles gained abilities.
+Balance changes, bug fixes, moar performance and moving stuff around in the UI.
