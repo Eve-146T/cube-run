@@ -33,23 +33,6 @@ internal class UnlockedCheckIcon : Icon() {
     }
 }
 
-internal class AchievementShopIcon : Icon() {
-    private val path = Path()
-    override fun draw(canvas: Canvas) {
-        val b = bounds; val x = b.exactCenterX(); val y = b.exactCenterY(); val r = min(b.width(), b.height()) * 0.39f
-        paint.color = Theme.INK; paint.style = Paint.Style.FILL
-        path.reset(); path.moveTo(x - r * 0.7f, y - r); path.lineTo(x + r * 0.7f, y - r)
-        path.lineTo(x + r * 0.55f, y - r * 0.03f); path.quadTo(x, y + r * 0.7f, x - r * 0.55f, y - r * 0.03f); path.close()
-        canvas.drawPath(path, paint)
-        canvas.drawRect(x - r * 0.12f, y + r * 0.25f, x + r * 0.12f, y + r * 0.78f, paint)
-        canvas.drawRoundRect(x - r * 0.48f, y + r * 0.7f, x + r * 0.48f, y + r * 0.94f, r * 0.1f, r * 0.1f, paint)
-        paint.style = Paint.Style.STROKE; paint.strokeWidth = r * 0.17f
-        canvas.drawArc(x - r, y - r * 0.78f, x, y + r * 0.02f, 65f, 205f, false, paint)
-        canvas.drawArc(x, y - r * 0.78f, x + r, y + r * 0.02f, -90f, 205f, false, paint)
-        paint.style = Paint.Style.FILL
-    }
-}
-
 /** Quiet monochrome previews retain each secret's silhouette before purchase. */
 internal class SecretCosmeticIcon(private val category: Int) : Icon() {
     private val path = Path()

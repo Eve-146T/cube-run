@@ -1,6 +1,7 @@
 package cube.run.ui
 
 import android.graphics.Canvas
+import android.graphics.drawable.Drawable
 import android.graphics.CornerPathEffect
 import android.graphics.Paint
 import android.graphics.Path
@@ -137,8 +138,8 @@ internal fun rewardArt(tiered: Boolean, tier: Int, owned: Boolean): Icon = Badge
  * An achievement's picture on its own chunky candy tile: a rounded square in the achievement's
  * colour on a darker lip, with a gloss band, the picture filling most of the face.
  */
-internal class AchievementTile(id: String, private val color: Int) : Icon() {
-    private val art = achievementIcon(id)
+internal class AchievementTile(private val art: Drawable, private val color: Int) : Icon() {
+    constructor(id: String, color: Int) : this(achievementIcon(id), color)
 
     override fun draw(canvas: Canvas) {
         val save = canvas.save()

@@ -7,7 +7,6 @@ import android.content.Context
 import android.content.SharedPreferences
 import android.view.Gravity
 import android.view.View
-import android.view.ViewTreeObserver
 import android.widget.FrameLayout
 import android.widget.LinearLayout
 import cube.run.GameActivity
@@ -170,9 +169,6 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false, retu
     private var pauseSheet: PauseSheet? = null
     private var runOver: RunOverFlow? = null
     private val hardwareNavigation = HardwareNavigation()
-    private var shopBox: RunOverFlow? = null
-    private var giftReturnCover: View? = null
-    @Volatile private var giftReturnGeneration = 0
     private var voidPurchase: VoidShowOverlay? = null
     private val achievementToast = AchievementToast(activity, kit)
     private val jackpotCounter = JackpotCounter(activity, kit, { haulCentre() }) { showing ->
@@ -285,26 +281,6 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false, retu
         removeCallbacks(pollAchievements)
         preparedShop?.let { removeView(it) }; preparedShop = null; closedShop = null
         voidPurchase = null
-        giftReturnGeneration++
-        giftReturnCover?.let { cover ->
-            cover.animate().cancel()
-            removeView(cover)
-            shopBox?.let { removeView(it) }
-            shopBox = null
-            // A reattached HUD must not retain a detached curtain or a locked gift
-            // reference. Complete the already-paid presentation while offscreen.
-            (page as? ShopView)?.let { shop ->
-                shop.refreshAfterBox()
-                shop.visibility = VISIBLE
-                menu.visibility = VISIBLE
-                menu.refresh()
-                Stage.openRequests.set(0)
-                Stage.skipBoxRequests.set(0)
-                Stage.shopProgress = 1f
-                Stage.mode = Stage.SHOP
-            }
-        }
-        giftReturnCover = null
         super.onDetachedFromWindow()
     }
 
@@ -383,7 +359,7 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false, retu
         updateNotes?.let { it.dismiss(); return }
         languageSheet?.let { it.dismiss(); return }
         if (runStarted || pauseSheet != null || runOver != null) return
-        if (shopBox != null || voidPurchase != null) return // keep purchased presentations intact
+        if (voidPurchase != null) return // keep a purchased presentation intact
         val current = page
         if (current is ShopView || current is WardrobeView || current is AchievementsView || current is SettingsView) current.navigateBack()
     }
@@ -451,7 +427,7 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false, retu
     private fun newShop(): ShopView {
         lateinit var shop: ShopView
         shop = ShopView(activity, kit, menu.shopBalance, menu::setShopProgress,
-            onOpenMysteryBox = ::openPurchasedBox, onVoidPurchase = ::showVoidPurchase,
+            onVoidPurchase = ::showVoidPurchase,
             onProgressReset = ::refreshAfterProgressReset) {
             clearHardwareFocus()
             page = null
@@ -596,82 +572,6 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false, retu
         val host = IntArray(2); val at = IntArray(2)
         getLocationInWindow(host); v.getLocationInWindow(at)
         return android.graphics.PointF(at[0] - host[0] + v.width / 2f, at[1] - host[1] + v.height / 2f)
-    }
-
-    private fun openPurchasedBox(reward: Progress.BoxReward) {
-        if (shopBox != null) return
-        val shop = page as? ShopView ?: return
-        shop.visibility = INVISIBLE
-        menu.visibility = INVISIBLE
-        Stage.purchasedBoxRewards.add(reward)
-        val flow = RunOverFlow(activity, kit, 0, 0, false, 0, 1, "", emptyList(),
-            onRestart = {}, onMenu = { returnFromPurchasedBox(shop) }, boxesOnly = true)
-        shopBox = flow
-        addView(flow, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
-    }
-
-    /** Keep the gift visible until an opaque curtain covers the actual GL camera handoff. */
-    private fun returnFromPurchasedBox(shop: ShopView) {
-        if (giftReturnCover != null) return
-        val flow = shopBox ?: return
-        val generation = ++giftReturnGeneration
-        val cover = View(activity).apply {
-            tag = "gift_return_cover"
-            setBackgroundColor(0xff100a20.toInt())
-            alpha = 0f
-            isClickable = true
-            importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO
-        }
-        giftReturnCover = cover
-        addView(cover, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
-        cover.move().alpha(1f).setDuration(180).setInterpolator(Anim.ease).withEndAction {
-            if (giftReturnCover !== cover || generation != giftReturnGeneration) return@withEndAction
-            removeView(flow)
-            shop.refreshAfterBox()
-            shop.visibility = VISIBLE
-            menu.visibility = VISIBLE
-            menu.refresh()
-            Stage.openRequests.set(0)
-            Stage.skipBoxRequests.set(0)
-            val app = com.badlogic.gdx.Gdx.app
-            app.postRunnable {
-                if (generation != giftReturnGeneration) return@postRunnable
-                Stage.shopProgress = 1f
-                Stage.mode = Stage.SHOP
-                // Runnables execute before rendering. Waiting for exit, then one more
-                // frame, ensures the restored showroom has actually been drawn. A
-                // backgrounded app simply retains its opaque curtain until GL resumes.
-                app.postRunnable(object : Runnable {
-                    override fun run() {
-                        if (generation != giftReturnGeneration) return
-                        if (Stage.giftShowing) { app.postRunnable(this); return }
-                        app.postRunnable {
-                            if (generation == giftReturnGeneration) post {
-                                if (giftReturnCover !== cover || !isAttachedToWindow) return@post
-                                viewTreeObserver.addOnPreDrawListener(object : ViewTreeObserver.OnPreDrawListener {
-                                    override fun onPreDraw(): Boolean {
-                                        viewTreeObserver.removeOnPreDrawListener(this)
-                                        if (giftReturnCover === cover) {
-                                            cover.move().alpha(0f).setDuration(280).setInterpolator(Anim.ease).withEndAction {
-                                                if (giftReturnCover === cover) {
-                                                    removeView(cover)
-                                                    giftReturnCover = null
-                                                    shopBox = null
-                                                    Anim.repaint(this@Hud)
-                                                }
-                                            }.start()
-                                        }
-                                        return true
-                                    }
-                                })
-                                requestLayout()
-                                invalidate()
-                            }
-                        }
-                    }
-                })
-            }
-        }.start()
     }
 
     // ------------------------------------------------------------- HUD values
@@ -933,6 +833,6 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false, retu
 
     /** The game's 3D gift stage opened a box (GL → UI via the session). */
     fun onBoxOpened(kind: Int, amount: Int, cat: Int, id: Int) {
-        (shopBox ?: runOver)?.onBoxOpened(kind, amount, cat, id)
+        runOver?.onBoxOpened(kind, amount, cat, id)
     }
 }

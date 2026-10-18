@@ -109,6 +109,12 @@ class TrackBalanceTest {
         }
     }
 
+    @Test fun luckyBoxesAddAFifthOfABoxPerLevel() {
+        assertEquals(1f, Progress.LUCKYBOX.duration(0), .0001f)
+        assertEquals(1.2f, Progress.LUCKYBOX.duration(1), .0001f)
+        assertEquals(2f, Progress.LUCKYBOX.duration(Progress.LUCKYBOX.max), .0001f)
+    }
+
     @Test fun jetpackFrequencyIsHalfTheUnchangedCommonPickupFrequency() {
         val track = track(53)
         generate(track, 6000)

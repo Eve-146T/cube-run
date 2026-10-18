@@ -44,6 +44,7 @@
     <string name="achievement_suggest_button">SUGGEST AN ACHIEVEMENT</string>
     <string name="shop_mystery_box">Mystery box</string>
     <string name="shop_mystery_box_detail">Coins, bubbles, shards or a new cosmetic</string>
+    <string name="shop_achievements_name">Achievements</string>
     <string name="shop_achievements_detail">Unlock challenges and collect their rewards.</string>
     <string name="shop_unlocked">UNLOCKED</string>
     <string name="shop_achievements_unlocked">Achievements unlocked</string>

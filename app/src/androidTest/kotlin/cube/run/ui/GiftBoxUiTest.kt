@@ -30,6 +30,8 @@ import java.util.concurrent.TimeUnit
 
 /** Native layout coverage; hold the renderer while exercising component-only open requests. */
 class GiftBoxUiTest {
+    /** The run-over flow's mystery-box page, straight away (the results page is skipped). */
+    private fun boxPage(flow: RunOverFlow) = flow.apply { RunOverFlow::class.java.getDeclaredMethod("showBoxes").apply { isAccessible = true }.invoke(this) }
     private fun field(owner: Any, name: String) = owner.javaClass.getDeclaredField(name).apply { isAccessible = true }
     private fun call(flow: RunOverFlow, method: String) =
         RunOverFlow::class.java.getDeclaredMethod(method).apply { isAccessible = true }.invoke(flow)
@@ -58,7 +60,7 @@ class GiftBoxUiTest {
                 kit = UiKit(activity.createConfigurationContext(config))
                 root = activity.findViewById(android.R.id.content)
                 container = FrameLayout(activity).apply { setBackgroundColor(0xff100a20.toInt()) }
-                flow = RunOverFlow(activity, kit, 0, 0, false, 0, 2, "", emptyList(), {}, {}, boxesOnly = true)
+                flow = boxPage(RunOverFlow(activity, kit, 0, 0, false, 0, 2, "", emptyList(), {}, {}))
                 container.addView(flow, FrameLayout.LayoutParams(kit.dp(280f), -1, Gravity.CENTER))
                 root.addView(container, FrameLayout.LayoutParams(-1, -1))
             }
@@ -162,7 +164,6 @@ class GiftBoxUiTest {
         assertEquals("GESCHENKE", german.resources.getQuantityString(R.plurals.mystery_boxes, 2))
         assertEquals("Geschenk", german.getString(R.string.shop_mystery_box))
         assertEquals("Geschenke geöffnet", german.getString(R.string.achievement_boxes_opened))
-        assertEquals("Geschenke erscheinen öfter", german.getString(R.string.text_mystery_boxes_turn_up_more_often))
         assertEquals("pro Geschenk", german.getString(R.string.lottery_per_box))
         assertEquals("TIPPEN FÜR DAS NÄCHSTE GESCHENK", german.getString(R.string.text_tap_for_the_next_box))
     }
@@ -240,7 +241,7 @@ class GiftBoxUiTest {
             field(flow, "boxesLeft").setInt(flow, 0)
             call(flow, "finishBoxAnimation")
             measure(flow, kit)
-            assertEquals("TAP TO RETURN", hint.text.toString())
+            assertEquals("TAP FOR THE MENU", hint.text.toString())
             assertFits(hint)
             val final = Rect(0, 0, hint.width, hint.height)
             flow.offsetDescendantRectToMyCoords(hint, final)

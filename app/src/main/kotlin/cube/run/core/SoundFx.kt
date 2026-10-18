@@ -20,7 +20,7 @@ import kotlin.random.Random
  *
  * Available sound names (pitch-shift with `rate` 0.5..2.0 for variety):
  *  tap, blip, pop, place, perfect, combo, success, fail,
- *  whoosh, boom, coin, rise, slide, bubble_ready, fanfare, drain, bell,
+ *  whoosh, boom, coin, rise, slide, bubble_ready, fanfare, drain, bell, buy,
  *  and Outer Space's: moonjump, moonland, flyby, stardust, hum (a loop)
  */
 object SoundFx {
@@ -55,7 +55,7 @@ object SoundFx {
             }
             val dir = File(ctx.cacheDir, "sfx").apply { mkdirs() }
             val names = listOf("tap", "blip", "pop", "place", "perfect", "combo", "success", "fail", "whoosh", "boom", "coin", "rise", "slide", "fanfare", "drain", "bell",
-                "moonjump", "moonland", "flyby", "stardust", "hum", "bubble_ready")
+                "moonjump", "moonland", "flyby", "stardust", "hum", "bubble_ready", "buy")
             // A redesigned sound gets a new file name, so installed games synthesize it again.
             fun file(name: String) = File(dir, when (name) { "coin" -> "coin-chime-v2.wav"; "stardust" -> "stardust-v3.wav"; else -> "$name.wav" })
             // Installed games already have these WAVs. Do not synthesize all samples again.
@@ -139,6 +139,7 @@ object SoundFx {
         "flyby" to flyby(),
         "stardust" to stardust(),
         "hum" to hum(),
+        "buy" to buy(),
         "bell" to synth(1400, vol = 0.8) { t, p -> // a singing bowl: a soft strike and inharmonic partials ringing out
             val f = 392.0
             (sin(t * f * TAU) + 0.5 * sin(t * f * 2.76 * TAU) * exp(-p * 3.0) + 0.25 * sin(t * f * 5.4 * TAU) * exp(-p * 6.0)) /
@@ -194,6 +195,29 @@ object SoundFx {
                 val p = i.toDouble() / (noteN * 2)
                 out[start + i] += (sin(t * f * TAU) * 0.7 + square(t * f) * 0.18) * decay(p, 3.5) * 0.8
             }
+        }
+        return ShortArray(n) { (out[it].coerceIn(-1.0, 1.0) * 30000).toInt().toShort() }
+    }
+
+    /**
+     * A shop purchase landing: two soft mallet notes a fourth apart (E5, A5) over a
+     * warm knock. Sines with a short-lived second harmonic, nothing above 1.8 kHz,
+     * so it stays round on a phone speaker and never stacks into a shriek.
+     */
+    private fun buy(): ShortArray {
+        val n = SR * 560 / 1000
+        val out = DoubleArray(n)
+        for ((k, f) in doubleArrayOf(659.25, 880.0).withIndex()) {
+            val start = k * SR * 85 / 1000
+            for (i in 0 until n - start) {
+                val t = i.toDouble() / SR
+                val mallet = sin(t * f * TAU) + 0.25 * sin(t * f * 2.0 * TAU) * exp(-t * 28.0)
+                out[start + i] += mallet * exp(-t * (if (k == 0) 9.0 else 6.0)) * min(1.0, t * 400.0) * 0.36
+            }
+        }
+        for (i in 0 until SR * 90 / 1000) { // the knock: a low body under the first note
+            val t = i.toDouble() / SR
+            out[i] += sin(t * 165.0 * TAU) * exp(-t * 45.0) * min(1.0, t * 600.0) * 0.4
         }
         return ShortArray(n) { (out[it].coerceIn(-1.0, 1.0) * 30000).toInt().toShort() }
     }

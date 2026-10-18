@@ -19,14 +19,18 @@ import kotlin.math.sin
 /**
  * What buying something does to the cube on the shop stage: a bubble goes
  * up around it, coins spiral into it, a twin splits off and slams back in,
- * it lifts on a jet of flame, a portal ring spins around it, a gift box
- * drops in beside it and bursts… One demo at a time, asked for through
- * [Stage.demoRequests]; [lift] is how high the current demo holds the cube.
+ * it lifts on a jet of flame, a portal ring spins around it, a little
+ * shower of gift boxes lands around it and pops one by one (Lucky boxes)…
+ * One demo at a time, asked for through [Stage.demoRequests]; [lift] is how
+ * high the current demo holds the cube, [cheer] asks it to hop and spin.
  */
 class Demos(private val game: Gdx3DGame, private val player: Player, private val bubble: Bubble) {
 
     /** Extra height for the cube (the jet demo). */
     var lift = 0f
+        private set
+    /** Set on the frame a demo wants the cube to hop and spin round (the last lucky box popped). */
+    var cheer = false
         private set
 
     private var kind = 0
@@ -34,8 +38,6 @@ class Demos(private val game: Gdx3DGame, private val player: Player, private val
     private var cx = 0f
     private var cy = 0f
     private val gold = Color()
-    private val grape = Color()
-    private val band = Color()
     private val flame = Color()
     private val portal = Color()
     private val pink = Color()
@@ -46,22 +48,25 @@ class Demos(private val game: Gdx3DGame, private val player: Player, private val
     private val maxCoins = 40
     private val cp = FloatArray(maxCoins * 7)
     private var coinsLive = 0
-    private var boxY = 0f
-    private var boxVy = 0f
-    private var boxGone = false
+    private val art = GiftArt(game)
+    private val lime = Color()
+    // Lucky boxes: per box, height, vertical speed, and whether it has landed / popped
+    private val luckyY = FloatArray(LUCKY_N)
+    private val luckyVy = FloatArray(LUCKY_N)
+    private val luckyLanded = BooleanArray(LUCKY_N)
+    private val luckyPopped = BooleanArray(LUCKY_N)
 
     init {
         hsvInto(gold, 46f, 0.85f, 1f)
-        hsvInto(grape, 282f, 0.72f, 0.95f)
-        hsvInto(band, 46f, 0.8f, 1f)
         hsvInto(flame, 28f, 0.9f, 1f)
         hsvInto(portal, 165f, 0.85f, 1f)
         hsvInto(pink, 328f, 0.7f, 1f)
+        hsvInto(lime, 100f, 0.7f, 1f)
     }
 
     val running: Boolean get() = kind != 0
 
-    fun reset() { kind = 0; lift = 0f; coinsLive = 0 }
+    fun reset() { kind = 0; lift = 0f; coinsLive = 0; cheer = false }
 
     private fun start(k: Int, px: Float, py: Float) {
         kind = k; t = 0f; cx = px; cy = py
@@ -99,11 +104,14 @@ class Demos(private val game: Gdx3DGame, private val player: Player, private val
             Stage.DEMO_MULT -> SoundFx.play("blip", rate = 1.2f)
             Stage.DEMO_FASTBUBBLES -> { bubble.reset(); bubble.duration = 0.7f; bubble.cooldownDuration = Progress.bubbleCooldownSeconds; bubble.activate(px, py) }
             Stage.DEMO_PORTAL -> { SoundFx.play("rise", rate = 1.4f); game.flash(portal, 0.3f) }
-            Stage.DEMO_BOX -> { boxY = 6f; boxVy = 0f; boxGone = false }
+            Stage.DEMO_LUCKY -> for (i in 0 until LUCKY_N) {
+                luckyY[i] = py + 4.5f + i * 0.5f; luckyVy[i] = 0f; luckyLanded[i] = false; luckyPopped[i] = false
+            }
         }
     }
 
     fun update(dt: Float, time: Float, px: Float, py: Float) {
+        cheer = false
         Stage.demoRequests.getAndSet(0).let { if (it > 0) start(it, px, py) }
         bubble.update(dt, time, px, py)
         if (kind == 0) return
@@ -167,21 +175,26 @@ class Demos(private val game: Gdx3DGame, private val player: Player, private val
                 if (t < 8f) bubble.activate(px, py) else kind = 0
             }
             Stage.DEMO_PORTAL -> if (t > 2.2f) kind = 0
-            Stage.DEMO_BOX -> {
-                if (!boxGone) {
-                    boxVy -= 22f * dt
-                    boxY = max(0.45f, boxY + boxVy * dt)
-                    if (boxY == 0.45f && boxVy < 0f) { boxVy = 0f; SoundFx.play("place", rate = 0.8f); Haptics.click() }
-                    if (boxY == 0.45f && t > 1.1f) { // pop!
-                        boxGone = true
-                        game.burst3d(tmp.set(px + 1.7f, 0.5f, 0f), grape, n = 34, speed = 7f, size = 0.14f, life = 0.9f)
-                        game.burst3d(tmp, band, n = 16, speed = 9f, size = 0.1f, life = 0.7f)
-                        game.burst3d(tmp, Color.WHITE, n = 10, speed = 11f, size = 0.08f, life = 0.45f)
-                        SoundFx.play("boom", rate = 1.6f, vol = 0.5f); SoundFx.play("success", rate = 1.3f, vol = 0.6f); Haptics.success()
-                        game.flash(grape, 0.3f)
+            Stage.DEMO_LUCKY -> { // they tumble in one after another, land with soft knocks, then pop in a row
+                for (i in 0 until LUCKY_N) {
+                    if (t < i * 0.12f || luckyPopped[i]) continue
+                    val ground = py - 0.75f
+                    luckyVy[i] -= 22f * dt
+                    luckyY[i] = max(ground, luckyY[i] + luckyVy[i] * dt)
+                    if (luckyY[i] == ground && luckyVy[i] < 0f) {
+                        luckyVy[i] = if (luckyLanded[i]) 0f else 3f // one little bounce
+                        if (!luckyLanded[i]) { luckyLanded[i] = true; SoundFx.play("pop", rate = 0.6f + i * 0.05f, vol = 0.3f) }
+                    }
+                    if (t > 1.0f + i * 0.14f) {
+                        luckyPopped[i] = true
+                        val x = px + LUCKY_X[i]
+                        art.shatter(x, luckyY[i], LUCKY_Z[i], scale = 0.4f)
+                        game.burst3d(tmp.set(x, luckyY[i] + 0.3f, LUCKY_Z[i]), lime, n = 8, speed = 4f, size = 0.08f, life = 0.5f)
+                        SoundFx.play("pop", rate = 1f + i * 0.12f, vol = 0.4f); Haptics.tick()
+                        if (i == LUCKY_N - 1) { cheer = true; SoundFx.play("buy", vol = 0.55f); Haptics.success() }
                     }
                 }
-                if (t > 1.6f) kind = 0
+                if (t > 2.3f) kind = 0
             }
         }
     }
@@ -216,19 +229,22 @@ class Demos(private val game: Gdx3DGame, private val player: Player, private val
                     game.worldBoxSpin(cx + cos(a) * radius, cy + sin(a) * radius, -0.6f, s, s, s, time * 200f + i * 30f, tmpCol)
                 }
             }
-            Stage.DEMO_BOX -> if (!boxGone) { // the gift, dropping in beside the cube
-                val x = cx + 1.7f
-                val yaw = t * 60f + 20f
-                val squash = if (boxY == 0.45f) 1f + 0.12f * max(0f, sin((t - 0.4f) * 10f)) else 1f
-                game.worldBoxSpin(x, boxY, 0f, 0.9f * squash, 0.9f / squash, 0.9f * squash, yaw, grape)
-                game.worldBoxSpin(x, boxY, 0f, 0.96f * squash, 0.18f, 0.2f, yaw, band)
-                game.worldBoxSpin(x, boxY, 0f, 0.2f, 0.18f, 0.96f * squash, yaw, band)
-                game.worldBoxSpin(x, boxY + 0.5f, 0f, 0.3f, 0.2f, 0.3f, yaw + 45f, band)
+            Stage.DEMO_LUCKY -> for (i in 0 until LUCKY_N) { // the little gifts around the cube
+                if (t < i * 0.12f || luckyPopped[i]) continue
+                val shake = if (t > 0.75f) sin(t * 50f + i) * 14f else 0f // about to pop
+                art.box(cx + LUCKY_X[i], luckyY[i], LUCKY_Z[i], 0.5f, 25f + i * 30f + t * 40f + shake)
             }
         }
     }
 
     fun renderBlended(cam: PerspectiveCamera, time: Float) {
         bubble.render(cam, time)
+    }
+
+    private companion object {
+        /** Lucky boxes: how many, and where they land beside the cube (outer ones a step back). */
+        const val LUCKY_N = 4
+        val LUCKY_X = floatArrayOf(-1.9f, -1.15f, 1.15f, 1.9f)
+        val LUCKY_Z = floatArrayOf(-0.8f, 0f, 0f, -0.8f)
     }
 }

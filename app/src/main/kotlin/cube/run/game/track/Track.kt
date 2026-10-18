@@ -77,6 +77,7 @@ class Track(private val rnd: Random, private val fx: ObstacleFactory) {
     private var shardOffers = 0
     private var jetOffers = 0
     private var boxOffers = 0
+    private var bonusBoxProgress = 0
     /** While the jetpack is on, new coin trails are laid at flying height. */
     @Volatile var airCoins = false
     /**
@@ -131,7 +132,7 @@ class Track(private val rnd: Random, private val fx: ObstacleFactory) {
         curSafe = 1; prevKind = -1; rowsSpawned = 0
         coinRowsLeft = 0; prevPlatLane = -1
         rowsSincePickup = 0; pickupSpacing = 12; pickupBag.clear(); airCoins = false; landing = null
-        runScore = 0; jetOffers = 0; boxOffers = 0; shardOffers = 0
+        runScore = 0; jetOffers = 0; boxOffers = 0; bonusBoxProgress = 0; shardOffers = 0
         bonus = Bonus.NONE; bonusRowsLeft = 0; rowsSincePortal = 0; portalPending = Bonus.NONE
         spaceIntro = false; cometStep = 0
         this.coinTrailChance = coinTrailChance
@@ -667,7 +668,7 @@ class Track(private val rnd: Random, private val fx: ObstacleFactory) {
 
     /**
      * Regular pickups on the walk lane. A shuffled bag prevents any one kind
-     * from disappearing for a whole run; Lucky Box adds boxes to each bag.
+     * from disappearing for a whole run; Lucky boxes fills normally skipped box slots.
      * Red Pill slots only materialize from a score of 600, then 1 in 30 times, in every ordinary run
      * including developer mode.
      */
@@ -679,9 +680,6 @@ class Track(private val rnd: Random, private val fx: ObstacleFactory) {
         if (galore && rowsSincePickup < 3) return
         if (pickupBag.isEmpty()) {
             val kinds = arrayListOf(Pickup.MAGNET, Pickup.MULT, Pickup.JET, Pickup.BUBBLE, Pickup.BOX, Pickup.RED_PILL, Pickup.SHARD_EMBER)
-            val luck = Progress.level(Progress.LUCKYBOX)
-            repeat(luck / 2) { kinds.add(Pickup.BOX) }
-            if (luck % 2 != 0 && rnd.nextBoolean()) kinds.add(Pickup.BOX) // +0.5 box weight per level
             pickupBag.addAll(kinds.shuffled(rnd))
         }
         val kind = pickupBag.removeFirst()
@@ -692,7 +690,19 @@ class Track(private val rnd: Random, private val fx: ObstacleFactory) {
             Pickup.RED_PILL -> if (runScore >= 600 && rnd.nextInt(30) == 0) kind else Pickup.NONE
             Pickup.SHARD_EMBER -> if ((galore || runScore >= 100) && ++shardOffers % 2 == 0) Pickup.SHARD_EMBER + rnd.nextInt(3) else Pickup.NONE
             Pickup.JET -> if ((galore || runScore >= 100) && ++jetOffers % 2 == 0) kind else Pickup.NONE
-            Pickup.BOX -> if ((galore || runScore >= 100) && ++boxOffers % 2 == 0) kind else Pickup.NONE
+            Pickup.BOX -> {
+                if (!galore && runScore < 100) Pickup.NONE
+                else if (++boxOffers % 2 == 0) kind
+                else {
+                    // One fifth of the skipped slots per level: ×1.2 through ×2, with no
+                    // extra bag entries or random draws to dilute/change the other pickups.
+                    bonusBoxProgress += Progress.level(Progress.LUCKYBOX).coerceIn(0, Progress.LUCKYBOX.max)
+                    if (bonusBoxProgress >= Progress.LUCKYBOX.max) {
+                        bonusBoxProgress -= Progress.LUCKYBOX.max
+                        kind
+                    } else Pickup.NONE
+                }
+            }
             else -> kind
         }
         rowsSincePickup = 0

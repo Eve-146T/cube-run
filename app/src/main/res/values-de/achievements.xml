@@ -44,6 +44,7 @@
     <string name="achievement_suggest_button">ERFOLG VORSCHLAGEN</string>
     <string name="shop_mystery_box">Geschenk</string>
     <string name="shop_mystery_box_detail">Münzen, Blasen, Splitter oder ein neues Aussehen</string>
+    <string name="shop_achievements_name">Erfolge</string>
     <string name="shop_achievements_detail">Schalte Herausforderungen frei und sammle ihre Belohnungen.</string>
     <string name="shop_unlocked">FREIGESCHALTET</string>
     <string name="shop_achievements_unlocked">Erfolge freigeschaltet</string>

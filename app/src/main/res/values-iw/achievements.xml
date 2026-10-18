@@ -44,6 +44,7 @@
     <string name="achievement_suggest_button">הצעת הישג</string>
     <string name="shop_mystery_box">תיבת הפתעה</string>
     <string name="shop_mystery_box_detail">מטבעות, בועות, רסיסים או מראה חדש</string>
+    <string name="shop_achievements_name">הישגים</string>
     <string name="shop_achievements_detail">פתיחת אתגרים ואיסוף הפרסים שלהם.</string>
     <string name="shop_unlocked">נפתח</string>
     <string name="shop_achievements_unlocked">ההישגים נפתחו</string>

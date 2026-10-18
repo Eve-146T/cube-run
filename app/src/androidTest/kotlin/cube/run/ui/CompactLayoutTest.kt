@@ -13,6 +13,9 @@ import cube.run.data.Skins
 import org.junit.Assert.*
 import org.junit.Test
 
+/** The run-over flow's mystery-box page, straight away (the results page is skipped). */
+private fun boxPage(flow: RunOverFlow) = flow.apply { RunOverFlow::class.java.getDeclaredMethod("showBoxes").apply { isAccessible = true }.invoke(this) }
+
 /** Exercise the same instances through compact/full transitions: rebuilding pages loses state. */
 class CompactLayoutTest {
     private fun all(view: View): List<View> = listOf(view) + if (view is ViewGroup)
@@ -291,7 +294,7 @@ class CompactLayoutTest {
     @Test fun boxRewardAndFooterSurviveRepeatedResizing() {
         ActivityScenario.launch(GameActivity::class.java).use { scenario -> scenario.onActivity { activity ->
             val kit = UiKit(activity)
-            val flow = RunOverFlow(activity, kit, 0, 0, false, 0, 2, "", emptyList(), {}, {}, boxesOnly = true)
+            val flow = boxPage(RunOverFlow(activity, kit, 0, 0, false, 0, 2, "", emptyList(), {}, {}))
             for ((w, h) in sizes) {
                 measure(flow, kit, w, h)
                 inside(flow, flow.findViewWithTag<View>("gift_footer_hint"))
@@ -331,8 +334,8 @@ class CompactLayoutCaptureTest {
             show("results") { activity, kit -> RunOverFlow(activity, kit, 1234, 1234, true, 99, 0, "", emptyList(), {}, {}) }
             show("achievements") { activity, kit -> AchievementsView(activity, kit, onClose = {}) }
             show("pause") { activity, kit -> PauseSheet(activity, kit, {}, {}, {}) }
-            show("box") { activity, kit -> RunOverFlow(activity, kit, 0, 0, false, 0, 2, "", emptyList(), {}, {}, boxesOnly = true) }
-            show("reward") { activity, kit -> RunOverFlow(activity, kit, 0, 0, false, 0, 2, "", emptyList(), {}, {}, boxesOnly = true).apply {
+            show("box") { activity, kit -> boxPage(RunOverFlow(activity, kit, 0, 0, false, 0, 2, "", emptyList(), {}, {})) }
+            show("reward") { activity, kit -> boxPage(RunOverFlow(activity, kit, 0, 0, false, 0, 2, "", emptyList(), {}, {})).apply {
                 postDelayed({ onBoxOpened(cube.run.data.Progress.BoxReward.COINS, 250, 0, 0) }, 300)
             } }
             scenario.onActivity { activity -> previous?.let { activity.findViewById<ViewGroup>(android.R.id.content).removeView(it) } }

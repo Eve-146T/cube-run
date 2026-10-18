@@ -52,7 +52,6 @@ class RunOverFlow(
     private val onRestart: () -> Unit,
     private val onMenu: () -> Unit,
     private val shards: IntArray = IntArray(3),
-    private val boxesOnly: Boolean = false,
 ) : FrameLayout(activity) {
 
     private fun dp(v: Float) = kit.dp(v)
@@ -608,7 +607,6 @@ class RunOverFlow(
         rewardCard?.let { Anim.reset(it) }
         boxBusy = false
         boxHint?.text = if (boxesLeft > 0) kit.ctx.getString(R.string.text_tap_for_the_next_box)
-        else if (boxesOnly) kit.ctx.getString(R.string.text_tap_to_return)
         else kit.ctx.getString(R.string.text_tap_for_the_menu)
         boxHint?.visibility = VISIBLE
     }
@@ -623,7 +621,7 @@ class RunOverFlow(
             requestLayout()
             insets
         }
-        if (boxesOnly) showBoxes() else showResults()
+        showResults()
     }
 
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {

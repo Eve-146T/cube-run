@@ -25,7 +25,8 @@ import kotlin.math.sin
  * snaps: the wardrobe's categories morph into each other (the bubble
  * inflates around the cube, the cube glides out onto its trail loop and
  * back), every item switch is a spin-flip with a pop, and purchases play
- * their [Demos] on the cube.
+ * their [Demos] on the cube. A mystery box bought in the shop opens beside
+ * the cube ([ShopGift]).
  */
 class Showcase(private val game: Gdx3DGame, private val player: Player, private val bubble: Bubble) {
 
@@ -58,6 +59,8 @@ class Showcase(private val game: Gdx3DGame, private val player: Player, private 
     private val tmpCol = Color()
     private val demos = Demos(game, player, bubble)
     private val void = VoidShow(game, player)
+    private val gift = ShopGift(game)
+    private val rayAt = Vector3()
     private var enterT = 0f
     private var trailMix = 0f      // eased 0..1: the cube is out on its trail loop
     private var bubbleMix = 0f     // eased 0..1: the wardrobe bubble is inflated
@@ -85,10 +88,19 @@ class Showcase(private val game: Gdx3DGame, private val player: Player, private 
         playYaw = 0f; playVelocity = 0f; playLift = 0f; playLiftVelocity = 0f
         trailMix = 0f; bubbleMix = 0f; kickV = 0f; kickA = 0f; pop = 0f; wide = 0f
         demos.reset()
+        gift.reset()
         skyTopSave.set(bgTop); skyBottomSave.set(bgBottom)
-        hsvInto(stageTop, tint - 20f, 0.65f, 0.42f)
-        hsvInto(stageBottom, tint + 20f, 0.75f, 0.10f)
-        hsvInto(spark, tint + 180f, 0.5f, 1f)
+        if (shop) {
+            // The shop's own candy sky, whatever world you came from: grape, the opposite of the
+            // butter sheet under it, deepening downwards, with butter rays and sparkles.
+            hsvInto(stageTop, SHOP_HUE, 0.62f, 0.80f)
+            hsvInto(stageBottom, SHOP_HUE + 6f, 0.80f, 0.46f)
+            hsvInto(spark, 46f, 0.45f, 1f)
+        } else {
+            hsvInto(stageTop, tint - 20f, 0.65f, 0.42f)
+            hsvInto(stageBottom, tint + 20f, 0.75f, 0.10f)
+            hsvInto(spark, tint + 180f, 0.5f, 1f)
+        }
         hsvInto(gold, 46f, 0.8f, 1f)
     }
 
@@ -103,6 +115,7 @@ class Showcase(private val game: Gdx3DGame, private val player: Player, private 
     fun exit(bgTop: Color, bgBottom: Color) {
         active = false
         void.cancel()
+        gift.reset()
         if (shop) player.restoreMenuPose(game.time)
         bgTop.set(skyTopSave); bgBottom.set(skyBottomSave)
     }
@@ -118,7 +131,7 @@ class Showcase(private val game: Gdx3DGame, private val player: Player, private 
         shopMix = Stage.shopProgress
         if (shop) {
             val gesture = Stage.shopPlayRequests.getAndSet(0)
-            if (gesture != 0 && shopMix == 1f && !demos.running) {
+            if (gesture != 0 && shopMix == 1f && !demos.running && !gift.active) {
                 when (gesture) {
                     Stage.SHOP_LEFT -> playVelocity = -1000f
                     Stage.SHOP_RIGHT -> playVelocity = 1000f
@@ -162,7 +175,17 @@ class Showcase(private val game: Gdx3DGame, private val player: Player, private 
         // where the cube is: the centre, or out on the loop (eased between)
         val lx = 0.9f * sin(time * 1.4f)
         val ly = 1.0f + 0.35f * sin(time * 2.8f)
-        val x = lx * trailMix
+        if (shop) {
+            if (Stage.demoRequests.get() > 0) gift.finish() // the next purchase plays on a cube back in the middle
+            gift.update(dt, time)
+            if (gift.landed) playLiftVelocity = 2.2f // the box thumps down beside it: a little hop
+            if (gift.burst) { playLiftVelocity = 3.4f; playVelocity = -900f } // it bursts: a jump and a spin round to see
+            if (gift.caught) { // the prize lands in the cube: it flips to catch it
+                kickV = 1100f; pop = 1f
+                game.burst3d(tmp.set(player.px, player.py, 0.3f), gift.rayColor, n = 14, speed = 3.5f, size = 0.09f, life = 0.5f)
+            }
+        }
+        val x = lx * trailMix + (if (shop) gift.cubeShift else 0f)
         val y = 1.0f + (ly - 1.0f) * trailMix + demos.lift + playLift
         val spin = 45f + 115f * trailMix
         val scale = 1f + 0.22f * sin(min(1f, pop) * 3.14159f)
@@ -170,10 +193,12 @@ class Showcase(private val game: Gdx3DGame, private val player: Player, private 
         if (shop) player.blendFromMenu(shopMix, shopSpin + kickA + playYaw, time)
         if (trailMix > 0.08f) player.emitTrail(dt, time, x - 0.3f * cos(time * 1.4f), y, 0.3f, boost = 1.6f * trailMix, scale = 2.4f)
         demos.update(dt, time, player.px, player.py)
+        if (demos.cheer) { playLiftVelocity = 3.2f; playVelocity = 800f } // the cube cheers: a hop and a spin
         if (shop && shopMix == 1f && cube.run.data.Progress.voidAvailable) void.prewarm()
         // The void takes its offering on the shop stage (see VoidShow).
         if (Stage.voidRequests.getAndSet(0) > 0 && shop && !void.active) {
             demos.reset()
+            gift.finish()
             void.start(player.px, player.py)
         }
         void.update(dt)
@@ -220,6 +245,7 @@ class Showcase(private val game: Gdx3DGame, private val player: Player, private 
             game.worldBoxSpin(player.px + cos(a) * r, y, sin(a) * r, s, s, s, time * 120f + i * 45f, spark)
         }
         demos.render(time)
+        if (shop) gift.render(time, player.px, player.py)
         if (void.active) void.render(time)
     }
 
@@ -235,8 +261,9 @@ class Showcase(private val game: Gdx3DGame, private val player: Player, private 
             Stage.SHOP -> {
                 // While the void plays, the shop's rays are the first thing it swallows.
                 val kept = if (void.active) void.raysKept else 1f
-                hsvInto(rayCol, 46f, 0.45f, 0.9f)
-                if (kept > 0.01f) game.sunburstBehind(shapes, player.px, player.py, 0f, 3f, 10f * g * kept, 12, rayAngle, rayCol, 0.28f * g * kept, 0.45f)
+                hsvInto(tmpCol, 46f, 0.38f, 1f)
+                gift.rays(player.px, player.py, tmpCol, rayAt, rayCol) // a gift's prize takes the rays for a moment
+                if (kept > 0.01f) game.sunburstBehind(shapes, rayAt.x, rayAt.y, 0f, 3f, 10f * g * kept, 10, rayAngle, rayCol, 0.4f * g * kept, 0.5f)
                 if (void.active) void.renderShapes(shapes, time)
             }
             else -> if (pop > 0.01f) {
@@ -249,6 +276,12 @@ class Showcase(private val game: Gdx3DGame, private val player: Player, private 
     fun renderBlended(cam: PerspectiveCamera, time: Float) {
         if (bubbleMix > 0.01f) bubble.showcase(cam, time, player.px, player.py, inflate = bubbleMix)
         demos.renderBlended(cam, time)
+        if (shop) gift.renderBlended(cam, time, player.px, player.py)
         if (void.active) void.renderBlended(cam, time)
+    }
+
+    private companion object {
+        /** The shop showroom's grape. */
+        const val SHOP_HUE = 262f
     }
 }
