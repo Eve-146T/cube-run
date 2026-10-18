@@ -27,7 +27,7 @@ object Stage {
     const val DEMO_FASTBUBBLES = 5
     const val DEMO_COINS = 6
     const val DEMO_PORTAL = 7
-    const val DEMO_BOX = 8
+    const val DEMO_LUCKY = 8
     const val DEMO_REVIVE = 9
 
     /** Any real touch cancels the dev attract run before another bot action can land. */

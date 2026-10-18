@@ -22,11 +22,11 @@ internal class ShopIcon(private val id: String) : CandyArt("shop_$id") {
                 sparkle(8f, 9f, 4.5f)
             }
             REVIVES -> {
-                // A second wind: a heart that flies back in on white wings.
-                for (side in listOf(-1f, 1f)) wing(24f + side * 11f, 22f, side)
-                lipped(Theme.WHITE) { heart(24f, 26f, 15f) }
-                fill(Theme.lighten(Theme.PINK, .1f)); heart(24f, 26f, 10.5f)
-                shine(24f, 26f, 10.5f, Theme.alpha(Theme.WHITE, 220))
+                // A second wind: a heart that flies back in, white wings raised.
+                for (side in listOf(-1f, 1f)) wing(24f + side * 8f, 21f, side)
+                lipped(Theme.WHITE) { heart(24f, 28f, 15f) }
+                fill(Theme.PINK); heart(24f, 28f, 10f)
+                shine(24f, 28f, 10f, Theme.alpha(Theme.WHITE, 220))
             }
             MYSTERY -> {
                 mystery(24f, 44f, 50f, Theme.YELLOW, 1.2f)
@@ -198,20 +198,19 @@ internal class ShopIcon(private val id: String) : CandyArt("shop_$id") {
         rect.set(cx - rr, cy - rr, cx + rr, cy + rr); lastCanvas!!.drawArc(rect, 190f, 75f, false, paint)
     }
 
-    /** A white wing of four rounded feathers fanning out on the [side] (-1 left, 1 right) of ([x], [y]). */
+    /** A raised white wing, one smooth silhouette (a rounded root and three feathers fused), lipped, on the [side] (-1 left, 1 right) of ([x], [y]). */
     private fun wing(x: Float, y: Float, side: Float) {
         val c = lastCanvas!!
-        for (pass in 0..1) {
-            fill(if (pass == 0) Theme.darken(Theme.WHITE, .3f) else Theme.WHITE)
-            for ((k, len) in listOf(19f, 16.5f, 13.5f, 10f).withIndex()) {
-                c.save(); c.translate(0f, if (pass == 0) 2.5f else 0f)
-                c.rotate(side * (-34f + k * 22f), x, y)
-                val h = 3.6f
-                rect.set(if (side < 0) x - len else x, y - h, if (side < 0) x else x + len, y + h)
-                c.drawRoundRect(rect, h, h, paint)
-                c.restore()
-            }
+        val shape = Path().apply { addOval(android.graphics.RectF(x + (if (side < 0) -12f else 0f), y - 6f, x + (if (side < 0) 0f else 12f), y + 5f), Path.Direction.CW) }
+        val m = android.graphics.Matrix()
+        for ((k, len) in listOf(19f, 16f, 12f).withIndex()) {
+            val h = 4.2f
+            val f = Path().apply { addRoundRect(android.graphics.RectF(if (side < 0) x - len else x, y - h, if (side < 0) x else x + len, y + h), h, h, Path.Direction.CW) }
+            m.setRotate(side * (-62f + k * 24f), x, y); f.transform(m)
+            shape.op(f, Path.Op.UNION)
         }
+        fill(Theme.darken(Theme.WHITE, .3f)); c.save(); c.translate(0f, 2.5f); c.drawPath(shape, paint); c.restore()
+        fill(Theme.WHITE); c.drawPath(shape, paint)
     }
 
     /** Bold rounded text as a lipped candy shape, grown by [weight] for fatter figures. */

@@ -15,8 +15,8 @@ class UpdateNotesTest {
             val config = android.content.res.Configuration(context.resources.configuration).apply { setLocale(java.util.Locale.forLanguageTag(language)) }
             val localized = context.createConfigurationContext(config)
             val lines = localized.resources.getStringArray(cube.run.R.array.update_notes)
-            assertTrue(language, lines.isNotEmpty())
             assertEquals("$language: every line is icon | title | text", lines.size, UpdateNotes.parse(lines).size)
+            assertEquals("$language: the usual is present even without new features", UpdateNotes.USUAL, UpdateNotes.items(localized).last().icon)
         }
         assertEquals(listOf(UpdateNotes.Item("news", "A", "B | still text")), UpdateNotes.parse(arrayOf(" news | A | B | still text ", "broken", "x | | y")))
     }
@@ -39,7 +39,7 @@ class UpdateNotesTest {
         val saved = prefs.all
         try {
             prefs.edit().putString("seen", "an older update").commit()
-            assertTrue("Notes this player has not seen", UpdateNotes.takeUnseen(context))
+            assertEquals("Only feature news warrants a pop-up", UpdateNotes.news(context).isNotEmpty(), UpdateNotes.takeUnseen(context))
             assertFalse("Only once", UpdateNotes.takeUnseen(context))
             assertEquals(UpdateNotes.key(context), prefs.getString("seen", null))
         } finally {

@@ -27,10 +27,12 @@ object PayFx {
 
     /**
      * Fly [n] coins from [from] to [to] inside [host]; [onEach] on every
-     * landing, [onDone] after the last. Returns roughly how long it takes (ms).
+     * landing, [onDone] after the last. [followTarget] follows a button while its page scrolls.
+     * Returns roughly how long it takes (ms).
      */
-    fun fly(host: FrameLayout, kit: UiKit, from: View, to: View, n: Int = 6, onEach: () -> Unit = {}, onDone: () -> Unit): Long {
+    fun fly(host: FrameLayout, kit: UiKit, from: View, to: View, n: Int = 6, followTarget: Boolean = false, onEach: () -> Unit = {}, onDone: () -> Unit): Long {
         val s = centre(host, from); val e = centre(host, to)
+        val hostAt = IntArray(2); val targetAt = IntArray(2)
         val size = kit.dp(20f)
         val step = 55L; val dur = 380L
         for (i in 0 until n) {
@@ -43,6 +45,11 @@ object PayFx {
                 addUpdateListener { a ->
                     val t = a.animatedValue as Float
                     val arc = sin(t * 3.14159f)
+                    if (followTarget) {
+                        host.getLocationInWindow(hostAt); to.getLocationInWindow(targetAt)
+                        e[0] = targetAt[0] - hostAt[0] + to.width / 2f
+                        e[1] = targetAt[1] - hostAt[1] + to.height / 2f
+                    }
                     coin.alpha = 1f
                     coin.x = s[0] + (e[0] - s[0]) * t + side * arc * kit.dpf(40f) - size / 2f
                     coin.y = s[1] + (e[1] - s[1]) * t - arc * kit.dpf(60f) - size / 2f

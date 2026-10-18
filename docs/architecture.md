@@ -119,9 +119,10 @@ the cube in the shop's showroom strip and the box on the gift stage sit
 exactly on their sunburst's origin on every phone, whatever its aspect.
 
 After 12 opening rows, pickup opportunities occur on the next eligible row
-every 10–18 rows. A shuffled bag includes every kind; Lucky Boxes adds extra
-boxes (a fifth of a box per level). Jetpacks and mystery boxes require an actual run score of at least
-100, then use only every second opportunity for that kind. Skipped slots
+every 10–18 rows. A shuffled bag includes every kind. Jetpacks and mystery boxes require an actual run score of at least
+100, then use only every second opportunity for that kind. Lucky boxes fills
+one fifth of the skipped box slots per level, doubling box frequency when maxed
+without changing the bag, random stream or frequency of other pickups. Skipped slots
 stay empty and consume their spacing, reducing their frequency by half
 without increasing other pickups. The gates also apply in developer mode.
 No coin is laid within one coin slot of a pickup, ahead, behind or in the
@@ -150,7 +151,8 @@ The shop is a showroom strip with your cube (on its own grape sky, with a
 sunburst) over a butter sheet of white cards; the cards scroll inside the
 sheet, never over the cube. A card's buy button
 runs along its bottom and carries its level bar or stock rack. It pays
-where you tapped (`ui.PayFx`), then asks the stage for a demo
+where you tapped (`ui.PayFx`), following the button if you scroll while paying;
+new purchases wait for payment to finish. It then asks the stage for a demo
 (`Stage.demoRequests` → `game.stage.Demos`): the bubble inflates around
 the cube, coins spiral into it, a twin splits off and slams back, it lifts
 on a jet of flame, fire streams off its back, gold rains, a portal ring
@@ -161,7 +163,9 @@ showroom (`Stage.shopGift` → `game.stage.ShopGift`, drawn with the run-over
 gift's `GiftArt`): the cube steps aside, the box drops in beside it and
 bursts, and the prize flies into the cube. The UI waits for the burst
 (`Stage.shopGiftOpened`) and shows what came out on a pill
-(`ui.ShopGiftReveal`); a tap on the showroom hurries it along.
+(`ui.ShopGiftReveal`); a tap on the showroom hurries it along, even before the
+coin flight finishes. Each new reveal removes the previous reward pill,
+including any interrupted fade, and navigation removes all remaining pills.
 
 The showroom cube also reacts to taps and directional swipes: taps and
 vertical swipes make it hop, while horizontal swipes spin it with decaying

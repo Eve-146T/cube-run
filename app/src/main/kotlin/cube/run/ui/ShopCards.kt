@@ -56,7 +56,15 @@ internal class ShopCards(private val activity: Activity, private val kit: UiKit)
     /** Something you keep a stock of: the count, and a rack that fills up on the buy button. */
     fun stock(key: String, name: String, count: Int, slots: Int, rackIcon: () -> Drawable, offer: Offer?): View {
         val lit = if (count == 0) 0 else ((count - 1) % slots) + 1
-        val rack = LinearLayout(activity).apply {
+        val rack = object : LinearLayout(activity) {
+            override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
+                // The price keeps its room; shrink the whole rack evenly in a narrow pane.
+                val available = MeasureSpec.getSize(widthMeasureSpec) - paddingLeft - paddingRight
+                val edge = minOf(dp(26f), ((available - dp(4f) * (slots - 1)) / slots).coerceAtLeast(1))
+                for (i in 0 until childCount) getChildAt(i).layoutParams.apply { width = edge; height = edge }
+                super.onMeasure(widthMeasureSpec, heightMeasureSpec)
+            }
+        }.apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
             for (i in 0 until slots) addView(ImageView(activity).apply {
@@ -147,7 +155,16 @@ internal class ShopCards(private val activity: Activity, private val kit: UiKit)
         }
         if (next == null) strong(now)
         else {
-            text.append(whole(now)).append(if (activity.resources.configuration.layoutDirection == View.LAYOUT_DIRECTION_RTL) "  ←  " else "  →  ")
+            // Match the value line's FIRST_STRONG_LTR direction: numeric perks stay LTR in Hebrew.
+            val directionText = "$now $next"
+            val rtl = android.text.TextDirectionHeuristics.FIRSTSTRONG_LTR.isRtl(directionText, 0, directionText.length)
+            val arrow = ValueArrow(Theme.alpha(readable(ShopIcon.color(key)), 190), rtl).apply {
+                val h = kit.dp(13f * activity.resources.configuration.fontScale); setBounds(0, 0, (h * 1.35f).toInt(), h)
+            }
+            text.append(whole(now)).append("\u00A0\u00A0")
+            val at = text.length
+            text.append("\uFFFC").setSpan(CenteredImageSpan(arrow), at, at + 1, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+            text.append("  ")
             strong(next)
         }
         return kit.text(text, 16f, INK_SOFT, 700, Gravity.START).apply { maxLines = 2 }
@@ -198,6 +215,24 @@ internal class ShopCards(private val activity: Activity, private val kit: UiKit)
     private fun readable(color: Int): Int {
         val l = (0.299f * android.graphics.Color.red(color) + 0.587f * android.graphics.Color.green(color) + 0.114f * android.graphics.Color.blue(color)) / 255f
         return Theme.darken(color, if (l > .6f) .3f else .06f)
+    }
+
+    /** The arrow between what you have and what you buy: a short fat shaft and a broad head, all corners rounded. */
+    private class ValueArrow(private val color: Int, private val rtl: Boolean) : Icon() {
+        private val path = Path()
+        override fun draw(canvas: Canvas) {
+            val w = bounds.width().toFloat(); val h = bounds.height().toFloat()
+            paint.style = Paint.Style.FILL; paint.color = color
+            paint.pathEffect = android.graphics.CornerPathEffect(h * .2f)
+            path.reset()
+            path.moveTo(0f, h * .32f); path.lineTo(w * .5f, h * .32f); path.lineTo(w * .5f, 0f); path.lineTo(w, h * .5f)
+            path.lineTo(w * .5f, h); path.lineTo(w * .5f, h * .68f); path.lineTo(0f, h * .68f); path.close()
+            canvas.save(); canvas.translate(bounds.left.toFloat(), bounds.top.toFloat())
+            if (rtl) canvas.scale(-1f, 1f, w / 2f, 0f)
+            canvas.drawPath(path, paint)
+            canvas.restore()
+            paint.pathEffect = null
+        }
     }
 
     /** The mystery box's card: a deep grape slab on its lip, slow rays from the box and twinkles. */

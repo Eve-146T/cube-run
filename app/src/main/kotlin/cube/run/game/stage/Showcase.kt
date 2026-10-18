@@ -193,6 +193,7 @@ class Showcase(private val game: Gdx3DGame, private val player: Player, private 
         if (shop) player.blendFromMenu(shopMix, shopSpin + kickA + playYaw, time)
         if (trailMix > 0.08f) player.emitTrail(dt, time, x - 0.3f * cos(time * 1.4f), y, 0.3f, boost = 1.6f * trailMix, scale = 2.4f)
         demos.update(dt, time, player.px, player.py)
+        if (demos.cheer) { playLiftVelocity = 3.2f; playVelocity = 800f } // the cube cheers: a hop and a spin
         if (shop && shopMix == 1f && cube.run.data.Progress.voidAvailable) void.prewarm()
         // The void takes its offering on the shop stage (see VoidShow).
         if (Stage.voidRequests.getAndSet(0) > 0 && shop && !void.active) {

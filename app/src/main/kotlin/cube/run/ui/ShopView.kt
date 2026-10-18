@@ -61,6 +61,7 @@ class ShopView(
     private var paying = false
     private var preparedState = currentState()
     private var pendingBox: Progress.BoxReward? = null
+    private var openingBox = false
     private var cubeDownX = 0f
     private var cubeDownY = 0f
     private var cubeGesture = false
@@ -89,19 +90,15 @@ class ShopView(
         }
     }
 
-    // Keep a payment's target fixed until it settles, including the short coin flight.
-    override fun dispatchTouchEvent(event: MotionEvent): Boolean =
-        if (paying) true else super.dispatchTouchEvent(event)
-
     private val showroom: FrameLayout = FrameLayout(activity).apply {
         contentDescription = kit.ctx.getString(R.string.text_shop_cube)
         isClickable = true
         clipChildren = false; clipToPadding = false
-        setOnClickListener { if (gift.showing) skipGift() else playWithCube(Stage.SHOP_TAP) }
+        setOnClickListener { if (openingBox || gift.showing) skipGift() else playWithCube(Stage.SHOP_TAP) }
         setOnTouchListener { view, event ->
             when (event.actionMasked) {
                 MotionEvent.ACTION_DOWN -> {
-                    cubeGesture = !closing && progress == 1f && !gift.showing &&
+                    cubeGesture = !closing && progress == 1f && !openingBox && !gift.showing &&
                         kotlin.math.abs(event.x - view.width / 2f) <= dpf(70f) &&
                         kotlin.math.abs(event.y - view.height / 2f) <= dpf(65f)
                     cubeDownX = event.x; cubeDownY = event.y; cubeSwiped = false
@@ -116,7 +113,7 @@ class ShopView(
                     }
                 }
                 MotionEvent.ACTION_UP -> {
-                    if (!cubeSwiped && (cubeGesture || gift.showing)) view.performClick()
+                    if (!cubeSwiped && (cubeGesture || openingBox || gift.showing)) view.performClick()
                     cubeGesture = false
                 }
                 MotionEvent.ACTION_CANCEL -> cubeGesture = false
@@ -152,7 +149,7 @@ class ShopView(
         Progress.FASTBUBBLES -> Stage.DEMO_FASTBUBBLES
         Progress.COINVALUE -> Stage.DEMO_COINS
         Progress.PORTALS -> Stage.DEMO_PORTAL
-        else -> Stage.DEMO_BOX
+        else -> Stage.DEMO_LUCKY
     }
 
     init {
@@ -418,6 +415,7 @@ class ShopView(
      */
     private fun pay(btn: View, before: Int, key: String, u: Progress.Upgrade?, demo: Int, displayedBalance: Int) {
         paying = true
+        balanceCount?.cancel()
         Haptics.click()
         if (compactLayout && key == "void") { // the black hole needs the showroom; short panes just settle the purchase
             balanceCount?.cancel()
@@ -454,13 +452,14 @@ class ShopView(
             return
         }
         val box = if (key == "mystery") pendingBox.also { pendingBox = null } else null
+        openingBox = box != null
+        val opened = Stage.shopGiftOpened.get()
         // The box drops into the showroom while the coins are still flying.
         if (box != null && !compactLayout) {
             Stage.shopGift = box
             Stage.shopGiftRequests.incrementAndGet()
         }
-        val opened = Stage.shopGiftOpened.get()
-        val ms = PayFx.fly(this, kit, balance, btn, n = 6, onDone = {
+        val ms = PayFx.fly(this, kit, balance, btn, n = 6, followTarget = true, onDone = {
             if (closing) return@fly
             if (box != null) { awaitGift(box, opened); return@fly }
             paying = false
@@ -484,6 +483,7 @@ class ShopView(
     /** The box is open: the page is shoppable again, and the pill says what came out. */
     private fun revealGift(box: Progress.BoxReward) {
         paying = false
+        openingBox = false
         if (closing || !isAttachedToWindow) return
         val shown = kit.labelOf(balance).text.filter { it.isDigit() }.toString().toIntOrNull() ?: Progress.coins
         render()
@@ -496,7 +496,7 @@ class ShopView(
 
     private fun skipGift() = gift.skip()
 
-    private fun endGift() = gift.end()
+    private fun endGift() { openingBox = false; gift.end() }
 
     private fun broke() {
         SoundFx.play("tap", rate = 0.6f); Haptics.tick()

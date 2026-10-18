@@ -41,7 +41,7 @@ object Progress {
     val COINVALUE = Upgrade("perk_coinvalue", "Rich coins", 1f, 0.2f, max = 10, basePrice = 2400)
     /** Portals open more often. */
     val PORTALS = Upgrade("perk_portals", "Portal luck", 0f, 1f, max = 5, basePrice = 1500)
-    /** Mystery boxes turn up more often: each level adds a fifth of a box to every pickup bag (×2 maxed). */
+    /** Each level fills a fifth of normally skipped box slots (×2 maxed), leaving other pickups unchanged. */
     val LUCKYBOX = Upgrade("perk_luckybox", "Lucky boxes", 1f, 0.2f, max = 5, basePrice = 1500)
     val FASTERSTART = Upgrade("perk_fasterstart", "Even faster starts", 5f, 1f, max = 5, basePrice = 1500)
     val perks = listOf(FASTBUBBLES, COINVALUE, PORTALS, LUCKYBOX, FASTERSTART)

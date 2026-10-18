@@ -16,6 +16,10 @@ All 65 permanent levels cost **1,188,500 coins**. Consumable bubble and Second
 Wind prices are unchanged. Developer mode's temporary bank is large enough to
 try every upgrade; leaving it restores the real bank.
 
+Lucky boxes increases road box frequency by 20% per level, up to 2×. It fills
+normally empty box slots instead of adding entries to the pickup bag, so other
+power-ups and shards keep their original frequency. The score gate still applies.
+
 The reference earning rate is the player's observation: about 5,000 coins per
 five minutes at 3×, or 1,000/min. Assuming the same collection skill at 1× gives
 about 333/min before Rich coins. Buying Rich coins first, then the remaining

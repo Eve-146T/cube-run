@@ -73,6 +73,7 @@ internal class ShopGiftReveal(private val host: FrameLayout, private val kit: Ui
     /** Where the prize hangs: the engine puts it one unit right of the middle. */
     private val anchor = View(host.context)
     private var pill: View? = null
+    private val pills = mutableSetOf<View>()
     private var watch: Runnable? = null
 
     /** The pill is up. */
@@ -100,8 +101,10 @@ internal class ShopGiftReveal(private val host: FrameLayout, private val kit: Ui
 
     /** Say what [box] gave; the bank shows [shown] until its coins land. Returns the bank's count-up, if any. */
     fun show(box: Progress.BoxReward, compact: Boolean, top: Int, shown: Int): ValueAnimator? {
+        clearPills()
         val p = ShopRewardPill(host.context as Activity, kit, box)
         pill = p
+        pills.add(p)
         if (compact) host.addView(p, FrameLayout.LayoutParams(FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT,
             Gravity.TOP or Gravity.CENTER_HORIZONTAL).apply { topMargin = top + kit.dp(8f) })
         else {
@@ -131,13 +134,22 @@ internal class ShopGiftReveal(private val host: FrameLayout, private val kit: Ui
         pill = null
         p.animate().alpha(0f).scaleX(0.8f).scaleY(0.8f).setDuration(200).setInterpolator(Anim.ease)
             .setUpdateListener { Anim.repaint(host) }
-            .withEndAction { (p.parent as? ViewGroup)?.removeView(p) }.start()
+            .withEndAction { (p.parent as? ViewGroup)?.removeView(p); pills.remove(p) }.start()
+    }
+
+    /** Also remove a pill whose fade was interrupted by navigation or another reveal. */
+    private fun clearPills() {
+        for (p in pills) {
+            p.animate().cancel()
+            (p.parent as? ViewGroup)?.removeView(p)
+        }
+        pills.clear()
+        pill = null
     }
 
     fun end() {
         if (watch != null || pill != null) Stage.shopGiftSkips.incrementAndGet()
         watch = null
-        pill?.let { (it.parent as? ViewGroup)?.removeView(it) }
-        pill = null
+        clearPills()
     }
 }
