@@ -99,7 +99,7 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false, retu
     private val cacheChanges = SharedPreferences.OnSharedPreferenceChangeListener { _, _ -> scheduleShopPreparation() }
     private val preparePages = object : Runnable {
         override fun run() {
-            if (!isAttachedToWindow || page != null || languageSheet != null || (runStarted && runOver == null)) return
+            if (!isAttachedToWindow || page != null || languageSheet != null || runStarted || runOver != null) return
             if (afterUpdateNotesEntrance(this)) return
             if (width == 0 || height == 0) { postOnAnimation(this); return }
             for (name in listOf("settings", "sections", "achievements", "wardrobe")) {
@@ -134,7 +134,7 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false, retu
     private var opening = openingEntrance
     private val prepareShop = object : Runnable {
         override fun run() {
-            if (!isAttachedToWindow || page != null || languageSheet != null || (runStarted && runOver == null)) return
+            if (!isAttachedToWindow || page != null || languageSheet != null || runStarted || runOver != null) return
             if (afterUpdateNotesEntrance(this)) return
             if (width == 0 || height == 0) { postOnAnimation(this); return }
             if (preparedShop?.isCurrent() != true) {
@@ -828,7 +828,11 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false, retu
         )
         runOver = flow
         addView(flow, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
-        scheduleShopPreparation() // Updated rewards and shop cards warm behind results before MENU is tapped.
+        // Results own the frame budget. Their MENU action recreates the host, so warming
+        // hidden menus here only stalls the count/celebration and is discarded on exit.
+        removeCallbacks(prepareShop)
+        removeCallbacks(preparePages)
+        removeCallbacks(prepareSettingsMenus)
     }
 
     /** The game's 3D gift stage opened a box (GL → UI via the session). */

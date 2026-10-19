@@ -86,6 +86,34 @@ four repeat samples is descriptive, not a sustained performance guarantee.
 Failures produce partial results and an instrumentation log and exit with an
 error instead of reporting an incomplete sequence as successful.
 
+## Screen frame costs
+
+`ScreenSmoothnessBenchmarkTest` measures the GL-backed main menu, wardrobe, shop,
+settings, achievements, results and record celebration. It records Android window
+frame draw/layout costs and intended-vsync gaps, GL frame intervals at the renderer's
+`swap` marker, layout pass counts and dropped metric callbacks. Static Android
+menus may submit very few frames while the GL scene continues at full speed;
+their UI frame count is not their frame rate. Window total duration can include
+queueing, so assess draw/layout work and frame intervals separately.
+
+```sh
+adb -s ZY323NNKTB shell am instrument -w \
+  -e class cube.run.ui.ScreenSmoothnessBenchmarkTest -e repeats 3 \
+  cube.run.test/androidx.test.runner.AndroidJUnitRunner
+adb -s ZY323NNKTB exec-out run-as cube.run cat files/screen-smoothness.json \
+  > .build-tmp/screen-smoothness.json
+```
+
+Use `-e screens shop,results,record_results` for a focused pass. Each menu sample
+includes its entrance and three seconds of idle motion; results samples cover
+6.5 seconds, including the count, stars and confetti. The fixture uses the real
+HUD/results stage with a fixed score and reward rather than waiting for a random
+crash. It temporarily unlocks achievements and adds one coin per results sample
+to invalidate cached prices as a completed run does. Back up preferences before
+comparing APKs and restore the same starting save and settings for each build.
+Record APK hashes and battery temperature alongside the raw JSON. The GL marker
+measures rendering cadence, not exact physical presentation by SurfaceFlinger.
+
 ## Pause restart regression
 
 `PauseRestartTimingTest` checks the optimized behavior separately from the

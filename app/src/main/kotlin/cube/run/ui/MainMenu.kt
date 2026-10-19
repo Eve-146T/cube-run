@@ -83,7 +83,7 @@ class MainMenu(
                 v.translationY = kotlin.math.sin(t + i * 0.75f) * dpf(4f) * ramp
                 v.rotation = kotlin.math.sin(t + i * 0.9f + 1.2f) * 3.5f * ramp // same period as the bob, so the loop is seamless
             }
-            Anim.repaint(logo)
+            Anim.repaintWindow(logo)
         }
         start()
     }
@@ -399,7 +399,7 @@ class MainMenu(
         leftChips.translationY = dpf(20f) * retreat
         rightChips.translationY = dpf(20f) * retreat
         bubbles.translationY = -dpf(12f) * retreat
-        Anim.repaint(this)
+        Anim.repaintWindow(this)
     }
 
     fun finishShop() {

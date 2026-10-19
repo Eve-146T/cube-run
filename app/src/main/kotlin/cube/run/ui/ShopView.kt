@@ -80,13 +80,13 @@ class ShopView(
         if (instant) { content.translationY = 0f; content.alpha = 1f; topBar.alpha = 1f; return }
         if (away) {
             content.animate().translationY(height * .45f).alpha(0f).setStartDelay(120).setDuration(380)
-                .setInterpolator(Anim.ease).setUpdateListener { Anim.repaint(this) }.start()
-            topBar.animate().alpha(0f).setStartDelay(120).setDuration(260).setUpdateListener { Anim.repaint(this) }.start()
+                .setInterpolator(Anim.ease).setUpdateListener { Anim.repaintWindow(this) }.start()
+            topBar.animate().alpha(0f).setStartDelay(120).setDuration(260).setUpdateListener { Anim.repaintWindow(this) }.start()
         } else {
             content.alpha = 1f
             content.animate().translationY(0f).setStartDelay(0).setDuration(560)
-                .setInterpolator(Anim.ease).setUpdateListener { Anim.repaint(this) }.start()
-            topBar.animate().alpha(1f).setStartDelay(260).setDuration(300).setUpdateListener { Anim.repaint(this) }.start()
+                .setInterpolator(Anim.ease).setUpdateListener { Anim.repaintWindow(this) }.start()
+            topBar.animate().alpha(1f).setStartDelay(260).setDuration(300).setUpdateListener { Anim.repaintWindow(this) }.start()
         }
     }
 
@@ -260,7 +260,7 @@ class ShopView(
         topBar.alpha = header
         topBar.translationY = -dpf(12f) * (1f - header)
         onProgress(value)
-        Anim.repaint(this)
+        Anim.repaintWindow(this)
     }
 
     private fun navigate(target: Float, onFinished: () -> Unit) {

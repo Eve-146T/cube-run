@@ -240,8 +240,6 @@ internal class ShopCards(private val activity: Activity, private val kit: UiKit)
         private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
         private val face = Path()
         private val rays = Path()
-        private val turned = Path()
-        private val turning = android.graphics.Matrix()
         private val box = RectF()
         private val star = Path()
         private var turn = 0f
@@ -283,10 +281,14 @@ internal class ShopCards(private val activity: Activity, private val kit: UiKit)
             // Rays turn slowly around the question mark, cut to the card's face.
             val rtl = layoutDirection == LAYOUT_DIRECTION_RTL
             val focus = if (rtl) width - paddingRight - kit.dpf(HERO) / 2f else paddingLeft + kit.dpf(HERO) / 2f
-            turning.setRotate(turn); turning.postTranslate(focus, paddingTop + kit.dpf(HERO) / 2f)
-            rays.transform(turning, turned)
-            turned.op(face, Path.Op.INTERSECT)
-            paint.color = Theme.alpha(Theme.WHITE, 24); canvas.drawPath(turned, paint)
+            // Clip the cached ray geometry on the canvas. Intersecting and tessellating
+            // a newly rotated path on the UI thread each frame made this idle card costly.
+            canvas.save()
+            canvas.clipPath(face)
+            canvas.translate(focus, paddingTop + kit.dpf(HERO) / 2f)
+            canvas.rotate(turn)
+            paint.color = Theme.alpha(Theme.WHITE, 24); canvas.drawPath(rays, paint)
+            canvas.restore()
             // In the far corner from the question mark.
             twinkle(canvas, width * (if (rtl) .07f else .93f), kit.dpf(20f), kit.dpf(8f))
             twinkle(canvas, width * (if (rtl) .20f else .80f), kit.dpf(40f), kit.dpf(5f))

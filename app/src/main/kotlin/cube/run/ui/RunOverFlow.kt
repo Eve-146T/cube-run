@@ -185,8 +185,11 @@ class RunOverFlow(
             record = r
             column.addView(r)
         }
-        scoreText = kit.stageText("0", 104f, stroke = 11f)
-        column.addView(scoreText, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = -dp(14f) })
+        // A fixed horizontal constraint lets TextView replace digits without measuring
+        // the entire results tree on every count frame. The column still fits as a unit.
+        scoreText = kit.stageText("0", 104f, stroke = 11f).apply { maxLines = 1 }
+        val scoreFitPaint = TextPaint(scoreText.paint)
+        column.addView(scoreText, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = -dp(14f) })
         scoreAnim = Anim.countUp(scoreText, score, 1300)
 
         val card = LinearLayout(activity).apply {
@@ -242,6 +245,16 @@ class RunOverFlow(
         })
         fun fitResults() {
             if (host.height <= 0 || column.height <= 0) return
+            // Reserve for the final number from the start, including large scores and
+            // accessibility fonts, so the fixed-width counter never clips digits or shrinks mid-count.
+            val nominal = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_SP, if (compactLayout) 64f else 104f, resources.displayMetrics)
+            val scoreRoom = (scoreText.width - scoreText.compoundPaddingLeft - scoreText.compoundPaddingRight - dp(2f)).coerceAtLeast(1)
+            scoreFitPaint.textSize = nominal
+            val finalWidth = scoreFitPaint.measureText(score.toString())
+            val size = nominal * minOf(1f, scoreRoom / finalWidth.coerceAtLeast(1f))
+            if (kotlin.math.abs(scoreText.textSize - size) > .5f) {
+                scoreText.post { scoreText.setTextSize(TypedValue.COMPLEX_UNIT_PX, size) }
+            }
             // Full height: the stage frames the cube at 156 dp and the column starts below it.
             // Short panes: the column sits on the tap hint and the cube takes the room above it.
             val bottom = dp(if (compactLayout) 44f else 86f)
@@ -286,7 +299,8 @@ class RunOverFlow(
                 coinRow.orientation = if (compact) LinearLayout.HORIZONTAL else LinearLayout.VERTICAL
                 coinRow.setPadding(dp(6f), dp(if (compact) 2f else 10f), dp(6f), dp(if (compact) 2f else 10f))
                 (coinRow.getChildAt(0).layoutParams as LinearLayout.LayoutParams).apply {
-                    bottomMargin = if (compact) 0 else dp(4f); marginEnd = if (compact) dp(6f) else 0
+                    bottomMargin = if (compact) 0 else dp(4f)
+                    marginEnd = if (compact) dp(6f) else 0
                     resolveLayoutDirection(coinRow.layoutDirection)
                 }
                 (coinRow.getChildAt(1).layoutParams as LinearLayout.LayoutParams).width = if (compact) -2 else -1

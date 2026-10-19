@@ -30,18 +30,21 @@ object Anim {
     /**
      * Over the GL surface, a moving or fading view was seen painted only
      * partly (cut off mid-slide, stale mid-fade) until something else forced
-     * a full paint. So every animation asks the whole window to repaint on
-     * each frame: use [repaint] as the update listener of any animate().
+     * a full paint. Custom drawing changes invalidate the view and the window;
+     * property-only motion uses [repaintWindow] to preserve cached artwork.
      */
     fun repaint(v: View) {
         v.invalidate()
         v.rootView?.invalidate()
     }
 
+    /** Property changes already dirty their RenderNode; keep cached contents intact over GL. */
+    fun repaintWindow(v: View) { v.rootView?.invalidate() }
+
     /** Replace a motion, including its pending end action and remembered timing. */
     fun View.move(): android.view.ViewPropertyAnimator {
         animate().cancel()
-        return animate().withEndAction(null).setStartDelay(0).setInterpolator(ease).setUpdateListener { repaint(this) }
+        return animate().withEndAction(null).setStartDelay(0).setInterpolator(ease).setUpdateListener { repaintWindow(this) }
     }
 
     val spring = OvershootInterpolator(1.8f)
@@ -145,7 +148,8 @@ object Anim {
     fun breathe(v: View, min: Float = 0.5f, max: Float = 1f, period: Long = 800): ValueAnimator =
         ValueAnimator.ofFloat(min, max).apply {
             duration = period; repeatCount = ValueAnimator.INFINITE; repeatMode = ValueAnimator.REVERSE
-            addUpdateListener { a -> v.alpha = a.animatedValue as Float; repaint(v) }
+            cacheTransform(v, this)
+            addUpdateListener { a -> v.alpha = a.animatedValue as Float; repaintWindow(v) }
             start()
         }
 
@@ -154,8 +158,8 @@ object Anim {
         ValueAnimator.ofFloat(-px, px).apply {
             duration = period; repeatCount = ValueAnimator.INFINITE; repeatMode = ValueAnimator.REVERSE
             interpolator = android.view.animation.AccelerateDecelerateInterpolator()
-            v.setLayerType(View.LAYER_TYPE_HARDWARE, null)
-            addUpdateListener { a -> v.translationY = a.animatedValue as Float; repaint(v) }
+            cacheTransform(v, this)
+            addUpdateListener { a -> v.translationY = a.animatedValue as Float; repaintWindow(v) }
             start()
         }
 
@@ -163,17 +167,33 @@ object Anim {
     fun heartbeat(v: View, amount: Float = 1.05f, period: Long = 900): ValueAnimator =
         ValueAnimator.ofFloat(1f, amount, 1f).apply {
             duration = period; repeatCount = ValueAnimator.INFINITE
-            v.setLayerType(View.LAYER_TYPE_HARDWARE, null)
-            addUpdateListener { a -> val s = a.animatedValue as Float; v.scaleX = s; v.scaleY = s; repaint(v) }
+            cacheTransform(v, this)
+            addUpdateListener { a -> val s = a.animatedValue as Float; v.scaleX = s; v.scaleY = s; repaintWindow(v) }
             start()
         }
+
+    private fun cacheTransform(v: View, animator: ValueAnimator) {
+        val previous = v.layerType
+        if (previous == View.LAYER_TYPE_NONE) {
+            v.setLayerType(View.LAYER_TYPE_HARDWARE, null)
+            animator.addListener(object : android.animation.AnimatorListenerAdapter() {
+                override fun onAnimationEnd(animation: android.animation.Animator) { v.setLayerType(previous, null) }
+            })
+        }
+        cancelOnDetach(v, animator)
+    }
 
     /** Roll [t] from [from] to [to] (a balance draining, a stock growing), no ticks. */
     fun countTo(t: TextView, from: Int, to: Int, ms: Long, format: (Int) -> String = { it.toString() }): ValueAnimator =
         ValueAnimator.ofInt(from, to).apply {
             duration = ms
             interpolator = ease
-            addUpdateListener { a -> t.text = format(a.animatedValue as Int) }
+            var last = from
+            t.text = format(from)
+            addUpdateListener { a ->
+                val value = a.animatedValue as Int
+                if (value != last) { last = value; t.text = format(value) }
+            }
             cancelOnDetach(t, this)
             start()
         }
@@ -187,10 +207,13 @@ object Anim {
         return ValueAnimator.ofInt(0, to).apply {
             duration = ms
             interpolator = DecelerateInterpolator(1.4f)
+            var last = 0
+            t.text = format(0)
             addUpdateListener { a ->
                 val v = a.animatedValue as Int
-                t.text = format(v)
+                if (v != last) { last = v; t.text = format(v) }
             }
+            cancelOnDetach(t, this)
             start()
         }
     }
