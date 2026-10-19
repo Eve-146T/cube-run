@@ -46,6 +46,7 @@ class ScreenSmoothnessBenchmarkTest {
     @Test fun screens() {
         val args = InstrumentationRegistry.getArguments()
         val repeats = (args.getString("repeats")?.toInt() ?: 3).coerceIn(1, 20)
+        val measureBacks = args.getString("backs") == "true"
         val selected = args.getString("screens")?.split(",")
             ?: listOf("menu", "wardrobe", "shop", "settings", "achievements", "results", "record_results")
         val menus = listOf("menu", "wardrobe", "shop", "settings", "achievements").filter { it in selected }
@@ -65,8 +66,12 @@ class ScreenSmoothnessBenchmarkTest {
                                     .apply { isAccessible = true }.invoke(hud())
                             }
                             if (name != "menu") {
-                                ui { field<Page>(hud(), "page").navigateBack() }
-                                SystemClock.sleep(600)
+                                if (measureBacks) measure(rows, handler, "back_$name", sample, 600) {
+                                    field<Page>(hud(), "page").navigateBack()
+                                } else {
+                                    ui { field<Page>(hud(), "page").navigateBack() }
+                                    SystemClock.sleep(600)
+                                }
                             }
                         }
                     } finally { ui { activity.finish() } }
@@ -124,10 +129,24 @@ class ScreenSmoothnessBenchmarkTest {
                 }
             }
         }
+        val committed = CountDownLatch(1)
+        var startedAt = 0L
+        var triggerMs = 0.0
+        var firstFrameMs = 0.0
         ui {
             activity.window.decorView.viewTreeObserver.addOnGlobalLayoutListener(layout)
             activity.window.addOnFrameMetricsAvailableListener(listener, handler)
+            startedAt = System.nanoTime()
             trigger()
+            triggerMs = (System.nanoTime() - startedAt) / 1e6
+            val painted = {
+                firstFrameMs = (System.nanoTime() - startedAt) / 1e6
+                committed.countDown()
+            }
+            val root = activity.window.decorView
+            if (android.os.Build.VERSION.SDK_INT >= 29) root.viewTreeObserver.registerFrameCommitCallback(painted)
+            else root.postOnAnimation(painted)
+            root.invalidate()
         }
         SystemClock.sleep(duration)
         val stopped = CountDownLatch(1)
@@ -142,6 +161,7 @@ class ScreenSmoothnessBenchmarkTest {
         assertTrue(drained.await(5, TimeUnit.SECONDS))
         synchronized(lock) { collecting = false }
         assertTrue("$name produced GL frames", glCount > 20)
+        assertTrue("$name committed a response frame", committed.await(5, TimeUnit.SECONDS))
         fun summary(values: List<Double>): JSONObject {
             if (values.isEmpty()) return JSONObject().put("count", 0)
             val sorted = values.sorted()
@@ -151,6 +171,7 @@ class ScreenSmoothnessBenchmarkTest {
         }
         val row = JSONObject().put("screen", name).put("sample", sample).put("frames", frames.size)
             .put("metrics_dropped", dropped).put("layouts", layouts)
+            .put("trigger_ms", triggerMs).put("first_ui_frame_ms", firstFrameMs)
             .put("gl_interval_ms", summary((1 until glCount).map { (glTimes[it] - glTimes[it - 1]) / 1e6 }))
             .put("interval_ms", summary(frames.zipWithNext { a, b -> (b[0] - a[0]) / 1e6 }))
             .put("total_ms", summary(frames.map { it[1] / 1e6 }))

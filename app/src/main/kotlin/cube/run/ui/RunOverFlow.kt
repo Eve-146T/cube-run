@@ -36,7 +36,7 @@ import cube.run.ui.Anim.move
  *     card, the next tap brings the next box (already opening) or, after
  *     the last, moves on;
  *  3. and then straight back to the main menu (everything else lives there).
- * Leaving hands off immediately to the activity crossfade, keeping this screen visible underneath.
+ * Leaving starts the destination immediately, keeping this screen visible until the handoff.
  */
 @SuppressLint("SetTextI18n", "ViewConstructor")
 class RunOverFlow(
@@ -104,7 +104,7 @@ class RunOverFlow(
         Anim.slideIn(next, 0, dpf(70f) * direction, 260)
     }
 
-    /** Start the destination immediately; the window transition keeps these results visible until it is ready. */
+    /** Start the destination immediately and keep results visible until the host hands off. */
     private fun leave(action: () -> Unit) {
         if (leaving) return
         leaving = true

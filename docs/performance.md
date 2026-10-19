@@ -34,6 +34,8 @@ Compare before and after on the same phone, battery level and temperature, and d
 - Never allocate in the frame loop. Particle and shard pools are fixed in size and replace their oldest entry in constant time when full.
 - Animated text (score and coin pulses, bobbing labels) is drawn from a cached layer, never re-rasterized each frame.
 - Property animations invalidate the window without dirtying the animated view's cached drawing. Custom Canvas effects still invalidate their own content.
-- Results keep the score's horizontal constraint fixed while it counts. Hidden menu preparation waits until the main menu: building discarded shop and collection trees during results competes with the count and record celebration.
+- Results keep the score's horizontal constraint fixed while it counts. Hidden menu preparation waits until the main menu: building shop and collection trees during results competes with the count and record celebration.
+- The shop holds its decorative card animation while its panel slides, then resumes it after navigation.
+- Hidden achievements build and measure their cards in a detached column, then attach it together on the main menu or when achievements opens. Preparation pauses for runs and overlay sheets; incremental additions must never remeasure an unrelated visible screen.
 - Vibration runs on its own worker with a bounded queue, so a burst of coin ticks can't pile up behind an impact.
 - Sound must never stutter the frame: frequent sounds are short, pre-synthesized and loaded once.

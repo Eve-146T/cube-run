@@ -14,6 +14,53 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class CachedAnimationTest {
+    @Test fun hiddenAchievementsBuildOffscreenAndAttachOnMenuOrOpen() {
+        ActivityScenario.launch(GameActivity::class.java).use { scenario ->
+            SystemClock.sleep(3500)
+            lateinit var host: FrameLayout
+            lateinit var page: AchievementsView
+            val rows = AchievementsView::class.java.getDeclaredField("rows").apply { isAccessible = true }
+            val home = cube.run.core.Stage.homeScreen
+            try {
+                for (openPage in listOf(false, true)) {
+                    var permitted = false
+                    var initialChildren = 0
+                    scenario.onActivity { activity ->
+                        cube.run.core.Stage.homeScreen = false
+                        host = FrameLayout(activity)
+                        activity.addContentView(host, FrameLayout.LayoutParams(-1, -1))
+                        page = AchievementsView(activity, UiKit(activity), preparing = true, canPrepareOffscreen = { permitted }) {}
+                        page.prepareInstantNavigation()
+                        host.addView(page, FrameLayout.LayoutParams(-1, -1))
+                        assertNull("The building column must stay detached", (rows.get(page) as View).parent)
+                        initialChildren = (rows.get(page) as android.view.ViewGroup).childCount
+                    }
+                    SystemClock.sleep(200)
+                    scenario.onActivity {
+                        assertEquals("Gameplay or a sheet must suspend hidden preparation", initialChildren,
+                            (rows.get(page) as android.view.ViewGroup).childCount)
+                        permitted = true
+                        page.prepareContent()
+                    }
+                    val deadline = SystemClock.uptimeMillis() + 8000
+                    var ready = false
+                    while (!ready && SystemClock.uptimeMillis() < deadline) {
+                        scenario.onActivity { ready = page.contentReady }
+                        if (!ready) SystemClock.sleep(20)
+                    }
+                    assertTrue("Offscreen card preparation must finish", ready)
+                    scenario.onActivity {
+                        assertNull("Finishing hidden cards must not attach them behind another screen", (rows.get(page) as View).parent)
+                        if (openPage) page.showPrepared()
+                        else { cube.run.core.Stage.homeScreen = true; page.prepareContent() }
+                        assertNotNull("Prepared cards must attach on menu return or open", (rows.get(page) as View).parent)
+                        (host.parent as android.view.ViewGroup).removeView(host)
+                    }
+                }
+            } finally { scenario.onActivity { cube.run.core.Stage.homeScreen = home } }
+        }
+    }
+
     @Test fun resultsDoNotRebuildHiddenMenusDuringTheirEntrance() {
         ActivityScenario.launch(GameActivity::class.java).use { scenario ->
             SystemClock.sleep(5000)

@@ -99,7 +99,7 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false, retu
     private val cacheChanges = SharedPreferences.OnSharedPreferenceChangeListener { _, _ -> scheduleShopPreparation() }
     private val preparePages = object : Runnable {
         override fun run() {
-            if (!isAttachedToWindow || page != null || languageSheet != null || runStarted || runOver != null) return
+            if (!isAttachedToWindow || page != null || languageSheet != null || updateNotes != null || runStarted || runOver != null) return
             if (afterUpdateNotesEntrance(this)) return
             if (width == 0 || height == 0) { postOnAnimation(this); return }
             for (name in listOf("settings", "sections", "achievements", "wardrobe")) {
@@ -115,6 +115,7 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false, retu
                     postOnAnimation(this)
                     return // One page per frame; never construct them all in a tap handler.
                 }
+                (old.view as? AchievementsView)?.prepareContent()
                 if (!old.painted && !old.view.isLayoutRequested && old.view.width > 0 && old.view.height > 0 &&
                     (old.view !is AchievementsView || old.view.contentReady)) {
                     // Interactive settings redraw small controls, not a full-screen texture.
@@ -134,7 +135,7 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false, retu
     private var opening = openingEntrance
     private val prepareShop = object : Runnable {
         override fun run() {
-            if (!isAttachedToWindow || page != null || languageSheet != null || runStarted || runOver != null) return
+            if (!isAttachedToWindow || page != null || languageSheet != null || updateNotes != null || runStarted || runOver != null) return
             if (afterUpdateNotesEntrance(this)) return
             if (width == 0 || height == 0) { postOnAnimation(this); return }
             if (preparedShop?.isCurrent() != true) {
@@ -326,7 +327,8 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false, retu
     }
 
     private fun newCachedPage(name: String): Page = when (name) {
-        "achievements" -> AchievementsView(activity, kit, preparing = true) { closed() }
+        "achievements" -> AchievementsView(activity, kit, preparing = true,
+            canPrepareOffscreen = { !runStarted && runOver == null && updateNotes == null && languageSheet == null }) { closed() }
         "wardrobe" -> WardrobeView(activity, kit) { closed() }
         "settings" -> SettingsView(activity, kit, openLanguages = { openLanguages() }, openSections = { openSectionsFromSettings() },
             openUpdateNotes = { openUpdateNotes() }, devChanged = { menu.pulseBank() }) { closed() }
@@ -494,6 +496,7 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false, retu
             updateNotes = null
             clearHardwareFocus()
             Stage.homeScreen = page == null
+            if (Stage.homeScreen) scheduleShopPreparation()
         }.also { addView(it, LayoutParams(-1, -1)) }
     }
 
@@ -828,8 +831,8 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false, retu
         )
         runOver = flow
         addView(flow, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
-        // Results own the frame budget. Their MENU action recreates the host, so warming
-        // hidden menus here only stalls the count/celebration and is discarded on exit.
+        // Results own the frame budget. Refresh the retained menu caches after returning,
+        // so their construction does not compete with the count or celebration.
         removeCallbacks(prepareShop)
         removeCallbacks(preparePages)
         removeCallbacks(prepareSettingsMenus)

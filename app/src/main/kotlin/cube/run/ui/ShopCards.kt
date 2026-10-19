@@ -44,6 +44,11 @@ internal class ShopCards(private val activity: Activity, private val kit: UiKit)
 
     fun clear() { cards.clear(); bars.clear(); values.clear() }
 
+    /** The sliding panel reuses one texture until navigation has settled. */
+    fun holdNavigationSnapshot(hold: Boolean) {
+        (cards[ShopIcon.MYSTERY] as? MysteryCard)?.holdSnapshot = hold
+    }
+
     /** What a card's buy button needs: the price, whether you can pay it now, and what a tap does. */
     class Offer(val price: Int, val can: Boolean, val onTap: (View) -> Unit)
 
@@ -242,10 +247,16 @@ internal class ShopCards(private val activity: Activity, private val kit: UiKit)
         private val rays = Path()
         private val box = RectF()
         private val star = Path()
+        var holdSnapshot = false
         private var turn = 0f
         private val spin = ValueAnimator.ofFloat(0f, 360f).apply {
             duration = 60_000; repeatCount = ValueAnimator.INFINITE; interpolator = LinearInterpolator()
-            addUpdateListener { turn = it.animatedValue as Float; if (isShown) Anim.repaint(this@MysteryCard) }
+            addUpdateListener {
+                if (!holdSnapshot) {
+                    turn = it.animatedValue as Float
+                    if (isShown) Anim.repaint(this@MysteryCard)
+                }
+            }
         }
 
         init {

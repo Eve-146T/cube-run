@@ -91,7 +91,8 @@ error instead of reporting an incomplete sequence as successful.
 `ScreenSmoothnessBenchmarkTest` measures the GL-backed main menu, wardrobe, shop,
 settings, achievements, results and record celebration. It records Android window
 frame draw/layout costs and intended-vsync gaps, GL frame intervals at the renderer's
-`swap` marker, layout pass counts and dropped metric callbacks. Static Android
+`swap` marker, trigger duration, first committed response frame, layout pass counts
+and dropped metric callbacks. Static Android
 menus may submit very few frames while the GL scene continues at full speed;
 their UI frame count is not their frame rate. Window total duration can include
 queueing, so assess draw/layout work and frame intervals separately.
@@ -105,6 +106,8 @@ adb -s ZY323NNKTB exec-out run-as cube.run cat files/screen-smoothness.json \
 ```
 
 Use `-e screens shop,results,record_results` for a focused pass. Each menu sample
+can also record its return to the menu with `-e backs true`, including the
+following 600 ms of cache preparation. Each opening sample
 includes its entrance and three seconds of idle motion; results samples cover
 6.5 seconds, including the count, stars and confetti. The fixture uses the real
 HUD/results stage with a fixed score and reward rather than waiting for a random

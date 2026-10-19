@@ -237,6 +237,8 @@ class ShopView(
     /** An opaque sheet rises from the bottom; the header waits for the menu title to clear. */
     override fun animateEntrance() {
         if (compactLayout) {
+            content.setLayerType(View.LAYER_TYPE_NONE, null)
+            shopCards.holdNavigationSnapshot(false)
             Stage.mode = Stage.SHOP
             alpha = 1f
             place(1f)
@@ -276,6 +278,7 @@ class ShopView(
                 override fun onAnimationEnd(animation: Animator) {
                     if (!cancelled) {
                         content.setLayerType(View.LAYER_TYPE_NONE, null)
+                        shopCards.holdNavigationSnapshot(false)
                         onFinished()
                     }
                 }
@@ -285,6 +288,7 @@ class ShopView(
     }
 
     private fun preparePanelLayer() {
+        shopCards.holdNavigationSnapshot(true)
         if (content.width > 0 && content.height > 0 && content.layerType != View.LAYER_TYPE_HARDWARE) {
             content.setLayerType(View.LAYER_TYPE_HARDWARE, null)
             content.buildLayer()

@@ -32,7 +32,8 @@ import kotlin.math.sin
  * without a pause.
  */
 @SuppressLint("ViewConstructor")
-class AchievementsView(activity: Activity, kit: UiKit, private val preparing: Boolean = false, onClose: () -> Unit) :
+class AchievementsView(activity: Activity, kit: UiKit, private val preparing: Boolean = false,
+    private val canPrepareOffscreen: () -> Boolean = { true }, onClose: () -> Unit) :
     Page(activity, kit, activity.getString(R.string.achievements_title), dark = false, onClosed = onClose) {
     private val rows = LinearLayout(activity).apply {
         orientation = LinearLayout.VERTICAL
@@ -42,7 +43,7 @@ class AchievementsView(activity: Activity, kit: UiKit, private val preparing: Bo
     /** The scrolling sheet: the list, and the claim effects drawn over it (clipped with it). */
     private val sheet = FrameLayout(activity).apply {
         clipChildren = false; clipToPadding = false
-        addView(rows, FrameLayout.LayoutParams(-1, -2))
+        if (!preparing) addView(rows, FrameLayout.LayoutParams(-1, -2))
     }
     private val bank = kit.coinBank(number(Progress.coins))
     private val scroll = object : ScrollView(activity) {
@@ -75,6 +76,51 @@ class AchievementsView(activity: Activity, kit: UiKit, private val preparing: Bo
         private set
     /** Cards not built yet: a few are made each frame after the first screenful. */
     private val later = ArrayList<() -> Unit>()
+    private var preparationQueued = false
+    private val prepareMore = object : Runnable {
+        override fun run() {
+            preparationQueued = false
+            if (closing || !isAttachedToWindow) return
+            // New hidden cards are built in a detached column, so each addition
+            // cannot remeasure whichever screen the player is using.
+            if (rows.parent != null && visibility != VISIBLE && !cube.run.core.Stage.homeScreen) return
+            if (visibility != VISIBLE && !canPrepareOffscreen()) return
+            val startedAt = SystemClock.uptimeMillis()
+            var built = 0
+            while (later.isNotEmpty() && built < PER_FRAME) {
+                later.removeAt(0)()
+                built++
+                if (rows.parent == null && sheet.width > 0) {
+                    // Measure each addition while it is offscreen too: attaching an
+                    // otherwise unmeasured column would move the stall to menu return.
+                    rows.measure(
+                        ViewGroup.getChildMeasureSpec(MeasureSpec.makeMeasureSpec(sheet.width, MeasureSpec.EXACTLY),
+                            sheet.paddingLeft + sheet.paddingRight, LayoutParams.MATCH_PARENT),
+                        ViewGroup.getChildMeasureSpec(MeasureSpec.makeMeasureSpec(scroll.height, MeasureSpec.UNSPECIFIED),
+                            sheet.paddingTop + sheet.paddingBottom, LayoutParams.WRAP_CONTENT))
+                    rows.layout(0, 0, rows.measuredWidth, rows.measuredHeight)
+                }
+                if (SystemClock.uptimeMillis() - startedAt >= BUILD_BUDGET_MS) break
+            }
+            contentReady = later.isEmpty()
+            prepareContent()
+        }
+    }
+
+    internal fun prepareContent() {
+        if (contentReady) {
+            if (visibility == VISIBLE || cube.run.core.Stage.homeScreen) attachRows()
+        } else if (!preparationQueued) {
+            preparationQueued = true
+            postOnAnimation(prepareMore)
+        }
+    }
+
+    private fun attachRows() {
+        if (rows.parent == null) sheet.addView(rows, FrameLayout.LayoutParams(-1, -2))
+    }
+
+    override fun onNavigationShown() { attachRows(); prepareContent() }
 
     override fun onCompactChanged(compact: Boolean) {
         // Short panes: the medal case gives its height to the first cards (sections keep their counts).
@@ -145,21 +191,8 @@ class AchievementsView(activity: Activity, kit: UiKit, private val preparing: Bo
         later += { rows.addView(suggestionCard(), LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(28f) }) }
         // A card costs a few milliseconds to make: build what the first screen shows now, the rest over the next frames.
         repeat(minOf(if (preparing) 0 else FIRST_SCREEN, later.size)) { later.removeAt(0)() }
-        fun more() {
-            if (closing || !isAttachedToWindow) return
-            // Yield to input and painting when a slower phone spends most of a frame on one card.
-            val startedAt = SystemClock.uptimeMillis()
-            var built = 0
-            while (later.isNotEmpty() && built < PER_FRAME) {
-                later.removeAt(0)()
-                built++
-                if (SystemClock.uptimeMillis() - startedAt >= BUILD_BUDGET_MS) break
-            }
-            if (later.isNotEmpty()) postOnAnimation(::more)
-            else contentReady = true
-        }
-        if (later.isNotEmpty()) postOnAnimation(::more)
         contentReady = later.isEmpty()
+        prepareContent()
         hero.bind(everything, animate = false)
     }
 
@@ -167,6 +200,7 @@ class AchievementsView(activity: Activity, kit: UiKit, private val preparing: Bo
     internal fun buildAll() {
         while (later.isNotEmpty()) later.removeAt(0)()
         contentReady = true
+        attachRows()
     }
 
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
@@ -342,6 +376,7 @@ class AchievementsView(activity: Activity, kit: UiKit, private val preparing: Bo
     }
 
     override fun onDetachedFromWindow() {
+        removeCallbacks(prepareMore); preparationQueued = false
         bankCount?.cancel()
         super.onDetachedFromWindow()
     }
