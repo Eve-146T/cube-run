@@ -270,6 +270,8 @@ class CandyRow(ctx: Context, color: Int, private val lipPx: Float, radiusPx: Flo
         resetPress = candyTouch(painter, bindTap = { tapPress = it })
     }
 
+    fun ring(px: Float, color: Int) { painter.ring = px; painter.ringColor = color; invalidate() }
+
     override fun performClick(): Boolean { tapPress(); return super.performClick() }
 
     override fun onWindowFocusChanged(hasWindowFocus: Boolean) {
