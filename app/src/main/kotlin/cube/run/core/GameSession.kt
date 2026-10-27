@@ -51,7 +51,10 @@ interface GameSession {
     fun runSeconds(seconds: Int) {}
     fun runCrashed(seconds: Float) {}
 
-    /** Coins collected so far this run (banked into [Progress] at game over). */
+    /** Bank the cumulative run total now, without advancing a jackpot presentation on the HUD. */
+    fun bankRunCoins(total: Int) {}
+
+    /** Coins collected so far this run; banked immediately and shown on the HUD. */
     fun setCoins(v: Int) {}
 
     /** Bubble shields left in stock (shown as a HUD hint). */
@@ -63,7 +66,7 @@ interface GameSession {
     /** Mystery boxes collected so far this run (opened on the run-over screens). */
     fun setBoxes(v: Int) {}
 
-    /** One collectible shard; banked with the run rewards at game over. */
+    /** One collectible shard; banked immediately. */
     fun addShard(kind: Int) {}
 
     /** The world the player is running through (shown on the results). */
@@ -82,7 +85,7 @@ interface GameSession {
     fun boxOpened(kind: Int, amount: Int, cat: Int, id: Int) {}
 
     /**
-     * Ends the run: banks the coins, saves the high score, plays the
+     * Ends the run: saves the high score, plays the
      * success/fail sound + haptic, and shows the run-over screens.
      * The game's update loop keeps running afterwards (for death animation) —
      * guard gameplay logic with [isOver].

@@ -59,8 +59,8 @@ import kotlin.random.Random
  *  - [GiftStage] / [Showcase] — the 3D stages the run-over and wardrobe screens use
  *
  * +1 per row (2× with the multiplier), near-miss bonus for shaving an
- * obstacle; coins and mystery boxes are handed to the session and banked at
- * game over.
+ * obstacle; coins and shards are banked when collected, and mystery boxes
+ * open after the run.
  */
 class CubeRun(session: GameSession, private var autoStart: Boolean = false, private val idleBotStart: Boolean = false, launchOpening: Boolean = false, openingClock: cube.run.intro.OpeningClock? = null,
               private val firstWorld: Int? = null) : Gdx3DGame(session) {
@@ -151,7 +151,7 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
     private var lastTapT = -9f       // for double-tap detection (bubble activation)
 
     // ---- goodies ----
-    private var coinsRun = 0         // collected this run (banked by the session at game over)
+    private var coinsRun = 0         // collected this run (already banked by the session)
     private var lastCollectedBox: Row? = null
     // Separate from the course generator: poison rolls do not change obstacle layouts.
     private var coalRandom: Random = Random.Default
@@ -648,6 +648,7 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
         coinsRun = coinsRunF.toInt()
         val won = coinsRun - before
         if (won <= 0) return
+        session.bankRunCoins(coinsRun)
         val first = !jackpot.active
         jackpot.start(won, player.px, player.py + Terrain.y(0f), cam, bgTop, bgBottom)
         if (first) {

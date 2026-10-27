@@ -121,7 +121,7 @@ class ShardPickupTest {
                         assertEquals(Pickup.NONE,row.pickup)
                         game.tick(.001f) // Collected rows cannot pay twice.
                     }
-                    assertArrayEquals("Rewards wait for the end of the run",before,IntArray(3) { Progress.shards(it) })
+                    assertArrayEquals("Shards are banked when collected",intArrayOf(before[0]+1,before[1]+2,before[2]+1),IntArray(3) { Progress.shards(it) })
                     game.session.gameOver(); game.session.gameOver(); game.session.addShard(1)
                     assertArrayEquals(intArrayOf(before[0]+1,before[1]+2,before[2]+1),IntArray(3) { Progress.shards(it) })
                 }

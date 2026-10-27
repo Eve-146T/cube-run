@@ -23,9 +23,10 @@ class GameHostSession(
     private val over = AtomicBoolean(false)
     private val shardsV = java.util.concurrent.atomic.AtomicIntegerArray(3)
 
-    override fun addShard(kind: Int) {
+    @Synchronized override fun addShard(kind: Int) {
         if (!over.get() && kind in 0..2) {
             shardsV.incrementAndGet(kind)
+            if (!Progress.zenRun) Progress.addShards(kind, 1)
             if (runHasStarted) {
                 shardMask = shardMask or (1 shl kind)
                 Progress.bestMetric("shard_hunter", shardMask)
@@ -200,14 +201,17 @@ class GameHostSession(
         if (runHasStarted && !over.get() && seconds < 2f) Progress.addMetric("stage_fright")
     }
 
-    override fun setCoins(v: Int) {
+    @Synchronized override fun bankRunCoins(total: Int) {
         if (over.get()) return
-        coinsV.set(v)
-        Progress.recordRunCoins(v)
-        // Every coin of a record run would otherwise write the save and re-check every
-        // achievement; the run's best is recorded at game over, the medal the moment it is won.
-        if (v >= 10000) Progress.bestMetric("magpie", 10000)
-        ui { it.setRunCoins(v) }
+        val value = total.coerceAtLeast(coinsV.get())
+        val delta = value - coinsV.getAndSet(value)
+        if (delta > 0 && !Progress.zenRun) Progress.addCoins(delta)
+        if (value >= 10000) Progress.bestMetric("magpie", 10000)
+    }
+
+    @Synchronized override fun setCoins(v: Int) {
+        bankRunCoins(v)
+        if (!over.get()) ui { it.setRunCoins(coinsV.get()) }
     }
 
     override fun setBubbles(v: Int) {
@@ -245,7 +249,7 @@ class GameHostSession(
         ui { it.onBoxOpened(kind, amount, cat, id) }
     }
 
-    override fun gameOver() {
+    @Synchronized override fun gameOver() {
         if (!over.compareAndSet(false, true)) return
         Progress.addMetric("long_hauler", observedDistance - lastDistance)
         // Zen cannot crash; only the developer's END RUN gets here, and a Zen run still keeps nothing.
@@ -267,10 +271,8 @@ class GameHostSession(
             Progress.bestMetric("very_silent_treatment", 1)
         if (java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY) == 3)
             Progress.bestMetric("insomniac", 1)
-        for (kind in runShards.indices) if (runShards[kind] > 0) Progress.addShards(kind, runShards[kind])
         Progress.recordRunProgress(finalScore, 0)
         Progress.clearRunCoins()
-        Progress.addCoins(runCoins)
         if (!zen) Progress.countRun()
         val prevBest = Scores.best(id)
         val isNew = finalScore > 0 && Scores.submit(id, finalScore)

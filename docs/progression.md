@@ -44,3 +44,14 @@ Faster bubbles levels takes half a second off, down to 3.5 seconds. Tapping agai
 during cooldown spends no stock; the HUD shows remaining seconds. Pause freezes
 the cooldown, and a new run resets it. Automatic Second Wind protection retains
 its existing behavior.
+
+## Collected rewards
+
+Road coins, jackpot winnings and shards enter the saved bank as soon as they
+are collected. Jackpot winnings are saved before their animation, while the
+HUD counts them in during the show. Run results report those rewards without
+paying them again. Returning to the main menu or restarting keeps the rewards
+already collected. Bubble pickups and the Ocean cube's coin milestones add to
+saved bubble stock immediately; activating a bubble spends that stock at once.
+The activity flushes reward writes after the game pauses. Zen still keeps no
+run rewards.

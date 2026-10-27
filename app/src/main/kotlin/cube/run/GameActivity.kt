@@ -422,6 +422,7 @@ open class GameActivity : AndroidApplication() {
         openingClock?.pause()
         if (::hud.isInitialized) hud.autoPause()
         super.onPause()
+        Progress.flush()
     }
 
     override fun onResume() {

@@ -595,7 +595,7 @@ object Progress {
         else -> shardCounts[kind]
     }
 
-    fun addShards(kind: Int, n: Int) {
+    @Synchronized fun addShards(kind: Int, n: Int) {
         if (kind !in shardCounts.indices || n <= 0) return
         shardCounts[kind] += n
         prefs.edit().putInt("shards_$kind", shardCounts[kind]).apply()
@@ -653,6 +653,9 @@ object Progress {
             else -> { trail = id; prefs.edit().putInt("trail", id).apply() }
         }
     }
+
+    /** Complete queued reward writes before the paused activity can be reclaimed. */
+    @Synchronized fun flush(): Boolean = prefs.edit().commit()
 
     // ------------------------------------------------------------- boxes
 
