@@ -252,11 +252,11 @@ class Scenery(private val game: Gdx3DGame, private val rnd: Random) {
                     }
                     if (top > bottom) glassLane(x, bottom, top, w, c, fog, alpha * a)
                 }
-            } else for (l in 0 until 3) roadPiece((l - 1) * w, t.z - tileD / 2f, t.z + tileD / 2f, w, if ((l + 1 + t.parity) % 2 == 0) c1 else c2, fog, a)
+            } else for (l in 0 until 3) game.worldGround((l - 1) * w, -0.14f, t.z, w, 0.26f, tileD, if ((l + 1 + t.parity) % 2 == 0) c1 else c2, fog, a)
             if (u > 0.01f) {
                 val ow = w * u
-                roadPiece(-(1.5f * w + ow / 2f), t.z - tileD / 2f, t.z + tileD / 2f, ow, if (t.parity == 0) c1 else c2, fog, a)
-                roadPiece(1.5f * w + ow / 2f, t.z - tileD / 2f, t.z + tileD / 2f, ow, if (t.parity == 0) c1 else c2, fog, a)
+                game.worldGround(-(1.5f * w + ow / 2f), -0.14f, t.z, ow, 0.26f, tileD, if (t.parity == 0) c1 else c2, fog, a)
+                game.worldGround(1.5f * w + ow / 2f, -0.14f, t.z, ow, 0.26f, tileD, if (t.parity == 0) c1 else c2, fog, a)
             }
             renderKerb(t, kerb, fog, sp, a)
             if (dropY < 60f) {
@@ -293,29 +293,6 @@ class Scenery(private val game: Gdx3DGame, private val rnd: Random) {
     private fun glassLane(x: Float, far: Float, near: Float, w: Float, col: Color, fog: Float, alpha: Float) {
         if (near - far < 0.02f) return
         game.glassGround(x, -0.04f, (near + far) / 2f, w, 0.06f, near - far, col, fog, alpha)
-    }
-
-    /** One lane's stretch of solid road, [far] to [near], [width] wide, centred on [x]. */
-    private fun roadPiece(x: Float, far: Float, near: Float, width: Float, col: Color, fog: Float, a: Float) =
-        aroundHole(x, far, near) { f, n -> game.worldGround(x, -0.14f, (n + f) / 2f, width, 0.26f, n - f, col, fog, a) }
-
-    // A pit the cube fell into: the lanes under it leave its span open (see TrackRenderer's shaft).
-    private var holeOpen = false
-    private var holeX0 = 0f; private var holeX1 = 0f
-    private var holeFar = 0f; private var holeNear = 0f
-
-    /** Cut the road open from [x0] to [x1] across, [far] to [near] along, for this frame. */
-    fun openHole(x0: Float, x1: Float, far: Float, near: Float) {
-        holeOpen = true; holeX0 = x0; holeX1 = x1; holeFar = far; holeNear = near
-    }
-
-    fun closeHole() { holeOpen = false }
-
-    /** Draw the lane at [x] from [far] to [near], minus the open hole if it crosses that lane. */
-    private inline fun aroundHole(x: Float, far: Float, near: Float, piece: (Float, Float) -> Unit) {
-        if (!holeOpen || x < holeX0 || x > holeX1 || holeFar >= near || holeNear <= far) { piece(far, near); return }
-        if (holeNear < near - 0.01f) piece(holeNear, near)
-        if (holeFar > far + 0.01f) piece(far, holeFar)
     }
 
     /** Everything beside and above the road: the roadside, the gates, the wind. [wind] 0..1 = how vivid the speed streaks are. */

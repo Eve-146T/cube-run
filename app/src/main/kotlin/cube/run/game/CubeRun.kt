@@ -372,13 +372,13 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
     internal var pilotContacts = 0
         private set
 
-    /** A fatal hit; [pit] is a tar pit the cube drops into instead of shattering. */
-    private fun crash(row: Row? = null, pit: Ob? = null) {
+    /** A fatal hit. */
+    private fun crash() {
         if (dead) return
         if ((BuildConfig.DEBUG || BuildConfig.PERFORMANCE_TEST) && testCrashObserver != null) { testCrashObserver!!.invoke(); return }
         if (Progress.useRevive()) { secondWind(); return }
         if (reachingForBox()) session.riskyBoxDeath()
-        if (pit != null) loseRoad(VoidFall.Kind.TAR, row, pit) else die()
+        die()
     }
 
     /** Poison bypasses bubble saves, phase and revives; ordinary obstacles use crash(). */
@@ -400,7 +400,7 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
         if (dead) return
         if (BuildConfig.DEBUG && testCrashObserver != null) { testCrashObserver!!.invoke(); return }
         if (reachingForBox()) session.riskyBoxDeath()
-        loseRoad(kind, row, null)
+        loseRoad(kind, row)
     }
 
     /**
@@ -408,21 +408,18 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
      * at the run's speed and drops, the camera gliding on after it
      * ([VoidFall]), and the run-over pages wait until it has fallen away.
      */
-    private fun loseRoad(kind: VoidFall.Kind, row: Row?, pit: Ob?, shotY: Float = player.py) {
+    private fun loseRoad(kind: VoidFall.Kind, row: Row?) {
         if (dead) return
         if (startGateRunT >= 0f) session.runCrashed(runT - startGateRunT)
         dead = true
         player.setFlying(false)
         if (bubble.active) bubble.pop(player.px, player.py)
-        // Off the road in space the pull fades further, and down a well it is a little gentler: either way
-        // the cube drifts down and away slowly enough to watch it go.
-        val gravity = if (player.lowGravity) 26f * SPACE_FALL_G else if (pit != null) WELL_G else 26f
-        voidFall.start(kind, spd, player.px, shotY, row, pit)
+        // Off the road in space the pull fades further: the cube drifts down and away slowly enough to watch it go.
+        val gravity = if (player.lowGravity) 26f * SPACE_FALL_G else 26f
+        voidFall.start(kind, spd, player.px, player.py, row)
         slowMo(0.4f, 0.3f) // the moment it goes over hangs a beat, then the drop runs at full speed
-        val inset = 0.5f
-        if (pit != null) player.fall(spd, player.lateralVelocity, gravity, minX = pit.x - pit.sx / 2f + inset, maxX = pit.x + pit.sx / 2f - inset)
-        else player.fall(spd, player.lateralVelocity, gravity, drag = if (player.lowGravity) SPACE_FALL_DRAG else 0f)
-        fx.loseRoad(player.px, player.py, if (pit != null) pit.col else null)
+        player.fall(spd, player.lateralVelocity, gravity, drag = if (player.lowGravity) SPACE_FALL_DRAG else 0f)
+        fx.loseRoad()
     }
 
     private fun reachingForBox(): Boolean {
@@ -467,35 +464,9 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
         return true
     }
 
-    /** The cube met a tar pit at road level: a bubble, Zen or phase still beats it. (A rift is no obstacle: see [riftRules].) */
-    private fun pitHit(row: Row, ob: Ob) {
-        if (idlePilot.active) pilotContacts++
-        when {
-            bubble.active -> { zenStreak = 0; smash(row) }
-            phase(ob) -> {}
-            zen -> melt(row)
-            else -> crash(row, ob)
-        }
-    }
-
-    /**
-     * The ends of the tar pit the cube is falling into, where they will be
-     * after this frame scrolls by [mv] (its walls run all the way down).
-     * Space's voids have none: a long rift, or the road's edge.
-     */
-    private fun holeWalls(mv: Float) {
-        val row = voidFall.row
-        val pit = voidFall.pit
-        if (row != null && pit != null) player.fallWalls(row.z + pit.sz / 2f + mv, row.z - pit.sz / 2f + mv, 0f, -1e9f)
-        else player.noWalls()
-    }
-
-    /** One frame of a cube that lost the road: it strikes a tar pit's far wall, or sinks into its darkness. */
+    /** One frame of a cube that lost the road: it flies on and drops away. */
     private fun fallStep(dt: Float, mv: Float) {
-        holeWalls(mv)
-        if (player.update(dt, mv, time, worldHue(), trail = true, groundH = 0f, stream = spd * 0.55f) == Player.EV_STRUCK)
-            fx.struck(player.px, player.py, player.pz, player.struckSpeed, voidFall.pit?.col ?: space.neon)
-        if (voidFall.kind == VoidFall.Kind.TAR) player.dim = ((0.2f - player.py) / 11f).coerceIn(0f, 1f)
+        player.update(dt, mv, time, worldHue(), trail = true, groundH = 0f, stream = spd * 0.55f)
     }
 
     /** Below the road's surface in space: down in a rift. There is no floor until the cube climbs back out. */
@@ -524,8 +495,8 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
     private fun isRift(ob: Ob) = space.blend > 0f && ob.pit
 
     /**
-     * True when a pit at the cube's x is open beneath it and would take it: there
-     * is no floor there to land on (the same footprint the collision uses).
+     * True when a void in space is open beneath the cube's x: there is no floor
+     * there to land on. A tar pit is never a hole: touching it is a crash.
      */
     private fun voidBeneath(px: Float): Boolean {
         if (BuildConfig.DEBUG && testCrashObserver != null) return false
@@ -533,15 +504,9 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
         for (row in track.rows) {
             if (abs(row.z) >= 0.86f) continue
             for (ob in row.obs) {
-                if (!ob.pit || ob.type != ObType.SOLID || ob === phasedObstacle || ob.lateral(px) >= 0f) continue
-                // A hole in space opens under the cube's centre, and its slices overlap into one
-                // void (each spans its whole depth); a tar pit opens over the footprint its collision uses.
-                if (isRift(ob)) { if (abs(row.z) < ob.sz / 2f && abs(px - ob.x) < ob.sx / 2f) return true else continue }
-                if (abs(row.z) >= 0.82f) continue
-                // Tar only opens up when nothing would save the cube from it.
-                val saved = bubble.active || zen || Progress.revives > 0 ||
-                    (!phaseUsed && Skins.Ability.PHASE in runSkin.abilities)
-                if (!saved) return true
+                if (!isRift(ob) || ob.type != ObType.SOLID || ob === phasedObstacle || ob.lateral(px) >= 0f) continue
+                // A hole in space opens under the cube's centre, and its slices overlap into one void (each spans its whole depth).
+                if (abs(row.z) < ob.sz / 2f && abs(px - ob.x) < ob.sx / 2f) return true
             }
         }
         return false
@@ -1006,7 +971,7 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
             val k = min(1f, introT / 1.8f).let { it * it * it * (it * (it * 6f - 15f) + 10f) }
             rig.intro = -2.2f + 2.2f * k // the menu shot swoops in from high and far back and settles
         } else {
-            if (voidFall.active) { voidFall.update(dt, player.forward, player.pz); spd = voidFall.speed } // a fall: the camera glides on after the cube
+            if (voidFall.active) { voidFall.update(dt, player.forward); spd = voidFall.speed } // a fall: the camera glides on after the cube
             else spd = max(0f, spd - spd * 2.4f * dt) // death: world glides to a stop
             deathT = min(deathT + dt, 2.5f)
             if (!gameOverShown && (if (voidFall.active) voidFall.done else deathT >= deathAnimTime)) { gameOverShown = true; session.gameOver() }
@@ -1132,21 +1097,14 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
      * The shot while the cube falls: the chase as it was when the cube was
      * lost, gliding on by its own momentum and never turning (Space's sky is
      * painted to the view). It stays above the road, so the road is always a
-     * floor: in space it drifts after the cube and leans down a little over
-     * the lip, and you watch the cube drop away through the glass; over a
-     * tar pit it eases back to keep the well in view.
+     * floor: it drifts after the cube and leans down a little over the lip,
+     * and you watch the cube drop away through the glass.
      */
     private fun chaseFall(dt: Float) {
         rig.chase(dt, voidFall.startX, voidFall.startY, player.ground, 0f, spd)
-        if (voidFall.kind != VoidFall.Kind.TAR) {
-            val follow = if (voidFall.kind == VoidFall.Kind.EDGE) 0.85f else 0.5f
-            cam.position.x += (player.px - voidFall.startX) * follow * voidFall.drift
-            cam.position.y = max(FALL_CAMERA_FLOOR, cam.position.y - FALL_DIP * voidFall.drift)
-        } else {
-            // Over a tar pit it eases back and up a little, so the well the cube drops down stays in the shot.
-            cam.position.z += WELL_BACK * voidFall.drift
-            cam.position.y += WELL_RISE * voidFall.drift
-        }
+        val follow = if (voidFall.kind == VoidFall.Kind.EDGE) 0.85f else 0.5f
+        cam.position.x += (player.px - voidFall.startX) * follow * voidFall.drift
+        cam.position.y = max(FALL_CAMERA_FLOOR, cam.position.y - FALL_DIP * voidFall.drift)
         cam.update()
         cam.project(fallSeen.set(player.px + WorldBend.dx(player.pz), player.py + Terrain.y(0f) + WorldBend.dy(player.pz), player.pz))
         voidFall.seen(showFallingCube() && fallSeen.y > -sh * 0.03f && fallSeen.x > -sw * 0.05f && fallSeen.x < sw * 1.05f, dt)
@@ -1178,7 +1136,6 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
                     val vert = max(cubeBottom - ob.top, ob.bottom - headY)              // over / under it: the vertical gap (positive = clear)
                     row.minClear = min(row.minClear, vert)
                     if (abs(row.z) < 0.82f && vert < -0.02f) {
-                        if (ob.pit) { pitHit(row, ob); break }
                         if (idlePilot.active) pilotContacts++
                         if (!bubble.active && phase(ob)) continue
                         hit(row); break
@@ -1298,9 +1255,6 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
         // Coins near the lens shrink away while the cube falls: the camera glides on into the arc it missed.
         trackArt.coinFade = if (voidFall.active) (voidFall.t / 0.3f).coerceIn(0f, 1f) else 0f
         trackArt.passedCoinsFade = bonus == Bonus.SPACE || voidFall.active
-        val pit = voidFall.pit; val pitRow = voidFall.row
-        if (pit != null && pitRow != null) scenery.openHole(pit.x - pit.sx / 2f, pit.x + pit.sx / 2f, pitRow.z - pit.sz / 2f, pitRow.z + pit.sz / 2f)
-        else scenery.closeHole()
         scenery.renderRoad()
         renderProbe?.invoke("course")
         trackArt.render(track, time, kaleido, kaleidoHue)
@@ -1349,9 +1303,8 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
         if (!dead || showFallingCube() && !beneathGlass()) player.render(batch, env, Terrain.y(0f))
     }
 
-    /** A falling cube shows until the run-over pages, unless it is lost deep in a tar pit. */
-    private fun showFallingCube() = voidFall.active && player.falling &&
-        !(voidFall.kind == VoidFall.Kind.TAR && player.dim >= 1f)
+    /** A falling cube shows until the run-over pages. */
+    private fun showFallingCube() = voidFall.active && player.falling
 
     // The glass road writes depth: a cube dropping through it must be drawn first to show beneath.
     override fun beneathGlass() = showFallingCube() && space.blend > 0f && !gift.active && !showcase.active && !jackpot.active
@@ -1384,14 +1337,9 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
         const val LEDGE = 0.75f
         /** Below this (cube centre) not even a double jump climbs out of a rift. */
         const val DEEP = -1.9f
-        /** Gravity down a tar pit's well. */
-        const val WELL_G = 17f
         /** How far the fall camera sinks towards the lip in space (it never goes below the road). */
         const val FALL_DIP = 0.7f
         /** The fall camera's lowest height: the road stays a floor beneath the shot. */
         const val FALL_CAMERA_FLOOR = 1.6f
-        /** How far the fall camera eases back and up over a tar pit. */
-        const val WELL_BACK = 2.6f
-        const val WELL_RISE = 0.5f
     }
 }
