@@ -94,11 +94,16 @@ class SpaceRifts(private val game: Gdx3DGame) {
             val l = max(left[i], -half); val r = min(right[i], half)
             bright.set(lips[i]).lerp(Color.WHITE, 0.2f)
             val len = n - f
-            val mid = (n + f) / 2f
             game.worldBox((l + r) / 2f, 0f, n, r - l, BAR_H, BAR, bright, Fog.at(n), Fog.appear(n))
             game.worldBox((l + r) / 2f, 0f, f, r - l, BAR_H, BAR, bright, Fog.at(f), Fog.appear(f))
-            game.worldBox(l + BAR / 2f, 0f, mid, BAR, BAR_H, len, bright, Fog.at(mid), Fog.appear(f))
-            game.worldBox(r - BAR / 2f, 0f, mid, BAR, BAR_H, len, bright, Fog.at(mid), Fog.appear(f))
+            // The sides in short pieces: a box bends only at its corners, and the road bends between them.
+            val pieces = kotlin.math.ceil(len / PIECE).toInt().coerceAtLeast(1)
+            val step = len / pieces
+            for (k in 0 until pieces) {
+                val z = n - step * (k + 0.5f)
+                game.worldBox(l + BAR / 2f, 0f, z, BAR, BAR_H, step, bright, Fog.at(z), Fog.appear(z))
+                game.worldBox(r - BAR / 2f, 0f, z, BAR, BAR_H, step, bright, Fog.at(z), Fog.appear(z))
+            }
         }
     }
 
@@ -108,5 +113,7 @@ class SpaceRifts(private val game: Gdx3DGame) {
         private const val JOIN = 0.3f
         private const val BAR = 0.18f
         private const val BAR_H = 0.1f
+        /** The longest straight piece of a hole's side (the road's tiles are 3 long). */
+        private const val PIECE = 1.5f
     }
 }

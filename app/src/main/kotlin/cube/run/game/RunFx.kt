@@ -73,6 +73,14 @@ class RunFx(private val game: Gdx3DGame, private val rnd: Random) {
         if (lip != null) game.burst3d(tmp.set(px, 0.05f, -0.3f), lip, n = 8, speed = 2.4f, size = 0.07f, life = 0.45f)
     }
 
+    /** Came up just short of the far lip and scrambled onto it: a bright note of relief and chips off the lip. */
+    fun ledgeCatch(px: Float, rim: Color) {
+        SoundFx.play("perfect", rate = 0.9f, vol = 0.5f)
+        SoundFx.play("whoosh", rate = 1.6f, vol = 0.35f)
+        Haptics.click()
+        game.burst3d(tmp.set(px, 0.1f, -0.5f), rim, n = 12, speed = 3.4f, size = 0.08f, life = 0.45f)
+    }
+
     /** A falling cube struck the far end of the hole it went into, at [speed]: a dull knock and chips of the rim. */
     fun struck(px: Float, py: Float, pz: Float, speed: Float, rim: Color) {
         val k = (speed / 20f).coerceIn(0.2f, 1f)

@@ -68,15 +68,18 @@ class VoidFall {
         this.speed = speed
     }
 
-    /** One frame; [cubeForward] is the cube's own speed over the world. */
-    fun update(dt: Float, cubeForward: Float) {
+    /** One frame; [cubeForward] is the cube's own speed over the world, [cubeZ] where it is against the camera's mark. */
+    fun update(dt: Float, cubeForward: Float, cubeZ: Float) {
         if (!active) return
         t += dt
         // The camera follows the cube's pace a moment, then lets it go and glides to rest.
-        val letGo = ((t - HOLD) / LET_GO).coerceIn(0f, 1f).let { it * it * (3f - 2f * it) }
+        // Into space it lets go sooner: the cube sails on ahead, so you watch it fall away beneath the road.
+        val letGo = ((t - HOLD) / (if (kind == Kind.TAR) LET_GO else LET_GO_SPACE)).coerceIn(0f, 1f).let { it * it * (3f - 2f * it) }
         val target = max(0f, cubeForward) * (1f - letGo)
         // Over a tar pit the camera settles sooner, so the drop stays in the middle of the shot.
-        speed += (target - speed) * min(1f, dt / (if (kind == Kind.TAR) CAMERA_LAG / 2f else CAMERA_LAG))
+        // A cube stopped at a pit's far wall (or knocked back off it) holds the shot there: the camera brakes.
+        val lag = if (cubeForward <= 0f && cubeZ > -1f) BRAKE else if (kind == Kind.TAR) CAMERA_LAG / 2f else CAMERA_LAG
+        speed += (target - speed) * min(1f, dt / lag)
     }
 
     private companion object {
@@ -88,7 +91,10 @@ class VoidFall {
         const val HOLD = 0.05f
         /** Seconds over which it lets go. */
         const val LET_GO = 0.8f
+        const val LET_GO_SPACE = 0.45f
         /** Seconds the camera's speed trails its target: a cube stopped dead is overshot by speed × lag. */
         const val CAMERA_LAG = 0.2f
+        /** The camera's lag when the cube has stopped dead in front of it. */
+        const val BRAKE = 0.06f
     }
 }

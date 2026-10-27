@@ -16,6 +16,7 @@ import cube.run.core.Gdx3DGame
 import cube.run.core.Haptics
 import cube.run.core.SoundFx
 import cube.run.core.Stage
+import cube.run.core.gfx.WorldBend
 import cube.run.core.hsvInto
 import cube.run.game.Lanes
 import cube.run.data.Progress
@@ -213,7 +214,7 @@ class Player(private val game: Gdx3DGame, private val rnd: Random) {
         lane = 1; px = 0f; py = ground; air = false
         duck = 0f; nudge = 0f; vy = 0f; roll = 0f; squash = 0f; duckT = 0f
         slamming = false; coyoteLeft = 0f; jumpBuffer = 0f; trailT = 0f; trailK = 0; stretch = 0f
-        falling = false; steppedOff = false; vx = 0f; rollRate = 0f; fallTilt = 0f; fallTiltRate = 0f; dim = 0f
+        scrambling = false; falling = false; steppedOff = false; vx = 0f; rollRate = 0f; fallTilt = 0f; fallTiltRate = 0f; dim = 0f
         fallMinX = -1e9f; fallMaxX = 1e9f; pz = 0f; forward = 0f; noWalls()
         idleT = 0f; idleYaw = 0f; idleMix = 0f; quietLanding = false
         menuX = 0f; menuY = ground; menuYaw = 0f; menuSpin = 0f
@@ -373,7 +374,8 @@ class Player(private val game: Gdx3DGame, private val rnd: Random) {
         }
         quietLanding = false
         game.burst3d(tmp.set(px, gy - 0.39f, 0.4f), trailCol(), n = 8, speed = 3.2f, size = 0.09f, life = 0.4f)
-        squash = 1f
+        squash = if (scrambling) 1.4f else 1f // made it over the lip: a deeper squash
+        scrambling = false
     }
 
     /** Put the cube on a platform of height [h] (bubble save after a side hit). */
@@ -406,13 +408,19 @@ class Player(private val game: Gdx3DGame, private val rnd: Random) {
     /**
      * Came up out of a void just short of the far lip, the road at [groundY]
      * (cube centre) just above: the cube scrambles up onto it instead of
-     * snapping there.
+     * snapping there. True on the frame the scramble begins.
      */
-    fun catchLedge(groundY: Float) {
-        if (!air || py >= groundY) return
+    fun catchLedge(groundY: Float): Boolean {
+        if (!air || py >= groundY) return false
         val g = 26f * (if (lowGravity) LOW_G else 1f)
         vy = max(vy, kotlin.math.sqrt(2f * g * (groundY - py + 0.12f)))
+        if (scrambling) return false
+        scrambling = true
+        return true
     }
+
+    /** Climbing out over a lip after [catchLedge], until it lands. */
+    private var scrambling = false
 
     private fun takeOff(extraJump: Boolean = false) {
         clearJumpInput()
@@ -576,7 +584,10 @@ class Player(private val game: Gdx3DGame, private val rnd: Random) {
         val breathe = 1f + 0.03f * idleMix * sin(time * 2.4f)
         val size = bodySize()
         val drop = (1f - size) * 0.36f // a smaller cube still rests on the road
-        inst.transform.setToTranslation(px + nudge, py - squash * 0.08f - duY - drop, pz)
+        // A falling cube ahead of the stretch you stand on follows the road's bend, like everything around it.
+        val bx = if (falling) WorldBend.dx(pz) else 0f
+        val by = if (falling) WorldBend.dy(pz) else 0f
+        inst.transform.setToTranslation(px + nudge + bx, py - squash * 0.08f - duY - drop + by, pz)
             .rotate(Vector3.Y, idleYaw * idleMix)
             .rotate(Vector3.Z, tilt)
             .rotate(Vector3.X, -roll)
@@ -585,7 +596,7 @@ class Player(private val game: Gdx3DGame, private val rnd: Random) {
             .scale(size, size, size)
         val pulse = glowScale(time) * size
         shellBlend.opacity = shellOpacity(time) * (1f - spentMix) * (1f - dim)
-        shellInst.transform.setToTranslation(px + nudge, py - duY - drop, pz)
+        shellInst.transform.setToTranslation(px + nudge + bx, py - duY - drop + by, pz)
             .rotate(Vector3.Y, idleYaw * idleMix).rotate(Vector3.Z, tilt).rotate(Vector3.X, -roll)
             .scale(pulse, pulse, pulse)
 
