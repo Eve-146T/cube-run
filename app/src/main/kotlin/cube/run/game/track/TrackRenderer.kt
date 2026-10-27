@@ -49,8 +49,12 @@ class TrackRenderer(private val game: Gdx3DGame) {
     private val flameCol = Color()
     private val padTop = Color()
     private val rod = Color(0.32f, 0.28f, 0.4f, 1f)
-    /** On the glass road, a full-width pit is an open gap (see SpaceRifts), not a black slab. */
+    /** On the glass road every pit is an open hole into space (see SpaceRifts), not a black slab. */
     var glassRifts = false
+    /** 0..1: coins near the camera shrink away (a cube falling through a rift must not be hidden behind them). */
+    var coinFade = 0f
+    /** Coins the cube has passed shrink away (space's camera dips into a rift, and they would fly into the lens). */
+    var passedCoinsFade = false
     private val portalA = Color()
     private val portalB = Color()
     private val tmpCol = Color()
@@ -88,7 +92,7 @@ class TrackRenderer(private val game: Gdx3DGame) {
                     ob.type == ObType.PLAT -> renderPlatform(ob, r.z, fog, p)
                     ob.type == ObType.PAD -> renderPad(ob, r.z, fog, time, p)
                     ob.anim == ObAnim.PISTON && ob.sy < 0.03f -> {} // sunk into the floor
-                    ob.pit -> if (!glassRifts || ob.sx < cube.run.game.space.SpaceRifts.WIDE) renderPit(ob, r.z, fog, time, p, r.visualPhase)
+                    ob.pit -> if (!glassRifts) renderPit(ob, r.z, fog, time, p, r.visualPhase)
                     ob.anim == ObAnim.PENDULUM -> {
                         box(ob.x, ob.cy, r.z, ob.sx, ob.sy, ob.sz, cues.body(ob, ob.col), fog, p, false)
                         game.worldBox(ob.x * 0.5f, ob.top + 1.1f, r.z, abs(ob.x) + 0.16f, 0.16f, 0.16f, rod, fog) // the rod up to the beam
@@ -114,6 +118,9 @@ class TrackRenderer(private val game: Gdx3DGame) {
             for (c in coins) {
                 if (c.taken) continue
                 val cz = r.z + c.dz
+                var p = if (coinFade > 0f) p * (1f - coinFade * ((cz + 12f) / 6f).coerceIn(0f, 1f)) else p
+                if (passedCoinsFade) p *= 1f - ((cz - 1.5f) / 2f).coerceIn(0f, 1f)
+                if (p <= 0.01f) continue
                 val y = c.y + 0.06f * sin(time * 4f + c.dz * 0.9f)
                 val fog = Fog.at(cz)
                 val yaw = coinYaw + (r.visualPhase + c.dz) * 14f
@@ -197,8 +204,9 @@ class TrackRenderer(private val game: Gdx3DGame) {
      * collides, so it reads as a hole rather than a block).
      */
     private fun renderPit(ob: Ob, z: Float, fog: Float, time: Float, p: Float, phase: Float) {
-        if (ob.type == ObType.DECO) { game.worldBox(ob.x, -0.01f, z, ob.sx * p, 0.06f, ob.sz, ob.col, fog); return } // the lip: top at 0.02
-        game.worldBox(ob.x, -0.1f, z, ob.sx * p, 0.26f, ob.sz, ob.col, fog)                                        // the void: top at 0.03, black
+        if (ob.open) { renderShaft(ob, z, fog); if (ob.type == ObType.DECO) return }
+        else if (ob.type == ObType.DECO) { game.worldBox(ob.x, -0.01f, z, ob.sx * p, 0.06f, ob.sz, ob.col, fog); return } // the lip: top at 0.02
+        else game.worldBox(ob.x, -0.1f, z, ob.sx * p, 0.26f, ob.sz, ob.col, fog)                                   // the void: top at 0.03, black
         hsvInto(tmpCol, 270f, 0.6f, 0.18f)
         for (i in 0 until 4) { // motes rising out of the dark
             val k = ((time * 0.7f + i * 0.25f + phase) % 1f + 1f) % 1f
@@ -206,6 +214,30 @@ class TrackRenderer(private val game: Gdx3DGame) {
             val s = 0.1f * (1f - k)
             game.worldBoxSpin(mx, 0.1f + k * 0.9f, z + (i % 2 - 0.5f) * 0.5f, s, s, s, time * 90f + i * 50f, tmpCol, fog)
         }
+    }
+
+    /**
+     * A pit the cube fell into is a real hole: the road is cut away round it
+     * (see Scenery.renderRoad), its lip becomes a frame, and black walls run
+     * far down, so a cube can drop inside and be lost in the dark.
+     */
+    private fun renderShaft(ob: Ob, z: Float, fog: Float) {
+        if (ob.type == ObType.DECO) { // the lip as a frame round the opening
+            val hx = ob.sx / 2f; val hz = ob.sz / 2f
+            game.worldBox(ob.x, -0.01f, z + hz - LIP / 2f, ob.sx, 0.06f, LIP, ob.col, fog)
+            game.worldBox(ob.x, -0.01f, z - hz + LIP / 2f, ob.sx, 0.06f, LIP, ob.col, fog)
+            game.worldBox(ob.x - hx + LIP / 2f, -0.01f, z, LIP, 0.06f, ob.sz, ob.col, fog)
+            game.worldBox(ob.x + hx - LIP / 2f, -0.01f, z, LIP, 0.06f, ob.sz, ob.col, fog)
+            return
+        }
+        // Walls just inside the opening, so they hide the cut ends of the road.
+        val hx = ob.sx / 2f - 0.05f; val hz = ob.sz / 2f - 0.05f
+        val y = -SHAFT / 2f - 0.005f
+        game.worldBox(ob.x - hx, y, z, WALL, SHAFT, ob.sz, ob.col, fog)
+        game.worldBox(ob.x + hx, y, z, WALL, SHAFT, ob.sz, ob.col, fog)
+        game.worldBox(ob.x, y, z + hz, hx * 2f, SHAFT, WALL, ob.col, fog)
+        game.worldBox(ob.x, y, z - hz, hx * 2f, SHAFT, WALL, ob.col, fog)
+        game.worldBox(ob.x, -SHAFT, z, hx * 2f, WALL, hz * 2f, ob.col, fog)
     }
 
     /** A springy slab: a coloured base with a pale top that breathes. */
@@ -269,5 +301,12 @@ class TrackRenderer(private val game: Gdx3DGame) {
         Pickup.MULT -> multCol
         Pickup.JET -> jetCol
         else -> bandCol
+    }
+
+    companion object {
+        /** An open pit: its lip frame's width, its walls' thickness, how deep it goes. */
+        private const val LIP = 0.17f
+        private const val WALL = 0.04f
+        private const val SHAFT = 26f
     }
 }

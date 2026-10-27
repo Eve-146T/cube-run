@@ -65,6 +65,8 @@ class Ob(
 ) {
     /** Pads: launched the player already (once per pass). */
     var used = false
+    /** A pit the cube fell into: drawn as an open shaft (no slab, the road cut away round it). */
+    var open = false
 
     val bottom: Float get() = cy - sy / 2f
     val top: Float get() = cy + sy / 2f

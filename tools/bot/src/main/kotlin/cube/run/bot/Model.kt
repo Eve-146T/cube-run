@@ -12,7 +12,9 @@ data class Body(var lane: Int = 1, var x: Float = 0f, var y: Float = .45f,
     var flightLeft: Float = Float.POSITIVE_INFINITY,
     var coyoteLeft: Float = 0f, var jumpBuffer: Float = 0f,
     /** Outer Space: weaker gravity, slower launches, softer lane changes (mirrors Player.LOW_G*). */
-    var lowG: Boolean = false) {
+    var lowG: Boolean = false,
+    /** Outer Space: a double jump still to spend this airtime (mirrors Player.canAirJump there). */
+    var airJump: Boolean = false) {
     val gravity: Float get() = if (lowG) 26f * LOW_G else 26f
     val launchScale: Float get() = if (lowG) LOW_G_LAUNCH else 1f
     val laneRate: Float get() = if (hover) 4.5f else if (lowG) LOW_G_LANE_RATE else 13f
@@ -62,8 +64,10 @@ object Action {
             LEFT -> b.lane = max(0, b.lane - 1)
             RIGHT -> b.lane = min(lanes - 1, b.lane + 1)
             JUMP -> if (!b.flying && !b.hover) {
-                if (b.air && b.coyoteLeft <= 0f) b.jumpBuffer = .1f
-                else takeOff(b)
+                if (b.air && b.coyoteLeft <= 0f) {
+                    if (b.lowG && b.airJump) { takeOff(b); b.airJump = false } // Outer Space's double jump
+                    else b.jumpBuffer = .1f
+                } else { takeOff(b); b.airJump = b.lowG }
             }
             DOWN -> if (!b.flying && !b.hover) {
                 b.coyoteLeft = 0f; b.jumpBuffer = 0f
@@ -166,14 +170,14 @@ class Timeline(val course: Course, val speed: Float, val dt: Float = 1f / 60f,
             b.air -> {
                 b.vy -= b.gravity * dt; b.y += b.vy * dt
                 if (b.y <= gy && b.vy <= 0f) {
-                    b.y = gy; b.air = false; b.vy = 0f; b.coyoteLeft = 0f
+                    b.y = gy; b.air = false; b.vy = 0f; b.coyoteLeft = 0f; b.airJump = false
                     if (b.slam) { b.slam = false; b.duckT = .5f }
-                    if (b.jumpBuffer > 0f) Action.takeOff(b)
+                    if (b.jumpBuffer > 0f) { Action.takeOff(b); b.airJump = b.lowG }
                 }
             }
             gy > b.y + .001f -> { if (gy - b.y > .45f) return false else b.y = gy }
             gy < b.y - .02f -> if (b.y - gy <= Body.STEP_DOWN) b.y = max(gy, b.y - Body.STEP_RATE * dt)
-                else { b.air = true; b.vy = 0f; b.coyoteLeft = Body.LEDGE_GRACE }
+                else { b.air = true; b.vy = 0f; b.coyoteLeft = Body.LEDGE_GRACE; b.airJump = b.lowG }
         }
         b.duckT = max(0f, b.duckT - dt)
         b.duck += ((if (b.duckT > 0 && !b.air) 1f else 0f) - b.duck) * min(1f, dt * 18f)
@@ -182,7 +186,7 @@ class Timeline(val course: Course, val speed: Float, val dt: Float = 1f / 60f,
                 // A plan must reach the pad's interior. A last-frame edge catch is
                 // not reliable when Android delivers input between simulation slices.
                 abs(o.rowZ) < .75f - safetyMargin && abs(b.x - o.x) < .85f - safetyMargin * 2f) {
-                b.pads = b.pads or (1L shl o.pad); b.air = true; b.vy = 12.5f * b.launchScale; b.duckT = 0f; b.slam = false
+                b.pads = b.pads or (1L shl o.pad); b.air = true; b.vy = 12.5f * b.launchScale; b.duckT = 0f; b.slam = false; b.airJump = b.lowG
                 b.coyoteLeft = 0f; b.jumpBuffer = 0f
             }
             // Expand the z test to cover a swept frame: high speed must not win by tunnelling.
