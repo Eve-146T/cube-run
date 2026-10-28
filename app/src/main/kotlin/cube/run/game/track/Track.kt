@@ -192,12 +192,7 @@ class Track(private val rnd: Random, private val fx: ObstacleFactory) {
             val row = rows[i]
             row.alignLaneSpacing(Lanes.w)
             row.z += mv
-            if (row.popStart < 0f) { if (row.z > Row.POP_Z) row.popStart = time }
-            if (row.popStart >= 0f && row.pop < 1f) { // spring in with a little overshoot
-                val t = ((time - row.popStart) / 0.42f).coerceIn(0f, 1f)
-                val k = 1f - t
-                row.pop = if (t >= 1f) 1f else 1f - k * k * kotlin.math.cos(t * 5.2f)
-            }
+            row.pop = cube.run.game.world.Fog.appear(row.z) // whole-sized from the start, fading in out of the haze
             for (ob in row.obs) {
                 if (ob.sliding && row.z > -26f) ob.x += (ob.slideTo - ob.x) * min(1f, dt * ob.slideRate)
                 when (ob.anim) {

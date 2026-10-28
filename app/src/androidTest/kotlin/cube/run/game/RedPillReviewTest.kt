@@ -52,7 +52,7 @@ class RedPillReviewTest {
                 Stage.paused=true
                 val track=field(game,"track").get(game) as Track
                 val player=field(game,"player").get(game) as Player
-                track.rows.add(Row(-4f, arrayListOf()).apply { pickup=Pickup.RED_PILL; pickupX=player.px; pop=1f; popStart=game.time-2f })
+                track.rows.add(Row(-4f, arrayListOf()).apply { pickup=Pickup.RED_PILL; pickupX=player.px; pop=1f })
             }
             gl { game ->
                 val flash=game.javaClass.superclass.getDeclaredField("flashColor").apply { isAccessible=true }.get(game) as com.badlogic.gdx.graphics.Color

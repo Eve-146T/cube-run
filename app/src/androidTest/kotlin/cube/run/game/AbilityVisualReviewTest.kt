@@ -104,11 +104,11 @@ class AbilityVisualReviewTest {
                     val track = field(game, "track").get(game) as Track
                     track.rows.clear()
                     for (i in 0 until 6) track.rows.add(Row(-3f - i * 3f, arrayListOf()).apply {
-                        pop = 1f; popStart = 0f
+                        pop = 1f
                         coins = arrayListOf(Coin(-2f, .55f, -.3f), Coin(0f, .55f, 0f), Coin(2f, .55f, .3f))
                     })
                     track.rows.add(Row(-9f, arrayListOf()).apply {
-                        pop = 1f; popStart = 0f; pickup = cube.run.game.track.Pickup.SHARD_EMBER; pickupX = 1f
+                        pop = 1f; pickup = cube.run.game.track.Pickup.SHARD_EMBER; pickupX = 1f
                     })
                 }
                 capture("faceted-coal", 500)
@@ -148,7 +148,7 @@ class AbilityVisualReviewTest {
                 val track = field(game, "track").get(game) as Track
                 track.rows.clear()
                 for (i in 0 until 4) track.rows.add(Row(-5f - i * 4f, arrayListOf()).apply {
-                    pop = 1f; popStart = 0f
+                    pop = 1f
                     coins = arrayListOf(Coin(-2f, .55f, 0f), Coin(0f, .55f, 0f).apply {
                         toxic = true; toxicAssigned = true
                     }, Coin(2f, .55f, 0f))
@@ -270,7 +270,7 @@ class AbilityVisualReviewTest {
                     if (skin == 15) gl { game ->
                         val track = field(game, "track").get(game) as Track
                         for (i in 0 until 14) track.rows.add(Row(-5f - i * 4f, arrayListOf()).apply {
-                            pop = 1f; popStart = 0f
+                            pop = 1f
                             coins = arrayListOf(Coin(-2f, .55f, 0f), Coin(0f, .55f, 0f), Coin(2f, .55f, 0f))
                         })
                     }

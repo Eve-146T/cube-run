@@ -12,9 +12,8 @@ import kotlin.math.sin
 /**
  * Draws the track: every obstacle, platform, pickup and coin, all through
  * the engine's batched passes (boxes + coins), so the whole road costs two
- * draw calls. Rows stream in: everything scales by the row's [Row.pop], so
- * obstacles spring up out of the floor and coins bloom as they come into
- * view. Pure rendering — no state, no gameplay.
+ * draw calls. Rows fade in out of the haze by the row's [Row.pop], always
+ * at their true size (nothing grows in view). Pure rendering — no state, no gameplay.
  */
 class TrackRenderer(private val game: Gdx3DGame) {
 
@@ -94,11 +93,11 @@ class TrackRenderer(private val game: Gdx3DGame) {
                     ob.anim == ObAnim.PISTON && ob.sy < 0.03f -> {} // sunk into the floor
                     ob.pit -> if (!glassRifts) renderPit(ob, r.z, fog, time, p, r.visualPhase)
                     ob.anim == ObAnim.PENDULUM -> {
-                        box(ob.x, ob.cy, r.z, ob.sx, ob.sy, ob.sz, cues.body(ob, ob.col), fog, p, false)
-                        game.worldBox(ob.x * 0.5f, ob.top + 1.1f, r.z, abs(ob.x) + 0.16f, 0.16f, 0.16f, rod, fog) // the rod up to the beam
-                        game.worldBox(0f, ob.top + 2.2f, r.z, 6.4f * p, 0.22f, 0.22f, rod, fog)                    // the beam it hangs from
+                        game.worldBox(ob.x, ob.cy, r.z, ob.sx, ob.sy, ob.sz, cues.body(ob, ob.col), fog, p)
+                        game.worldBox(ob.x * 0.5f, ob.top + 1.1f, r.z, abs(ob.x) + 0.16f, 0.16f, 0.16f, rod, fog, p) // the rod up to the beam
+                        game.worldBox(0f, ob.top + 2.2f, r.z, 6.4f, 0.22f, 0.22f, rod, fog, p)                    // the beam it hangs from
                     }
-                    else -> box(ob.x, ob.cy, r.z, ob.sx, ob.sy, ob.sz, cues.body(ob, if (kaleido > 0.01f) tmpCol.set(ob.col).lerp(hsvInto(portalB, kaleidoHue + r.z * 6f, 0.9f, 1f), kaleido) else ob.col), fog, p, ob.grounded)
+                    else -> game.worldBox(ob.x, ob.cy, r.z, ob.sx, ob.sy, ob.sz, cues.body(ob, if (kaleido > 0.01f) tmpCol.set(ob.col).lerp(hsvInto(portalB, kaleidoHue + r.z * 6f, 0.9f, 1f), kaleido) else ob.col), fog, p)
                 }
             }
             if (r.pickup != Pickup.NONE && r.pickup != Pickup.BUBBLE) renderPickup(r, yaw, time, p)
@@ -109,31 +108,31 @@ class TrackRenderer(private val game: Gdx3DGame) {
             val fog = Fog.at(r.z)
             for (ob in r.obs) cues.render(ob, r.z, fog, r.pop)
         }
-        // Coins and coal share pickup positions, magnet motion, fog and stream-in animation.
+        // Coins and coal share pickup positions, magnet motion, fog and fade-in.
         val opacity = Settings.roadCoinOpacity
         for (r in track.rows) {
             val coins = r.coins ?: continue
-            val p = r.pop
-            if (p <= 0.001f) continue
+            if (r.pop <= 0.001f) continue
+            val alpha = opacity * r.pop
             for (c in coins) {
                 if (c.taken) continue
                 val cz = r.z + c.dz
-                var p = if (coinFade > 0f) p * (1f - coinFade * ((cz + 12f) / 6f).coerceIn(0f, 1f)) else p
+                var p = if (coinFade > 0f) 1f - coinFade * ((cz + 12f) / 6f).coerceIn(0f, 1f) else 1f
                 if (passedCoinsFade) p *= 1f - ((cz - 1.5f) / 2f).coerceIn(0f, 1f)
                 if (p <= 0.01f) continue
                 val y = c.y + 0.06f * sin(time * 4f + c.dz * 0.9f)
                 val fog = Fog.at(cz)
                 val yaw = coinYaw + (r.visualPhase + c.dz) * 14f
                 if (coalCoins && c.gem) {
-                    pickupColor.set(gem); pickupColor.a = opacity
+                    pickupColor.set(gem); pickupColor.a = alpha
                     game.worldGem(c.x, y, cz, 1.05f * p, yaw, pickupColor, fog)
                 } else if (coalCoins) {
                     val variant = r.visualPhase.toBits() xor c.dz.toBits() xor c.restY.toBits()
-                    pickupColor.set(coalBody); pickupColor.a = opacity
+                    pickupColor.set(coalBody); pickupColor.a = alpha
                     game.worldCoal(c.x, y, cz, 1.05f * p, time * 65f + (r.visualPhase + c.dz) * 23f, variant, pickupColor, fog)
                 } else {
-                    pickupColor.set(if (c.toxic) toxicCoinCol else coinCol); pickupColor.a = opacity
-                    pickupFace.set(if (c.toxic) toxicCoinFace else coinFace); pickupFace.a = opacity
+                    pickupColor.set(if (c.toxic) toxicCoinCol else coinCol); pickupColor.a = alpha
+                    pickupFace.set(if (c.toxic) toxicCoinFace else coinFace); pickupFace.a = alpha
                     game.worldCoin(c.x, y, cz, 0.36f * p, 0.14f, yaw, pickupColor, fog)
                     game.worldCoin(c.x, y, cz, 0.23f * p, 0.2f, yaw, pickupFace, fog)
                 }
@@ -147,52 +146,44 @@ class TrackRenderer(private val game: Gdx3DGame) {
         hsvInto(portalA, hue, 0.85f, 1f)
         hsvInto(portalB, hue + 40f, 0.6f, 1f)
         val cx = 0f; val cy = 2.3f
-        val radius = (2.4f + 0.08f * sin(time * 3f)) * p
+        val radius = 2.4f + 0.08f * sin(time * 3f)
         val n = 16
         for (i in 0 until n) {
             val a = time * 1.4f + i * (6.2832f / n)
             val bx = cx + cos(a) * radius; val by = cy + sin(a) * radius
             val s = 0.34f + 0.1f * sin(time * 6f + i)
-            game.worldBoxSpin(bx, by, r.z, s, s, s, time * 200f + i * 30f, if (i % 2 == 0) portalA else portalB, fog)
+            game.worldBoxSpin(bx, by, r.z, s, s, s, time * 200f + i * 30f, if (i % 2 == 0) portalA else portalB, fog, p)
         }
         val n2 = 10
         for (i in 0 until n2) {
             val a = -time * 2.2f + i * (6.2832f / n2)
             val rr = radius * 0.62f
             val s = 0.2f
-            game.worldBoxSpin(cx + cos(a) * rr, cy + sin(a) * rr, r.z + 0.3f, s, s, s, -time * 300f + i * 40f, Color.WHITE, fog)
+            game.worldBoxSpin(cx + cos(a) * rr, cy + sin(a) * rr, r.z + 0.3f, s, s, s, -time * 300f + i * 40f, Color.WHITE, fog, p)
         }
         if (r.portal == cube.run.data.Bonus.SPACE && !r.portalExit) { // the doorway to space: a swirl of little cube stars inside the ring
             for (i in 0 until 14) {
                 val a = time * (0.6f + i / 14f * 0.8f) + i * 2.4f
                 val rr = radius * (0.15f + 0.75f * ((i * 0.618f) % 1f))
                 val s = 0.14f + 0.1f * ((i * 0.37f) % 1f)
-                game.worldBoxSpin(cx + cos(a) * rr, cy + sin(a) * rr, r.z - 0.2f, s, s, s, time * 200f + i * 30f, Color.WHITE, fog)
+                game.worldBoxSpin(cx + cos(a) * rr, cy + sin(a) * rr, r.z - 0.2f, s, s, s, time * 200f + i * 30f, Color.WHITE, fog, p)
             }
         }
         // the frame's feet
-        game.worldBox(-radius - 0.3f, 0.5f, r.z, 0.5f, 1f, 0.5f, portalB, fog)
-        game.worldBox(radius + 0.3f, 0.5f, r.z, 0.5f, 1f, 0.5f, portalB, fog)
-    }
-
-    /** A box scaled by the stream-in [p]: grounded ones grow up out of the floor, hanging ones swell in place. */
-    private fun box(x: Float, cy: Float, z: Float, sx: Float, sy: Float, sz: Float, col: Color, fog: Float, p: Float, grounded: Boolean) {
-        if (p >= 0.999f) { game.worldBox(x, cy, z, sx, sy, sz, col, fog); return }
-        val h = sy * p
-        val y = if (grounded) cy - sy / 2f + h / 2f else cy
-        game.worldBox(x, y, z, sx * (0.4f + 0.6f * p), h, sz, col, fog)
+        game.worldBox(-radius - 0.3f, 0.5f, r.z, 0.5f, 1f, 0.5f, portalB, fog, p)
+        game.worldBox(radius + 0.3f, 0.5f, r.z, 0.5f, 1f, 0.5f, portalB, fog, p)
     }
 
     private fun renderPlatform(ob: Ob, front: Float, fog: Float, p: Float) {
-        val top = ob.clear * p
+        val top = ob.clear
         val bodyLen = ob.sz - ob.ramp
-        game.worldBox(ob.x, top / 2f, front - ob.ramp - bodyLen / 2f, ob.sx, top, bodyLen, ob.col, fog)
+        game.worldBox(ob.x, top / 2f, front - ob.ramp - bodyLen / 2f, ob.sx, top, bodyLen, ob.col, fog, p)
         if (ob.ramp > 0f) { // the ramp as 4 rising steps
             val n = 4
             val d = ob.ramp / n
             for (i in 0 until n) {
                 val h = top * (i + 1) / n
-                game.worldBox(ob.x, h / 2f, front - d * (i + 0.5f), ob.sx, h, d, ob.col, fog)
+                game.worldBox(ob.x, h / 2f, front - d * (i + 0.5f), ob.sx, h, d, ob.col, fog, p)
             }
         }
     }
@@ -204,30 +195,29 @@ class TrackRenderer(private val game: Gdx3DGame) {
      * collides, so it reads as a hole rather than a block).
      */
     private fun renderPit(ob: Ob, z: Float, fog: Float, time: Float, p: Float, phase: Float) {
-        if (ob.type == ObType.DECO) { game.worldBox(ob.x, -0.01f, z, ob.sx * p, 0.06f, ob.sz, ob.col, fog); return } // the lip: top at 0.02
-        game.worldBox(ob.x, -0.1f, z, ob.sx * p, 0.26f, ob.sz, ob.col, fog)                                        // the void: top at 0.03, black
+        if (ob.type == ObType.DECO) { game.worldBox(ob.x, -0.01f, z, ob.sx, 0.06f, ob.sz, ob.col, fog, p); return } // the lip: top at 0.02
+        game.worldBox(ob.x, -0.1f, z, ob.sx, 0.26f, ob.sz, ob.col, fog, p)                                        // the void: top at 0.03, black
         hsvInto(tmpCol, 270f, 0.6f, 0.18f)
         for (i in 0 until 4) { // motes rising out of the dark
             val k = ((time * 0.7f + i * 0.25f + phase) % 1f + 1f) % 1f
             val mx = ob.x + (i - 1.5f) * ob.sx * 0.22f + 0.15f * sin(time * 3f + i)
             val s = 0.1f * (1f - k)
-            game.worldBoxSpin(mx, 0.1f + k * 0.9f, z + (i % 2 - 0.5f) * 0.5f, s, s, s, time * 90f + i * 50f, tmpCol, fog)
+            game.worldBoxSpin(mx, 0.1f + k * 0.9f, z + (i % 2 - 0.5f) * 0.5f, s, s, s, time * 90f + i * 50f, tmpCol, fog, p)
         }
     }
 
     /** A springy slab: a coloured base with a pale top that breathes. */
     private fun renderPad(ob: Ob, z: Float, fog: Float, time: Float, p: Float) {
         val breath = 0.03f * sin(time * 6f)
-        val s = 0.5f + 0.5f * p
-        game.worldBox(ob.x, 0.05f, z, ob.sx * s, 0.1f, ob.sz * s, ob.col, fog)
-        game.worldBox(ob.x, 0.13f + breath, z, ob.sx * 0.8f * s, 0.08f, ob.sz * 0.8f * s, padTop, fog)
-        game.worldBox(ob.x, 0.11f + breath * 2f, z, ob.sx * 0.35f * s, 0.16f, ob.sz * 0.35f * s, ob.col, fog)
+        game.worldBox(ob.x, 0.05f, z, ob.sx, 0.1f, ob.sz, ob.col, fog, p)
+        game.worldBox(ob.x, 0.13f + breath, z, ob.sx * 0.8f, 0.08f, ob.sz * 0.8f, padTop, fog, p)
+        game.worldBox(ob.x, 0.11f + breath * 2f, z, ob.sx * 0.35f, 0.16f, ob.sz * 0.35f, ob.col, fog, p)
     }
 
     /** A box that orbits a pickup's centre as the whole thing spins (offset [dx] along the spun x axis). */
-    private fun spinPart(cx: Float, cz: Float, dx: Float, y: Float, sx: Float, sy: Float, sz: Float, yaw: Float, col: Color, fog: Float) {
+    private fun spinPart(cx: Float, cz: Float, dx: Float, y: Float, sx: Float, sy: Float, sz: Float, yaw: Float, col: Color, fog: Float, alpha: Float) {
         val rad = Math.toRadians(yaw.toDouble())
-        game.worldBoxSpin(cx + dx * cos(rad).toFloat(), y, cz - dx * sin(rad).toFloat(), sx, sy, sz, yaw, col, fog)
+        game.worldBoxSpin(cx + dx * cos(rad).toFloat(), y, cz - dx * sin(rad).toFloat(), sx, sy, sz, yaw, col, fog, alpha)
     }
 
     private fun renderPickup(r: Row, yaw: Float, time: Float, p: Float) {
@@ -235,34 +225,34 @@ class TrackRenderer(private val game: Gdx3DGame) {
         val x = r.pickupX
         val y = 0.85f + 0.1f * sin(time * 3f + r.visualPhase)
         val fog = Fog.at(cz)
-        val s = p
+        val s = 1f
         when (r.pickup) {
             Pickup.SHARD_EMBER, Pickup.SHARD_FROST, Pickup.SHARD_VOID ->
-                game.worldCrystal(x, y, cz, s * .85f, yaw * .6f, shardCols[Pickup.shardType(r.pickup)], fog)
-            Pickup.RED_PILL -> game.worldPill(x, y + .1f, cz, s * .68f, time * 100f + r.visualPhase * 57.29578f, fog)
+                game.worldCrystal(x, y, cz, s * .85f, yaw * .6f, tmpCol.set(shardCols[Pickup.shardType(r.pickup)]).also { it.a = p }, fog)
+            Pickup.RED_PILL -> game.worldPill(x, y + .1f, cz, s * .68f, time * 100f + r.visualPhase * 57.29578f, fog) // opaque only: born unseen in the haze
             Pickup.BOX -> { // a spinning gift: purple cube with a gold ribbon
-                game.worldBoxSpin(x, y, cz, 0.62f * s, 0.62f * s, 0.62f * s, yaw * 0.5f, boxCol, fog)
-                game.worldBoxSpin(x, y, cz, 0.66f * s, 0.16f * s, 0.66f * s, yaw * 0.5f, bandCol, fog)
-                game.worldBoxSpin(x, y, cz, 0.16f * s, 0.66f * s, 0.66f * s, yaw * 0.5f, bandCol, fog)
+                game.worldBoxSpin(x, y, cz, 0.62f * s, 0.62f * s, 0.62f * s, yaw * 0.5f, boxCol, fog, p)
+                game.worldBoxSpin(x, y, cz, 0.66f * s, 0.16f * s, 0.66f * s, yaw * 0.5f, bandCol, fog, p)
+                game.worldBoxSpin(x, y, cz, 0.16f * s, 0.66f * s, 0.66f * s, yaw * 0.5f, bandCol, fog, p)
             }
             Pickup.MAGNET -> { // a red horseshoe with white tips
-                spinPart(x, cz, -0.26f * s, y + 0.1f, 0.2f * s, 0.62f * s, 0.2f * s, yaw, magnetCol, fog)
-                spinPart(x, cz, 0.26f * s, y + 0.1f, 0.2f * s, 0.62f * s, 0.2f * s, yaw, magnetCol, fog)
-                game.worldBoxSpin(x, y - 0.2f, cz, 0.72f * s, 0.2f * s, 0.2f * s, yaw, magnetCol, fog)
-                spinPart(x, cz, -0.26f * s, y + 0.45f, 0.2f * s, 0.12f * s, 0.2f * s, yaw, Color.WHITE, fog)
-                spinPart(x, cz, 0.26f * s, y + 0.45f, 0.2f * s, 0.12f * s, 0.2f * s, yaw, Color.WHITE, fog)
+                spinPart(x, cz, -0.26f * s, y + 0.1f, 0.2f * s, 0.62f * s, 0.2f * s, yaw, magnetCol, fog, p)
+                spinPart(x, cz, 0.26f * s, y + 0.1f, 0.2f * s, 0.62f * s, 0.2f * s, yaw, magnetCol, fog, p)
+                game.worldBoxSpin(x, y - 0.2f, cz, 0.72f * s, 0.2f * s, 0.2f * s, yaw, magnetCol, fog, p)
+                spinPart(x, cz, -0.26f * s, y + 0.45f, 0.2f * s, 0.12f * s, 0.2f * s, yaw, Color.WHITE, fog, p)
+                spinPart(x, cz, 0.26f * s, y + 0.45f, 0.2f * s, 0.12f * s, 0.2f * s, yaw, Color.WHITE, fog, p)
             }
             Pickup.MULT -> { // two stacked pink slabs: "×2"
-                game.worldBoxSpin(x, y - 0.18f, cz, 0.7f * s, 0.22f * s, 0.7f * s, yaw, multCol, fog)
-                game.worldBoxSpin(x, y + 0.18f, cz, 0.7f * s, 0.22f * s, 0.7f * s, yaw + 30f, multCol, fog)
-                game.worldBoxSpin(x, y + 0.45f, cz, 0.2f * s, 0.2f * s, 0.2f * s, yaw, Color.WHITE, fog)
+                game.worldBoxSpin(x, y - 0.18f, cz, 0.7f * s, 0.22f * s, 0.7f * s, yaw, multCol, fog, p)
+                game.worldBoxSpin(x, y + 0.18f, cz, 0.7f * s, 0.22f * s, 0.7f * s, yaw + 30f, multCol, fog, p)
+                game.worldBoxSpin(x, y + 0.45f, cz, 0.2f * s, 0.2f * s, 0.2f * s, yaw, Color.WHITE, fog, p)
             }
             Pickup.JET -> { // twin blue tanks with flickering flames
                 val flick = 0.18f + 0.1f * abs(sin(time * 21f + r.visualPhase))
-                spinPart(x, cz, -0.2f * s, y + 0.1f, 0.3f * s, 0.8f * s, 0.3f * s, yaw, jetCol, fog)
-                spinPart(x, cz, 0.2f * s, y + 0.1f, 0.3f * s, 0.8f * s, 0.3f * s, yaw, jetCol, fog)
-                spinPart(x, cz, -0.2f * s, y - 0.42f, 0.2f * s, flick, 0.2f * s, yaw, flameCol, fog)
-                spinPart(x, cz, 0.2f * s, y - 0.42f, 0.2f * s, flick, 0.2f * s, yaw, flameCol, fog)
+                spinPart(x, cz, -0.2f * s, y + 0.1f, 0.3f * s, 0.8f * s, 0.3f * s, yaw, jetCol, fog, p)
+                spinPart(x, cz, 0.2f * s, y + 0.1f, 0.3f * s, 0.8f * s, 0.3f * s, yaw, jetCol, fog, p)
+                spinPart(x, cz, -0.2f * s, y - 0.42f, 0.2f * s, flick, 0.2f * s, yaw, flameCol, fog, p)
+                spinPart(x, cz, 0.2f * s, y - 0.42f, 0.2f * s, flick, 0.2f * s, yaw, flameCol, fog, p)
             }
         }
     }

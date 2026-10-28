@@ -138,18 +138,15 @@ class Row(var z: Float, val obs: ArrayList<Ob>, initialLaneWidth: Float = Lanes.
     var portal = -1
     var portalExit = false
     /**
-     * Stream-in: 0 while still out in the haze, then springs 0→1 (with a
-     * little overshoot) as the row comes into clear view. Rendering scales
-     * the obstacles, coins and pickups by it.
+     * How much of the row has come into view (0…1, see [cube.run.game.world.Fog.appear]):
+     * 0 where it is born far out in the haze, whole well before it is clear. Rendering
+     * fades the obstacles, coins and pickups in by it; their size never changes.
      */
     var pop = 0f
-    var popStart = -1f
 
     companion object {
         /** Pickups float this far behind their row (between it and the next). */
         const val PICKUP_DZ = -3.2f
-        /** Rows start streaming in once they are this close (just inside the haze). */
-        const val POP_Z = -64f
     }
 }
 

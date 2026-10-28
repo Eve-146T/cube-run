@@ -74,7 +74,7 @@ class RedPillTest {
                 assertEquals(0f, game.bgTop.r, .0001f)
                 assertEquals(0f, game.bgTop.g, .0001f)
                 assertEquals(0f, game.bgTop.b, .0001f)
-                track.rows.add(Row(-8f, arrayListOf()).apply { pickup=Pickup.RED_PILL; pickupX=player.px; pop=1f; popStart=game.time-2f })
+                track.rows.add(Row(-8f, arrayListOf()).apply { pickup=Pickup.RED_PILL; pickupX=player.px; pop=1f })
             }
             SystemClock.sleep(300)
             var instancedRenderer: Any? = null
