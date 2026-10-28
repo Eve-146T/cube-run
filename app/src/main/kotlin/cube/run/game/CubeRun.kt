@@ -1163,6 +1163,7 @@ class CubeRun(session: GameSession, private var autoStart: Boolean = false, priv
                             c.x += (px - c.x) * k
                             c.y += (py - c.y) * k
                             c.dz += (-cz / 2) * k
+                            c.y = track.coinClearY(c.x, c.y, row.z + c.dz) // over a wall, never through it
                         }
                         if (abs(cz) < 0.8f && abs(px - c.x) < 0.85f && abs(py - c.y) < 0.85f) {
                             collectCoin(c, cz)
