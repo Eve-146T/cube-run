@@ -29,7 +29,8 @@ object Bonus {
     val all: List<World> = listOf(
         World(WIDE, "Wide Open", 60, 165f, "Five lanes. Room to breathe, room to lose yourself.", rows = 42, lanes = 5),
         World(HILLS, "Rollercoaster", 150, 30f, "The road rises and falls. Hold on.", rows = 30),
-        World(FLOAT, "Zero-G", 260, 200f, "The lanes drift apart and you float between them.", rows = LONGEST_CLASSIC, laneW = 2.6f),
+        // Half as long for now: until Zero-G has more going on, a short float is better than a long one.
+        World(FLOAT, "Zero-G", 260, 200f, "The lanes drift apart and you float between them.", rows = LONGEST_CLASSIC / 2, laneW = 2.6f),
         World(KALEIDO, "Kaleidoscope", 420, 300f, "Nothing holds its colour. Nothing holds still.", rows = LONGEST_CLASSIC),
         // Half as long again as the longest of the others: space is a journey, not a detour.
         World(SPACE, "Outer Space", 560, 265f, "The ground falls away. Stars rush by; planets take their time.", rows = LONGEST_CLASSIC * 3 / 2),
