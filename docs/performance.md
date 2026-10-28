@@ -37,5 +37,6 @@ Compare before and after on the same phone, battery level and temperature, and d
 - Results keep the score's horizontal constraint fixed while it counts. Hidden menu preparation waits until the main menu: building shop and collection trees during results competes with the count and record celebration.
 - The shop holds its decorative card animation while its panel slides, then resumes it after navigation.
 - Hidden achievements build and measure their cards in a detached column, then attach it together on the main menu or when achievements opens. Preparation pauses for runs and overlay sheets; incremental additions must never remeasure an unrelated visible screen.
+- The section explorer builds detached cards in small batches, retains them across grouping and loop-selection changes, and caches previews and family classification. A recycled list measures only the visible rows. Only visible rows run entrance animations, whose completion does not remeasure the list. Its prepaint layer is released before interaction so scrolling does not redraw a full-screen texture.
 - Vibration runs on its own worker with a bounded queue, so a burst of coin ticks can't pile up behind an impact.
 - Sound must never stutter the frame: frequent sounds are short, pre-synthesized and loaded once.

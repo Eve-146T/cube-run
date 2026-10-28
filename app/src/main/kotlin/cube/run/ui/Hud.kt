@@ -117,12 +117,15 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false, retu
                 }
                 (old.view as? AchievementsView)?.prepareContent()
                 if (!old.painted && !old.view.isLayoutRequested && old.view.width > 0 && old.view.height > 0 &&
-                    (old.view !is AchievementsView || old.view.contentReady)) {
+                    (old.view !is AchievementsView || old.view.contentReady) &&
+                    (old.view !is SectionsView || old.view.contentReady)) {
                     // Interactive settings redraw small controls, not a full-screen texture.
                     if (old.view is SettingsView) old.view.warmControls()
                     else {
                         old.view.setLayerType(View.LAYER_TYPE_HARDWARE, null)
                         old.view.buildLayer()
+                        // Warm the explorer's drawing once; scrolling and folding retain individual RenderNodes.
+                        if (old.view is SectionsView) old.view.setLayerType(View.LAYER_TYPE_NONE, null)
                     }
                     old.painted = true
                     postOnAnimation(this)
@@ -316,7 +319,7 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false, retu
         // Settings refreshes its live values on show. Gameplay and slider changes
         // must never discard its controls or the already-laid-out language menu.
         "settings" -> emptyList()
-        "sections" -> listOf(Settings.testSection, Settings.testPillWorld, Settings.testSpaceWorld, Settings.performanceCourse)
+        "sections" -> emptyList()
         "wardrobe" -> listOf(Progress.coalAlchemyRevealed, Progress.coins, Progress.skin, Progress.bubbleSkin, Progress.trail,
             Progress.ownedSkins, Progress.ownedBubbleSkins, Progress.ownedTrails, (0..2).map(Progress::shards), Progress.voidPurchases)
         else -> listOf(

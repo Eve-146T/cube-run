@@ -9,14 +9,17 @@ import android.content.res.ColorStateList
 import android.graphics.Canvas
 import android.graphics.Paint
 import android.graphics.Path
-import android.graphics.Rect
 import android.graphics.RectF
 import android.view.Gravity
 import android.view.View
+import android.view.ViewGroup
+import android.view.ViewTreeObserver
 import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
-import android.widget.ScrollView
+import android.widget.BaseAdapter
+import android.widget.ListView
+import android.widget.TextView
 import cube.run.core.Haptics
 import cube.run.core.SoundFx
 import cube.run.data.Settings
@@ -25,13 +28,16 @@ import cube.run.game.track.SectionFamily
 import cube.run.game.track.Sections
 import kotlin.math.min
 
+private val sectionPreviews = HashMap<Sect, List<IntArray>>()
+private fun preview(s: Sect) = sectionPreviews.getOrPut(s) { Sections.preview(s) }
+
 /**
  * A little map of one section: the road's three lanes, one row per step,
  * first step at the bottom (the way it arrives). Colours follow the game's language.
  */
 @SuppressLint("ViewConstructor")
 class SectionThumbView(ctx: Context, sect: Sect) : View(ctx) {
-    private val cells = Sections.preview(sect)
+    private val cells = preview(sect)
     private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
     private val rect = RectF()
     private val colors = intArrayOf(
@@ -184,16 +190,21 @@ internal class SectionGroupIcon(private val family: SectionFamily?, private val 
 class SectionsView(activity: Activity, kit: UiKit, private val reloadMenu: (() -> Unit)? = null, onClose: () -> Unit) : Page(activity, kit, kit.ctx.getString(R.string.text_sections), dark = false, onClosed = onClose) {
 
     private companion object {
-        /** Process-scoped: how the page was left (grouping, folded groups). */
+        /** Process-scoped: page choices and immutable section metadata. */
         var byTier = false
         val folded = HashSet<String>()
+        val sections = Sections.lib.sortedWith(compareBy({ it.tier }, { it.id }))
+        val families by lazy { sections.associateWith { SectionFamily.of(preview(it)) } }
     }
 
-    private val list = LinearLayout(activity).apply {
-        orientation = LinearLayout.VERTICAL
+    private val list = ListView(activity).apply {
+        isVerticalScrollBarEnabled = false
+        divider = null
+        selector = android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT)
+        cacheColorHint = android.graphics.Color.TRANSPARENT
+        setItemsCanFocus(true)
         setPadding(dp(10f), dp(2f), dp(10f), dp(24f))
     }
-    private val scroll = ScrollView(activity).apply { isVerticalScrollBarEnabled = false; addView(list) }
     private val status = LinearLayout(activity).apply {
         orientation = LinearLayout.HORIZONTAL
         gravity = Gravity.CENTER_VERTICAL
@@ -203,6 +214,33 @@ class SectionsView(activity: Activity, kit: UiKit, private val reloadMenu: (() -
     private val byFamilyButton = kit.button(kit.ctx.getString(R.string.sections_by_obstacle), Theme.WHITE, UiKit.Size.SMALL) { group(false) }
     private val byTierButton = kit.button(kit.ctx.getString(R.string.sections_by_tier), Theme.WHITE, UiKit.Size.SMALL) { group(true) }
     private val cards = HashMap<Int, CandyRow>()
+    private val meta = HashMap<Int, TextView>()
+    private val familyLines = HashMap<Int, String>()
+    private val tierLines = HashMap<Int, String>()
+    private val familyGroups by lazy { groups(false).map(::buildGroup) }
+    private val tierGroups by lazy { groups(true).map(::buildGroup) }
+    private val testWorlds by lazy { worlds() }
+    private var markedSection = Int.MIN_VALUE
+    private var statusKey: List<Any>? = null
+    private var entrance: ViewTreeObserver.OnPreDrawListener? = null
+    private val entries = ArrayList<Entry>()
+    private val adapter = SectionAdapter()
+    internal val contentReady get() = entries.isNotEmpty()
+    private val attachCards = Runnable { renderList(); revealChosen() }
+    private val prepareCards = object : Runnable {
+        override fun run() {
+            if (!isAttachedToWindow) return
+            val deadline = System.nanoTime() + 3_000_000L
+            do {
+                cell(sections[cards.size])
+            } while (cards.size < sections.size && System.nanoTime() < deadline)
+            if (cards.size < sections.size) postOnAnimation(this)
+            else {
+                familyGroups; tierGroups
+                postOnAnimation(attachCards)
+            }
+        }
+    }
 
     init {
         addRight(kit.pill("${Sections.lib.size}", Theme.WHITE, Theme.INK_SOFT))
@@ -217,12 +255,13 @@ class SectionsView(activity: Activity, kit: UiKit, private val reloadMenu: (() -
             }, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
                 marginStart = dp(10f); marginEnd = dp(10f); bottomMargin = dp(4f)
             })
-            addView(scroll, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f))
+            addView(list, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f))
         }
         content.addView(column)
+        list.adapter = adapter
         renderStatus()
         paintSwitch()
-        post { renderList() } // the page shows at once; the thumbnails follow a frame later
+        post(prepareCards) // Build detached cards in small batches, then attach the finished list together.
     }
 
     /** A cached page comes back after a section was chosen elsewhere: show what is on loop now. */
@@ -235,6 +274,9 @@ class SectionsView(activity: Activity, kit: UiKit, private val reloadMenu: (() -
     private fun render() { renderStatus(); markChosen() }
 
     private fun renderStatus() {
+        val key = listOf(Settings.testSection, Settings.testPillWorld, Settings.testSpaceWorld, Settings.performanceCourse)
+        if (statusKey == key) return
+        statusKey = key
         status.removeAllViews()
         val chosen = Sections.byId(Settings.testSection)
         if (chosen == null && !Settings.testPillWorld && !Settings.testSpaceWorld) { status.visibility = GONE; return }
@@ -273,54 +315,124 @@ class SectionsView(activity: Activity, kit: UiKit, private val reloadMenu: (() -
         if (byTier == tiers) return
         byTier = tiers
         paintSwitch()
-        renderList(animate = true)
-        scroll.scrollTo(0, 0)
+        if (contentReady) renderList(animate = true)
+        list.setSelection(0)
     }
 
     private class Group(val key: String, val title: String, val hint: String?, val icon: Icon, val color: Int, val sections: List<Sect>)
 
-    private fun groups(): List<Group> {
+    private fun groups(tiers: Boolean): List<Group> {
         val ctx = kit.ctx
-        val all = Sections.lib.sortedWith(compareBy({ it.tier }, { it.id }))
-        return if (byTier) all.groupBy { it.tier }.toSortedMap().map { (tier, list) ->
+        return if (tiers) sections.groupBy { it.tier }.toSortedMap().map { (tier, list) ->
             val t = tier.coerceIn(0, 3)
             Group("tier$tier", ctx.getString(R.string.sections_tier_title, tier), ctx.getString(TIER_HINTS[t]),
                 AchievementTile(SectionGroupIcon(null, t), TIER_COLORS[t]), TIER_COLORS[t], list)
-        } else all.groupBy { SectionFamily.of(it) }.toSortedMap().map { (family, list) ->
+        } else sections.groupBy { families.getValue(it) }.toSortedMap().map { (family, list) ->
             Group(family.name, ctx.getString(family.title()), null, AchievementTile(SectionGroupIcon(family), family.color()), family.color(), list)
         }
     }
 
-    private fun renderList(animate: Boolean = false) {
-        list.removeAllViews()
-        cards.clear()
-        var delay = 0L
-        for (g in groups()) {
-            val body = LinearLayout(activity).apply { orientation = LinearLayout.VERTICAL }
-            var row: LinearLayout? = null
-            for ((i, s) in g.sections.withIndex()) {
-                if (i % 3 == 0) {
-                    row = LinearLayout(activity).apply { orientation = LinearLayout.HORIZONTAL }
-                    body.addView(row, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
-                }
-                row!!.addView(cell(s), LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply { setMargins(dp(4f), dp(4f), dp(4f), dp(4f)) })
+    private class GroupViews(val group: Group, val header: View)
+    private class Entry(val group: GroupViews?, val row: Int, val delay: Long = -1)
+
+    private fun buildGroup(g: Group) = GroupViews(g, header(g))
+
+    /** Only the visible rows are measured and drawn; cards and header artwork survive recycling. */
+    private inner class SectionAdapter : BaseAdapter() {
+        override fun getCount() = entries.size
+        override fun getItem(position: Int) = entries[position]
+        override fun hasStableIds() = true
+        override fun getItemId(position: Int): Long {
+            val e = entries[position]
+            val g = e.group?.group ?: return Long.MAX_VALUE
+            val group = if (g.key.startsWith("tier")) 100 + g.sections.first().tier else families.getValue(g.sections.first()).ordinal
+            return (group.toLong() shl 32) + e.row + 1
+        }
+        override fun getViewTypeCount() = 3
+        override fun getItemViewType(position: Int) = when {
+            entries[position].group == null -> 2
+            entries[position].row < 0 -> 0
+            else -> 1
+        }
+        override fun areAllItemsEnabled() = false
+        override fun isEnabled(position: Int) = false
+        override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
+            val e = entries[position]
+            val container = convertView as? LinearLayout ?: LinearLayout(activity).apply { orientation = LinearLayout.HORIZONTAL }
+            Anim.reset(container)
+            container.removeAllViews()
+            fun add(v: View, params: LinearLayout.LayoutParams) {
+                (v.parent as? ViewGroup)?.removeView(v)
+                container.addView(v, params)
             }
-            row?.let { while (it.childCount < 3) it.addView(View(activity), LinearLayout.LayoutParams(0, 1, 1f).apply { setMargins(dp(4f), 0, dp(4f), 0) }) }
-            val header = header(g, body)
-            list.addView(header)
-            list.addView(body)
-            body.visibility = if (g.key in folded) GONE else VISIBLE
-            if (animate) {
-                Anim.riseIn(header, delay, dpf(14f)); delay += 30
-                if (body.visibility == VISIBLE) for (i in 0 until body.childCount) { if (delay < 400) Anim.riseIn(body.getChildAt(i), delay, dpf(18f)); delay += 30 }
+            val g = e.group
+            when {
+                g == null -> add(testWorlds, LinearLayout.LayoutParams(-1, -2))
+                e.row < 0 -> add(g.header, LinearLayout.LayoutParams(-1, -2))
+                else -> for (lane in 0..2) {
+                    val s = g.group.sections.getOrNull(e.row * 3 + lane)
+                    if (s != null) {
+                        val line = if (byTier) familyMeta(s) else tierMeta(s)
+                        meta.getValue(s.id).let { if (it.text != line) it.text = line }
+                    }
+                    add(if (s == null) View(activity) else cards.getValue(s.id),
+                        LinearLayout.LayoutParams(0, if (s == null) 1 else -2, 1f).apply {
+                            setMargins(dp(4f), if (s == null) 0 else dp(4f), dp(4f), if (s == null) 0 else dp(4f))
+                        })
+                }
+            }
+            return container
+        }
+    }
+
+    private fun renderList(animate: Boolean = false, unfolded: String? = null) {
+        entrance?.let { viewTreeObserver.removeOnPreDrawListener(it) }; entrance = null
+        val groups = if (byTier) tierGroups else familyGroups
+        entries.clear()
+        var delay = 0L
+        for (g in groups) {
+            if (animate) Anim.reset(g.header)
+            entries.add(Entry(g, -1, if (animate) delay else -1)); delay += 30
+            if (g.group.key !in folded) repeat((g.group.sections.size + 2) / 3) { row ->
+                val stagger = when {
+                    unfolded == g.group.key -> row * 35L
+                    animate && delay < 400 -> delay
+                    else -> -1
+                }
+                entries.add(Entry(g, row, stagger)); delay += 30
             }
         }
-        list.addView(worlds())
+        entries.add(Entry(null, 0))
+        adapter.notifyDataSetChanged()
         markChosen()
+        if (animate || unfolded != null) riseVisible(if (unfolded == null) dpf(18f) else dpf(16f), if (unfolded == null) 300 else 240)
+    }
+
+    /** Preserve the stagger without starting animations or completion layouts below the viewport. */
+    private fun riseVisible(distance: Float, duration: Long) {
+        val listener = object : ViewTreeObserver.OnPreDrawListener {
+            override fun onPreDraw(): Boolean {
+                viewTreeObserver.removeOnPreDrawListener(this); entrance = null
+                for (i in 0 until list.childCount) {
+                    val e = entries.getOrNull(list.firstVisiblePosition + i) ?: continue
+                    if (e.delay >= 0) Anim.riseIn(list.getChildAt(i), e.delay, if (e.row < 0) dpf(14f) else distance, duration, layoutOnEnd = false)
+                }
+                return true
+            }
+        }
+        entrance = listener
+        viewTreeObserver.addOnPreDrawListener(listener)
+    }
+
+    override fun onDetachedFromWindow() {
+        removeCallbacks(prepareCards)
+        removeCallbacks(attachCards)
+        entrance?.let { viewTreeObserver.removeOnPreDrawListener(it) }; entrance = null
+        super.onDetachedFromWindow()
     }
 
     /** A group's header: its tile, name, count and a chevron; a tap folds the group away or opens it. */
-    private fun header(g: Group, body: LinearLayout): View = LinearLayout(activity).apply {
+    private fun header(g: Group): View = LinearLayout(activity).apply {
         orientation = LinearLayout.HORIZONTAL
         gravity = Gravity.CENTER_VERTICAL
         setPadding(dp(6f), dp(14f), dp(8f), dp(6f))
@@ -339,28 +451,35 @@ class SectionsView(activity: Activity, kit: UiKit, private val reloadMenu: (() -
         val chevron = ImageView(activity).apply {
             setImageResource(R.drawable.ic_chevron_right)
             imageTintList = ColorStateList.valueOf(Theme.MUTED)
-            rotation = chevronAngle(body.visibility == VISIBLE)
+            rotation = chevronAngle(g.key !in folded)
             importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO
         }
         addView(chevron, LinearLayout.LayoutParams(dp(22f), dp(22f)).apply { marginStart = dp(8f) })
         Anim.pressFeedback(this)
         setOnClickListener {
-            val open = body.visibility != VISIBLE
+            val open = g.key in folded
             if (open) folded -= g.key else folded += g.key
             SoundFx.play("tap"); Haptics.click()
             chevron.animate().rotation(chevronAngle(open)).setDuration(180).setInterpolator(Anim.ease).start()
-            body.visibility = if (open) VISIBLE else GONE
-            if (open) for (i in 0 until body.childCount) Anim.riseIn(body.getChildAt(i), i * 35L, dpf(16f), 240)
+            renderList(unfolded = if (open) g.key else "")
         }
     }
 
     private fun thumbFloor(radius: Float) = android.graphics.drawable.GradientDrawable().apply { cornerRadius = dpf(radius); setColor(0xFF2A2350.toInt()) }
 
-    private fun cell(s: Sect): View = CandyRow(activity, Theme.CARD, dpf(4f), dpf(14f)).apply {
+    private fun rows(s: Sect) = kit.ctx.resources.getQuantityString(R.plurals.count_rows, s.steps.size, s.steps.size)
+    private fun familyMeta(s: Sect) = familyLines.getOrPut(s.id) {
+        kit.ctx.getString(R.string.sections_card_meta, kit.ctx.getString(families.getValue(s).title()), rows(s))
+    }
+    private fun tierMeta(s: Sect) = tierLines.getOrPut(s.id) { kit.ctx.getString(R.string.text_section_stats, s.tier, rows(s)) }
+
+    private fun cell(s: Sect): CandyRow = CandyRow(activity, Theme.CARD, dpf(4f), dpf(14f)).apply {
         orientation = LinearLayout.VERTICAL
         gravity = Gravity.CENTER_HORIZONTAL
         setPadding(dp(5f), dp(5f), dp(5f), dp(8f))
         cards[s.id] = this
+        if (markedSection == s.id) markedSection = Int.MIN_VALUE
+        familyMeta(s); tierMeta(s)
         addView(FrameLayout(activity).apply {
             addView(SectionThumbView(activity, s).apply { background = thumbFloor(9f) }, FrameLayout.LayoutParams(-1, -1))
             if (s in Sections.devPool) addView(kit.pill(kit.ctx.getString(R.string.sections_new), Theme.YELLOW, Theme.INK, 9f).apply {
@@ -372,10 +491,8 @@ class SectionsView(activity: Activity, kit: UiKit, private val reloadMenu: (() -
         }, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(96f)))
         addView(kit.text(kit.ctx.gameText(s.name), 10f, Theme.INK, 700).apply { maxLines = 2; minLines = 2 },
             LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(6f) })
-        val rows = kit.ctx.resources.getQuantityString(R.plurals.count_rows, s.steps.size, s.steps.size)
         // the meta line names what the grouping does not: the tier among families, the family among tiers
-        addView(kit.text(if (byTier) kit.ctx.getString(R.string.sections_card_meta, kit.ctx.getString(SectionFamily.of(s).title()), rows)
-            else kit.ctx.getString(R.string.text_section_stats, s.tier, rows), 9f, Theme.MUTED, 500))
+        addView(kit.text(if (byTier) familyMeta(s) else tierMeta(s), 9f, Theme.MUTED, 500).also { meta[s.id] = it })
         setOnClickListener {
             val wasPerformance = Settings.performanceCourse
             Settings.leavePerformanceCourse()
@@ -388,20 +505,26 @@ class SectionsView(activity: Activity, kit: UiKit, private val reloadMenu: (() -
 
     /** The chosen section's card wears a mint ring and its ON LOOP tag. */
     private fun markChosen() {
-        for ((id, card) in cards) {
-            val on = id == Settings.testSection && !Settings.testPillWorld && !Settings.testSpaceWorld
+        val chosen = if (Settings.testPillWorld || Settings.testSpaceWorld) -1 else Settings.testSection
+        if (markedSection == chosen) return
+        for (id in listOf(markedSection, chosen)) {
+            val card = cards[id] ?: continue
+            val on = id == chosen
             card.ring(if (on) dpf(3f) else 0f, Theme.MINT)
             card.findViewWithTag<View>("loop")?.visibility = if (on) VISIBLE else GONE
         }
+        markedSection = chosen
     }
 
     /** Scrolls the chosen section into view, unless its group is folded away. */
     private fun revealChosen() {
-        val card = cards[Settings.testSection] ?: return
+        val position = entries.indexOfFirst { e -> e.row >= 0 && (0..2).any { lane ->
+            e.group?.group?.sections?.getOrNull(e.row * 3 + lane)?.id == Settings.testSection } }
+        if (position < 0) return
         post {
-            if (!card.isShown) return@post
-            val r = Rect(); card.getDrawingRect(r); list.offsetDescendantRectToMyCoords(card, r)
-            if (r.top < scroll.scrollY || r.bottom > scroll.scrollY + scroll.height) scroll.scrollTo(0, (r.top - dp(60f)).coerceAtLeast(0))
+            val row = list.getChildAt(position - list.firstVisiblePosition)
+            if (row == null || row.top < list.paddingTop || row.bottom > list.height - list.paddingBottom)
+                list.setSelectionFromTop(position, dp(60f))
         }
     }
 

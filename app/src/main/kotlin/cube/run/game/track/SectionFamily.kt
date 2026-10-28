@@ -26,8 +26,9 @@ enum class SectionFamily {
             else -> MOVES
         }
 
-        fun of(s: Sect): SectionFamily {
-            val cells = Sections.preview(s)
+        fun of(s: Sect): SectionFamily = of(Sections.preview(s))
+
+        internal fun of(cells: List<IntArray>): SectionFamily {
             if (cells.count { row -> Sections.C_COIN in row } >= 2) return COINS
             val obstacles = cells.flatMap { row -> row.map(::obstacle) }.filter { it != 0 }.toSet()
             if (obstacles.size >= 4) return MIXED
