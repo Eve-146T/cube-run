@@ -44,8 +44,8 @@ android {
         applicationId = "cube.run"
         minSdk = 28
         targetSdk = 35
-        versionCode = 18
-        versionName = "2.8"
+        versionCode = 19
+        versionName = "2.9-beta1"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         buildConfigField("boolean", "JACKPOT_TEST_WORLD", "false")
         buildConfigField("boolean", "PERFORMANCE_TEST", "false")
