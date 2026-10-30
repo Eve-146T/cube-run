@@ -79,7 +79,7 @@ class UhOhActivity : Activity() {
             insets
         }
 
-        cube = SadCube(this, color)
+        cube = SadCube(this)
         column.addView(cube, LinearLayout.LayoutParams(dp(150), dp(150)).apply { gravity = Gravity.START; marginStart = -dp(18) })
         // The logo's look: white letters with an ink outline.
         val title = kit.stageText(caps(R.string.uhoh_title), 54f, gravity = Gravity.START, stroke = 7f).apply {
