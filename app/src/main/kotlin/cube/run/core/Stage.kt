@@ -34,6 +34,8 @@ object Stage {
     val interactions = AtomicInteger(0)
     @Volatile var pointerDown = false
     @Volatile var homeScreen = true
+    /** An opaque native page covers every pixel; simulation continues, but its hidden scene needs no draw. */
+    @Volatile var sceneCovered = false
     @Volatile internal var botOwner: Any? = null
     val botPlaying get() = botOwner != null
     fun userInteraction(down: Boolean = false) {

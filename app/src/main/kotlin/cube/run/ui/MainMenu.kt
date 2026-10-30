@@ -39,6 +39,7 @@ class MainMenu(
     private var safeInsets = intArrayOf(0, 0, 0, 0)
     private val uncovered = Uncovered(this)
     private val anims = ArrayList<ValueAnimator>()
+    private val normalFocusability = descendantFocusability
     private val startRipple = Runnable {
         if (isAttachedToWindow && visibility == VISIBLE && top.visibility == VISIBLE) anims.add(ripple())
     }
@@ -334,7 +335,10 @@ class MainMenu(
 
     fun hideInstant() {
         stopIdle()
-        visibility = INVISIBLE
+        // Keep the painted letter layers while an opaque page owns the window.
+        alpha = 0f
+        descendantFocusability = FOCUS_BLOCK_DESCENDANTS
+        importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS
     }
 
     /** A locale crossfade keeps the menu in place instead of replaying its launch entrance. */
@@ -352,8 +356,8 @@ class MainMenu(
 
     /** Re-read the bank / stock / best (after the shop, the wardrobe, a dev toggle). */
     fun refresh() {
-        kit.labelOf(bank).text = Progress.coins.toString()
-        kit.labelOf(bubbles).text = "×${Progress.bubbles}"
+        kit.labelOf(bank).let { if (it.text.toString() != Progress.coins.toString()) it.text = Progress.coins.toString() }
+        kit.labelOf(bubbles).let { if (it.text.toString() != "×${Progress.bubbles}") it.text = "×${Progress.bubbles}" }
         bubbles.visibility = if (Progress.bubbles > 0) VISIBLE else GONE
         achievements.visibility = if (Progress.achievementsUnlocked) VISIBLE else GONE
     }
@@ -439,6 +443,9 @@ class MainMenu(
         stopIdle()
         Anim.cancelTree(this)
         if (show) {
+            alpha = 1f
+            descendantFocusability = normalFocusability
+            importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_AUTO
             visibility = VISIBLE
             for (p in parts) { Anim.reset(p); p.visibility = VISIBLE }
             bubbles.visibility = if (Progress.bubbles > 0) VISIBLE else GONE

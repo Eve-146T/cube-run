@@ -86,12 +86,19 @@ abstract class Page(
     protected fun dp(v: Float) = kit.dp(v)
     protected fun dpf(v: Float) = kit.dpf(v)
     protected val topBar = LinearLayout(activity)
+    internal val coversScene = !dark
+    private var cachedBackdrop: View? = null
     protected val content = FrameLayout(activity)
     protected val titleView: TextView
     private val body = LinearLayout(activity)
     protected var closing = false
         private set
     private var instantNavigation = false
+    private var retainDrawing = false
+    private var cachedShowing = false
+    private var cachedFocusable = false
+    private val normalFocusability = descendantFocusability
+    internal val navigationShowing get() = if (instantNavigation) cachedShowing else visibility == VISIBLE
     private var deferredEntrance = false
     protected var compactLayout = false
         private set
@@ -186,6 +193,39 @@ abstract class Page(
         super.onMeasure(widthMeasureSpec, heightMeasureSpec)
     }
 
+    /** Keep the unchanged full-screen backdrop out of every content animation and scroll draw. */
+    internal fun warmBackdrop() {
+        if (cachedBackdrop != null || background == null || width == 0 || height == 0) return
+        val art = background
+        background = null
+        cachedBackdrop = View(activity).apply {
+            background = art
+            importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO
+            setLayerType(LAYER_TYPE_HARDWARE, null)
+            addView(this, 0, LayoutParams(-1, -1))
+            measure(MeasureSpec.makeMeasureSpec(this@Page.width, MeasureSpec.EXACTLY),
+                MeasureSpec.makeMeasureSpec(this@Page.height, MeasureSpec.EXACTLY))
+            layout(0, 0, this@Page.width, this@Page.height)
+            buildLayer()
+        }
+    }
+
+    override fun onLayout(changed: Boolean, left: Int, top: Int, right: Int, bottom: Int) {
+        super.onLayout(changed, left, top, right, bottom)
+        // A background fills the page's padding too, unlike ordinary children.
+        cachedBackdrop?.layout(0, 0, right - left, bottom - top)
+    }
+
+    override fun dispatchDraw(canvas: android.graphics.Canvas) {
+        // Draw the backdrop outside dispatchDraw's clip-to-padding region, just like a
+        // normal background. The controls keep their original padding and clipping.
+        cachedBackdrop?.let { super.drawChild(canvas, it, drawingTime) }
+        super.dispatchDraw(canvas)
+    }
+
+    override fun drawChild(canvas: android.graphics.Canvas, child: View, drawingTime: Long): Boolean =
+        if (child === cachedBackdrop) false else super.drawChild(canvas, child, drawingTime)
+
     override fun onAttachedToWindow() {
         super.onAttachedToWindow()
         if (!instantNavigation && !deferredEntrance && !closing) {
@@ -195,10 +235,12 @@ abstract class Page(
     }
 
     /** Cached pages stay attached and laid out, but own neither input nor the GL stage while hidden. */
-    internal fun prepareInstantNavigation() {
+    internal fun prepareInstantNavigation(retainDrawing: Boolean = false) {
         instantNavigation = true
-        visibility = INVISIBLE
+        this.retainDrawing = retainDrawing
+        cachedFocusable = isFocusable
         alpha = 1f
+        parkPrepared()
         viewTreeObserver.removeOnPreDrawListener(entrance)
     }
 
@@ -221,11 +263,21 @@ abstract class Page(
 
     internal fun showPrepared() {
         closing = false
+        cachedShowing = true
+        isFocusable = cachedFocusable
+        alpha = 1f
+        descendantFocusability = normalFocusability
+        importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_AUTO
         onNavigationShown()
         visibility = VISIBLE
         // All controls are visible immediately; a tiny settle gives navigation life
         // without withholding input or waiting for a fade/stagger to finish.
-        val motion = content.move()
+        // An opaque page can animate its cached RenderNode directly; only pages over GL need
+        // the per-frame window invalidation used by move().
+        val motion = if (coversScene && retainDrawing) {
+            content.animate().cancel()
+            content.animate().withEndAction(null).setStartDelay(0).setUpdateListener(null)
+        } else content.move()
         content.scaleX = .99f; content.scaleY = .99f
         motion.scaleX(1f).scaleY(1f).setDuration(120).setInterpolator(Anim.springSoft).start()
         rootView.invalidate() // Recompose the warm layer without re-rasterizing its text.
@@ -253,12 +305,27 @@ abstract class Page(
 
     fun navigateBack() = onBack()
 
+    /** Hide a cached page without navigating through the menu between two pages. */
+    internal fun parkPrepared() {
+        cachedShowing = false
+        if (instantNavigation && retainDrawing) {
+            visibility = VISIBLE
+            alpha = 0f
+            isFocusable = false
+            descendantFocusability = FOCUS_BLOCK_DESCENDANTS
+            importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS
+        } else visibility = INVISIBLE
+    }
+
+    override fun dispatchTouchEvent(event: android.view.MotionEvent): Boolean =
+        (!instantNavigation || cachedShowing) && super.dispatchTouchEvent(event)
+
     fun close() {
         if (closing) return
-        if (instantNavigation && visibility != VISIBLE) return
+        if (instantNavigation && !cachedShowing) return
         closing = true
         if (instantNavigation) {
-            visibility = INVISIBLE
+            parkPrepared()
             closing = false // Background preparation can finish while this page is parked.
             onClosed()
             return
