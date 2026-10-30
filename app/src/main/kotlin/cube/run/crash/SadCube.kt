@@ -2,24 +2,30 @@ package cube.run.crash
 
 import android.content.Context
 import android.graphics.Canvas
+import android.graphics.CornerPathEffect
 import android.graphics.Paint
+import android.graphics.Path
 import android.graphics.RectF
 import android.os.SystemClock
-import android.view.HapticFeedbackConstants
 import android.view.MotionEvent
 import android.view.View
+import cube.run.core.Haptics
 import cube.run.ui.Theme
 import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.sin
 
 /**
- * The cube, built from chunky boxes, wearing a blue-screen ":(" — it bobs, blinks, cries the
- * odd square tear and squashes when poked. [cheer] turns the frown into a smile.
+ * The game's cube wearing a blue-screen ":(" — it bobs, blinks, cries the odd square tear
+ * and squashes when poked. [cheer] turns the frown into a smile.
  */
 class SadCube(context: Context) : View(context) {
     private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
     private val box = RectF()
+    private val path = Path()
+    private val face = Path()
+    private val silhouette = Path()
+    private val rounder = Paint()
     private val born = SystemClock.uptimeMillis()
     private var pokedAt = -10_000L
     private var cheeredAt = -1L
@@ -34,9 +40,13 @@ class SadCube(context: Context) : View(context) {
     override fun onTouchEvent(event: MotionEvent): Boolean {
         if (event.actionMasked == MotionEvent.ACTION_DOWN) {
             pokedAt = SystemClock.uptimeMillis()
-            performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+            Haptics.tick()
         }
         return super.onTouchEvent(event)
+    }
+
+    override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
+        rounder.pathEffect = CornerPathEffect(minOf(w, h) * 0.62f * 0.14f)
     }
 
     override fun onDraw(canvas: Canvas) {
@@ -64,13 +74,33 @@ class SadCube(context: Context) : View(context) {
     }
 
     private fun drawCube(canvas: Canvas, s: Float, now: Long, t: Float) {
+        // The game's chunky cube seen from the chase camera: the front face square on, the
+        // bright top and the shaded side peeking out, rounded corners on a darker lip.
         val h = s / 2f
-        val r = s * 0.16f
-        val lip = s * 0.1f
-        paint.color = Theme.LAVENDER
-        box.set(-h, -h + lip, h, h + lip); canvas.drawRoundRect(box, r, r, paint)
-        paint.color = Theme.WHITE
-        box.set(-h, -h, h, h); canvas.drawRoundRect(box, r, r, paint)
+        val o = s * 0.2f
+        canvas.translate(-o / 2f, o / 2f)
+        path.reset()
+        path.moveTo(-h, -h); path.lineTo(-h + o, -h - o); path.lineTo(h + o, -h - o)
+        path.lineTo(h + o, h - o); path.lineTo(h, h); path.lineTo(-h, h); path.close()
+        rounder.style = Paint.Style.FILL
+        silhouette.reset(); rounder.getFillPath(path, silhouette)
+        paint.color = Theme.darken(COLOR, 0.45f)
+        canvas.save(); canvas.translate(0f, s * 0.09f); canvas.drawPath(silhouette, paint); canvas.restore()
+        canvas.save(); canvas.clipPath(silhouette)
+        paint.color = COLOR
+        box.set(-h, -h, h, h); canvas.drawRect(box, paint)
+        paint.color = Theme.lighten(COLOR, 0.38f)
+        quad(canvas, -h, -h, -h + o, -h - o, h + o, -h - o, h, -h)
+        paint.color = Theme.darken(COLOR, 0.2f)
+        quad(canvas, h, -h, h + o, -h - o, h + o, h - o, h, h)
+        // Bevel where the top meets the faces, and a gloss on the top's far corner.
+        paint.style = Paint.Style.STROKE; paint.strokeWidth = s * 0.04f; paint.strokeCap = Paint.Cap.ROUND
+        paint.color = Theme.alpha(Theme.WHITE, 120)
+        canvas.drawLine(-h, -h, h, -h, paint); canvas.drawLine(h, -h, h + o, -h - o, paint)
+        paint.color = Theme.alpha(Theme.WHITE, 200); paint.strokeWidth = s * 0.05f
+        canvas.drawLine(-h + o * 0.75f, -h - o * 0.55f, -h + o * 0.75f + s * 0.22f, -h - o * 0.55f, paint)
+        paint.style = Paint.Style.FILL
+        canvas.restore()
 
         val u = s / 10f // the face is drawn on a 10 × 10 grid of chunky pixels
         paint.color = Theme.INK
@@ -96,7 +126,7 @@ class SadCube(context: Context) : View(context) {
         val cycle = (t - 1.2f) % 2.6f
         if (t < 1.2f || cycle > 1.4f) return
         val k = cycle / 1.4f
-        paint.color = Theme.SKY
+        paint.color = Theme.WHITE // a sky-blue tear vanishes on the mint face
         paint.alpha = ((1f - k * k) * 255 * strength).toInt()
         val x = -u * 2.2f
         val y = -u * 0.4f + k * k * u * 4.2f
@@ -104,9 +134,18 @@ class SadCube(context: Context) : View(context) {
         paint.alpha = 255
     }
 
+    private fun quad(canvas: Canvas, x1: Float, y1: Float, x2: Float, y2: Float, x3: Float, y3: Float, x4: Float, y4: Float) {
+        face.reset(); face.moveTo(x1, y1); face.lineTo(x2, y2); face.lineTo(x3, y3); face.lineTo(x4, y4); face.close()
+        canvas.drawPath(face, paint)
+    }
+
     private fun px(canvas: Canvas, l: Float, t: Float, r: Float, b: Float, round: Float) {
         box.set(l, t, r, b); canvas.drawRoundRect(box, round, round, paint)
     }
 
     private fun ease(k: Float) = 1f - (1f - k) * (1f - k) * (1f - k)
+
+    private companion object {
+        const val COLOR = Theme.MINT
+    }
 }

@@ -9,7 +9,7 @@ import kotlin.random.Random
 
 /**
  * A flat, saturated "blue" screen that isn't always blue, with clusters of candy-coloured
- * blocks gnawing at its corners like a broken display. A few blocks flicker now and then.
+ * blocks (little lipped slabs) gnawing at its corners like a broken display. A few blocks flicker now and then.
  */
 class GlitchBackdrop(context: Context, val color: Int, seed: Long) : View(context) {
     private val random = Random(seed)
@@ -20,7 +20,7 @@ class GlitchBackdrop(context: Context, val color: Int, seed: Long) : View(contex
     private var blocks = emptyList<Block>()
     private var cell = 0f
 
-    /** Text that must stay readable: no block is drawn behind these. */
+    /** Text and controls that must stay readable: no block is drawn behind these. */
     var keepClear: List<View> = emptyList()
     private val clear = ArrayList<android.graphics.RectF>()
     private val here = IntArray(2)
@@ -64,8 +64,8 @@ class GlitchBackdrop(context: Context, val color: Int, seed: Long) : View(contex
             v.getLocationInWindow(there)
             val x = (there[0] - here[0]).toFloat()
             val y = (there[1] - here[1]).toFloat()
-            // A text view spans the column; only its inked lines need the space.
-            val layout = (v as? android.widget.TextView)?.layout
+            // A bare text view spans the column; only its inked lines need the space.
+            val layout = (v as? android.widget.TextView)?.takeIf { it.background == null && it !is cube.run.ui.CandyButton }?.layout
             val left = layout?.let { l -> (0 until l.lineCount).minOf { l.getLineLeft(it) } + v.paddingLeft } ?: 0f
             val right = layout?.let { l -> (0 until l.lineCount).maxOf { l.getLineRight(it) } + v.paddingLeft } ?: v.width.toFloat()
             clear += android.graphics.RectF(x + left - cell / 2, y - cell / 2, x + right + cell / 2, y + v.height + cell / 2)
@@ -74,8 +74,11 @@ class GlitchBackdrop(context: Context, val color: Int, seed: Long) : View(contex
             val l = b.col * cell
             val t = b.row * cell
             if (clear.any { it.intersects(l, t, l + cell, t + cell) }) continue
-            paint.color = b.color
+            // Each block is a little candy slab: its face on a darker lip, like the game's boxes.
+            paint.color = Theme.darken(b.color, 0.3f)
             canvas.drawRect(l, t, l + cell, t + cell, paint)
+            paint.color = b.color
+            canvas.drawRect(l, t, l + cell, t + cell * 0.78f, paint)
         }
     }
 }

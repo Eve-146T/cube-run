@@ -7,19 +7,13 @@ import android.content.Context
 import android.content.Intent
 import android.graphics.Typeface
 import android.graphics.drawable.ColorDrawable
-import android.graphics.drawable.Drawable
-import android.graphics.drawable.GradientDrawable
-import android.graphics.drawable.LayerDrawable
-import android.graphics.drawable.StateListDrawable
 import android.net.Uri
 import android.os.Bundle
 import android.util.TypedValue
 import android.view.Gravity
-import android.view.HapticFeedbackConstants
 import android.view.View
 import android.view.ViewGroup
 import android.view.WindowInsets
-import android.view.animation.OvershootInterpolator
 import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.ScrollView
@@ -27,23 +21,33 @@ import android.widget.TextView
 import cube.run.GameActivity
 import cube.run.R
 import cube.run.data.Languages
-import cube.run.ui.Fonts
+import cube.run.core.Haptics
+import cube.run.core.SoundFx
+import cube.run.data.Settings
+import cube.run.ui.Anim
+import cube.run.ui.CandyButton
 import cube.run.ui.Theme
+import cube.run.ui.UiKit
 import kotlin.random.Random
 
 /**
- * The uh-oh screen: a colourful blue screen of death with a sad cube, a fake progress count
- * and one big button that copies the crash log, for players who would never file a bug report
- * but can paste text. Plain Android views in its own process, nothing from the game runs here.
+ * The uh-oh screen: a colourful blue screen of death with the sad cube and one big button
+ * that copies the crash log, for players who would never file a bug report but can paste
+ * text. The game's candy widgets in their own process; nothing from the run is restarted here.
  */
 class UhOhActivity : Activity() {
     private lateinit var log: String
     private lateinit var cube: SadCube
+    private lateinit var kit: UiKit
+    private lateinit var copy: CandyButton
 
     override fun attachBaseContext(newBase: Context) = super.attachBaseContext(Languages.wrap(newBase))
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        kit = UiKit(this)
+        // The game's tap sound and buzzes, following the player's settings.
+        runCatching { Settings.init(this); Haptics.init(this); SoundFx.init(this) }
         val report = CrashLog.named(this, intent.getStringExtra(EXTRA_REPORT)) ?: CrashLog.pending(this) ?: CrashLog.reports(this).firstOrNull()
         CrashLog.clearPending(this)
         if (report == null) { playAgain(); return }
@@ -76,13 +80,16 @@ class UhOhActivity : Activity() {
 
         cube = SadCube(this)
         column.addView(cube, LinearLayout.LayoutParams(dp(150), dp(150)).apply { gravity = Gravity.START; marginStart = -dp(18) })
-        val title = text(getString(R.string.uhoh_title), 52f, 700)
-        column.addView(title)
+        // The logo's look: white letters with an ink outline.
+        val title = kit.stageText(caps(R.string.uhoh_title), 54f, gravity = Gravity.START, stroke = 7f).apply {
+            letterSpacing = kit.tracking(0.03f)
+            setShadowLayer(0f, 0f, 0f, 0) // flat backdrop: no drop shadow
+        }
+        column.addView(title, margins(top = 0).apply { marginStart = -dp(9) })
         val fresh = intent.getBooleanExtra(EXTRA_FRESH, false)
-        val body = text(getString(if (fresh) R.string.uhoh_body_now else R.string.uhoh_body_last), 20f, 500).apply { setLineSpacing(0f, 1.1f) }
-        column.addView(body, margins(top = 6))
-        val progress = text(getString(R.string.uhoh_progress, 0), 20f, 600)
-        column.addView(progress, margins(top = 18))
+        val body = kit.text(getString(if (fresh) R.string.uhoh_body_now else R.string.uhoh_body_last), 19f, Theme.WHITE, 500, Gravity.START)
+            .apply { setLineSpacing(0f, 1.15f) }
+        column.addView(body, margins(top = 4))
 
         val preview = TextView(this).apply {
             // The error itself rather than the device header, for players who send a screenshot.
@@ -95,65 +102,49 @@ class UhOhActivity : Activity() {
             textDirection = View.TEXT_DIRECTION_LTR
             textAlignment = View.TEXT_ALIGNMENT_VIEW_START
             layoutDirection = View.LAYOUT_DIRECTION_LTR
-            background = slab(Theme.WHITE, Theme.darken(color, 0.35f), 16, 5)
-            setPadding(dp(14), dp(12), dp(14), dp(17))
+            background = kit.cardDrawable(radius = 18f)
+            setPadding(dp(14), dp(12), dp(14), dp(12) + kit.CARD_LIP)
         }
-        column.addView(preview, margins(top = 18))
+        column.addView(preview, margins(top = 20))
 
-        val copy = button(getString(R.string.uhoh_copy), Theme.YELLOW, 22f).apply { setOnClickListener { copyLog(this) } }
-        column.addView(copy, margins(top = 20, height = 64))
-        val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-        val share = button(getString(R.string.uhoh_share), Theme.WHITE, 18f).apply { setOnClickListener { shareLog() } }
-        val again = button(getString(R.string.uhoh_play), Theme.MINT, 18f).apply { setOnClickListener { playAgain() } }
+        copy = kit.button(caps(R.string.uhoh_copy), Theme.YELLOW, UiKit.Size.BIG) { copyLog() }.apply { fit(22f) }
+        column.addView(copy, margins(top = 20))
+        val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; clipChildren = false; clipToPadding = false }
+        val share = kit.button(caps(R.string.uhoh_share), Theme.WHITE) { shareLog() }.apply { fit(18f) }
+        val again = kit.button(caps(R.string.uhoh_play), Theme.PLAY) { playAgain() }.apply { fit(18f) }
+        // Half-width slabs: slimmer sides and one height, so a long label shrinks a little
+        // without making its button shorter than its neighbour.
+        for (b in listOf(share, again)) b.setPadding(dp(10), dp(8), dp(10), dp(8))
         row.addView(share, LinearLayout.LayoutParams(0, dp(56), 1f).apply { marginEnd = dp(6) })
         row.addView(again, LinearLayout.LayoutParams(0, dp(56), 1f).apply { marginStart = dp(6) })
         column.addView(row, margins(top = 12))
 
-        val hint = text(getString(R.string.uhoh_hint), 15f, 500)
-        column.addView(hint, margins(top = 22))
-        val link = text(ISSUES_URL.removePrefix("https://"), 15f, 600).apply {
+        val hint = kit.text(getString(R.string.uhoh_hint), 15f, Theme.WHITE, 500, Gravity.START)
+        column.addView(hint, margins(top = 24))
+        val link = kit.text(ISSUES_URL.removePrefix("https://"), 15f, Theme.WHITE, 600, Gravity.START).apply {
             paintFlags = paintFlags or android.graphics.Paint.UNDERLINE_TEXT_FLAG
-            setPadding(0, dp(4), 0, dp(4))
+            setPadding(0, dp(6), 0, dp(6))
             setOnClickListener { runCatching { startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(ISSUES_URL))) } }
         }
-        column.addView(link)
+        column.addView(link, margins(top = 0))
 
-        backdrop.keepClear = listOf(title, body, progress, hint, link)
+        backdrop.keepClear = listOf(title, body, preview, copy, row, hint, link)
         setContentView(root)
         goFullscreen()
-        enter(listOf(title, body, progress, preview), listOf(copy, row, hint, link), progress)
+        enter(listOf(title, body, preview), listOf(copy, share, again, hint, link))
     }
 
-    /** Text slides up in a stagger, the percentage counts up blue-screen style, then the buttons pop. */
-    private fun enter(texts: List<View>, actions: List<View>, progress: TextView) {
-        texts.forEachIndexed { i, v ->
-            v.alpha = 0f; v.translationY = dp(18).toFloat()
-            v.animate().alpha(1f).translationY(0f).setStartDelay(250L + i * 70L).setDuration(260).start()
-        }
-        actions.forEach { it.alpha = 0f; it.scaleX = 0.85f; it.scaleY = 0.85f }
-        android.animation.ValueAnimator.ofInt(0, 100).apply {
-            startDelay = 450
-            duration = 1100
-            interpolator = android.view.animation.DecelerateInterpolator(1.6f)
-            addUpdateListener { progress.text = getString(R.string.uhoh_progress, it.animatedValue as Int) }
-            addListener(object : android.animation.AnimatorListenerAdapter() {
-                override fun onAnimationEnd(animation: android.animation.Animator) {
-                    actions.forEachIndexed { i, v ->
-                        v.animate().alpha(1f).scaleX(1f).scaleY(1f).setStartDelay(i * 60L).setDuration(280)
-                            .setInterpolator(OvershootInterpolator(2f)).start()
-                    }
-                }
-            })
-        }.start()
+    /** Text rises in one line after another, then the buttons pop in. */
+    private fun enter(texts: List<View>, actions: List<View>) {
+        texts.forEachIndexed { i, v -> Anim.riseIn(v, 250L + i * 70L, dp(18).toFloat(), 260) }
+        actions.forEachIndexed { i, v -> Anim.popIn(v, 520L + i * 60L, from = 0.85f, duration = 300) }
     }
 
-    private fun copyLog(button: TextView) {
-        button.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+    private fun copyLog() {
         getSystemService(ClipboardManager::class.java)?.setPrimaryClip(ClipData.newPlainText(CrashReport.TITLE, log))
-        button.text = getString(R.string.uhoh_copied)
-        button.animate().cancel()
-        button.scaleX = 0.92f; button.scaleY = 0.92f
-        button.animate().scaleX(1f).scaleY(1f).setStartDelay(0).setDuration(320).setInterpolator(OvershootInterpolator(3f)).start()
+        copy.setLabel(caps(R.string.uhoh_copied))
+        Anim.pulse(copy, 1.06f, 260)
+        Haptics.success()
         cube.cheer()
     }
 
@@ -189,36 +180,12 @@ class UhOhActivity : Activity() {
         }
     }
 
-    // ----------------------------------------------------------------- tiny candy kit
+    private fun caps(id: Int) = getString(id).uppercase(resources.configuration.locales[0])
 
-    private fun text(value: String, sp: Float, weight: Int) = TextView(this).apply {
-        text = value
-        typeface = Fonts.get(this@UhOhActivity, weight)
-        setTextSize(TypedValue.COMPLEX_UNIT_SP, sp)
-        setTextColor(Theme.WHITE)
-        textAlignment = View.TEXT_ALIGNMENT_VIEW_START
-    }
-
-    /** A chunky slab button with a darker lip; pressing pushes the face down onto it. */
-    private fun button(label: String, color: Int, sp: Float) = text(label, sp, 700).apply {
-        setTextColor(Theme.INK)
-        gravity = Gravity.CENTER
-        textAlignment = View.TEXT_ALIGNMENT_CENTER
-        isAllCaps = true
-        val lip = Theme.darken(color, 0.28f)
-        background = StateListDrawable().apply {
-            addState(intArrayOf(android.R.attr.state_pressed), slab(Theme.darken(color, 0.06f), lip, 18, 6, pressed = true))
-            addState(intArrayOf(), slab(color, lip, 18, 6))
-        }
-        setPadding(dp(12), 0, dp(12), dp(6))
-    }
-
-    private fun slab(face: Int, lip: Int, radius: Int, depth: Int, pressed: Boolean = false): Drawable {
-        fun round(c: Int) = GradientDrawable().apply { setColor(c); cornerRadius = dp(radius).toFloat() }
-        return LayerDrawable(arrayOf(round(lip), round(face))).apply {
-            setLayerInset(0, 0, dp(depth), 0, 0)
-            if (pressed) setLayerInset(1, 0, dp(depth - 2), 0, 2) else setLayerInset(1, 0, 0, 0, dp(depth))
-        }
+    /** Long translations shrink to one line instead of wrapping inside the slab. */
+    private fun CandyButton.fit(sp: Float) {
+        maxLines = 1
+        setAutoSizeTextTypeUniformWithConfiguration(11, sp.toInt(), 1, TypedValue.COMPLEX_UNIT_SP)
     }
 
     private fun margins(top: Int, height: Int = ViewGroup.LayoutParams.WRAP_CONTENT) =

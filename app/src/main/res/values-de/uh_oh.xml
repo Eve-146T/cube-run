@@ -3,7 +3,6 @@
     <string name="uhoh_title">Oh-oh!</string>
     <string name="uhoh_body_now">Cube Run ist auf ein Problem gestoßen und musste neu starten. Wir haben aufgeschrieben, was schiefging.</string>
     <string name="uhoh_body_last">Cube Run ist beim letzten Spielen abgestürzt. Wir haben aufgeschrieben, was schiefging.</string>
-    <string name="uhoh_progress">%1$d%% fertig</string>
     <string name="uhoh_copy">Absturzbericht kopieren</string>
     <string name="uhoh_copied">Kopiert!</string>
     <string name="uhoh_share">Teilen</string>
