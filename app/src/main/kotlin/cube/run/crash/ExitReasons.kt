@@ -1,5 +1,6 @@
 package cube.run.crash
 
+import android.annotation.TargetApi
 import android.app.ActivityManager
 import android.app.ApplicationExitInfo
 import android.content.Context
@@ -25,6 +26,7 @@ object ExitReasons {
             .forEach { CrashLog.save(ctx, report(ctx, it), it.timestamp) }
     }
 
+    @TargetApi(30) // only reached after collect's version check
     private fun report(ctx: Context, info: ApplicationExitInfo): String {
         val native = info.reason == ApplicationExitInfo.REASON_CRASH_NATIVE
         val trace = runCatching { info.traceInputStream?.use { it.readBytes() } }.getOrNull()
