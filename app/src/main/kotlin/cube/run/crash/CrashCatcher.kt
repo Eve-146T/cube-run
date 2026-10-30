@@ -22,7 +22,7 @@ object CrashCatcher {
         Thread.setDefaultUncaughtExceptionHandler { thread, error ->
             val shown = runCatching {
                 val report = CrashLog.save(app, CrashReport.forThrowable(app, thread, error))
-                app.startActivity(UhOhActivity.intent(app, report.name, fresh = true))
+                app.startActivity(UhOhActivity.intent(app, report.name))
             }.isSuccess
             if (!shown) fallback?.uncaughtException(thread, error)
             Process.killProcess(Process.myPid())
@@ -37,7 +37,7 @@ object CrashCatcher {
     fun showPending(activity: Activity): Boolean {
         runCatching { ExitReasons.collect(activity) }
         val report = CrashLog.pending(activity) ?: return false
-        activity.startActivity(UhOhActivity.intent(activity, report.name, fresh = false))
+        activity.startActivity(UhOhActivity.intent(activity, report.name))
         activity.finish()
         return true
     }

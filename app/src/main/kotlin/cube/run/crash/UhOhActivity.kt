@@ -60,7 +60,8 @@ class UhOhActivity : Activity() {
         val root = FrameLayout(this)
         val backdrop = GlitchBackdrop(this, color, seed)
         root.addView(backdrop, FrameLayout.LayoutParams(-1, -1))
-        val column = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        // The title's outline reaches past the column's padding.
+        val column = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; clipToPadding = false; clipChildren = false }
         root.addView(ScrollView(this).apply {
             isVerticalScrollBarEnabled = false
             addView(column)
@@ -78,17 +79,18 @@ class UhOhActivity : Activity() {
             insets
         }
 
-        cube = SadCube(this)
+        cube = SadCube(this, color)
         column.addView(cube, LinearLayout.LayoutParams(dp(150), dp(150)).apply { gravity = Gravity.START; marginStart = -dp(18) })
         // The logo's look: white letters with an ink outline.
         val title = kit.stageText(caps(R.string.uhoh_title), 54f, gravity = Gravity.START, stroke = 7f).apply {
             letterSpacing = kit.tracking(0.03f)
-            setShadowLayer(0f, 0f, 0f, 0) // flat backdrop: no drop shadow
+            // No drop shadow on the flat backdrop, but TextView only lets the outline spill past
+            // its padding by the shadow's radius: keep the radius, drop the colour.
+            setShadowLayer(kit.dpf(6f), 0f, 0f, android.graphics.Color.TRANSPARENT)
         }
         column.addView(title, margins(top = 0).apply { marginStart = -dp(9) })
-        val fresh = intent.getBooleanExtra(EXTRA_FRESH, false)
-        val body = kit.text(getString(if (fresh) R.string.uhoh_body_now else R.string.uhoh_body_last), 19f, Theme.WHITE, 500, Gravity.START)
-            .apply { setLineSpacing(0f, 1.15f) }
+        val body = kit.text(getString(R.string.uhoh_body), 20f, Theme.WHITE, 500, Gravity.START)
+            .apply { textDirection = View.TEXT_DIRECTION_ANY_RTL } // Hebrew opens with the Latin "Cube Run"
         column.addView(body, margins(top = 4))
 
         val preview = TextView(this).apply {
@@ -109,29 +111,28 @@ class UhOhActivity : Activity() {
 
         copy = kit.button(caps(R.string.uhoh_copy), Theme.YELLOW, UiKit.Size.BIG) { copyLog() }.apply { fit(22f) }
         column.addView(copy, margins(top = 20))
-        val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; clipChildren = false; clipToPadding = false }
-        val share = kit.button(caps(R.string.uhoh_share), Theme.WHITE) { shareLog() }.apply { fit(18f) }
         val again = kit.button(caps(R.string.uhoh_play), Theme.PLAY) { playAgain() }.apply { fit(18f) }
-        // Half-width slabs: slimmer sides and one height, so a long label shrinks a little
-        // without making its button shorter than its neighbour.
-        for (b in listOf(share, again)) b.setPadding(dp(10), dp(8), dp(10), dp(8))
-        row.addView(share, LinearLayout.LayoutParams(0, dp(56), 1f).apply { marginEnd = dp(6) })
-        row.addView(again, LinearLayout.LayoutParams(0, dp(56), 1f).apply { marginStart = dp(6) })
-        column.addView(row, margins(top = 12))
+        column.addView(again, margins(top = 12))
 
-        val hint = kit.text(getString(R.string.uhoh_hint), 15f, Theme.WHITE, 500, Gravity.START)
-        column.addView(hint, margins(top = 24))
-        val link = kit.text(ISSUES_URL.removePrefix("https://"), 15f, Theme.WHITE, 600, Gravity.START).apply {
-            paintFlags = paintFlags or android.graphics.Paint.UNDERLINE_TEXT_FLAG
+        // "Report the bug: github.com/…": the link stays one unit, left to right, inside any language.
+        val url = ISSUES_URL.removePrefix("https://")
+        val reportLine = android.text.SpannableStringBuilder(getString(R.string.uhoh_report)).append(' ')
+        val start = reportLine.length
+        // Word joiners keep the address from breaking at its slashes and hyphens: it wraps whole.
+        reportLine.append("\u2066").append(url.replace("/", "/\u2060").replace("-", "-\u2060")).append("\u2069")
+        reportLine.setSpan(android.text.style.UnderlineSpan(), start, reportLine.length, android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+        reportLine.setSpan(android.text.style.StyleSpan(Typeface.BOLD), start, reportLine.length, android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+        val link = kit.text(reportLine, 15f, Theme.WHITE, 500, Gravity.START).apply {
+            setLineSpacing(0f, 1.2f)
             setPadding(0, dp(6), 0, dp(6))
             setOnClickListener { runCatching { startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(ISSUES_URL))) } }
         }
-        column.addView(link, margins(top = 0))
+        column.addView(link, margins(top = 22))
 
-        backdrop.keepClear = listOf(title, body, preview, copy, row, hint, link)
+        backdrop.keepClear = listOf(title, body, preview, copy, again, link)
         setContentView(root)
         goFullscreen()
-        enter(listOf(title, body, preview), listOf(copy, share, again, hint, link))
+        enter(listOf(title, body, preview), listOf(copy, again, link))
     }
 
     /** Text rises in one line after another, then the buttons pop in. */
@@ -145,13 +146,6 @@ class UhOhActivity : Activity() {
         copy.setLabel(caps(R.string.uhoh_copied))
         Anim.pulse(copy, 1.06f, 260)
         Haptics.success()
-        cube.cheer()
-    }
-
-    private fun shareLog() {
-        val send = Intent(Intent.ACTION_SEND).setType("text/plain")
-            .putExtra(Intent.EXTRA_SUBJECT, CrashReport.TITLE).putExtra(Intent.EXTRA_TEXT, log)
-        runCatching { startActivity(Intent.createChooser(send, getString(R.string.uhoh_share))) }
         cube.cheer()
     }
 
@@ -195,14 +189,12 @@ class UhOhActivity : Activity() {
 
     companion object {
         private const val EXTRA_REPORT = "report"
-        private const val EXTRA_FRESH = "fresh"
         private const val ISSUES_URL = "https://github.com/Eve-146T/cube-run/issues"
         private const val BSOD_BLUE = 0xFF1F5BFF.toInt()
         private const val TANGERINE = 0xFFFF6A1F.toInt()
 
-        /** [fresh]: the game crashed a moment ago (rather than last time it ran). */
-        fun intent(ctx: Context, report: String, fresh: Boolean): Intent = Intent(ctx, UhOhActivity::class.java)
-            .putExtra(EXTRA_REPORT, report).putExtra(EXTRA_FRESH, fresh)
+        fun intent(ctx: Context, report: String): Intent = Intent(ctx, UhOhActivity::class.java)
+            .putExtra(EXTRA_REPORT, report)
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
     }
 }

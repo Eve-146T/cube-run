@@ -1,11 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="uhoh_title">Uh-oh!</string>
-    <string name="uhoh_body_now">Cube Run ran into a problem and had to restart. We wrote down what went wrong.</string>
-    <string name="uhoh_body_last">Cube Run crashed the last time you played. We wrote down what went wrong.</string>
+    <string name="uhoh_body">Cube Run crashed. That\'s sad.</string>
     <string name="uhoh_copy">Copy crash log</string>
     <string name="uhoh_copied">Copied!</string>
-    <string name="uhoh_share">Share</string>
     <string name="uhoh_play">Play again</string>
-    <string name="uhoh_hint">Send it to us so the bug gets squashed:</string>
+    <string name="uhoh_report">Report the bug:</string>
 </resources>
