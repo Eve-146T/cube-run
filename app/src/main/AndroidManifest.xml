@@ -26,5 +26,14 @@
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
         </activity>
+
+        <!-- The crash screen runs in its own process, so it survives the game's crash. -->
+        <activity
+            android:name=".crash.UhOhActivity"
+            android:exported="false"
+            android:process=":uhoh"
+            android:theme="@style/UhOhTheme"
+            android:screenOrientation="portrait"
+            tools:ignore="LockedOrientationActivity,DiscouragedApi"/>
     </application>
 </manifest>

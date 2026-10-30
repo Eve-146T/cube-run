@@ -211,6 +211,7 @@ abstract class Gdx3DGame(val session: GameSession) : ApplicationAdapter(), Touch
 
     override fun create() {
         LaunchTrace.mark("gl create")
+        cube.run.crash.CrashCatcher.note("GPU", "${Gdx.gl.glGetString(com.badlogic.gdx.graphics.GL20.GL_RENDERER)} · ${Gdx.gl.glGetString(com.badlogic.gdx.graphics.GL20.GL_VERSION)}")
         cam = PerspectiveCamera(60f, sw.toFloat(), sh.toFloat()).apply {
             position.set(7f, 7f, 7f)
             lookAt(0f, 0f, 0f)

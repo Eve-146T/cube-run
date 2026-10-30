@@ -16,6 +16,12 @@
         <item name="android:windowAnimationStyle">@style/RunSwapAnim</item>
     </style>
 
+    <!-- The crash screen: plain fullscreen, painted by its own views. -->
+    <style name="UhOhTheme" parent="@android:style/Theme.Material.NoActionBar.Fullscreen">
+        <item name="android:windowBackground">@color/bg</item>
+        <item name="android:windowLayoutInDisplayCutoutMode">shortEdges</item>
+    </style>
+
     <!-- In-app activity transitions: restart crossfade, instant-cut closes. -->
     <style name="RunSwapAnim">
         <item name="android:activityOpenEnterAnimation">@anim/run_fade_in</item>

@@ -121,6 +121,9 @@ open class GameActivity : AndroidApplication() {
     override fun onCreate(savedInstanceState: Bundle?) {
         cube.run.core.LaunchTrace.mark("activity start")
         super.onCreate(savedInstanceState)
+        // A crash report nobody has seen yet takes over the launch.
+        if (savedInstanceState == null && cube.run.crash.CrashCatcher.showPending(this)) { handedToCrashScreen = true; return }
+        cube.run.core.LaunchTrace.mark("crash check")
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
 
         // Debug builds only: adb shortcuts for testing individual sections and worlds.
@@ -147,6 +150,7 @@ open class GameActivity : AndroidApplication() {
             intent.getIntExtra("boxes", -1).let { if (it >= 0) Settings.testBoxes = it }
             intent.getIntExtra("bonusnow", -2).let { if (it >= -1) Settings.testBonusNow = it }
             intent.getFloatExtra("jetevery", -2f).let { if (it >= -1f) Settings.testJetEvery = it }
+            intent.getStringExtra("crash")?.let { cube.run.crash.CrashDrill.start(this, it) }
             intent.getIntExtra("horizon", -1).let { if (it >= 0) cube.run.game.world.biome.BiomeScene.horizon = it }
         }
         val session = GameHostSession(this, SCORE_ID)
@@ -361,7 +365,15 @@ open class GameActivity : AndroidApplication() {
     @Deprecated("Legacy Back dispatch")
     override fun onBackPressed() { if (::hud.isInitialized) hud.navigateBack() }
 
+    private var handedToCrashScreen = false
+
     override fun onDestroy() {
+        if (handedToCrashScreen) {
+            // libGDX was never initialised: its onDestroy finishes Activity.onDestroy first,
+            // then trips over its missing keyboard helper.
+            runCatching { super.onDestroy() }
+            return
+        }
         openingSplash?.dispose()
         if (android.os.Build.VERSION.SDK_INT >= 33) backCallback?.let { onBackInvokedDispatcher.unregisterOnBackInvokedCallback(it) }
         // libGDX only releases its static per-app shader/mesh/texture lists when the activity is

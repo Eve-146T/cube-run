@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="uhoh_title">אוי לא!</string>
+    <string name="uhoh_body_now">ל־Cube Run הייתה בעיה והוא נאלץ להתחיל מחדש. רשמנו מה השתבש.</string>
+    <string name="uhoh_body_last">Cube Run קרס בפעם האחרונה ששיחקת. רשמנו מה השתבש.</string>
+    <string name="uhoh_progress">%1$d%% הושלמו</string>
+    <string name="uhoh_copy">העתקת דוח הקריסה</string>
+    <string name="uhoh_copied">הועתק!</string>
+    <string name="uhoh_share">שיתוף</string>
+    <string name="uhoh_play">לשחק שוב</string>
+    <string name="uhoh_hint">שלחו לנו אותו כדי שנתקן את הבאג:</string>
+</resources>
