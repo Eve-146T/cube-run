@@ -48,5 +48,4 @@ text. It checks essential control bounds, the room left for the stage item, that
 ability corner clears the arrows, readable results, shop scrolling, language-sheet
 width, gameplay HUD size and reward continuity.
 
-Also run WindowGeometryTest, WardrobePriceLayoutTest, GiftBoxUiTest,
-GiftBoxReturnTest, ShopResetProgressTest and LanguageTest.
+Also run WindowGeometryTest, GiftBoxUiTest, ShopResetProgressTest and LanguageTest.
