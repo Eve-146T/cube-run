@@ -39,7 +39,6 @@ class MainMenu(
     private var safeInsets = intArrayOf(0, 0, 0, 0)
     private val uncovered = Uncovered(this)
     private val anims = ArrayList<ValueAnimator>()
-    private val normalFocusability = descendantFocusability
     private val startRipple = Runnable {
         if (isAttachedToWindow && visibility == VISIBLE && top.visibility == VISIBLE) anims.add(ripple())
     }
@@ -335,10 +334,7 @@ class MainMenu(
 
     fun hideInstant() {
         stopIdle()
-        // Keep the painted letter layers while an opaque page owns the window.
-        alpha = 0f
-        descendantFocusability = FOCUS_BLOCK_DESCENDANTS
-        importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS
+        visibility = INVISIBLE
     }
 
     /** A locale crossfade keeps the menu in place instead of replaying its launch entrance. */
@@ -443,9 +439,6 @@ class MainMenu(
         stopIdle()
         Anim.cancelTree(this)
         if (show) {
-            alpha = 1f
-            descendantFocusability = normalFocusability
-            importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_AUTO
             visibility = VISIBLE
             for (p in parts) { Anim.reset(p); p.visibility = VISIBLE }
             bubbles.visibility = if (Progress.bubbles > 0) VISIBLE else GONE

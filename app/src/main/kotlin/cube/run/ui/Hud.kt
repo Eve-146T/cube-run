@@ -108,7 +108,7 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false, retu
                 if (old != null && old.view === page) continue
                 if (old == null || old.key != key) {
                     old?.let { removeView(it.view) }
-                    val fresh = newCachedPage(name).apply { prepareInstantNavigation(retainDrawing = this is SectionsView) }
+                    val fresh = newCachedPage(name).apply { prepareInstantNavigation() }
                     cachedPages[name] = CachedPage(fresh, key)
                     addView(fresh, 0, LayoutParams(-1, -1))
                     rootWindowInsets?.let { fresh.dispatchApplyWindowInsets(it) }
@@ -116,25 +116,20 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false, retu
                     return // One page per frame; never construct them all in a tap handler.
                 }
                 (old.view as? AchievementsView)?.prepareContent()
-                if (!old.painted && (!old.view.isLayoutRequested || old.view is SectionsView) && old.view.width > 0 && old.view.height > 0 &&
+                if (!old.painted && !old.view.isLayoutRequested && old.view.width > 0 && old.view.height > 0 &&
                     (old.view !is AchievementsView || old.view.contentReady) &&
                     (old.view !is SectionsView || old.view.contentReady)) {
                     if (old.view is AchievementsView && !old.view.preparePainting()) {
                         postOnAnimation(this)
                         return
                     }
-                    if (old.view is SectionsView || old.view is SettingsView) old.view.warmBackdrop()
-                    if (old.view is SectionsView) {
-                        old.view.measure(MeasureSpec.makeMeasureSpec(width, MeasureSpec.EXACTLY), MeasureSpec.makeMeasureSpec(height, MeasureSpec.EXACTLY))
-                        old.view.layout(0, 0, width, height)
-                        if (!old.view.preparePainting()) { postOnAnimation(this); return }
-                    }
+                    if (old.view is SectionsView && !old.view.preparePainting()) { postOnAnimation(this); return }
                     // Interactive settings redraw small controls, not a full-screen texture.
                     if (old.view is SettingsView) old.view.warmControls()
                     else {
                         old.view.setLayerType(View.LAYER_TYPE_HARDWARE, null)
                         old.view.buildLayer()
-                        // Warm the viewport once; its recorded rows survive subsequent list recycling.
+                        // Warm the explorer's drawing once; scrolling and folding reuse it.
                         if (old.view is SectionsView) old.view.setLayerType(View.LAYER_TYPE_NONE, null)
                     }
                     old.painted = true
@@ -286,7 +281,6 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false, retu
     fun resumeLanguageIdle() = menu.resumeLanguageIdle()
 
     override fun onDetachedFromWindow() {
-        Stage.sceneCovered = false
         clearHardwareFocus()
         removeCallbacks(prepareShop)
         removeCallbacks(preparePages)
@@ -356,7 +350,7 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false, retu
         var cached = cachedPages[name]
         if (cached == null || cached.key != key) {
             cached?.let { removeView(it.view) }
-            val fresh = newCachedPage(name).apply { prepareInstantNavigation(retainDrawing = this is SectionsView) }
+            val fresh = newCachedPage(name).apply { prepareInstantNavigation() }
             cached = CachedPage(fresh, key)
             cachedPages[name] = cached
             addView(fresh, 0, LayoutParams(-1, -1))
@@ -366,7 +360,6 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false, retu
         menu.hideInstant()
         cached.view.bringToFront()
         cached.view.showPrepared()
-        Stage.sceneCovered = cached.view.coversScene
         schedulePagePreparation()
     }
 
@@ -433,7 +426,6 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false, retu
     }
 
     private fun closed() {
-        Stage.sceneCovered = false
         clearHardwareFocus()
         Stage.homeScreen = true
         page = null
@@ -542,7 +534,7 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false, retu
     private fun openSectionsFromSettings() {
         // Both pages are cached. Replace Settings directly so the menu and its GL scene
         // are never resumed and hidden again in the same tap handler.
-        (page as? SettingsView)?.let { it.parkPrepared(); page = null }
+        (page as? SettingsView)?.let { it.visibility = INVISIBLE; page = null }
         openCached("sections")
     }
     private fun openAchievements() {
@@ -814,14 +806,13 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false, retu
     }
 
     private fun resetRunChrome(keepPauseCard: Boolean = false) {
-        Stage.sceneCovered = false
         clearHardwareFocus()
         removeCallbacks(pollAchievements)
         listOfNotNull(runOver, pauseSheet.takeUnless { keepPauseCard }).forEach { removeView(it) }
         runOver = null
         if (!keepPauseCard) pauseSheet = null
         runStarted = false; runPauseResumes = 0
-        page?.parkPrepared(); page = null
+        page?.let { it.visibility = INVISIBLE }; page = null
         achievementToast.reset(); jackpotCounter.reset(); bonusVisited.clear()
         Anim.cancelTree(topBox); topBox.visibility = GONE; pauseChip.visibility = GONE
         setBoost(false, 0, 5)

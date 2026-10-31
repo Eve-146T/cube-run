@@ -85,7 +85,7 @@ object Anim {
         v.animate().withEndAction(null).setStartDelay(0)
         v.alpha = 1f; v.scaleX = 1f; v.scaleY = 1f
         v.translationX = 0f; v.translationY = 0f
-        repaintWindow(v)
+        repaint(v)
     }
 
     fun cancelTree(v: View) {
@@ -104,7 +104,7 @@ object Anim {
     fun riseIn(v: View, delay: Long = 0, distancePx: Float, duration: Long = 300, layoutOnEnd: Boolean = true) {
         reset(v)
         v.alpha = 0f; v.translationY = distancePx
-        v.move().alpha(1f).translationY(0f).setStartDelay(delay).setDuration(duration).setInterpolator(ease).withEndAction { if (layoutOnEnd) settle(v) else repaintWindow(v) }.start()
+        v.move().alpha(1f).translationY(0f).setStartDelay(delay).setDuration(duration).setInterpolator(ease).withEndAction { if (layoutOnEnd) settle(v) else repaint(v) }.start()
     }
 
     /** Slide in from the side + fade in. */

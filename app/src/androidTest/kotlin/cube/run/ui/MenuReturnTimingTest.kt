@@ -146,7 +146,7 @@ class MenuReturnTimingTest {
                     ui {
                         page.navigateBack()
                         assertNull(field<Page?>(field<Hud>(activity, "hud"), "page"))
-                        assertFalse("A parked page owns no navigation or input", page.navigationShowing)
+                        assertEquals(View.INVISIBLE, page.visibility)
                     }
                     awaitMenu(activity)
                 }

@@ -343,18 +343,6 @@ abstract class Gdx3DGame(val session: GameSession) : ApplicationAdapter(), Touch
         }
         perf.addSim(System.nanoTime() - sim0)
         renderProbe?.invoke("clear")
-        if (Stage.sceneCovered) {
-            // Keep the same simulation and effect clocks underneath the opaque native page.
-            shakeMag *= (1f - 6.5f * dt).coerceAtLeast(0f)
-            if (flashColor.a > 0.004f) flashColor.a = (flashColor.a - 2.6f * dt).coerceAtLeast(0f)
-            perf.endFrame(shards.count)
-            // An empty EGL frame need not wait for vsync. Pace the hidden simulation instead of
-            // spinning the GL thread and competing with the explorer's UI thread.
-            val interval = 1_000_000_000L / Gdx.graphics.displayMode.refreshRate.coerceAtLeast(60)
-            val remaining = interval - (System.nanoTime() - sim0)
-            if (remaining > 0) java.util.concurrent.locks.LockSupport.parkNanos(remaining)
-            return
-        }
 
         Gdx.gl.glViewport(0, 0, sw, sh)
         Gdx.gl.glClearColor(bgBottom.r, bgBottom.g, bgBottom.b, 1f)
