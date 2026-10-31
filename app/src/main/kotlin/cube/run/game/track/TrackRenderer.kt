@@ -31,7 +31,6 @@ class TrackRenderer(private val game: Gdx3DGame) {
     private val coinFace = Color()
     private val pickupColor = Color()
     private val pickupFace = Color()
-    private val coinShadow = Color(.04f, .03f, .07f, 1f)
     private val coalBody = Color(0.13f, 0.14f, 0.16f, 1f)
     private val coalFacet = Color(0.235f, 0.255f, 0.295f, 1f)
 
@@ -123,10 +122,6 @@ class TrackRenderer(private val game: Gdx3DGame) {
                 if (p <= 0.01f) continue
                 val y = c.y + 0.06f * sin(time * 4f + c.dz * 0.9f)
                 val fog = Fog.at(cz)
-                if (c.y > SHADOW_FROM) { // a coin in the air marks the road under it, so you can see where it hangs
-                    val floor = track.shadowFloor(c.x, cz)
-                    if (floor >= 0f && c.y - floor > SHADOW_FROM) game.worldGround(c.x, floor + .014f, cz, .52f * p, .02f, .52f * p, coinShadow, fog, .45f * alpha)
-                }
                 val yaw = coinYaw + (r.visualPhase + c.dz) * 14f
                 if (coalCoins && c.gem) {
                     pickupColor.set(gem); pickupColor.a = alpha
@@ -271,10 +266,5 @@ class TrackRenderer(private val game: Gdx3DGame) {
         Pickup.MULT -> multCol
         Pickup.JET -> jetCol
         else -> bandCol
-    }
-
-    private companion object {
-        /** Coins this high off their floor (arcs, bounces, jet lines) cast a shadow; ground lines do not. */
-        const val SHADOW_FROM = 0.9f
     }
 }

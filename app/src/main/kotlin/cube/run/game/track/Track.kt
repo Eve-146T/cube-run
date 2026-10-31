@@ -540,23 +540,6 @@ class Track(private val rnd: Random, private val fx: ObstacleFactory) {
         return out
     }
 
-    /**
-     * What a floating coin at [x], world [z], casts its shadow on: the road (0),
-     * a platform's top, or nothing over a pit or a rift (-1).
-     */
-    fun shadowFloor(x: Float, z: Float): Float {
-        var floor = 0f
-        for (row in rows) {
-            if (z > row.z + 2f || z < row.z - 8f) continue
-            for (ob in row.obs) {
-                if (kotlin.math.abs(x - ob.x) > ob.sx / 2f) continue
-                if (ob.pit && ob.type != ObType.DECO && kotlin.math.abs(z - row.z) < ob.sz / 2f) return -1f
-                if (ob.type == ObType.PLAT && z < row.z && z > row.z - ob.sz) floor = max(floor, ob.top)
-            }
-        }
-        return floor
-    }
-
     /** Whether a coin at [x], world [z], is within reach of [ob] along the road and across it. */
     private fun inFootprint(row: Row, ob: Ob, x: Float, z: Float): Boolean {
         if (ob.pit || (ob.type != ObType.SOLID && ob.type != ObType.PLAT)) return false
