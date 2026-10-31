@@ -352,8 +352,8 @@ class MainMenu(
 
     /** Re-read the bank / stock / best (after the shop, the wardrobe, a dev toggle). */
     fun refresh() {
-        kit.labelOf(bank).text = Progress.coins.toString()
-        kit.labelOf(bubbles).text = "×${Progress.bubbles}"
+        kit.labelOf(bank).let { if (it.text.toString() != Progress.coins.toString()) it.text = Progress.coins.toString() }
+        kit.labelOf(bubbles).let { if (it.text.toString() != "×${Progress.bubbles}") it.text = "×${Progress.bubbles}" }
         bubbles.visibility = if (Progress.bubbles > 0) VISIBLE else GONE
         achievements.visibility = if (Progress.achievementsUnlocked) VISIBLE else GONE
     }

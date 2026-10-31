@@ -109,11 +109,25 @@ class AchievementsView(activity: Activity, kit: UiKit, private val preparing: Bo
 
     internal fun prepareContent() {
         if (contentReady) {
-            if (visibility == VISIBLE || cube.run.core.Stage.homeScreen) attachRows()
+            if (visibility == VISIBLE || cube.run.core.Stage.homeScreen || (preparing && canPrepareOffscreen())) attachRows()
         } else if (!preparationQueued) {
             preparationQueued = true
             postOnAnimation(prepareMore)
         }
+    }
+
+    private var paintedRows = 0
+
+    /** Record one card's drawing per frame, rather than the whole collection on menu return. */
+    internal fun preparePainting(): Boolean {
+        if (rows.parent == null || rows.isLayoutRequested) return false
+        if (paintedRows >= rows.childCount) return true
+        rows.getChildAt(paintedRows++).let { row ->
+            row.setLayerType(View.LAYER_TYPE_HARDWARE, null)
+            row.buildLayer()
+            row.setLayerType(View.LAYER_TYPE_NONE, null)
+        }
+        return paintedRows >= rows.childCount
     }
 
     private fun attachRows() {

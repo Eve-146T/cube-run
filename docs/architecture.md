@@ -201,6 +201,20 @@ drop shadows anywhere: the cube, the showcase and the gift box float.
 
 The display font is Fredoka (SIL OFL), bundled in `assets/fonts`.
 
+## Falls
+
+Losing the road in Outer Space (a rift in the glass, or swiping off its edge)
+never explodes: `VoidFall` and `Player.fall` carry the cube's speed over the
+lip and the run ends once it has fallen out of sight. The moment it goes over
+hangs in a short slow-mo. The camera only translates (space's sky is painted
+to the view) and never drops below the road: it lets go of the cube quickly,
+so the cube sails on ahead and drops away beneath the glass road (drawn before
+the glass, offset by the `WorldBend` like everything at its depth). Long boxes
+(a rift's frame) are drawn in short pieces, since the bend moves only vertices.
+Coming up just short of a rift's far lip scrambles onto it
+(`Player.catchLedge`, `RunFx.ledgeCatch`). A tar pit is not a void: touching
+it is an ordinary crash.
+
 ## Portals and bonus worlds
 
 `data.Bonus` lists the bonus worlds and the best score that unlocks each.

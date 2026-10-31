@@ -21,11 +21,11 @@ class DuckArrows {
             val fog = Fog.at(row.z)
             for (ob in row.obs) {
                 if (ob.cue != ObCue.DUCK) continue
-                val w = ob.sx * if (p >= .999f) 1f else (.4f + .6f * p)
-                val h = ob.sy * if (p >= .999f) 1f else p
+                val w = ob.sx
+                val h = ob.sy
                 val count = if (style == ObstacleCueStyle.DUCK_CENTER) 1 else max(1, (ob.sx / 1.6f).toInt())
-                val width = min(.72f * p, w / count * .55f)
-                val height = min(h * .46f, .34f * p)
+                val width = min(.72f, w / count * .55f)
+                val height = min(h * .46f, .34f)
                 val thickness = height * .38f
                 val y = ob.cy + Terrain.y(row.z)
                 val z = row.z + ob.sz / 2f + .025f
@@ -37,32 +37,32 @@ class DuckArrows {
                     bevel.set(ob.col).mul(.55f)
                 }
                 face.lerp(matrixGreen, matrix).lerp(fogColor, fog)
-                face.a = opacity
+                face.a = opacity * p
                 bevel.lerp(matrixGreen, matrix).lerp(fogColor, fog)
-                bevel.a = opacity
+                bevel.a = opacity * p
                 for (i in 0 until count) {
                     val x = ob.x + (i - (count - 1) / 2f) * w / count
                     fun mark(mx: Float, my: Float, mw: Float, mh: Float, thick: Float = mh * .38f) {
-                        chevron(shapes, mx, my - .035f * p, z, mw, mh, thick, bevel)
+                        chevron(shapes, mx, my - .035f, z, mw, mh, thick, bevel)
                         chevron(shapes, mx, my, z + .002f, mw, mh, thick, face)
                     }
                     when (style) {
                         ObstacleCueStyle.DUCK_DOUBLE -> {
-                            val dh = min(h * .27f, .19f * p)
+                            val dh = min(h * .27f, .19f)
                             val spacing = dh * 1.15f
                             mark(x, y + spacing / 2f, width * .84f, dh)
                             mark(x, y - spacing / 2f, width * .84f, dh)
                         }
-                        ObstacleCueStyle.DUCK_CENTER -> mark(x, y, min(w * .62f, 1.35f * p), min(h * .60f, .43f * p))
+                        ObstacleCueStyle.DUCK_CENTER -> mark(x, y, min(w * .62f, 1.35f), min(h * .60f, .43f))
                         ObstacleCueStyle.DUCK_FULL -> {
-                            val ah = min(h * .68f, .49f * p)
-                            arrow(shapes, x, y - .035f * p, z, width * .8f, ah, bevel)
+                            val ah = min(h * .68f, .49f)
+                            arrow(shapes, x, y - .035f, z, width * .8f, ah, bevel)
                             arrow(shapes, x, y, z + .002f, width * .8f, ah, face)
                         }
                         ObstacleCueStyle.DUCK_TIPS -> {
-                            val th = min(h * .39f, .28f * p)
-                            val ty = y - h / 2f + th / 2f + .045f * p
-                            tip(shapes, x, ty - .025f * p, z, width * .62f, th, bevel)
+                            val th = min(h * .39f, .28f)
+                            val ty = y - h / 2f + th / 2f + .045f
+                            tip(shapes, x, ty - .025f, z, width * .62f, th, bevel)
                             tip(shapes, x, ty, z + .002f, width * .62f, th, face)
                         }
                         else -> mark(x, y, width, height, thickness)

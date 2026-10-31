@@ -236,17 +236,22 @@ class Scenery(private val game: Gdx3DGame, private val rnd: Random) {
             // the three core lanes, then the two outer ones growing out from the edges as the road unfolds
             if (sp > 0f) { // in space the road turns to glass: stars, rocks and planets show through beneath you
                 val alpha = 1f - GLASS * sp
-                // the tile, minus any rift crossing it: the gap stays open to space
+                // each lane of the tile, minus any hole crossing it: the void stays open to space
                 val rifts = space!!.rifts
-                var top = t.z + tileD / 2f
-                val bottom = t.z - tileD / 2f
-                for (i in 0 until rifts.count) {
-                    val hn = rifts.near(i); val hf = rifts.far(i)
-                    if (hf >= top || hn <= bottom) continue
-                    if (hn < top) glassPiece(hn, top, w, t.parity, c1, c2, fog, alpha * a)
-                    top = min(top, hf)
+                for (l in 0 until 3) {
+                    val x = (l - 1) * w
+                    val c = if ((l + 1 + t.parity) % 2 == 0) c1 else c2
+                    var top = t.z + tileD / 2f
+                    val bottom = t.z - tileD / 2f
+                    for (i in 0 until rifts.count) {
+                        if (!rifts.covers(i, x)) continue
+                        val hn = rifts.near(i); val hf = rifts.far(i)
+                        if (hf >= top || hn <= bottom) continue
+                        if (hn < top) glassLane(x, hn, top, w, c, fog, alpha * a)
+                        top = min(top, hf)
+                    }
+                    if (top > bottom) glassLane(x, bottom, top, w, c, fog, alpha * a)
                 }
-                if (top > bottom) glassPiece(bottom, top, w, t.parity, c1, c2, fog, alpha * a)
             } else for (l in 0 until 3) game.worldGround((l - 1) * w, -0.14f, t.z, w, 0.26f, tileD, if ((l + 1 + t.parity) % 2 == 0) c1 else c2, fog, a)
             if (u > 0.01f) {
                 val ow = w * u
@@ -284,11 +289,10 @@ class Scenery(private val game: Gdx3DGame, private val rnd: Random) {
         }
     }
 
-    /** One stretch of glass road, from [far] to [near], three lanes wide. */
-    private fun glassPiece(far: Float, near: Float, w: Float, parity: Int, c1: Color, c2: Color, fog: Float, alpha: Float) {
-        val len = near - far
-        if (len < 0.02f) return
-        for (l in 0 until 3) game.glassGround((l - 1) * w, -0.04f, (near + far) / 2f, w, 0.06f, len, if ((l + 1 + parity) % 2 == 0) c1 else c2, fog, alpha)
+    /** One lane's stretch of glass road, from [far] to [near], centred on [x]. */
+    private fun glassLane(x: Float, far: Float, near: Float, w: Float, col: Color, fog: Float, alpha: Float) {
+        if (near - far < 0.02f) return
+        game.glassGround(x, -0.04f, (near + far) / 2f, w, 0.06f, near - far, col, fog, alpha)
     }
 
     /** Everything beside and above the road: the roadside, the gates, the wind. [wind] 0..1 = how vivid the speed streaks are. */

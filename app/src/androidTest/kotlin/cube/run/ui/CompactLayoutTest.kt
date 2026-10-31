@@ -309,36 +309,3 @@ class CompactLayoutTest {
         } }
     }
 }
-
-/** Opt-in screenshots use real attached Android views and the current save. */
-class CompactLayoutCaptureTest {
-    @Test fun captureCompactScreens() {
-        val instrumentation = androidx.test.platform.app.InstrumentationRegistry.getInstrumentation()
-        org.junit.Assume.assumeTrue(androidx.test.platform.app.InstrumentationRegistry.getArguments().getString("captureCompact") == "true")
-        ActivityScenario.launch(GameActivity::class.java).use { scenario ->
-            android.os.SystemClock.sleep(1800)
-            var previous: View? = null
-            fun show(label: String, create: (GameActivity, UiKit) -> View) {
-                scenario.onActivity { activity ->
-                    val root = activity.findViewById<ViewGroup>(android.R.id.content)
-                    previous?.let { root.removeView(it) }
-                    previous = create(activity, UiKit(activity)).also { root.addView(it, ViewGroup.LayoutParams(-1, -1)) }
-                }
-                android.os.SystemClock.sleep(1200)
-                val bitmap = instrumentation.uiAutomation.takeScreenshot()
-                val file = java.io.File(instrumentation.targetContext.getExternalFilesDir(null), "compact-review/$label.png")
-                file.parentFile!!.mkdirs()
-                file.outputStream().use { bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it) }
-                bitmap.recycle()
-            }
-            show("results") { activity, kit -> RunOverFlow(activity, kit, 1234, 1234, true, 99, 0, "", emptyList(), {}, {}) }
-            show("achievements") { activity, kit -> AchievementsView(activity, kit, onClose = {}) }
-            show("pause") { activity, kit -> PauseSheet(activity, kit, {}, {}, {}) }
-            show("box") { activity, kit -> boxPage(RunOverFlow(activity, kit, 0, 0, false, 0, 2, "", emptyList(), {}, {})) }
-            show("reward") { activity, kit -> boxPage(RunOverFlow(activity, kit, 0, 0, false, 0, 2, "", emptyList(), {}, {})).apply {
-                postDelayed({ onBoxOpened(cube.run.data.Progress.BoxReward.COINS, 250, 0, 0) }, 300)
-            } }
-            scenario.onActivity { activity -> previous?.let { activity.findViewById<ViewGroup>(android.R.id.content).removeView(it) } }
-        }
-    }
-}

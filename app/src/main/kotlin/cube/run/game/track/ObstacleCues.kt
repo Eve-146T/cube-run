@@ -28,18 +28,18 @@ class ObstacleCues(private val game: Gdx3DGame) {
 
     fun render(ob: Ob, z: Float, fog: Float, p: Float) {
         if (style == ObstacleCueStyle.ORIGINAL || style.duckOnly || ob.cue == ObCue.NONE || p <= .001f) return
-        val w = ob.sx * if (p >= .999f) 1f else (.4f + .6f * p)
-        val h = ob.sy * if (p >= .999f) 1f else p
-        val cy = if (ob.grounded) ob.bottom + h / 2f else ob.cy
+        val w = ob.sx
+        val h = ob.sy
+        val cy = ob.cy
         val down = ob.cue == ObCue.DUCK
         // Match the body's terrain sample, even though decals sit just ahead of its face.
         val face = z + ob.sz / 2f + .014f
         val terrain = Terrain.y(z) - Terrain.y(face)
         fun faceBox(x: Float, y: Float, sx: Float, sy: Float, col: Color, depth: Float = .028f) {
-            game.worldBox(x, y + terrain, face, sx, sy, depth, col, fog)
+            game.worldBox(x, y + terrain, face, sx, sy, depth, col, fog, p)
         }
         fun band(hazard: Boolean) {
-            val bh = min(.15f * p, h * .28f)
+            val bh = min(.15f, h * .28f)
             val y = cy + (if (down) 1f else -1f) * (h / 2f - bh * .7f)
             faceBox(ob.x, y, w + .014f, bh * 1.65f, ink)
             faceBox(ob.x, y, w, bh, if (hazard) yellow else white, .044f)
@@ -51,7 +51,7 @@ class ObstacleCues(private val game: Gdx3DGame) {
         }
         fun arrows() {
             val count = max(1, (ob.sx / 1.6f).toInt())
-            val size = min(h * .8f, .55f * p)
+            val size = min(h * .8f, .55f)
             val unit = size / 5f
             for (i in 0 until count) {
                 val x = ob.x + (i - (count - 1) / 2f) * (w / count)
@@ -72,7 +72,7 @@ class ObstacleCues(private val game: Gdx3DGame) {
             ObstacleCueStyle.ACTION_COLORS -> arrows()
             ObstacleCueStyle.SHADOW_ARROWS -> {
                 arrows()
-                if (down) game.worldGround(ob.x, .018f, z, w, .024f, ob.sz * 1.4f, shadow, fog)
+                if (down) game.worldGround(ob.x, .018f, z, w, .024f, ob.sz * 1.4f, shadow, fog, p)
             }
             else -> Unit // Original and duck-only treatments do not add box decorations.
         }

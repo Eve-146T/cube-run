@@ -122,6 +122,11 @@ class Track(private val rnd: Random, private val fx: ObstacleFactory) {
         private val COMET_WEAVE = intArrayOf(1, 1, 2, 2, 1, 1, 0, 0)
         /** Coins this close to a pickup along the road are left out (lines are laid 1.5–1.7 apart). */
         const val PICKUP_AIR = 1.8f
+        /** A coin's reach for obstacle clearance (its face is a little larger; edges may touch). */
+        const val COIN_R = 0.3f
+        /** How high a piston pumps and a stomper's block reaches over its cycle (see [scroll]). */
+        const val PISTON_TOP = 0.66f
+        const val STOMP_TOP = 0.03f + 1.75f + 1f
     }
 
     /** Start a run: wipe the walk and prefill the track. */
@@ -143,6 +148,7 @@ class Track(private val rnd: Random, private val fx: ObstacleFactory) {
         var zLast = z
         while (z > spawnZ) {
             if (pendingSteps.isEmpty()) loadNextSection()
+            if (bonus == Bonus.SPACE && Step.isVoidSlice(pendingSteps.first()) && prevKind != pendingSteps.first()) lengthenVoid()
             spawnStep(pendingSteps.removeFirst(), z, hue)
             zLast = z
             if (pendingSteps.isEmpty()) loadNextSection()
@@ -168,10 +174,19 @@ class Track(private val rnd: Random, private val fx: ObstacleFactory) {
             val gap = gapFor(code)
             if (spawnAcc >= gap) {
                 spawnAcc -= gap
+                if (bonus == Bonus.SPACE && Step.isVoidSlice(code) && prevKind != code) lengthenVoid()
                 spawnStep(code, spawnZ, hue)
                 pendingSteps.removeFirst()
             } else break
         }
+    }
+
+    /** A void is beginning in space: give it as many slices as its length at this speed needs (see SpaceSpacing.riftSlices). */
+    private fun lengthenVoid() {
+        val code = pendingSteps.first()
+        var run = 0
+        for (c in pendingSteps) if (c == code) run++ else break
+        repeat(SpaceSpacing.riftSlices(speed) - run) { pendingSteps.addFirst(code) }
     }
 
     /** Move every row toward the player, stream it in, advance the animated obstacles, drop rows that passed. */
@@ -182,17 +197,12 @@ class Track(private val rnd: Random, private val fx: ObstacleFactory) {
             val row = rows[i]
             row.alignLaneSpacing(Lanes.w)
             row.z += mv
-            if (row.popStart < 0f) { if (row.z > Row.POP_Z) row.popStart = time }
-            if (row.popStart >= 0f && row.pop < 1f) { // spring in with a little overshoot
-                val t = ((time - row.popStart) / 0.42f).coerceIn(0f, 1f)
-                val k = 1f - t
-                row.pop = if (t >= 1f) 1f else 1f - k * k * kotlin.math.cos(t * 5.2f)
-            }
+            row.pop = cube.run.game.world.Fog.appear(row.z) // whole-sized from the start, fading in out of the haze
             for (ob in row.obs) {
                 if (ob.sliding && row.z > -26f) ob.x += (ob.slideTo - ob.x) * min(1f, dt * ob.slideRate)
                 when (ob.anim) {
                     ObAnim.PISTON -> { // sin > 0: up out of the floor (a wall); sin ≤ 0: sunk (run over it)
-                        val h = 0.66f * sin(time * 3.4f + ob.phase)
+                        val h = PISTON_TOP * sin(time * 3.4f + ob.phase)
                         ob.sy = max(0f, h)
                         ob.cy = ob.sy / 2f
                     }
@@ -381,6 +391,7 @@ class Track(private val rnd: Random, private val fx: ObstacleFactory) {
             layPickup(row, code)
             rows.add(row)
             clearAroundPickups()
+            clearCoinsInObstacles()
             rowsSpawned++; rowsSincePickup++
             bonusRowsLeft--
             prevKind = code
@@ -463,8 +474,8 @@ class Track(private val rnd: Random, private val fx: ObstacleFactory) {
         val row = Row(z, obs)
         row.safeLane = curSafe
         row.needsLaunch = Step.isTall(code)
-        // A rift's later slices continue the chasm: one hazard, one row of the stretch, one point.
-        val continued = code == Step.RF && prevKind == Step.RF
+        // A void's later slices continue it: one hazard, one row of the stretch, one point.
+        val continued = Step.isVoidSlice(code) && prevKind == code
         row.scoreless = continued
         layCoins(row, code, platLane, continued)
         layPickup(row, code)
@@ -472,6 +483,7 @@ class Track(private val rnd: Random, private val fx: ObstacleFactory) {
         prevPlatLane = platLane
         rows.add(row)
         clearAroundPickups()
+        clearCoinsInObstacles()
         rowsSpawned++
         rowsSincePickup++
         rowsSincePortal++
@@ -496,6 +508,49 @@ class Track(private val rnd: Random, private val fx: ObstacleFactory) {
                 val r = rows[j]
                 r.coins?.removeAll { kotlin.math.abs(r.z + it.dz - pz) < PICKUP_AIR && kotlin.math.abs(it.x - p.pickupX) < reachX }
             }
+        }
+    }
+
+    /** A coin laid inside an obstacle (or where a moving one will pass through it) is left out. */
+    private fun clearCoinsInObstacles() {
+        for (i in max(0, rows.size - 3) until rows.size) {
+            val r = rows[i]
+            r.coins?.removeAll { coinClearY(it.x, it.y, r.z + it.dz) != it.y }
+        }
+    }
+
+    /**
+     * The nearest height to [y] where a coin at [x] and world [z] is clear of every
+     * obstacle: [y] itself when nothing is there, else just over the obstacle (or
+     * under an overhead bar, if that is nearer). A moving obstacle counts
+     * everywhere it moves. Magnet-pulled coins hop over walls with it.
+     */
+    fun coinClearY(x: Float, y: Float, z: Float): Float {
+        var out = y
+        for (row in rows) {
+            if (z > row.z + 2f || z < row.z - 8f) continue // a platform reaches its length back from its front
+            for (ob in row.obs) {
+                if (!inFootprint(row, ob, x, z)) continue
+                val lo = if (ob.anim == ObAnim.PISTON || ob.anim == ObAnim.STOMP || ob.type == ObType.PLAT) 0f else ob.bottom
+                val hi = when (ob.anim) { ObAnim.PISTON -> PISTON_TOP; ObAnim.STOMP -> STOMP_TOP; else -> ob.top }
+                if (out - COIN_R >= hi || out + COIN_R <= lo) continue
+                out = if (lo > COIN_R * 2f && out < (lo + hi) / 2f) lo - COIN_R else hi + COIN_R
+            }
+        }
+        return out
+    }
+
+    /** Whether a coin at [x], world [z], is within reach of [ob] along the road and across it. */
+    private fun inFootprint(row: Row, ob: Ob, x: Float, z: Float): Boolean {
+        if (ob.pit || (ob.type != ObType.SOLID && ob.type != ObType.PLAT)) return false
+        val along = if (ob.type == ObType.PLAT) z < row.z + COIN_R && z > row.z - ob.sz - COIN_R
+            else kotlin.math.abs(z - row.z) < ob.sz / 2f + COIN_R
+        if (!along) return false
+        val reach = ob.sx / 2f + COIN_R
+        return when {
+            ob.anim == ObAnim.SWEEP || ob.anim == ObAnim.PENDULUM -> true // they swing across the whole road
+            ob.sliding -> x > min(ob.x, ob.slideTo) - reach && x < max(ob.x, ob.slideTo) + reach
+            else -> kotlin.math.abs(x - ob.x) < reach
         }
     }
 

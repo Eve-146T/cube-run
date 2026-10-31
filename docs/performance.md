@@ -37,5 +37,7 @@ Compare before and after on the same phone, battery level and temperature, and d
 - Results keep the score's horizontal constraint fixed while it counts. Hidden menu preparation waits until the main menu: building shop and collection trees during results competes with the count and record celebration.
 - The shop holds its decorative card animation while its panel slides, then resumes it after navigation.
 - Hidden achievements build and measure their cards in a detached column, then attach it together on the main menu or when achievements opens. Preparation pauses for runs and overlay sheets; incremental additions must never remeasure an unrelated visible screen.
+- The section explorer keeps both groupings built: switching shows the other column and folding hides rows, so neither rebuilds or re-measures cards. Hidden preparation builds and measures a row per batch, then records a few rows' drawing per frame; a row's size depends only on its width, so the column's changing height hint does not re-measure its cards. Only rows on screen run entrance animations. Settings hands directly to the explorer without resuming the menu between them.
+- Hidden achievements record one card's drawing per frame before painting the page, so returning from another screen cannot trigger a whole collection's first drawing at once.
 - Vibration runs on its own worker with a bounded queue, so a burst of coin ticks can't pile up behind an impact.
 - Sound must never stutter the frame: frequent sounds are short, pre-synthesized and loaded once.

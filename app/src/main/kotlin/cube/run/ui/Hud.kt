@@ -99,7 +99,7 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false, retu
     private val cacheChanges = SharedPreferences.OnSharedPreferenceChangeListener { _, _ -> scheduleShopPreparation() }
     private val preparePages = object : Runnable {
         override fun run() {
-            if (!isAttachedToWindow || page != null || languageSheet != null || updateNotes != null || runStarted || runOver != null) return
+            if (!isAttachedToWindow || (page != null && page !is SettingsView) || languageSheet != null || updateNotes != null || runStarted || runOver != null) return
             if (afterUpdateNotesEntrance(this)) return
             if (width == 0 || height == 0) { postOnAnimation(this); return }
             for (name in listOf("settings", "sections", "achievements", "wardrobe")) {
@@ -117,12 +117,20 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false, retu
                 }
                 (old.view as? AchievementsView)?.prepareContent()
                 if (!old.painted && !old.view.isLayoutRequested && old.view.width > 0 && old.view.height > 0 &&
-                    (old.view !is AchievementsView || old.view.contentReady)) {
+                    (old.view !is AchievementsView || old.view.contentReady) &&
+                    (old.view !is SectionsView || old.view.contentReady)) {
+                    if (old.view is AchievementsView && !old.view.preparePainting()) {
+                        postOnAnimation(this)
+                        return
+                    }
+                    if (old.view is SectionsView && !old.view.preparePainting()) { postOnAnimation(this); return }
                     // Interactive settings redraw small controls, not a full-screen texture.
                     if (old.view is SettingsView) old.view.warmControls()
                     else {
                         old.view.setLayerType(View.LAYER_TYPE_HARDWARE, null)
                         old.view.buildLayer()
+                        // Warm the explorer's drawing once; scrolling and folding reuse it.
+                        if (old.view is SectionsView) old.view.setLayerType(View.LAYER_TYPE_NONE, null)
                     }
                     old.painted = true
                     postOnAnimation(this)
@@ -316,7 +324,7 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false, retu
         // Settings refreshes its live values on show. Gameplay and slider changes
         // must never discard its controls or the already-laid-out language menu.
         "settings" -> emptyList()
-        "sections" -> listOf(Settings.testSection, Settings.testPillWorld, Settings.testSpaceWorld, Settings.performanceCourse)
+        "sections" -> emptyList()
         "wardrobe" -> listOf(Progress.coalAlchemyRevealed, Progress.coins, Progress.skin, Progress.bubbleSkin, Progress.trail,
             Progress.ownedSkins, Progress.ownedBubbleSkins, Progress.ownedTrails, (0..2).map(Progress::shards), Progress.voidPurchases)
         else -> listOf(
@@ -524,7 +532,9 @@ class Hud(private val activity: Activity, openingEntrance: Boolean = false, retu
 
     /** Debug: the section explorer replaces the settings page (its Back returns to the menu). */
     private fun openSectionsFromSettings() {
-        (page as? SettingsView)?.close()
+        // Both pages are cached. Replace Settings directly so the menu and its GL scene
+        // are never resumed and hidden again in the same tap handler.
+        (page as? SettingsView)?.let { it.visibility = INVISIBLE; page = null }
         openCached("sections")
     }
     private fun openAchievements() {

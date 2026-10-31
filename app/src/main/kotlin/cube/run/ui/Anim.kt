@@ -101,10 +101,10 @@ object Anim {
     }
 
     /** Slide up into place + fade in (no overshoot: translations never leave their parent's clip). */
-    fun riseIn(v: View, delay: Long = 0, distancePx: Float, duration: Long = 300) {
+    fun riseIn(v: View, delay: Long = 0, distancePx: Float, duration: Long = 300, layoutOnEnd: Boolean = true) {
         reset(v)
         v.alpha = 0f; v.translationY = distancePx
-        v.move().alpha(1f).translationY(0f).setStartDelay(delay).setDuration(duration).setInterpolator(ease).withEndAction { settle(v) }.start()
+        v.move().alpha(1f).translationY(0f).setStartDelay(delay).setDuration(duration).setInterpolator(ease).withEndAction { if (layoutOnEnd) settle(v) else repaint(v) }.start()
     }
 
     /** Slide in from the side + fade in. */

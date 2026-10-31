@@ -166,6 +166,12 @@ abstract class Gdx3DGame(val session: GameSession) : ApplicationAdapter(), Touch
     /** Blended extras drawn after the ModelBatch pass (the bubble): depth-tested, not written. */
     open fun renderBlended() {}
 
+    /** True on frames with a model below the glass road: [renderBeneathGlass] then draws it before the glass. */
+    open fun beneathGlass(): Boolean = false
+
+    /** Models that must show through the glass road (a cube falling beneath it). Drawn before the glass pass. */
+    open fun renderBeneathGlass(batch: ModelBatch, env: Environment) {}
+
     /**
      * Fill the world-box batch: called once per frame, before the ModelBatch pass.
      * Queue boxes with [worldBox] / [worldBoxSpin]; anything needing rotation,
@@ -399,6 +405,7 @@ abstract class Gdx3DGame(val session: GameSession) : ApplicationAdapter(), Touch
         facetBatch.render(cam)
         renderProbe?.invoke("fade")
         fading.render(cam)          // the far end of the world, coming into view over what lies behind it
+        if (beneathGlass()) { batch.begin(cam); renderBeneathGlass(batch, env); batch.end() }
         glass.render(cam)           // after everything it may show through
         renderProbe?.invoke("shapes")
         // unlit blended shapes in the world (sunbursts): behind whatever the ModelBatch draws next
