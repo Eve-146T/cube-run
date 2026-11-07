@@ -1,4 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string-array name="update_notes" />
+    <string-array name="update_notes">
+        <item>news | סינית! | ‏Cube Run מדברת עכשיו סינית. בחרו בהגדרות.</item>
+    </string-array>
 </resources>

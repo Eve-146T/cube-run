@@ -11,7 +11,7 @@ class UpdateNotesTest {
     private val prefs = context.getSharedPreferences("update_notes", Context.MODE_PRIVATE)
 
     @Test fun everyShippedLineParsesInEveryLanguage() {
-        for (language in listOf("en", "de", "iw")) {
+        for (language in listOf("en", "de", "iw", "zh")) {
             val config = android.content.res.Configuration(context.resources.configuration).apply { setLocale(java.util.Locale.forLanguageTag(language)) }
             val localized = context.createConfigurationContext(config)
             val lines = localized.resources.getStringArray(cube.run.R.array.update_notes)
