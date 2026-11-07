@@ -3,6 +3,7 @@
 English is the fallback catalog in `app/src/main/res/values/strings.xml` and
 `language.xml`. German lives in `values-de`; Hebrew uses Android's compatible
 `values-iw` resource qualifier and the modern `he` language code in the picker.
+Simplified Chinese lives in `values-zh`.
 The first launch chooses a supported device language, falling back to English.
 The English option is displayed as American with a US flag and uses `en-US`.
 An explicit selection is saved in settings and takes precedence on later launches.
@@ -34,5 +35,6 @@ translations together. Never store translated text as an identifier.
 Use start/end layout spacing and `UiKit.tracking` for text letter spacing.
 Menus mirror in Hebrew, while the 3D game and lane gestures retain their physical
 directions. Numeric-only text uses left-to-right ordering. The bundled Fredoka
-font includes Hebrew glyphs. All languages ship offline, including App Bundle
-installs (`bundle.language.enableSplit = false`).
+font includes Hebrew glyphs; Chinese has none in it and renders through
+Android's per-glyph system font fallback. All languages ship offline, including
+App Bundle installs (`bundle.language.enableSplit = false`).

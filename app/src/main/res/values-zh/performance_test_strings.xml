@@ -1,0 +1,5 @@
+<resources>
+    <string name="performance_test_title">性能测试</string>
+    <string name="performance_test_start">密集金币赛道</string>
+    <string name="performance_test_description">密集金币 · 固定世界 · 全特效</string>
+</resources>

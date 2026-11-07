@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="settings_title">设置</string>
+    <string name="settings_language">语言</string>
+    <string name="settings_codes">兑换码</string>
+    <string name="codes_enter">输入兑换码</string>
+    <string name="codes_redeem">兑换</string>
+    <string name="codes_coins">已向你的账户添加 %1$d 金币。\n余额：%2$d 金币。</string>
+    <string name="codes_unlocked">已解锁：%1$s</string>
+    <string name="codes_invalid">兑换码不存在。</string>
+    <string name="codes_used">兑换码已被使用。</string>
+    <string name="codes_retry">兑换失败，请重试。</string>
+    <string name="settings_volume">音量</string>
+    <string name="settings_start_speed">起步速度</string>
+    <string name="settings_coins">静音金币</string>
+    <string name="settings_multiswipe">连续滑动</string>
+    <string name="codes_redeeming">兑换中…</string>
+</resources>

@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ability_coal_alchemy">秘密能力：高压成金</string>
+    <string name="ability_coal_alchemy_detail">得分超过 1000 后，煤块开始变成价值 3 金币的宝石。到 3000 分时，所有煤块都是宝石！</string>
+</resources>

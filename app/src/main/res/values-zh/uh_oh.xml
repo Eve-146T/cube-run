@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="uhoh_title">哎呀！</string>
+    <string name="uhoh_body">Cube Run 崩溃了，好可惜。</string>
+    <string name="uhoh_copy">复制崩溃日志</string>
+    <string name="uhoh_copied">已复制！</string>
+    <string name="uhoh_play">再来一局</string>
+    <string name="uhoh_report">报告问题：</string>
+</resources>

@@ -14,6 +14,7 @@ object Languages {
         Option("en", "American", R.string.country_us, R.drawable.flag_us),
         Option("de", "Deutsch", R.string.country_germany, R.drawable.flag_de),
         Option("he", "עברית", R.string.country_israel, R.drawable.flag_il),
+        Option("zh", "中文", R.string.country_china, R.drawable.flag_cn),
     )
 
     private fun normalize(code: String) = if (code == "iw") "he" else code

@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string-array name="update_notes">
+        <item>news | 中文！ | Cube Run 现在支持中文了。到「设置」→「语言」里选它。</item>
+    </string-array>
+</resources>

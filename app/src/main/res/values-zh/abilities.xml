@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="game_gambler">赌徒</string><string name="game_cloud">云朵</string><string name="game_black_void">暗黑虚空</string><string name="game_event_horizon">事件视界</string><string name="game_afterimage">残影</string>
+    <string name="ability_phase_detail">每次奔跑可穿过一个障碍物！</string>
+    <string name="ability_speed_detail" formatted="false">方块速度提升 30%！</string>
+    <string name="ability_bubble_saver_detail" formatted="false">35% 概率在使用泡泡后保留它！</string>
+    <string name="ability_midas">点金小趾</string><string name="ability_midas_detail" formatted="false">收集的金币价值提升 20%！</string>
+    <string name="ability_zappy">闪现方块</string><string name="ability_zappy_detail">在车道之间瞬间移动！</string>
+    <string name="ability_power_stretch">强化延展</string><string name="ability_power_stretch_detail" formatted="false">强化道具持续时间延长 25%！</string>
+    <string name="ability_quick_bubble">快速泡泡</string><string name="ability_quick_bubble_detail" formatted="false">提前 30% 使用下一个泡泡！</string>
+    <string name="ability_coal_detail">把所有金币变成煤块。煤块一文不值。</string>
+    <string name="ability_lottery">彩票</string><string name="ability_lottery_detail">你收集的所有金币和神秘盒都会投入彩票。</string>
+    <string name="ability_floaty">轻飘飘</string><string name="ability_floaty_detail">方块变得轻飘飘！</string>
+    <string name="ability_double_jump">二段跳</string><string name="ability_double_jump_detail">泡泡生效期间可以跳两次！</string>
+    <string name="ability_long_bubble">长效泡泡</string><string name="ability_long_bubble_detail" formatted="false">泡泡持续时间延长 30%！</string>
+    <string name="lottery_explanation">你收集的所有金币和神秘盒都会投入彩票！\n\n头奖为 250000%1$s，中奖概率如下：</string>
+    <string name="lottery_one_in">十万分之一</string><string name="lottery_per_coin">每 1 金币价值</string><string name="lottery_per_box">每个神秘盒</string>
+    <string name="game_zen">禅</string><string name="ability_zen">禅</string><string name="ability_zen_detail">障碍物烟消云散。只有“僧侣”挑战会推进。安心滚动吧。</string>
+    <string name="ability_calm">平静</string><string name="ability_calm_detail">一层轻柔薄雾笼罩世界，色彩归于沉静。</string>
+    <string name="ability_smol">迷你方块</string>
+    <string name="ability_smol_detail">小到不用下蹲就能从横杆下滚过！</string>
+    <string name="ability_bubble_score">双重得分</string><string name="ability_bubble_score_detail">泡泡生效期间得分速度翻倍！</string>
+    <string name="ability_pound_magnet">重踩磁铁</string><string name="ability_pound_magnet_detail">泡泡生效期间，重踩落地会吸来附近金币！</string>
+    <string name="ability_bubble_slowmo">慢动作</string><string name="ability_bubble_slowmo_detail">泡泡生效期间，全世界慢下来！</string>
+</resources>

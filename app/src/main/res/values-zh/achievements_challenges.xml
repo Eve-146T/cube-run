@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Challenges from issue #73 and after: one per cube, and two for strong runs. -->
+<resources>
+    <string name="achievement_icarus">伊卡洛斯</string>
+    <string name="achievement_poltergeist">吵闹鬼</string>
+    <string name="achievement_juggernaut">重型战车</string>
+    <string name="achievement_full_throttle">全速前进</string>
+    <string name="achievement_goal_icarus">使用剧毒方块背着喷气背包飞行时，被绿色金币终结。</string>
+    <string name="achievement_goal_poltergeist">用幽灵方块穿过 100 个障碍物。</string>
+    <string name="achievement_goal_juggernaut">单次奔跑中用泡泡撞碎 300 个障碍物。</string>
+    <string name="achievement_goal_full_throttle">以全部 10 个加速起步，并在一次奔跑中达到 1500 分。</string>
+    <string name="achievement_sky_sweeper">清空长空</string>
+    <string name="achievement_goal_sky_sweeper">一次喷气背包飞行中收走所有金币（不含降落段）。</string>
+</resources>
