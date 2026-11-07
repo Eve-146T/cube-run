@@ -5,6 +5,7 @@
     <string name="language_option">%1$s, %2$s</string>
     <string name="country_us">ארצות הברית</string>
     <string name="country_germany">גרמניה</string>
+    <string name="country_china">סין</string>
     <string name="country_israel">ישראל</string>
     <string name="tap_to_start">הקשה להתחלה</string>
 </resources>

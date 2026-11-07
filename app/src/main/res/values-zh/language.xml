@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="languages_title">语言</string>
+    <string name="cd_languages">选择语言</string>
+    <string name="language_option">%1$s，%2$s</string>
+    <string name="country_us">美国</string>
+    <string name="country_germany">德国</string>
+    <string name="country_israel">以色列</string>
+    <string name="country_china">中国</string>
+    <string name="tap_to_start">点击开始</string>
+</resources>

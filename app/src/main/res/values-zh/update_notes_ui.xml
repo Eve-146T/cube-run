@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The "In this update" card's own words; the notes themselves are in update_notes.xml. -->
+<resources>
+    <string name="update_notes_title">本次更新</string>
+    <string name="update_notes_version">版本 %1$s</string>
+    <string name="update_notes_done">出发！</string>
+    <!-- Always the last item: never rewritten, never listed one by one. -->
+    <string name="update_notes_usual_title">以及例行更新</string>
+    <string name="update_notes_usual_text">平衡性调整、问题修复、更多性能优化，以及界面的小幅调整。</string>
+</resources>
