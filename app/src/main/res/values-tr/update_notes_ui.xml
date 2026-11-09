@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="update_notes_title">Bu güncellemedeki yenilikler</string>
+    <string name="update_notes_version">Sürüm %1$s</string>
+    <string name="update_notes_done">BAŞLAYALIM</string>
+    <!-- Always the last item: never rewritten, never listed one by one. -->
+    <string name="update_notes_usual_title">Ve her zamanki gibi</string>
+    <string name="update_notes_usual_text">Denge değişiklikleri, hata düzeltmeleri, daha da fazla performans ve arayüzde düzenlemeler.</string>
+</resources>

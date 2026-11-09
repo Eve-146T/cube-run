@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="uhoh_title">Eyvah!</string>
+    <string name="uhoh_body">Cube Run çöktü. Bu üzücü.</string>
+    <string name="uhoh_copy">Çökme raporunu kopyala</string>
+    <string name="uhoh_copied">Kopyalandı!</string>
+    <string name="uhoh_play">Tekrar oyna</string>
+    <string name="uhoh_report">Hatayı bildir:</string>
+</resources>

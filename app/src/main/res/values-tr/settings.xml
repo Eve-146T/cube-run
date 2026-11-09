@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="settings_title">Ayarlar</string>
+    <string name="settings_language">Dil</string>
+    <string name="settings_codes">Kodlar</string>
+    <string name="codes_enter">Kod gir</string>
+    <string name="codes_redeem">Kullan</string>
+    <string name="codes_coins">%1$d para hesaba eklendi.\nBakiye: %2$d para.</string>
+    <string name="codes_unlocked">Açıldı: %1$s</string>
+    <string name="codes_invalid">Kod bulunamadı.</string>
+    <string name="codes_used">Kod zaten kullanılmış.</string>
+    <string name="codes_retry">Kullanma başarısız. Tekrar dene.</string>
+    <string name="settings_volume">Ses düzeyi</string>
+    <string name="settings_start_speed">Başlangıç hızı</string>
+    <string name="settings_coins">Sessiz paralar</string>
+    <string name="settings_multiswipe">Çoklu kaydırma</string>
+    <string name="codes_redeeming">Kullanılıyor…</string>
+</resources>
