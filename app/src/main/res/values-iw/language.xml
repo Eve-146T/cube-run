@@ -3,6 +3,7 @@
     <string name="languages_title">שפות</string>
     <string name="cd_languages">בחירת שפה</string>
     <string name="language_option">%1$s, %2$s</string>
+    <string name="country_turkiye">טורקיה</string>
     <string name="country_us">ארצות הברית</string>
     <string name="country_germany">גרמניה</string>
     <string name="country_israel">ישראל</string>
