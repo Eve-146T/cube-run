@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="achievement_icarus">İkarus</string>
+    <string name="achievement_poltergeist">Poltergeist</string>
+    <string name="achievement_juggernaut">Buldozer</string>
+    <string name="achievement_full_throttle">Tam Gaz</string>
+    <string name="achievement_goal_icarus">Jetpack uçuşunda Zehir Küpü olarak yeşil bir paraya çarparak öl.</string>
+    <string name="achievement_goal_poltergeist">Hayalet küpüyle 100 engelin içinden geç.</string>
+    <string name="achievement_goal_juggernaut">Bir koşuda baloncuklarla 300 engeli parçala.</string>
+    <string name="achievement_goal_full_throttle">Tüm 10 güçlendirmeyle bir koşuda 1500 puana ulaş.</string>
+    <string name="achievement_sky_sweeper">Gökyüzü Süpürücüsü</string>
+    <string name="achievement_goal_sky_sweeper">Bir Jetpack uçuşunda iniş hariç her parayı topla.</string>
+</resources>

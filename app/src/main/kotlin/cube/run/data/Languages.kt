@@ -11,6 +11,7 @@ object Languages {
     data class Option(val code: String, val nativeName: String, val country: Int, val flag: Int)
 
     val options = listOf(
+        Option("tr", "Türkçe", R.string.country_turkiye, R.drawable.flag_tr),
         Option("en", "American", R.string.country_us, R.drawable.flag_us),
         Option("de", "Deutsch", R.string.country_germany, R.drawable.flag_de),
         Option("he", "עברית", R.string.country_israel, R.drawable.flag_il),

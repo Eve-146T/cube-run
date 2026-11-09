@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="cd_jackpot_win">Jackpot. %1$s para.</string>
+    <string name="cd_show_unknown_ability">Bilinmeyen yeteneği göster</string>
+    <string name="cd_hide_unknown_ability">Bilinmeyen yeteneği gizle</string>
+    <string name="cd_void_stirs">Boşluk kıpırdanıyor</string>
+    <string name="cd_challenge_complete">Meydan okuma tamamlandı</string>
+    <string name="achievement_runner">İyi Koşucu</string>
+    <string name="achievement_coins">Ömürlük Para</string>
+    <string name="achievement_cubes">Açılan Küpler</string>
+    <string name="achievement_powerups">Güçlendirme Toplayıcısı</string>
+    <string name="achievement_boxes">Kutu Avcısı</string>
+    <string name="achievement_bubbles">Dev Baloncuk</string>
+    <string name="achievement_bounces">Duvar Zıplayıcısı</string>
+    <string name="achievement_center">Ortada Kal</string>
+    
+    <string name="medal_bronze">Bronz</string>
+    <string name="medal_silver">Gümüş</string>
+    <string name="medal_diamond">Elmas</string>
+    <string name="cd_offer_coins">%1$s para teklif et</string>
+    <string name="cd_buy_coins">%1$s paraya satın al</string>
+    <string name="wardrobe_buy">SATIN AL&#x2009;</string>
+    <string name="shop_reset_progress">İLERLEMEYİ SİL</string>
+    <string name="shop_reset_question">İLERLEME SİLİNSİN Mİ?</string>
+    <string name="shop_reset_explanation">Tüm paralar, yükseltmeler, tasarımlar, başarılar ve puanlar silinsin mi?\nBu geri alınamaz.</string>
+    <string name="shop_cancel">İPTAL</string>
+    <string name="shop_reset">SİL</string>
+    <string name="shop_reset_failed">İlerleme silinemedi. Lütfen tekrar dene.</string>
+    <string name="void_line_1">Bu yükseltme hiçbir işe yaramadı.</string>
+    <string name="void_line_3">İyi yatırım yapılmış paralar :)</string>
+    <string name="void_line_4">Her şey parlıyor.</string>
+    <string name="void_line_8">Hayatın anlamı bir sonraki sefer açıklanacak.</string>
+    <string name="void_line_9">Galerimde bir rüyamda çektiğim bir fotoğraf var.</string>
+    <string name="void_line_10">gardırobuna bir bak 👀</string>
+    <string name="void_line_12">ŞİŞE YARI DOLU!!!!</string>
+    <string name="void_line_14">(Sen) mutlu olacaksın.</string>
+    <string name="void_line_15">İşte hapın ve odan.</string>
+    <string name="void_line_16">Lav lambasını ocakta ısıtma.</string>
+    <string name="void_line_17">İzler olacak.</string>
+    <string name="void_line_18">Kaç boyut var?</string>
+    <string name="void_line_20">Gardırobuna bir daha bak :)</string>
+    <string name="void_line_21">artık yükseltme yok</string>
+    <string name="void_line_22">bana güven, artık yükseltme yok</string>
+    <string name="void_line_23">Vergiler?</string>
+    <string name="void_line_24">Vergiler.</string>
+    <string name="void_line_28">KENDİNE İNAN</string>
+    <string name="void_line_29">ancak bittiğinde biter.</string>
+    <string name="void_line_30">Baloncuk?</string>
+</resources>

@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ability_gold_bubble">Altın Baloncuk</string>
+    <string name="ability_gold_bubble_detail">Baloncuğun aktifken paralar yüzde 60 daha değerli!</string>
+    <string name="game_purple_cube">Mor Küp</string>
+    <string name="ability_toxic_fortune">Zehirli Şans</string>
+    <string name="ability_toxic_fortune_detail" formatted="false">Paralar yüzde 60 daha değerli, ama yüzde 1 kadarı yeşil ve seni anında öldürür!</string>
+    <string name="achievement_pile_driver">Çarpma Darbesi</string>
+    <string name="achievement_goal_pile_driver">Bir koşuda 300 kez zemin ezmesi yap.</string>
+    <string name="achievement_greed">Açgözlülük</string>
+    <string name="achievement_goal_greed">Riskli bir noktada sürpriz kutusu toplarken öl.</string>
+    <string name="ability_gigajump">Giga Zıplama</string>
+    <string name="ability_gigajump_detail">Baloncuğun aktifken iki kat yükseğe zıpla!</string>
+    <string name="ability_close_shave">Kıl Payı</string>
+    <string name="ability_close_shave_detail">Kıl payı çarpışmalar sana üç kat bonus puan verir!</string>
+    <string name="ability_mind_synergy">GİZLİ YETENEK: ZİHİN SİNERJİSİ</string>
+    <string name="ability_mind_synergy_detail">BALONCUĞUN YÜZDE 30 DAHA UZUN SÜRER VE AKTİF OLDUĞU SÜRECE ÜÇ KEZ ZIPLAYABİLİRSİN!!!</string>
+    <string name="ability_bubble_haul">Baloncuk Ganimeti</string>
+    <string name="ability_bubble_haul_detail">Baloncuk toplamaları sana 2 baloncuk verir!</string>
+    <string name="ability_bubble_dividend">Baloncuk Temettüsü</string>
+    <string name="ability_bubble_dividend_detail">Bir koşuda her 200 toplanan para için 1 ücretsiz baloncuk al!</string>
+    <string name="ability_coal_alchemy">GİZLİ YETENEK: BASKI ALTINDA</string>
+    <string name="ability_coal_alchemy_detail">1000 puandan sonra kömür yavaş yavaş tanesi 3 para değerinde değerli taşlara dönüşür. 3000 puanda tüm kömür değerli taş olmuş olur!</string>
+</resources>

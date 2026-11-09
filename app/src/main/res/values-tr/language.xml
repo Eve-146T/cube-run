@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="languages_title">Diller</string>
+    <string name="cd_languages">Dil seç</string>
+    <string name="language_option">%1$s, %2$s</string>
+    <string name="country_turkiye">Türkiye</string>
+    <string name="country_us">Amerika Birleşik Devletleri</string>
+    <string name="country_germany">Almanya</string>
+    <string name="country_israel">İsrail</string>
+    <string name="tap_to_start">BAŞLAMAK İÇİN DOKUN</string>
+</resources>
