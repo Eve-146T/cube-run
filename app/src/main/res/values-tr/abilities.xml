@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="game_gambler">Kumarbaz</string><string name="game_cloud">Bulut</string><string name="game_black_void">Kara Boşluk</string><string name="game_event_horizon">Olay Ufku</string><string name="game_afterimage">Ardıl Görüntü</string>
+    <string name="ability_phase_detail">Her koşuda bir kez bir engelin içinden geç!</string><string name="ability_speed_detail" formatted="false">Küpün yüzde 30 daha hızlı koşar!</string>
+    <string name="ability_bubble_saver_detail" formatted="false">Yüzde 35 ihtimalle baloncuğun kullanıldığında korunur!</string>
+    <string name="ability_midas">Küçük Midas Parmağı</string><string name="ability_midas_detail" formatted="false">Toplanan paralar yüzde 20 daha değerli!</string>
+    <string name="ability_zappy">Şimşek</string><string name="ability_zappy_detail">Şeritler arasında ışık hızıyla ışınlan!</string>
+    <string name="ability_power_stretch">Güçlendirme Uzatıcı</string><string name="ability_power_stretch_detail" formatted="false">Güçlendirmelerin yüzde 25 daha uzun sürer!</string>
+    <string name="ability_quick_bubble">Hızlı Baloncuk</string><string name="ability_quick_bubble_detail" formatted="false">Sıradaki baloncuk yüzde 30 daha erken hazır olur!</string>
+    <string name="ability_coal_detail">Her parayı kömüre dönüştürür. Kömür değersizdir.</string>
+    <string name="ability_lottery">Piyango</string><string name="ability_lottery_detail">Toplanan tüm paralar ve hediyeler piyangoya harcanır.</string>
+    <string name="ability_floaty">Süzülme</string><string name="ability_floaty_detail">Küpün tüy gibi hafifler!</string>
+    <string name="ability_double_jump">Çift Zıplama</string><string name="ability_double_jump_detail">Baloncuğun aktifken iki kez zıpla!</string>
+    <string name="ability_long_bubble">Uzun Baloncuk</string><string name="ability_long_bubble_detail" formatted="false">Baloncuğun yüzde 30 daha uzun sürer!</string>
+    <string name="lottery_explanation">Toplanan tüm paralar ve hediyeler piyangoya harcanır!\n\nJackpot 250000%1$s. İşte şanslar:</string>
+    <string name="lottery_one_in">1 / 100000</string><string name="lottery_per_coin">para değeri başına</string><string name="lottery_per_box">hediye başına</string>
+    <string name="game_zen">Zen</string><string name="ability_zen">Zen</string><string name="ability_zen_detail">Engeller çözülür. Sadece Keşiş Meydan Okuması sayılır. Sadece yuvarlan.</string>
+    <string name="ability_calm">Sükunet</string><string name="ability_calm_detail">Dünyanın üzerine hafif bir pus iner ve renklerini yumuşatır.</string>
+    <string name="ability_smol">Minik</string>
+    <string name="ability_smol_detail">Kirişlerin altından eğilmeden geçebilecek kadar küçük!</string>
+    <string name="ability_bubble_score">Çift Puan</string><string name="ability_bubble_score_detail">Baloncuğun aktifken iki kat hızlı puan kazan!</string>
+    <string name="ability_pound_magnet">Ezme Mıknatısı</string><string name="ability_pound_magnet_detail">Baloncuğun aktifken zemin ezmeleri yakındaki paraları çeker!</string>
+    <string name="ability_bubble_slowmo">Ağır Çekim</string><string name="ability_bubble_slowmo_detail">Baloncuğun aktifken dünya yavaşlar!</string>
+</resources>
